@@ -489,8 +489,7 @@ function addIncomeStream() {
   document.getElementById('new-stream-amount').value = '';
   document.getElementById('new-stream-biweekly').checked = false;
   saveToStorage();
-  renderIncome();
-  renderIncomeStreams();
+  renderAll();
 }
 
 function openEditIncomeStream(id) {
@@ -514,8 +513,7 @@ function openEditIncomeStream(id) {
       if (!name || isNaN(amount)) return;
       Object.assign(stream, { name, amount, biweekly });
       saveToStorage();
-      renderIncome();
-      renderIncomeStreams();
+      renderAll();
       closeModal();
     }
   );
@@ -525,8 +523,7 @@ function deleteIncomeStream(id) {
   if (!confirm('Remove this income stream?')) return;
   state.incomeStreams = state.incomeStreams.filter(s => s.id !== id);
   saveToStorage();
-  renderIncome();
-  renderIncomeStreams();
+  renderAll();
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -618,13 +615,13 @@ function addPurchase() {
   document.getElementById('purchase-name').value   = '';
   document.getElementById('purchase-amount').value = '';
   saveToStorage();
-  renderWants();
+  renderAll();
 }
 
 function removePurchase(id) {
   state.purchases = state.purchases.filter(p => p.id !== id);
   saveToStorage();
-  renderWants();
+  renderAll();
 }
 
 /**
@@ -647,7 +644,7 @@ function resetWants() {
 
   state.purchases = [];
   saveToStorage();
-  renderWants();
+  renderAll();
 
   // Refresh analytics panel if it is currently visible
   const panel = document.getElementById('analytics-panel');
@@ -1278,7 +1275,7 @@ function addExpense(cardId) {
   document.getElementById('new-amount-' + cardId).value   = '';
   document.getElementById('new-bw-'     + cardId).checked = false;
   saveToStorage();
-  renderExpenseCards();
+  renderAll();
 }
 
 function removeExpense(cardId, itemId) {
@@ -1286,7 +1283,7 @@ function removeExpense(cardId, itemId) {
   if (!card) return;
   card.items = card.items.filter(i => i.id !== itemId);
   saveToStorage();
-  renderExpenseCards();
+  renderAll();
 }
 
 function openAddExpenseCard() {
@@ -1298,7 +1295,7 @@ function openAddExpenseCard() {
       if (!label) return;
       state.expenseCards.push({ id: genId(), label, items: [] });
       saveToStorage();
-      renderExpenseCards();
+      renderAll();
       closeModal();
     }
   );
@@ -1315,7 +1312,7 @@ function openEditExpenseCard(id) {
       if (!label) return;
       card.label = label;
       saveToStorage();
-      renderExpenseCards();
+      renderAll();
       closeModal();
     }
   );
@@ -1325,7 +1322,7 @@ function deleteExpenseCard(id) {
   if (!confirm('Delete this payment card and all its expenses?')) return;
   state.expenseCards = state.expenseCards.filter(c => c.id !== id);
   saveToStorage();
-  renderExpenseCards();
+  renderAll();
 }
 
 // ────────────────────────────────────────────────────────────────
