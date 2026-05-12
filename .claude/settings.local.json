@@ -21,7 +21,11 @@
       "Bash(git commit -m 'refactor: Remove '\\\\''Edit Values'\\\\'' tab - consolidate to dashboard-only UI *)",
       "Bash(git commit -m 'feat: Add inline budget allocation editing with validation *)",
       "Bash(git commit -m 'debug: Add console logging to Budget vs. Actual calculations *)",
-      "Bash(git commit -m 'feat: Add explanatory text and clear data functionality *)"
+      "Bash(git commit -m 'feat: Add explanatory text and clear data functionality *)",
+      "Bash(git commit -m 'docs: Add CSV import template and guide for users *)",
+      "Bash(mkdir -p src data docs)",
+      "Bash(git mv *)",
+      "Bash(git commit -m 'refactor: Reorganize project structure for scalability *)"
     ]
   }
 }
