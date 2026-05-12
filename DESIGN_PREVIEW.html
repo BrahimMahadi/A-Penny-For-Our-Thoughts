@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phase 0 Design Preview — A Penny For Our Thoughts</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* Preview-specific overrides */
+    body {
+      padding-bottom: 40px;
+    }
+    .preview-header {
+      background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+      border-bottom: 2px solid var(--accent);
+      padding: 20px 32px;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    .preview-header h1 {
+      font-family: var(--font-display);
+      font-size: 32px;
+      color: var(--accent);
+      margin: 0 0 8px;
+    }
+    .preview-header p {
+      color: var(--muted);
+      margin: 0;
+      font-size: 14px;
+    }
+    .preview-section {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 32px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="preview-header">
+  <h1>✨ Phase 0 Design Preview</h1>
+  <p>Bloomberg-Style Professional Aesthetic — See the new design in action</p>
+</div>
+
+<div class="preview-section">
+
+<!-- ══════════════════════════════════════
+     METRICS CARDS
+══════════════════════════════════════ -->
+<div class="section-title">Key Metrics — Enhanced Typography & Colors</div>
+
+<div class="grid grid-4">
+  <div class="card accent kpi-card">
+    <div class="card-title">Total Monthly Income</div>
+    <div class="card-value">$4,500</div>
+    <div class="card-sub">from 2 income streams</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Needs Budget</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div>
+        <div style="font-size:26px;font-weight:800">$2,250</div>
+        <div class="card-sub">50% of income</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Wants Budget</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div>
+        <div style="font-size:26px;font-weight:800">$1,350</div>
+        <div class="card-sub">30% of income</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card warn">
+    <div class="card-title">Savings Budget</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div>
+        <div style="font-size:26px;font-weight:800">$900</div>
+        <div class="card-sub">20% of income</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="color: var(--muted); font-size: 12px; margin-top: 20px; padding: 12px; background: var(--surface2); border-radius: 6px; border-left: 3px solid var(--accent);">
+  <strong>Note:</strong> Large metric numbers use bold sans-serif (weight 800-900) for professional appearance. Cards have improved spacing, borders, and hover effects. Visual hierarchy maintained through size, weight, and color.
+</p>
+
+<!-- ══════════════════════════════════════
+     BUDGET ALLOCATION BAR
+══════════════════════════════════════ -->
+<div class="section-title">Budget Allocation — Gradient Progress Bar</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <span style="font-size:13px;font-weight:600">Budget Allocation</span>
+    <div style="display:flex;gap:16px;font-size:12px;flex-wrap:wrap">
+      <span style="color:#6c63ff">■ Needs <span>50</span>%</span>
+      <span style="color:#00d4aa">■ Wants <span>30</span>%</span>
+      <span style="color:#ffa63d">■ Savings <span>20</span>%</span>
+    </div>
+  </div>
+  <div class="split-bar">
+    <div class="split-seg" style="background:#6c63ff;width:50%"></div>
+    <div class="split-seg" style="background:#00d4aa;width:30%"></div>
+    <div class="split-seg" style="background:#ffa63d;width:20%"></div>
+  </div>
+</div>
+
+<p style="color: var(--muted); font-size: 12px; margin-top: 20px; padding: 12px; background: var(--surface2); border-radius: 6px; border-left: 3px solid var(--accent2);">
+  <strong>Updated:</strong> Progress bar now uses gradient fills and has better contrast with refined borders.
+</p>
+
+<!-- ══════════════════════════════════════
+     PROGRESS & DATA VISUALIZATION
+══════════════════════════════════════ -->
+<div class="section-title">Progress Tracking — Enhanced Styling</div>
+
+<div class="card">
+  <div style="margin-bottom: 20px;">
+    <div class="progress-label">
+      <span>Savings Goal: Emergency Fund</span>
+      <span>45% Complete</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" style="width:45%;"></div>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <div class="progress-label">
+      <span>Savings Goal: Vacation Fund</span>
+      <span>72% Complete</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" style="width:72%;"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="progress-label">
+      <span>Savings Goal: New Car</span>
+      <span>28% Complete</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" style="width:28%;"></div>
+    </div>
+  </div>
+</div>
+
+<p style="color: var(--muted); font-size: 12px; margin-top: 20px; padding: 12px; background: var(--surface2); border-radius: 6px; border-left: 3px solid #00d4aa;">
+  <strong>Enhanced:</strong> Progress bars now feature gradient fills and subtle borders for a more professional appearance.
+</p>
+
+<!-- ══════════════════════════════════════
+     FORM CONTROLS
+══════════════════════════════════════ -->
+<div class="section-title">Form Controls — Professional Styling</div>
+
+<div class="card">
+  <div style="display: grid; gap: 16px;">
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <label style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);">Income Stream Name</label>
+      <input type="text" placeholder="e.g., Primary Job" value="Primary Job" />
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);">Monthly Amount</label>
+        <input type="number" placeholder="$0.00" value="3500" />
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);">Frequency</label>
+        <select>
+          <option>Monthly</option>
+          <option>Bi-weekly</option>
+          <option>Weekly</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 8px;">
+      <button class="btn">Save Changes</button>
+      <button class="btn secondary">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<p style="color: var(--muted); font-size: 12px; margin-top: 20px; padding: 12px; background: var(--surface2); border-radius: 6px; border-left: 3px solid var(--warn);">
+  <strong>Improved:</strong> Form inputs have clearer labels, better focus states (blue glow), and professional padding. Try clicking on an input to see the new focus styling!
+</p>
+
+<!-- ══════════════════════════════════════
+     BUTTONS & INTERACTIONS
+══════════════════════════════════════ -->
+<div class="section-title">Buttons — Professional & Interactive</div>
+
+<div class="card" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start;">
+  <button class="btn">Primary Action</button>
+  <button class="btn secondary">Secondary Action</button>
+  <button class="btn sm">Small Button</button>
+  <button class="btn xs secondary">XS Button</button>
+  <button class="btn danger sm">Delete</button>
+  <button class="btn warn sm">Warning</button>
+</div>
+
+<p style="color: var(--muted); font-size: 12px; margin-top: 20px; padding: 12px; background: var(--surface2); border-radius: 6px; border-left: 3px solid #ff4d6d;">
+  <strong>Enhanced:</strong> Buttons now have smooth hover effects with a subtle lift animation. They respond immediately to clicks with visual feedback.
+</p>
+
+<!-- ══════════════════════════════════════
+     COLOR PALETTE SHOWCASE
+══════════════════════════════════════ -->
+<div class="section-title">Color Palette — Professional & Refined</div>
+
+<div class="grid grid-5" style="margin-bottom: 20px;">
+  <div class="card" style="text-align: center; border-color: var(--accent);">
+    <div style="font-size: 32px; color: var(--accent); font-weight: 800; margin-bottom: 4px;">●</div>
+    <div style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">Accent</div>
+    <div style="font-size: 12px; color: var(--text); margin-top: 8px;">#6c63ff</div>
+  </div>
+
+  <div class="card" style="text-align: center; border-color: var(--accent2);">
+    <div style="font-size: 32px; color: var(--accent2); font-weight: 800; margin-bottom: 4px;">●</div>
+    <div style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">Success</div>
+    <div style="font-size: 12px; color: var(--text); margin-top: 8px;">#00d4aa</div>
+  </div>
+
+  <div class="card" style="text-align: center; border-color: var(--warn);">
+    <div style="font-size: 32px; color: var(--warn); font-weight: 800; margin-bottom: 4px;">●</div>
+    <div style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">Warning</div>
+    <div style="font-size: 12px; color: var(--text); margin-top: 8px;">#ffa63d</div>
+  </div>
+
+  <div class="card" style="text-align: center; border-color: var(--danger);">
+    <div style="font-size: 32px; color: var(--danger); font-weight: 800; margin-bottom: 4px;">●</div>
+    <div style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">Danger</div>
+    <div style="font-size: 12px; color: var(--text); margin-top: 8px;">#ff4d6d</div>
+  </div>
+
+  <div class="card" style="text-align: center;">
+    <div style="font-size: 32px; color: var(--text); font-weight: 800; margin-bottom: 4px;">A</div>
+    <div style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">Text</div>
+    <div style="font-size: 12px; color: var(--text); margin-top: 8px;">#e8eaf0</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     THEME TOGGLE
+══════════════════════════════════════ -->
+<div class="section-title">Try the Light Theme</div>
+
+<div class="card" style="text-align: center;">
+  <p style="color: var(--muted); margin-bottom: 12px;">Click the theme toggle button in the actual dashboard to see how the new design adapts to light mode.</p>
+  <button class="btn secondary" onclick="toggleTheme()">🌙 Toggle Theme (Light/Dark)</button>
+</div>
+
+<!-- ══════════════════════════════════════
+     KEY IMPROVEMENTS SUMMARY
+══════════════════════════════════════ -->
+<div class="section-title">Key Improvements Summary</div>
+
+<div class="card">
+  <div style="display: grid; gap: 14px;">
+    <div>
+      <h4 style="font-size: 18px; font-weight: 800; color: var(--accent); margin: 0 0 6px;">🔤 Typography</h4>
+      <p style="color: var(--text); margin: 0; font-size: 14px;">Pure sans-serif typography throughout. Large metric numbers use bold weight (800-900) for visual emphasis. Visual hierarchy achieved through size, weight, and color—perfect for web readability.</p>
+    </div>
+
+    <div>
+      <h4 style="font-size: 18px; font-weight: 800; color: var(--accent2); margin: 0 0 6px;">🎨 Colors</h4>
+      <p style="color: var(--text); margin: 0; font-size: 14px;">Refined color palette with better contrast. Dark theme now features deeper backgrounds (#0a0e1a) with improved surface levels for visual hierarchy and distinction.</p>
+    </div>
+
+    <div>
+      <h4 style="font-size: 18px; font-weight: 800; color: var(--warn); margin: 0 0 6px;">⚡ Interactions</h4>
+      <p style="color: var(--text); margin: 0; font-size: 14px;">Smooth transitions (0.15s-0.25s) with clear hover states. Buttons lift on hover, form inputs show blue glow on focus, and validations display clear color feedback.</p>
+    </div>
+
+    <div>
+      <h4 style="font-size: 18px; font-weight: 800; color: var(--muted); margin: 0 0 6px;">📐 Spacing</h4>
+      <p style="color: var(--text); margin: 0; font-size: 14px;">Professional padding and spacing throughout. Cards have more breathing room (24px padding), modals are more prominent (520px max-width), and forms have clear field separation.</p>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const newTheme = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+  alert(`Switched to ${newTheme} theme! Notice how all colors and styling adapt smoothly.`);
+}
+</script>
+
+</body>
+</html>

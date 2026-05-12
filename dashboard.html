@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<!--
+  Module:   dashboard.html
+  Project:  A Penny For Our Thoughts
+  Created:  May 2026
+  Modified: May 2026 — dynamic expense cards, income streams,
+            spending analytics panel, CSV export/import
+  Summary:  App shell — tab layout, all section markup,
+            and the reusable modal overlay.
+            Styles → styles.css | Logic → app.js
+-->
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A Penny For Our Thoughts 💸</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     HEADER
+══════════════════════════════════════ -->
+<header>
+  <span style="font-size:22px">💸</span>
+  <h1>A Penny For Our Thoughts</h1>
+  <div class="header-right">
+    <span class="header-date" id="header-date"></span>
+    <button class="btn sm secondary" onclick="exportCsv()" title="Export all data to CSV">⬇ Export</button>
+    <label class="btn sm secondary" title="Import data from CSV" style="cursor:pointer;margin:0">
+      ⬆ Import
+      <input type="file" id="csv-import-input" accept=".csv" onchange="importCsv(event)" style="display:none" />
+    </label>
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light / dark mode">🌙</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+  <button class="tab-btn" onclick="switchTab('edit')">Edit Values</button>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     DASHBOARD TAB
+══════════════════════════════════════ -->
+<div id="tab-dashboard" class="page active">
+
+  <!-- ── Income Overview ── -->
+  <div class="section-title">Income Overview</div>
+
+  <!-- Stat cards: 4 derived values -->
+  <div class="grid grid-4" id="income-stat-cards">
+    <div class="card accent">
+      <div class="card-title">Total Monthly Income</div>
+      <div class="card-value" id="disp-income">—</div>
+      <div class="card-sub" id="disp-income-sub">from all streams</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Needs Budget</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div>
+          <div style="font-size:26px;font-weight:800" id="disp-needs">—</div>
+          <div class="card-sub" id="disp-needs-pct-label">— of income</div>
+        </div>
+        <button class="btn xs secondary" onclick="toggleBudgetMode('needs')">
+          <span id="needs-toggle-label">Monthly</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Wants Budget</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div>
+          <div style="font-size:26px;font-weight:800" id="disp-wants">—</div>
+          <div class="card-sub">
+            <span id="disp-wants-pct-label">— of income</span> ·
+            <span id="disp-biwants" style="color:var(--accent2)">—</span> bi-wk
+          </div>
+        </div>
+        <button class="btn xs secondary" onclick="toggleBudgetMode('wants')">
+          <span id="wants-toggle-label">Monthly</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="card warn">
+      <div class="card-title">Savings Budget</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div>
+          <div style="font-size:26px;font-weight:800" id="disp-savings-income">—</div>
+          <div class="card-sub">
+            <span id="disp-savings-pct-label">— of income</span> ·
+            <span id="disp-savings-biweekly" style="color:var(--warn)">—</span> bi-wk
+          </div>
+        </div>
+        <button class="btn xs secondary" onclick="toggleBudgetMode('savings')">
+          <span id="savings-toggle-label">Monthly</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Budget Allocation Bar -->
+  <div class="card" style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <span style="font-size:13px;font-weight:600">Budget Allocation</span>
+      <div style="display:flex;gap:16px;font-size:12px;flex-wrap:wrap">
+        <span style="color:#6c63ff">■ Needs <span id="bar-needs-pct">50</span>%</span>
+        <span style="color:#00d4aa">■ Wants <span id="bar-wants-pct">30</span>%</span>
+        <span style="color:#ffa63d">■ Savings <span id="bar-savings-pct">20</span>%</span>
+      </div>
+    </div>
+    <div class="split-bar">
+      <div class="split-seg" id="seg-needs"   style="background:#6c63ff"></div>
+      <div class="split-seg" id="seg-wants"   style="background:#00d4aa"></div>
+      <div class="split-seg" id="seg-savings" style="background:#ffa63d"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:6px;flex-wrap:wrap;gap:4px">
+      <span id="bar-needs">—</span>
+      <span id="bar-wants">—</span>
+      <span id="bar-savings">—</span>
+    </div>
+  </div>
+
+  <!-- Income Streams (CRUD) -->
+  <div class="card" style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span style="font-size:13px;font-weight:700">Income Streams</span>
+      <span class="chip purple" id="income-stream-count">0 streams</span>
+    </div>
+    <ul class="income-stream-list" id="income-stream-list"></ul>
+    <div id="income-empty-state" class="empty-state" style="display:none">
+      <div>💰</div>
+      <div>No income streams yet — add one below</div>
+    </div>
+    <div class="add-item-form" style="margin-top:12px">
+      <input id="new-stream-name"   placeholder="Stream name (e.g. Government)" style="flex:2" />
+      <input id="new-stream-amount" type="number" placeholder="$0.00" min="0" step="0.01" style="max-width:110px" />
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);white-space:nowrap;cursor:pointer">
+        <input type="checkbox" id="new-stream-biweekly" /> Bi-weekly
+      </label>
+      <button class="btn sm" onclick="addIncomeStream()">Add</button>
+    </div>
+  </div>
+
+
+  <!-- ── Wants Tracker ── -->
+  <div class="section-title">Wants Tracker</div>
+  <div class="card">
+    <!-- Current period header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="card-title">Remaining</div>
+        <div style="font-size:28px;font-weight:800;color:var(--accent2)" id="disp-wants-remaining-amt">—</div>
+        <div style="font-size:12px;color:var(--muted)" id="disp-wants-remaining-label">remaining</div>
+      </div>
+      <div>
+        <div class="card-title">Bi-Weekly Envelope</div>
+        <div style="font-size:28px;font-weight:800" id="disp-biwants2">—</div>
+        <div id="wants-status-chip" style="margin-top:6px"></div>
+      </div>
+      <div style="text-align:right">
+        <div class="card-title">Spent</div>
+        <div style="font-size:28px;font-weight:800;color:var(--danger)" id="disp-wants-spent">—</div>
+        <div style="font-size:12px;color:var(--muted)">of bi-wk envelope</div>
+      </div>
+    </div>
+
+    <!-- Donut + purchase list -->
+    <div class="wants-row">
+      <div class="wants-chart-wrap">
+        <canvas id="wantsDonut"></canvas>
+        <div class="wants-center-text">
+          <div class="big" id="donut-pct">—</div>
+          <div class="sm">used</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px">Purchases This Period</div>
+        <ul class="purchase-list" id="purchase-list"></ul>
+        <div class="add-row">
+          <input id="purchase-name"   placeholder="Item name"  style="flex:2;min-width:120px" />
+          <input id="purchase-amount" placeholder="$0.00"      style="max-width:90px" />
+          <button class="btn sm" onclick="addPurchase()">Add</button>
+          <button class="btn sm danger" onclick="resetWants()">Reset Period</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analytics toggle -->
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn sm secondary" id="analytics-toggle-btn" onclick="toggleAnalyticsPanel()" style="width:100%">
+        📊 Show Spending Analytics
+      </button>
+      <!-- Analytics panel (hidden by default) -->
+      <div id="analytics-panel" style="display:none;margin-top:16px">
+
+        <!-- Filters -->
+        <div class="analytics-filters" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">From Date</label>
+            <input type="date" id="analytics-filter-start" onchange="updateAnalyticsFilters()" style="padding:6px 8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:6px;font-size:12px" />
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">To Date</label>
+            <input type="date" id="analytics-filter-end" onchange="updateAnalyticsFilters()" style="padding:6px 8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:6px;font-size:12px" />
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:160px">
+            <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">Search Purchases</label>
+            <input type="text" id="analytics-filter-search" placeholder="Filter by item name..." oninput="updateAnalyticsFilters()" style="padding:6px 8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:6px;font-size:12px" />
+          </div>
+          <button class="btn xs secondary" onclick="resetAnalyticsFilters()" title="Clear all filters">↺ Reset</button>
+        </div>
+
+        <!-- Summary stats -->
+        <div class="analytics-stats-row" id="analytics-stats"></div>
+
+        <!-- Charts -->
+        <div class="grid grid-2" style="margin:16px 0">
+          <div class="analytics-chart-box">
+            <div class="analytics-chart-title">Spending Per Period</div>
+            <canvas id="analyticsLine"></canvas>
+          </div>
+          <div class="analytics-chart-box">
+            <div class="analytics-chart-title">Top Categories (All Time)</div>
+            <canvas id="analyticsBar"></canvas>
+          </div>
+        </div>
+
+        <!-- Period history -->
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px">
+          Period History
+        </div>
+        <div id="analytics-history"></div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ── Monthly Expenses ── -->
+  <div class="section-title">Monthly Expenses</div>
+
+  <!-- Summary row -->
+  <div class="grid grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">Total Monthly Expenses</div>
+      <div style="font-size:28px;font-weight:800" id="disp-grand-total">—</div>
+      <div style="font-size:12px;color:var(--muted)" id="disp-card-count">across all payment cards</div>
+    </div>
+    <div class="card" id="needs-status-card">
+      <div class="card-title">Needs Budget Remaining</div>
+      <div style="font-size:28px;font-weight:800" id="disp-needs-remaining">—</div>
+      <div style="font-size:12px;color:var(--muted)" id="disp-needs-used-pct">—</div>
+    </div>
+  </div>
+
+  <!-- Dynamic payment cards grid -->
+  <div class="grid grid-3" id="expense-cards-grid"></div>
+
+  <!-- Empty state + add button -->
+  <div id="expense-empty-state" class="empty-state card" style="display:none;margin-top:0">
+    <div>💳</div>
+    <div>No payment cards yet</div>
+    <div style="font-size:12px;color:var(--muted)">Add a card below to start tracking expenses</div>
+  </div>
+  <div style="margin-top:12px">
+    <button class="btn sm secondary" onclick="openAddExpenseCard()">+ Add Payment Card</button>
+  </div>
+
+
+  <!-- ── Loans ── -->
+  <div class="section-title">Loans</div>
+  <div id="loans-grid" class="grid grid-3"></div>
+  <div style="margin-top:12px">
+    <button class="btn sm secondary" onclick="openAddLoan()">+ Add Loan</button>
+  </div>
+
+
+  <!-- ── Credit Card Utilization ── -->
+  <div class="section-title">Credit Card Utilization</div>
+  <div class="grid grid-2">
+    <div class="card">
+      <div id="cc-bars-container"></div>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+          <span style="font-size:13px;font-weight:700">Total Utilization</span>
+          <span id="cc-total-chip"></span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">
+          <span id="cc-total-balance">—</span> of <span id="cc-total-limit">—</span>
+          · Target: stay below $1,650
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn sm secondary" onclick="openAddCreditCard()" style="width:100%">+ Add Card</button>
+      </div>
+    </div>
+    <div class="card">
+      <canvas id="ccBar" height="220"></canvas>
+    </div>
+  </div>
+
+
+  <!-- ── Savings ── -->
+  <div class="section-title">Savings</div>
+  <div class="card">
+    <div class="savings-header">
+      <div class="savings-totals">
+        <div class="savings-stat">
+          <div class="s-label">Monthly Target</div>
+          <div class="s-value" id="disp-savings" style="color:var(--warn)">—</div>
+        </div>
+        <div class="savings-stat">
+          <div class="s-label">Total Allocated</div>
+          <div class="s-value" id="disp-savings-allocated" style="color:var(--accent2)">—</div>
+        </div>
+        <div class="savings-stat">
+          <div class="s-label">Unallocated</div>
+          <div class="s-value" id="disp-savings-unallocated">—</div>
+        </div>
+        <div class="savings-stat">
+          <div class="s-label">Available Balance</div>
+          <div class="s-value" id="disp-savings-available" style="color:var(--accent)">—</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div class="progress-label">
+        <span>Allocation progress</span>
+        <span id="savings-alloc-pct">—</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="savings-alloc-bar" style="background:var(--accent2)"></div>
+      </div>
+    </div>
+    <ul class="savings-accounts-list" id="savings-accounts-list"></ul>
+    <div class="add-item-form" style="margin-top:12px">
+      <input id="new-savings-name"   placeholder="Account name" style="flex:2" />
+      <input id="new-savings-amount" type="number" placeholder="$0.00" min="0" step="0.01" />
+      <button class="btn sm" onclick="addSavingsAccount()">Add Account</button>
+    </div>
+  </div>
+
+
+  <!-- ── Subscriptions ── -->
+  <div class="section-title">Subscription Renewals</div>
+  <div class="card">
+    <ul class="sub-list" id="sub-list"></ul>
+    <div class="add-item-form" style="margin-top:12px">
+      <input id="new-sub-name" placeholder="Service name" style="flex:2" />
+      <input id="new-sub-date" type="date" />
+      <button class="btn sm" onclick="addSubscription()">Add</button>
+    </div>
+  </div>
+
+
+  <!-- ── Wishlist ── -->
+  <div class="section-title">Upcoming Wants / Wishlist</div>
+  <div class="card">
+    <ul class="wishlist" id="wishlist"></ul>
+    <div class="add-item-form" style="margin-top:12px">
+      <input id="new-wish-icon" placeholder="🛒" style="max-width:56px;text-align:center" />
+      <input id="new-wish-name" placeholder="Item name" style="flex:2" />
+      <input id="new-wish-url"  placeholder="URL (optional)" style="flex:2" />
+      <button class="btn sm" onclick="addWishlistItem()">Add</button>
+    </div>
+  </div>
+
+</div><!-- end dashboard tab -->
+
+
+<!-- ══════════════════════════════════════
+     EDIT TAB
+══════════════════════════════════════ -->
+<div id="tab-edit" class="page">
+
+  <div class="edit-section">
+    <h3>Budget Allocation</h3>
+    <div class="alloc-row">
+      <div class="alloc-input-group">
+        <label>Needs %</label>
+        <input type="number" id="edit-alloc-needs"   min="0" max="100" step="1" oninput="updateAllocPreview()" />
+      </div>
+      <div class="alloc-input-group">
+        <label>Wants %</label>
+        <input type="number" id="edit-alloc-wants"   min="0" max="100" step="1" oninput="updateAllocPreview()" />
+      </div>
+      <div class="alloc-input-group">
+        <label>Savings %</label>
+        <input type="number" id="edit-alloc-savings" min="0" max="100" step="1" oninput="updateAllocPreview()" />
+      </div>
+    </div>
+    <div id="alloc-sum-display" class="alloc-sum ok">Total: 100% ✓</div>
+    <div class="split-bar" style="height:12px;margin-top:10px">
+      <div class="split-seg" id="edit-seg-needs"   style="background:#6c63ff"></div>
+      <div class="split-seg" id="edit-seg-wants"   style="background:#00d4aa"></div>
+      <div class="split-seg" id="edit-seg-savings" style="background:#ffa63d"></div>
+    </div>
+  </div>
+
+  <div class="edit-section">
+    <h3>Credit Cards</h3>
+    <div class="edit-grid" id="edit-cc-grid"></div>
+  </div>
+
+  <div class="edit-section">
+    <h3>Savings Available Balance</h3>
+    <div class="edit-grid">
+      <div class="field">
+        <label>Available Savings ($)</label>
+        <input type="number" id="edit-savings-available" step="0.01" />
+      </div>
+    </div>
+  </div>
+
+  <div class="save-bar">
+    <button class="btn secondary" onclick="loadFromStorage(); switchTab('dashboard')">Cancel</button>
+    <button class="btn" onclick="saveEdits()">Save Changes</button>
+  </div>
+
+</div><!-- end edit tab -->
+
+
+<!-- ══════════════════════════════════════
+     MODAL
+══════════════════════════════════════ -->
+<div id="modal-overlay" class="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Edit</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn" id="modal-save-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+
+<script src="app.js"></script>
+</body>
+</html>

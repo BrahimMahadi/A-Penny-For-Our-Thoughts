@@ -1,0 +1,38 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+*.swp
+*.swo
+
+# IDE & Editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
+# Node (if we add node deps later)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# OS temporary files
+Thumbs.db
+*.tmp
+
+# Build artifacts (if we add build later)
+dist/
+build/
+
+# LocalStorage backup (keep actual file, ignore backups)
+*.backup
+*.bak
