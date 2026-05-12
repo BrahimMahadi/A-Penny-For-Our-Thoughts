@@ -1,0 +1,59 @@
+SECTION:meta
+name,A Penny For Our Thoughts - Sample Data,value,Sample CSV for testing (May 2026)
+SECTION:allocation
+needs,wants,savings
+50,30,20
+SECTION:budgetDisplayMode
+needs,wants,savings
+monthly,monthly,monthly
+SECTION:savingsAvailable
+amount
+405
+SECTION:incomeStreams
+id,name,amount,biweekly
+income_1,Full-Time Salary,2500,false
+income_2,Freelance Work,600,true
+income_3,Investment Returns,200,false
+SECTION:expenseCards
+id,name,items
+expenses_1,Housing,"[{""id"":""item_1"",""name"":""Rent"",""amount"":1200,""biweekly"":false},{""id"":""item_2"",""name"":""Internet"",""amount"":80,""biweekly"":false},{""id"":""item_3"",""name"":""Utilities"",""amount"":120,""biweekly"":false}]"
+expenses_2,Groceries,"[{""id"":""item_4"",""name"":""Weekly Shopping"",""amount"":150,""biweekly"":false}]"
+expenses_3,Transportation,"[{""id"":""item_5"",""name"":""Car Insurance"",""amount"":120,""biweekly"":false},{""id"":""item_6"",""name"":""Gas"",""amount"":200,""biweekly"":false}]"
+SECTION:purchases
+id,name,amount,total
+purchase_1,Coffee,5.50,5.50
+purchase_2,Lunch,12.75,12.75
+purchase_3,Streaming Service,15.99,15.99
+purchase_4,Online Game,29.99,29.99
+SECTION:spendingHistory
+id,date,label,total,items
+history_1,2026-05-01,May 1-14 Period,487.23,"[{""name"":""Dining Out"",""amount"":120},{""name"":""Entertainment"",""amount"":85},{""name"":""Shopping"",""amount"":156},{""name"":""Subscriptions"",""amount"":50},{""name"":""Other"",""amount"":76.23}]"
+history_2,2026-04-15,April 15-30 Period,512.50,"[{""name"":""Dining Out"",""amount"":145},{""name"":""Entertainment"",""amount"":95},{""name"":""Shopping"",""amount"":170},{""name"":""Subscriptions"",""amount"":50},{""name"":""Other"",""amount"":52.50}]"
+SECTION:loans
+id,name,remaining,original
+loan_1,Car Loan,15172,23083
+loan_2,Student Loans,9641,11338
+loan_3,Phone Loan,919.44,1298.07
+SECTION:creditCards
+id,name,balance,limit
+cc_1,TD Small CC (9602),828.94,1000
+cc_2,TD Big CC (1252),817.60,2500
+cc_3,WealthSimple CC (1083),231,2000
+SECTION:subscriptions
+id,name,date
+sub_1,Netflix,2026-09-13
+sub_2,Spotify,2026-09-22
+sub_3,Cloud Storage,2027-04-17
+SECTION:wishlist
+id,icon,name,url
+wish_1,💻,"MacBook Pro 14"" M5 Pro — Space Black",https://www.apple.com/ca/shop/buy-mac/macbook-pro
+wish_2,🪑,Herman Miller Embody Gaming Chair,https://store.hermanmiller.com/gaming-chairs/embody-gaming-chair/100206608.html
+wish_3,🔊,Sennheiser AMBEO Soundbar + Subwoofer,https://www.amazon.ca/dp/B0B9CBWD95
+SECTION:savingsAccounts
+id,name,allocated
+sa_1,CC Payments,135
+sa_2,Crypto,135
+sa_3,FHSA,135
+sa_4,TFSA,135
+sa_5,USD Savings,67.50
+sa_6,Life with B&S,67.50
