@@ -361,6 +361,58 @@ function mField(label, id, type, value, placeholder, extraAttrs) {
     </div>`;
 }
 
+/** Open modal to edit budget allocation percentages */
+function openEditAllocation() {
+  const a = state.allocation || { needs: 50, wants: 30, savings: 20 };
+  const bodyHTML = `
+    ${mField('Needs %', 'alloc-needs', 'number', a.needs, '50', 'min="0" max="100" step="1" oninput="updateAllocValidation()"')}
+    ${mField('Wants %', 'alloc-wants', 'number', a.wants, '30', 'min="0" max="100" step="1" oninput="updateAllocValidation()"')}
+    ${mField('Savings %', 'alloc-savings', 'number', a.savings, '20', 'min="0" max="100" step="1" oninput="updateAllocValidation()"')}
+    <div id="alloc-validation" style="margin-top:12px;padding:8px;border-radius:4px;font-size:13px;font-weight:600;background:#3a4456;color:#8b95ad">
+      Total: <span id="alloc-total">100</span>%
+    </div>
+  `;
+
+  openModal(
+    'Edit Budget Allocation',
+    bodyHTML,
+    () => {
+      const n = parseFloat(document.getElementById('alloc-needs').value)   || 0;
+      const w = parseFloat(document.getElementById('alloc-wants').value)   || 0;
+      const s = parseFloat(document.getElementById('alloc-savings').value) || 0;
+
+      if (Math.round(n + w + s) !== 100) {
+        alert(`Budget allocation must sum to 100%. Currently: ${n + w + s}%`);
+        return;
+      }
+
+      state.allocation = { needs: n, wants: w, savings: s };
+      saveToStorage();
+      renderAll();
+      closeModal();
+    }
+  );
+
+  // Initial validation
+  updateAllocValidation();
+}
+
+/** Update validation display for allocation editing */
+function updateAllocValidation() {
+  const n = parseFloat(document.getElementById('alloc-needs').value)   || 0;
+  const w = parseFloat(document.getElementById('alloc-wants').value)   || 0;
+  const s = parseFloat(document.getElementById('alloc-savings').value) || 0;
+  const total = n + w + s;
+  const isValid = Math.round(total) === 100;
+
+  const display = document.getElementById('alloc-validation');
+  const totalSpan = document.getElementById('alloc-total');
+
+  totalSpan.textContent = total;
+  display.style.color = isValid ? '#00d4aa' : total > 100 ? '#ff4d6d' : '#ffa63d';
+  display.style.fontWeight = isValid ? '600' : '700';
+}
+
 // ────────────────────────────────────────────────────────────────
 // RENDER — INCOME OVERVIEW
 // ────────────────────────────────────────────────────────────────

@@ -107,10 +107,13 @@
   <div class="card" style="margin-top:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
       <span style="font-size:13px;font-weight:600">Budget Allocation</span>
-      <div style="display:flex;gap:16px;font-size:12px;flex-wrap:wrap">
-        <span style="color:#6c63ff">■ Needs <span id="bar-needs-pct">50</span>%</span>
-        <span style="color:#00d4aa">■ Wants <span id="bar-wants-pct">30</span>%</span>
-        <span style="color:#ffa63d">■ Savings <span id="bar-savings-pct">20</span>%</span>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;gap:16px;font-size:12px;flex-wrap:wrap">
+          <span style="color:#6c63ff">■ Needs <span id="bar-needs-pct">50</span>%</span>
+          <span style="color:#00d4aa">■ Wants <span id="bar-wants-pct">30</span>%</span>
+          <span style="color:#ffa63d">■ Savings <span id="bar-savings-pct">20</span>%</span>
+        </div>
+        <button class="btn xs secondary" onclick="openEditAllocation()">✎ Edit</button>
       </div>
     </div>
     <div class="split-bar">
