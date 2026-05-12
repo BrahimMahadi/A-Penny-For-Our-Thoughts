@@ -762,6 +762,20 @@ function renderBudgetVsActual() {
   const budgeted = getMonthBudgeted(year, month);
   const income = getTotalMonthlyIncome();
 
+  // Debug: Log actual calculation values
+  console.log('Budget vs. Actual Debug:', {
+    income,
+    needs_budgeted: budgeted.needs,
+    needs_actual: actuals.needs,
+    wants_budgeted: budgeted.wants,
+    wants_actual: actuals.wants,
+    savings_budgeted: budgeted.savings,
+    savings_actual: actuals.savings,
+    purchases_count: (state.purchases || []).length,
+    purchases_total: (state.purchases || []).reduce((sum, p) => sum + (p.amount || 0), 0),
+    spending_history_count: (state.spendingHistory || []).length,
+  });
+
   renderBudgetVarianceCards(budgeted, actuals);
   renderBudgetVsActualChart(budgeted, actuals);
   renderVarianceSummary(budgeted, actuals, income);
