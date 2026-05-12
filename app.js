@@ -940,6 +940,9 @@ function renderVarianceSummary(budgeted, actuals, income) {
         </tbody>
       </table>
     </div>
+    <div style="margin-top:16px;padding:12px;background:rgba(139, 149, 173, 0.05);border-left:3px solid #8b95ad;border-radius:4px;font-size:12px;color:var(--muted);line-height:1.5">
+      <strong style="color:var(--text)">Note:</strong> Actual values include both current period spending and archived spending history from this month.
+    </div>
   `;
 
   container.innerHTML = html;
@@ -1983,6 +1986,46 @@ function importCsv(event) {
     }
   };
   reader.readAsText(file);
+}
+
+/**
+ * Clear all dashboard data and reset to default state.
+ * Shows a confirmation dialog to prevent accidental deletion.
+ */
+function clearAllData() {
+  const confirmed = confirm(
+    '⚠️  WARNING: This will delete ALL your data and reset to a blank dashboard.\n\n' +
+    'This action cannot be undone. Are you sure you want to continue?'
+  );
+
+  if (!confirmed) return;
+
+  // Double-check for destructive action
+  const doubleCheck = confirm(
+    'This will permanently delete all your data. Type "CLEAR" to confirm:\n\n' +
+    'You will lose:\n' +
+    '• All income streams\n' +
+    '• All expenses and purchase history\n' +
+    '• All loans, credit cards, and accounts\n' +
+    '• All subscriptions and wishlist items\n\n' +
+    'Click OK and type "CLEAR" in the prompt below to confirm.'
+  );
+
+  if (!doubleCheck) return;
+
+  // Final confirmation with text entry
+  const textConfirm = prompt('Type CLEAR to confirm deletion of all data:');
+  if (textConfirm !== 'CLEAR') {
+    alert('Clear cancelled. Your data is safe.');
+    return;
+  }
+
+  // Reset to default state
+  state = deepClone(DEFAULT_STATE);
+  saveToStorage();
+  renderAll();
+
+  alert('✓ All data has been cleared. Starting fresh!');
 }
 
 /**

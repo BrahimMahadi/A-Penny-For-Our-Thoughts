@@ -19,7 +19,9 @@
       "Bash(git commit -m 'fix: Enable real-time Budget vs. Actual updates on data changes *)",
       "Bash(git commit -m 'refactor: Remove unused savingsAvailable field *)",
       "Bash(git commit -m 'refactor: Remove '\\\\''Edit Values'\\\\'' tab - consolidate to dashboard-only UI *)",
-      "Bash(git commit -m 'feat: Add inline budget allocation editing with validation *)"
+      "Bash(git commit -m 'feat: Add inline budget allocation editing with validation *)",
+      "Bash(git commit -m 'debug: Add console logging to Budget vs. Actual calculations *)",
+      "Bash(git commit -m 'feat: Add explanatory text and clear data functionality *)"
     ]
   }
 }
