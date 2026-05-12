@@ -24,3 +24,5 @@ SECTION:wishlist
 id,icon,name,url
 SECTION:savingsAccounts
 id,name,allocated
+SECTION:goals
+id,accountId,targetAmount,targetDate

@@ -96,6 +96,8 @@ const DEFAULT_STATE = {
     { id: genId(), name: 'USD Savings',   allocated: 67.50 },
     { id: genId(), name: 'Life with B&S', allocated: 67.50 },
   ],
+
+  goals: [],
 };
 
 // ────────────────────────────────────────────────────────────────
@@ -246,6 +248,73 @@ function calculateVariance(budgeted, actual, category) {
 }
 
 function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+// ─── SAVINGS GOALS CALCULATIONS ───
+/** Calculate months between two YYYY-MM date strings */
+function calculateMonthsBetween(startDate, endDate) {
+  const [startYear, startMonth] = startDate.split('-').map(Number);
+  const [endYear, endMonth] = endDate.split('-').map(Number);
+  return (endYear - startYear) * 12 + (endMonth - startMonth);
+}
+
+/** Get progress data for a single goal */
+function getGoalProgress(goal) {
+  const account = (state.savingsAccounts || []).find(a => a.id === goal.accountId);
+  if (!account) return null;
+
+  const currentAmount = account.allocated || 0;
+  const targetAmount = goal.targetAmount || 0;
+  const targetDate = goal.targetDate;
+
+  // Get today's date in YYYY-MM format
+  const today = new Date();
+  const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+  // Calculate months remaining
+  const monthsRemaining = calculateMonthsBetween(currentYearMonth, targetDate);
+
+  // Calculate monthly savings needed (handle division by zero)
+  const shortfall = Math.max(0, targetAmount - currentAmount);
+  const monthlySavingsNeeded = monthsRemaining > 0 ? shortfall / monthsRemaining : 0;
+
+  // Calculate progress percentage
+  const progressPercent = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
+
+  // Determine if on track (for now, simple: have we allocated the right amount?)
+  // More sophisticated: check if current >= requiredAmount at this point in timeline
+  let status = 'on-track';
+  if (monthsRemaining <= 0) {
+    // Goal date passed
+    status = currentAmount >= targetAmount ? 'complete' : 'missed';
+  } else {
+    // Goal in future: are we ahead, on-track, or behind?
+    const requiredAmount = targetAmount * ((Date.now() - new Date(goal.targetDate.split('-')[0], goal.targetDate.split('-')[1] - 1, 1)) /
+      ((new Date(goal.targetDate.split('-')[0], goal.targetDate.split('-')[1], 0) - new Date(goal.targetDate.split('-')[0], goal.targetDate.split('-')[1] - 1, 1)) / 1000 / 60 / 60 / 24));
+
+    // Simpler approach: if we're on pace, we're on track
+    // Just check if current >= what we should have by this point in the year
+    if (progressPercent >= 100) {
+      status = 'on-track';
+    } else if (progressPercent >= 80) {
+      status = 'caution';
+    } else {
+      status = 'off-track';
+    }
+  }
+
+  return {
+    accountId: goal.accountId,
+    accountName: account.name,
+    currentAmount,
+    targetAmount,
+    targetDate,
+    progressPercent: Math.min(100, progressPercent),
+    monthsRemaining: Math.max(0, monthsRemaining),
+    monthlySavingsNeeded: Math.max(0, monthlySavingsNeeded),
+    isOnTrack: status === 'on-track',
+    status,
+  };
+}
 
 // ────────────────────────────────────────────────────────────────
 // THEME
@@ -1704,6 +1773,137 @@ function deleteSavingsAccount(id) {
 }
 
 // ────────────────────────────────────────────────────────────────
+// RENDER — SAVINGS GOALS (full CRUD)
+// ────────────────────────────────────────────────────────────────
+function renderGoals() {
+  const container = document.getElementById('goals-list');
+  if (!container) return; // Section not in DOM yet
+
+  const goals = state.goals || [];
+
+  if (goals.length === 0) {
+    container.innerHTML = '<p style="color: var(--text-secondary); padding: 16px 0;">No savings goals yet. Add one to get started!</p>';
+    return;
+  }
+
+  container.innerHTML = '';
+  goals.forEach(goal => {
+    const progress = getGoalProgress(goal);
+    if (!progress) return; // Account not found
+
+    const li = document.createElement('div');
+    li.className = `goal-item goal-status-${progress.status}`;
+    li.innerHTML = `
+      <div class="goal-header">
+        <span class="goal-account-name">${progress.accountName}</span>
+        <span class="goal-target">${fmt(progress.targetAmount)} by ${progress.targetDate}</span>
+        <div style="margin-left: auto; display: flex; gap: 8px;">
+          <button class="btn icon-btn" onclick="openEditGoal('${goal.id}')" title="Edit">✎</button>
+          <button class="btn icon-btn del" onclick="deleteGoal('${goal.id}')" title="Delete">×</button>
+        </div>
+      </div>
+
+      <div class="goal-progress-container">
+        <div class="progress-bar" style="width: ${progress.progressPercent.toFixed(1)}%;">
+          <span class="progress-label">${fmt(progress.currentAmount)} / ${fmt(progress.targetAmount)}</span>
+        </div>
+      </div>
+
+      <div class="goal-stats">
+        <div class="stat">
+          <span class="stat-label">Monthly Needed</span>
+          <span class="stat-value">${fmt(progress.monthlySavingsNeeded)}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Time Remaining</span>
+          <span class="stat-value">${progress.monthsRemaining} month${progress.monthsRemaining !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Status</span>
+          <span class="status-badge status-${progress.status}">
+            ${progress.status === 'on-track' ? '✓ On Track' : progress.status === 'caution' ? '⚠ Caution' : progress.status === 'complete' ? '✓ Complete' : '✗ Off Track'}
+          </span>
+        </div>
+      </div>
+    `;
+    container.appendChild(li);
+  });
+}
+
+function openAddGoal() {
+  const accounts = state.savingsAccounts || [];
+  if (accounts.length === 0) {
+    alert('Please add a savings account first');
+    return;
+  }
+
+  let accountDropdown = '<select id="goal-account-id" required><option value="">Select Account</option>';
+  accounts.forEach(acct => {
+    accountDropdown += `<option value="${acct.id}">${acct.name}</option>`;
+  });
+  accountDropdown += '</select>';
+
+  openModal(
+    'Add Savings Goal',
+    accountDropdown +
+    mField('Target Amount ($)', 'goal-target-amount', 'number', '', '0.00', 'min="0" step="0.01" required') +
+    mField('Target Date (YYYY-MM)', 'goal-target-date', 'month', '', ''),
+    () => {
+      const accountId = document.getElementById('goal-account-id').value;
+      const targetAmount = parseFloat(document.getElementById('goal-target-amount').value);
+      const targetDate = document.getElementById('goal-target-date').value;
+
+      if (!accountId || isNaN(targetAmount) || !targetDate) {
+        alert('Please fill in all fields');
+        return;
+      }
+
+      state.goals.push({ id: genId(), accountId, targetAmount, targetDate });
+      saveToStorage(); renderGoals(); closeModal();
+    }
+  );
+}
+
+function openEditGoal(id) {
+  const goal = (state.goals || []).find(g => g.id === id);
+  if (!goal) return;
+
+  const accounts = state.savingsAccounts || [];
+  let accountDropdown = '<select id="goal-account-id" required><option value="">Select Account</option>';
+  accounts.forEach(acct => {
+    const selected = acct.id === goal.accountId ? 'selected' : '';
+    accountDropdown += `<option value="${acct.id}" ${selected}>${acct.name}</option>`;
+  });
+  accountDropdown += '</select>';
+
+  openModal(
+    'Edit Savings Goal',
+    accountDropdown +
+    mField('Target Amount ($)', 'goal-target-amount', 'number', goal.targetAmount, '0.00', 'min="0" step="0.01"') +
+    mField('Target Date (YYYY-MM)', 'goal-target-date', 'month', goal.targetDate, ''),
+    () => {
+      const accountId = document.getElementById('goal-account-id').value;
+      const targetAmount = parseFloat(document.getElementById('goal-target-amount').value);
+      const targetDate = document.getElementById('goal-target-date').value;
+
+      if (!accountId || isNaN(targetAmount) || !targetDate) {
+        alert('Please fill in all fields');
+        return;
+      }
+
+      Object.assign(goal, { accountId, targetAmount, targetDate });
+      saveToStorage(); renderGoals(); closeModal();
+    }
+  );
+}
+
+function deleteGoal(id) {
+  if (!confirm('Delete this savings goal?')) return;
+  state.goals = (state.goals || []).filter(g => g.id !== id);
+  saveToStorage(); renderGoals();
+}
+
+// ────────────────────────────────────────────────────────────────
 // RENDER — SUBSCRIPTIONS (full CRUD)
 // ────────────────────────────────────────────────────────────────
 function renderSubscriptions() {
@@ -1948,6 +2148,14 @@ function exportCsv() {
   (state.savingsAccounts || []).forEach(a =>
     rows.push(`${e(a.id)},${e(a.name)},${a.allocated}`)
   );
+  rows.push('');
+
+  // ── Savings goals ──
+  rows.push('SECTION:goals', 'id,accountId,targetAmount,targetDate');
+  (state.goals || []).forEach(g =>
+    rows.push(`${e(g.id)},${e(g.accountId)},${g.targetAmount},${g.targetDate}`)
+  );
+  rows.push('');
 
   // ── Trigger download ──
   const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -2142,6 +2350,13 @@ function parseCsv(text) {
         if (!parsed.savingsAccounts) parsed.savingsAccounts = [];
         parsed.savingsAccounts.push({ id: vals[0], name: vals[1], allocated: +vals[2] });
         break;
+
+      case 'goals':
+        if (!parsed.goals) parsed.goals = [];
+        parsed.goals.push({
+          id: vals[0], accountId: vals[1], targetAmount: +vals[2], targetDate: vals[3],
+        });
+        break;
     }
   }
 
@@ -2157,6 +2372,7 @@ function parseCsv(text) {
   if (!parsed.subscriptions)     parsed.subscriptions      = [];
   if (!parsed.wishlist)          parsed.wishlist           = [];
   if (!parsed.savingsAccounts)   parsed.savingsAccounts    = [];
+  if (!parsed.goals)             parsed.goals              = [];
 
   return parsed;
 }
@@ -2185,6 +2401,7 @@ function renderAll() {
   renderLoans();
   renderCreditCards();
   renderSavings();
+  renderGoals();
   renderSubscriptions();
   renderWishlist();
 }

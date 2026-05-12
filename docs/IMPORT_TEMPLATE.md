@@ -95,6 +95,28 @@ wishlist: id,icon,name,url
 - **name**: Item name
 - **url**: Link to the product (optional)
 
+### SAVINGS ACCOUNTS (Optional)
+```
+savingsAccounts: id,name,allocated
+[unique-id],TFSA,135
+[unique-id],FHSA,150
+[unique-id],Emergency Fund,200
+```
+- **id**: Unique account identifier
+- **name**: Account name (e.g., TFSA, RRSP, Emergency Fund)
+- **allocated**: Monthly allocation to this account (in dollars)
+
+### SAVINGS GOALS (Optional)
+```
+goals: id,accountId,targetAmount,targetDate
+[unique-id],[account-id],50000,2027-12-31
+[unique-id],[account-id],10000,2026-08-31
+```
+- **id**: Unique goal identifier
+- **accountId**: ID of the savings account this goal is for (must match a savings account id)
+- **targetAmount**: Target amount in dollars (e.g., `50000` for $50,000)
+- **targetDate**: Target date in YYYY-MM format (e.g., `2027-12` for December 2027)
+
 ## Tips
 
 - **IDs**: Use simple unique identifiers like `id_1`, `id_2`, or descriptive names
