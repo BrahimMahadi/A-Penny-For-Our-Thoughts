@@ -386,6 +386,7 @@ function loadFromStorage() {
   if (!state.wishlist)          state.wishlist           = [];
   if (!state.savingsAccounts)   state.savingsAccounts    = [];
   if (!state.subscriptions)     state.subscriptions      = [];
+  if (!state.goals)             state.goals              = [];
 }
 
 function saveToStorage() {
