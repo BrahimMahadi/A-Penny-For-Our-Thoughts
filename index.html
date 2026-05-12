@@ -126,6 +126,21 @@
     </div>
   </div>
 
+  <!-- Budget vs. Actual Dashboard -->
+  <div class="section-title" style="margin-top:24px">Budget vs. Actual</div>
+  <div class="card">
+    <!-- Summary cards: Budgeted, Actual, Variance for each category -->
+    <div class="grid grid-3" id="budget-variance-cards" style="gap:12px;margin-bottom:20px"></div>
+
+    <!-- Chart: Budget vs Actual side-by-side -->
+    <div style="margin-top:20px;margin-bottom:20px">
+      <canvas id="budgetVsActualChart" style="max-height:300px"></canvas>
+    </div>
+
+    <!-- Variance summary table -->
+    <div id="budget-variance-summary" style="margin-top:20px"></div>
+  </div>
+
   <!-- Income Streams (CRUD) -->
   <div class="card" style="margin-top:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">

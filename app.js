@@ -173,6 +173,79 @@ function getAlloc() {
   };
 }
 
+// ─── BUDGET VS. ACTUAL CALCULATIONS ───
+/** Calculate actual spending for a given month */
+function getMonthActuals(year, month) {
+  return {
+    needs:  calculateActualNeeds(year, month),
+    wants:  calculateActualWants(year, month),
+    savings: calculateActualSavings(year, month),
+  };
+}
+
+/** Sum all actual needs (fixed monthly expenses) for a month */
+function calculateActualNeeds(year, month) {
+  return (state.expenseCards || []).reduce((sum, card) => {
+    return sum + (card.items || []).reduce((s, i) => s + monthlyAmount(i), 0);
+  }, 0);
+}
+
+/** Sum all actual wants (purchases + spending history) for a month */
+function calculateActualWants(year, month) {
+  const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+  let total = 0;
+
+  // Add current period purchases (if in current month)
+  const today = new Date();
+  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  if (monthStr === currentMonth) {
+    total += (state.purchases || []).reduce((sum, p) => sum + (p.total || 0), 0);
+  }
+
+  // Add historical spending from spendingHistory
+  (state.spendingHistory || []).forEach(period => {
+    if (period.date) {
+      const periodMonth = period.date.substring(0, 7); // Extract YYYY-MM
+      if (periodMonth === monthStr) {
+        total += period.total || 0;
+      }
+    }
+  });
+
+  return total;
+}
+
+/** Calculate actual savings as Income - Needs - Wants */
+function calculateActualSavings(year, month) {
+  const income = getTotalMonthlyIncome();
+  const needs = calculateActualNeeds(year, month);
+  const wants = calculateActualWants(year, month);
+  return Math.max(0, income - needs - wants);
+}
+
+/** Get budgeted amounts for a month based on allocation percentages */
+function getMonthBudgeted(year, month) {
+  const income = getTotalMonthlyIncome();
+  const alloc = getAlloc();
+  return {
+    needs:  income * alloc.needs,
+    wants:  income * alloc.wants,
+    savings: income * alloc.savings,
+  };
+}
+
+/** Calculate variance data for a category */
+function calculateVariance(budgeted, actual, category) {
+  const dollar = budgeted - actual;
+  const percent = budgeted > 0 ? (actual / budgeted) * 100 : 0;
+
+  let status = 'on-track';
+  if (percent > 110) status = 'over';
+  else if (percent > 100) status = 'caution';
+
+  return { dollar, percent, status };
+}
+
 function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
 // ────────────────────────────────────────────────────────────────
@@ -634,6 +707,186 @@ function resetAnalyticsFilters() {
   document.getElementById('analytics-filter-search').value = '';
 
   renderSpendingAnalytics();
+}
+
+// ─── BUDGET VS. ACTUAL RENDERING ───
+/** Main render function for Budget vs. Actual Dashboard */
+function renderBudgetVsActual() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+
+  const actuals = getMonthActuals(year, month);
+  const budgeted = getMonthBudgeted(year, month);
+  const income = getTotalMonthlyIncome();
+
+  renderBudgetVarianceCards(budgeted, actuals);
+  renderBudgetVsActualChart(budgeted, actuals);
+  renderVarianceSummary(budgeted, actuals, income);
+}
+
+/** Render three variance cards (Needs, Wants, Savings) */
+function renderBudgetVarianceCards(budgeted, actuals) {
+  const container = document.getElementById('budget-variance-cards');
+  container.innerHTML = '';
+
+  const categories = [
+    { key: 'needs', label: 'Needs', color: '#6c63ff' },
+    { key: 'wants', label: 'Wants', color: '#00d4aa' },
+    { key: 'savings', label: 'Savings', color: '#ffa63d' },
+  ];
+
+  categories.forEach(cat => {
+    const bud = budgeted[cat.key];
+    const act = actuals[cat.key];
+    const variance = calculateVariance(bud, act, cat.key);
+
+    const statusColor = variance.status === 'on-track' ? '#00d4aa' : variance.status === 'caution' ? '#ffa63d' : '#ff4d6d';
+    const statusLabel = variance.status === 'on-track' ? 'On Track' : variance.status === 'caution' ? 'Caution' : 'Over';
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.borderLeft = `4px solid ${statusColor}`;
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <span style="font-size:12px;font-weight:700;color:${cat.color}">${cat.label}</span>
+        <span style="font-size:11px;font-weight:600;padding:2px 6px;border-radius:3px;background:${statusColor}20;color:${statusColor}">${statusLabel}</span>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:4px">Budgeted</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:12px">${fmt(bud)}</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:4px">Actual</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:12px">${fmt(act)}</div>
+      <div style="font-size:12px;color:${statusColor};font-weight:600">
+        ${variance.percent.toFixed(1)}% of budget
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+/** Render Chart.js bar chart comparing budgeted vs actual */
+function renderBudgetVsActualChart(budgeted, actuals) {
+  const ctx = document.getElementById('budgetVsActualChart').getContext('2d');
+  const labels = ['Needs', 'Wants', 'Savings'];
+  const budgetedData = [budgeted.needs, budgeted.wants, budgeted.savings];
+  const actualData = [actuals.needs, actuals.wants, actuals.savings];
+
+  // Destroy existing chart if it exists
+  if (window.budgetVsActualChartInstance) {
+    window.budgetVsActualChartInstance.destroy();
+  }
+
+  window.budgetVsActualChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Budgeted',
+          data: budgetedData,
+          backgroundColor: '#6c63ff',
+          borderColor: 'rgba(108, 99, 255, 0.3)',
+          borderWidth: 1,
+          borderRadius: 6,
+        },
+        {
+          label: 'Actual',
+          data: actualData,
+          backgroundColor: '#00d4aa',
+          borderColor: 'rgba(0, 212, 170, 0.3)',
+          borderWidth: 1,
+          borderRadius: 6,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          labels: {
+            color: '#8b95ad',
+            font: { size: 12, weight: '600' },
+            usePointStyle: true,
+            pointStyle: 'rect',
+          },
+        },
+        tooltip: {
+          backgroundColor: 'rgba(26, 35, 50, 0.95)',
+          borderColor: '#3a4456',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => ' ' + ctx.dataset.label + ': ' + fmt(ctx.parsed.y),
+          },
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: v => fmt(v),
+            color: '#8b95ad',
+            font: { size: 11 },
+          },
+          grid: { color: '#3a4456', drawBorder: false },
+        },
+        x: {
+          ticks: { color: '#8b95ad', font: { size: 11 } },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+}
+
+/** Render variance summary table */
+function renderVarianceSummary(budgeted, actuals, income) {
+  const container = document.getElementById('budget-variance-summary');
+  container.innerHTML = '';
+
+  const categories = [
+    { key: 'needs', label: 'Needs' },
+    { key: 'wants', label: 'Wants' },
+    { key: 'savings', label: 'Savings' },
+  ];
+
+  let html = `
+    <div style="font-size:12px;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border-light)">
+            <th style="text-align:left;padding:8px 0;color:var(--muted);font-weight:600">Category</th>
+            <th style="text-align:right;padding:8px 0;color:var(--muted);font-weight:600">Budgeted</th>
+            <th style="text-align:right;padding:8px 0;color:var(--muted);font-weight:600">Actual</th>
+            <th style="text-align:right;padding:8px 0;color:var(--muted);font-weight:600">Variance</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  categories.forEach(cat => {
+    const bud = budgeted[cat.key];
+    const act = actuals[cat.key];
+    const variance = calculateVariance(bud, act, cat.key);
+    const varColor = variance.status === 'on-track' ? '#00d4aa' : variance.status === 'caution' ? '#ffa63d' : '#ff4d6d';
+
+    html += `
+      <tr style="border-bottom:1px solid var(--border-light)">
+        <td style="padding:8px 0;color:var(--text)">${cat.label}</td>
+        <td style="text-align:right;padding:8px 0;color:var(--muted)">${fmt(bud)}</td>
+        <td style="text-align:right;padding:8px 0;color:var(--text);font-weight:600">${fmt(act)}</td>
+        <td style="text-align:right;padding:8px 0;color:${varColor};font-weight:600">${variance.dollar >= 0 ? '+' : ''}${fmt(variance.dollar)} (${variance.percent.toFixed(1)}%)</td>
+      </tr>
+    `;
+  });
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  container.innerHTML = html;
 }
 
 function toggleAnalyticsPanel() {
@@ -1903,6 +2156,7 @@ function renderAll() {
   renderIncome();
   renderIncomeStreams();
   renderWants();
+  renderBudgetVsActual();
   renderExpenseCards();
   renderLoans();
   renderCreditCards();

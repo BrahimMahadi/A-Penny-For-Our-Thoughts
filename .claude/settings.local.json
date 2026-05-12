@@ -4,7 +4,15 @@
       "Bash(mkdir -p \"/Users/brahim/Documents/Claude/Projects/A Penny For Our Thoughts/docs\")",
       "mcp__Claude_in_Chrome__tabs_context_mcp",
       "Bash(git init *)",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(cat /tmp/server.log)",
+      "Bash(awk '{print $2}')",
+      "Bash(xargs kill -9)",
+      "Bash(node -c \"/Users/brahim/Documents/Claude/Projects/A Penny For Our Thoughts/app.js\")",
+      "Bash(grep -n 'color:${color}' \"/Users/brahim/Documents/Claude/Projects/A Penny For Our Thoughts/app.js\")"
     ]
   }
 }
