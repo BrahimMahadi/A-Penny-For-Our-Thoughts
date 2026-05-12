@@ -198,7 +198,7 @@ function calculateActualWants(year, month) {
   const today = new Date();
   const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   if (monthStr === currentMonth) {
-    total += (state.purchases || []).reduce((sum, p) => sum + (p.total || 0), 0);
+    total += (state.purchases || []).reduce((sum, p) => sum + (p.amount || 0), 0);
   }
 
   // Add historical spending from spendingHistory
