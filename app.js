@@ -327,13 +327,8 @@ function saveToStorage() {
 // TABS
 // ────────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  const isDashboard = tab === 'dashboard';
-  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
-    btn.classList.toggle('active', isDashboard ? i === 0 : i === 1);
-  });
-  document.getElementById('tab-dashboard').classList.toggle('active', isDashboard);
-  document.getElementById('tab-edit').classList.toggle('active', !isDashboard);
-  if (!isDashboard) populateEditTab();
+  // Single tab dashboard — no-op for now
+  // Kept for compatibility with modal close handlers
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -1758,72 +1753,6 @@ function deleteWishlistItem(id) {
   if (!confirm('Remove this item from the wishlist?')) return;
   state.wishlist = state.wishlist.filter(w => w.id !== id);
   saveToStorage(); renderWishlist();
-}
-
-// ────────────────────────────────────────────────────────────────
-// EDIT TAB
-// ────────────────────────────────────────────────────────────────
-function populateEditTab() {
-  document.getElementById('edit-alloc-needs').value       = state.allocation.needs;
-  document.getElementById('edit-alloc-wants').value       = state.allocation.wants;
-  document.getElementById('edit-alloc-savings').value     = state.allocation.savings;
-  updateAllocPreview();
-
-  // Rebuild CC edit fields dynamically
-  const grid = document.getElementById('edit-cc-grid');
-  grid.innerHTML = '';
-  (state.creditCards || []).forEach((cc, i) => {
-    grid.innerHTML += `
-      <div class="field">
-        <label>${cc.name} — Balance ($)</label>
-        <input type="number" id="edit-cc-bal-${i}" value="${cc.balance}" step="0.01" min="0" />
-      </div>
-      <div class="field">
-        <label>${cc.name} — Limit ($)</label>
-        <input type="number" id="edit-cc-lim-${i}" value="${cc.limit}" step="0.01" min="0" />
-      </div>`;
-  });
-}
-
-/** Live preview of budget allocation split bar and sum validator */
-function updateAllocPreview() {
-  const n = parseFloat(document.getElementById('edit-alloc-needs').value)   || 0;
-  const w = parseFloat(document.getElementById('edit-alloc-wants').value)   || 0;
-  const s = parseFloat(document.getElementById('edit-alloc-savings').value) || 0;
-  const total   = n + w + s;
-  const isValid = Math.round(total) === 100;
-
-  const display = document.getElementById('alloc-sum-display');
-  display.textContent = `Total: ${total}% ${isValid ? '✓' : '✗ — must equal 100%'}`;
-  display.className   = 'alloc-sum ' + (isValid ? 'ok' : 'err');
-
-  document.getElementById('edit-seg-needs').style.width   = n + '%';
-  document.getElementById('edit-seg-wants').style.width   = w + '%';
-  document.getElementById('edit-seg-savings').style.width = s + '%';
-}
-
-function saveEdits() {
-  const n = parseFloat(document.getElementById('edit-alloc-needs').value)   || 0;
-  const w = parseFloat(document.getElementById('edit-alloc-wants').value)   || 0;
-  const s = parseFloat(document.getElementById('edit-alloc-savings').value) || 0;
-
-  if (Math.round(n + w + s) !== 100) {
-    alert(`Budget allocation must sum to 100%. Currently: ${n + w + s}%`);
-    return;
-  }
-
-  state.allocation = { needs: n, wants: w, savings: s };
-
-  (state.creditCards || []).forEach((cc, i) => {
-    const bal = parseFloat(document.getElementById(`edit-cc-bal-${i}`)?.value);
-    const lim = parseFloat(document.getElementById(`edit-cc-lim-${i}`)?.value);
-    if (!isNaN(bal)) cc.balance = bal;
-    if (!isNaN(lim)) cc.limit   = lim;
-  });
-
-  saveToStorage();
-  renderAll();
-  switchTab('dashboard');
 }
 
 // ────────────────────────────────────────────────────────────────

@@ -38,7 +38,6 @@
 
 <div class="tabs">
   <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
-  <button class="tab-btn" onclick="switchTab('edit')">Edit Values</button>
 </div>
 
 
@@ -384,47 +383,6 @@
 
 </div><!-- end dashboard tab -->
 
-
-<!-- ══════════════════════════════════════
-     EDIT TAB
-══════════════════════════════════════ -->
-<div id="tab-edit" class="page">
-
-  <div class="edit-section">
-    <h3>Budget Allocation</h3>
-    <div class="alloc-row">
-      <div class="alloc-input-group">
-        <label>Needs %</label>
-        <input type="number" id="edit-alloc-needs"   min="0" max="100" step="1" oninput="updateAllocPreview()" />
-      </div>
-      <div class="alloc-input-group">
-        <label>Wants %</label>
-        <input type="number" id="edit-alloc-wants"   min="0" max="100" step="1" oninput="updateAllocPreview()" />
-      </div>
-      <div class="alloc-input-group">
-        <label>Savings %</label>
-        <input type="number" id="edit-alloc-savings" min="0" max="100" step="1" oninput="updateAllocPreview()" />
-      </div>
-    </div>
-    <div id="alloc-sum-display" class="alloc-sum ok">Total: 100% ✓</div>
-    <div class="split-bar" style="height:12px;margin-top:10px">
-      <div class="split-seg" id="edit-seg-needs"   style="background:#6c63ff"></div>
-      <div class="split-seg" id="edit-seg-wants"   style="background:#00d4aa"></div>
-      <div class="split-seg" id="edit-seg-savings" style="background:#ffa63d"></div>
-    </div>
-  </div>
-
-  <div class="edit-section">
-    <h3>Credit Cards</h3>
-    <div class="edit-grid" id="edit-cc-grid"></div>
-  </div>
-
-  <div class="save-bar">
-    <button class="btn secondary" onclick="loadFromStorage(); switchTab('dashboard')">Cancel</button>
-    <button class="btn" onclick="saveEdits()">Save Changes</button>
-  </div>
-
-</div><!-- end edit tab -->
 
 
 <!-- ══════════════════════════════════════
