@@ -12,7 +12,12 @@
       "Bash(awk '{print $2}')",
       "Bash(xargs kill -9)",
       "Bash(node -c \"/Users/brahim/Documents/Claude/Projects/A Penny For Our Thoughts/app.js\")",
-      "Bash(grep -n 'color:${color}' \"/Users/brahim/Documents/Claude/Projects/A Penny For Our Thoughts/app.js\")"
+      "Bash(grep -n 'color:${color}' \"/Users/brahim/Documents/Claude/Projects/A Penny For Our Thoughts/app.js\")",
+      "Bash(node)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'docs: Add sample data CSV for testing Budget vs. Actual Dashboard *)",
+      "Bash(git commit -m 'fix: Enable real-time Budget vs. Actual updates on data changes *)",
+      "Bash(git commit -m 'refactor: Remove unused savingsAvailable field *)"
     ]
   }
 }

@@ -6,9 +6,6 @@ needs,wants,savings
 SECTION:budgetDisplayMode
 needs,wants,savings
 monthly,monthly,monthly
-SECTION:savingsAvailable
-amount
-405
 SECTION:incomeStreams
 id,name,amount,biweekly
 income_1,Full-Time Salary,2500,false

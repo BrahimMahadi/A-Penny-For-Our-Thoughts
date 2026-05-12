@@ -53,7 +53,6 @@
 // DEFAULT STATE
 // ────────────────────────────────────────────────────────────────
 const DEFAULT_STATE = {
-  savingsAvailable: 405,
   allocation:        { needs: 50, wants: 30, savings: 20 },
   budgetDisplayMode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
 
@@ -318,7 +317,6 @@ function loadFromStorage() {
   if (!state.wishlist)          state.wishlist           = [];
   if (!state.savingsAccounts)   state.savingsAccounts    = [];
   if (!state.subscriptions)     state.subscriptions      = [];
-  if (state.savingsAvailable === undefined) state.savingsAvailable = 0;
 }
 
 function saveToStorage() {
@@ -1584,7 +1582,6 @@ function renderSavings() {
 
   document.getElementById('disp-savings').textContent             = fmt(budget);
   document.getElementById('disp-savings-allocated').textContent   = fmt(allocated);
-  document.getElementById('disp-savings-available').textContent   = fmt(+state.savingsAvailable);
   document.getElementById('disp-savings-unallocated').textContent = fmt(unallocated);
   document.getElementById('disp-savings-unallocated').style.color =
     unallocated >= 0 ? 'var(--text)' : 'var(--danger)';
@@ -1767,7 +1764,6 @@ function deleteWishlistItem(id) {
 // EDIT TAB
 // ────────────────────────────────────────────────────────────────
 function populateEditTab() {
-  document.getElementById('edit-savings-available').value = state.savingsAvailable;
   document.getElementById('edit-alloc-needs').value       = state.allocation.needs;
   document.getElementById('edit-alloc-wants').value       = state.allocation.wants;
   document.getElementById('edit-alloc-savings').value     = state.allocation.savings;
@@ -1816,7 +1812,6 @@ function saveEdits() {
     return;
   }
 
-  state.savingsAvailable = parseFloat(document.getElementById('edit-savings-available').value) || 0;
   state.allocation = { needs: n, wants: w, savings: s };
 
   (state.creditCards || []).forEach((cc, i) => {
@@ -1883,7 +1878,6 @@ function exportCsv() {
     `${state.budgetDisplayMode.needs || 'monthly'},${state.budgetDisplayMode.wants || 'monthly'},${state.budgetDisplayMode.savings || 'monthly'}`, '');
 
   // ── Savings available ──
-  rows.push('SECTION:savingsAvailable', 'value', state.savingsAvailable, '');
 
   // ── Income streams ──
   rows.push('SECTION:incomeStreams', 'id,name,amount,biweekly');
@@ -2037,10 +2031,6 @@ function parseCsv(text) {
         };
         break;
 
-      case 'savingsAvailable':
-        parsed.savingsAvailable = +vals[0] || 0;
-        break;
-
       case 'incomeStreams':
         if (!parsed.incomeStreams) parsed.incomeStreams = [];
         parsed.incomeStreams.push({
@@ -2129,7 +2119,6 @@ function parseCsv(text) {
   if (!parsed.subscriptions)     parsed.subscriptions      = [];
   if (!parsed.wishlist)          parsed.wishlist           = [];
   if (!parsed.savingsAccounts)   parsed.savingsAccounts    = [];
-  if (parsed.savingsAvailable === undefined) parsed.savingsAvailable = 0;
 
   return parsed;
 }
