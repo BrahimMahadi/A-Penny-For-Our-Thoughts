@@ -1,0 +1,26 @@
+SECTION:meta
+name,A Penny For Our Thoughts,value,User Data
+SECTION:allocation
+needs,wants,savings
+50,30,20
+SECTION:budgetDisplayMode
+needs,wants,savings
+monthly,monthly,monthly
+SECTION:incomeStreams
+id,name,amount,biweekly
+SECTION:expenseCards
+id,name,items
+SECTION:purchases
+id,name,amount,total
+SECTION:spendingHistory
+id,date,label,total,items
+SECTION:loans
+id,name,remaining,original
+SECTION:creditCards
+id,name,balance,limit
+SECTION:subscriptions
+id,name,date
+SECTION:wishlist
+id,icon,name,url
+SECTION:savingsAccounts
+id,name,allocated
