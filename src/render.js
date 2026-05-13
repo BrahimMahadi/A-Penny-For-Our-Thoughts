@@ -773,8 +773,9 @@ function renderSchedule() {
 
   /** Render a single bill row */
   function billRow(item) {
-    const dayLabel = item.dueDay ? ordinal(item.dueDay) : '∞';
-    const badgeHtml = item.biweekly
+    const dayLabel   = item.dueDay ? ordinal(item.dueDay) : '∞';
+    const cardBadge  = `<span class="schedule-badge card-label">${item.cardLabel}</span>`;
+    const typeBadge  = item.biweekly
       ? `<span class="schedule-badge biweekly">×2 bi-wk</span>`
       : item.source === 'subscription'
         ? `<span class="schedule-badge sub">subscription</span>`
@@ -783,7 +784,8 @@ function renderSchedule() {
       <div class="schedule-bill-row">
         <span class="sched-day">${dayLabel}</span>
         <span class="sched-name">${item.name}</span>
-        ${badgeHtml}
+        ${cardBadge}
+        ${typeBadge}
         <span class="sched-amt">${fmt(item.totalForMonth)}</span>
       </div>`;
   }

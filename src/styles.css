@@ -1349,6 +1349,7 @@ input {
   padding: 2px 7px;
   flex-shrink: 0;
 
+  &.card-label  { background: var(--surface3); color: var(--muted); }
   &.biweekly    { background: rgba(108,99,255,.15); color: var(--accent); }
   &.sub         { background: rgba(0,212,170,.12);  color: var(--accent2); }
 }
