@@ -12,16 +12,19 @@ income_1,Full-Time Salary,2500,false
 income_2,Freelance Work,600,true
 income_3,Investment Returns,200,false
 SECTION:expenseCards
-id,name,items
-expenses_1,Housing,"[{""id"":""item_1"",""name"":""Rent"",""amount"":1200,""biweekly"":false},{""id"":""item_2"",""name"":""Internet"",""amount"":80,""biweekly"":false},{""id"":""item_3"",""name"":""Utilities"",""amount"":120,""biweekly"":false}]"
-expenses_2,Groceries,"[{""id"":""item_4"",""name"":""Weekly Shopping"",""amount"":150,""biweekly"":false}]"
-expenses_3,Transportation,"[{""id"":""item_5"",""name"":""Car Insurance"",""amount"":120,""biweekly"":false},{""id"":""item_6"",""name"":""Gas"",""amount"":200,""biweekly"":false}]"
+cardId,cardLabel,itemId,itemName,itemAmount,itemBiweekly
+expenses_1,Housing,item_1,Rent,1200,false
+expenses_1,Housing,item_2,Internet,80,false
+expenses_1,Housing,item_3,Utilities,120,false
+expenses_2,Groceries,item_4,Weekly Shopping,150,false
+expenses_3,Transportation,item_5,Car Insurance,120,false
+expenses_3,Transportation,item_6,Gas,200,false
 SECTION:purchases
-id,name,amount,total
-purchase_1,Coffee,5.50,5.50
-purchase_2,Lunch,12.75,12.75
-purchase_3,Streaming Service,15.99,15.99
-purchase_4,Online Game,29.99,29.99
+id,name,amount
+purchase_1,Coffee,5.50
+purchase_2,Lunch,12.75
+purchase_3,Streaming Service,15.99
+purchase_4,Online Game,29.99
 SECTION:spendingHistory
 id,date,label,total,items
 history_1,2026-05-01,May 1-14 Period,487.23,"[{""name"":""Dining Out"",""amount"":120},{""name"":""Entertainment"",""amount"":85},{""name"":""Shopping"",""amount"":156},{""name"":""Subscriptions"",""amount"":50},{""name"":""Other"",""amount"":76.23}]"
@@ -56,6 +59,6 @@ sa_5,USD Savings,3000,67.50,"{}"
 sa_6,Life with B&S,1200,67.50,"{}"
 SECTION:goals
 id,accountId,targetAmount,targetDate
-goal_1,sa_4,50000,2027-12-31
-goal_2,sa_3,25000,2026-12-31
-goal_3,sa_1,5000,2026-08-31
+goal_1,sa_4,50000,2027-12
+goal_2,sa_3,25000,2026-12
+goal_3,sa_1,5000,2026-08

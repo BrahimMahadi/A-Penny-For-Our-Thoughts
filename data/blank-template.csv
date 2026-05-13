@@ -9,9 +9,9 @@ monthly,monthly,monthly
 SECTION:incomeStreams
 id,name,amount,biweekly
 SECTION:expenseCards
-id,name,items
+cardId,cardLabel,itemId,itemName,itemAmount,itemBiweekly
 SECTION:purchases
-id,name,amount,total
+id,name,amount
 SECTION:spendingHistory
 id,date,label,total,items
 SECTION:loans

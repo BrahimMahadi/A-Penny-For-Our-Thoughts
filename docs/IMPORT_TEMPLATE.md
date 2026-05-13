@@ -35,12 +35,17 @@ incomeStreams: id,name,amount,biweekly
 
 ### EXPENSE CARDS (Optional)
 ```
-expenseCards: id,name,items
-[unique-id],Housing,"[{""id"":""item_1"",""name"":""Rent"",""amount"":1200,""biweekly"":false}]"
+expenseCards: cardId,cardLabel,itemId,itemName,itemAmount,itemBiweekly
+[card-id],Housing,item_1,Rent,1200,false
+[card-id],Housing,item_2,Internet,80,false
+[card-id],Transportation,item_3,Car Insurance,120,false
 ```
-- **id**: Unique card identifier
-- **name**: Category name (e.g., Housing, Transportation)
-- **items**: JSON array of expense items (see sample-data.csv for format)
+- **cardId**: Unique card identifier (repeated for each item on the card)
+- **cardLabel**: Category name (e.g., Housing, Transportation)
+- **itemId**: Unique item identifier
+- **itemName**: Expense item name
+- **itemAmount**: Monthly or bi-weekly amount
+- **itemBiweekly**: `true` if bi-weekly, `false` if monthly
 
 ### CREDIT CARDS (Optional)
 ```

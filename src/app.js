@@ -290,8 +290,7 @@ function getGoalProgress(goal) {
   const progressPercent = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
 
   // Determine status by comparing monthly allocation vs. monthly savings needed
-  const today2 = new Date();
-  const monthlyAllocation = getAllocationForMonth(account, today2.getFullYear(), today2.getMonth() + 1);
+  const monthlyAllocation = getAllocationForMonth(account, today.getFullYear(), today.getMonth() + 1);
 
   let status = 'on-track';
   if (monthsRemaining <= 0) {
@@ -1807,7 +1806,8 @@ function openEditSavingsAccount(id) {
 function deleteSavingsAccount(id) {
   if (!confirm('Remove this savings account?')) return;
   state.savingsAccounts = state.savingsAccounts.filter(a => a.id !== id);
-  saveToStorage(); renderSavings();
+  state.goals = (state.goals || []).filter(g => g.accountId !== id);
+  saveToStorage(); renderSavings(); renderGoals();
 }
 
 function openAllocateSavingsModal() {

@@ -794,7 +794,7 @@ input:valid:focus {
   background: linear-gradient(90deg, #ff4d6d 0%, #ff4d6d 100%);
 }
 
-.progress-label {
+.goal-progress-container .progress-label {
   position: absolute;
   left: 50%;
   top: 50%;
