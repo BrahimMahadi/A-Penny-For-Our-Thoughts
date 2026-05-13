@@ -23,6 +23,23 @@ function switchTab(tab) {
 }
 
 // ────────────────────────────────────────────────────────────────
+// INFO TOOLTIPS
+// ────────────────────────────────────────────────────────────────
+function toggleInfoTip(e, id) {
+  e.stopPropagation();
+  const tip    = document.getElementById(id);
+  const isOpen = tip.classList.contains('open');
+  // Close all open tips first
+  document.querySelectorAll('.info-tip.open').forEach(t => t.classList.remove('open'));
+  if (!isOpen) tip.classList.add('open');
+}
+
+// Dismiss any open tip when clicking outside
+document.addEventListener('click', () => {
+  document.querySelectorAll('.info-tip.open').forEach(t => t.classList.remove('open'));
+});
+
+// ────────────────────────────────────────────────────────────────
 // MODAL SYSTEM
 // ────────────────────────────────────────────────────────────────
 function openModal(title, bodyHTML, onSave) {

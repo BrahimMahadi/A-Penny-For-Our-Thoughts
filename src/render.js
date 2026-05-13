@@ -76,6 +76,23 @@ function renderIncome() {
   document.getElementById('seg-savings').style.width = sPct + '%';
 
   document.getElementById('disp-savings').textContent = fmt(savings);
+
+  // Update tooltip formula examples with live numbers
+  const tipNeeds = document.getElementById('tip-needs');
+  if (tipNeeds) {
+    tipNeeds.querySelector('.tip-formula').innerHTML =
+      `Total Income × Needs %<br>${fmt(inc)} × ${nPct}% = <strong>${fmt(needs)}</strong> / mo`;
+  }
+  const tipWants = document.getElementById('tip-wants');
+  if (tipWants) {
+    tipWants.querySelector('.tip-formula').innerHTML =
+      `Total Income × Wants %<br>${fmt(inc)} × ${wPct}% = <strong>${fmt(wants)}</strong> / mo<br>→ <strong>${fmt(biWants)}</strong> per bi-weekly envelope`;
+  }
+  const tipSavings = document.getElementById('tip-savings');
+  if (tipSavings) {
+    tipSavings.querySelector('.tip-formula').innerHTML =
+      `Total Income × Savings %<br>${fmt(inc)} × ${sPct}% = <strong>${fmt(savings)}</strong> / mo<br>→ <strong>${fmt(biSavings)}</strong> per bi-weekly period`;
+  }
 }
 
 // ────────────────────────────────────────────────────────────────
