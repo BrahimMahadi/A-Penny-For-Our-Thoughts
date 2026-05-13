@@ -13,7 +13,7 @@
 - Follow coding best practices & guidelines as outlined in the Coding_Principles.md file.
 
 ## Project Overview 
-A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The app runs entirely in the browser with no backend — all data lives in localStorage. Open `dashboard.html` in any modern browser to use it.
+A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The app runs entirely in the browser with no backend — all data lives in localStorage. Open `index.html` in any modern browser to use it.
 
 ## Tech Stack
 - Frontend: [HTML, CSS, JS]
