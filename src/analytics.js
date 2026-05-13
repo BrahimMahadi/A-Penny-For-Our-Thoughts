@@ -58,14 +58,22 @@ function getMonthActuals(year, month) {
   };
 }
 
-/** Sum all actual needs (fixed monthly expenses) for a month */
+/** Sum all actual needs (fixed expenses + Needs subs renewed this month) for a month */
 function calculateActualNeeds(year, month) {
-  return (state.expenseCards || []).reduce((sum, card) => {
+  const expenseTotal = (state.expenseCards || []).reduce((sum, card) => {
     return sum + (card.items || []).reduce((s, i) => s + monthlyAmount(i), 0);
   }, 0);
+  // Only augment with Needs sub deductions for the current calendar month
+  const today = new Date();
+  if (year === today.getFullYear() && month === today.getMonth() + 1) {
+    const needsSubTotal = getSubsDeductedThisMonth()
+      .reduce((sum, sub) => sum + (+sub.amount || 0) * sub.renewalDates.length, 0);
+    return expenseTotal + needsSubTotal;
+  }
+  return expenseTotal;
 }
 
-/** Sum all actual wants (purchases + spending history) for a month */
+/** Sum all actual wants (purchases + Wants subs this period + spending history) for a month */
 function calculateActualWants(year, month) {
   const monthStr = `${year}-${String(month).padStart(2, '0')}`;
   let total = 0;
@@ -74,6 +82,9 @@ function calculateActualWants(year, month) {
   const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   if (monthStr === currentMonth) {
     total += (state.purchases || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+    // Add Wants subs deducted during the current bi-weekly period
+    total += getSubsDeductedThisPeriod()
+      .reduce((sum, sub) => sum + (+sub.amount || 0) * sub.renewalDates.length, 0);
   }
 
   (state.spendingHistory || []).forEach(period => {
@@ -124,6 +135,117 @@ function getAllocationForMonth(account, year, month) {
   return account.monthlyAllocations && account.monthlyAllocations[monthKey] !== undefined
     ? account.monthlyAllocations[monthKey]
     : account.defaultAllocated || 0;
+}
+
+// ────────────────────────────────────────────────────────────────
+// SUBSCRIPTION TRACKING
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Get all dates a subscription renews between startDate and endDate (inclusive).
+ * Both params are Date objects with time set to local midnight.
+ * Returns array of YYYY-MM-DD strings.
+ */
+function getRenewalDatesBetween(sub, startDate, endDate) {
+  const baseDate  = new Date(sub.date.substring(0, 10) + 'T00:00:00');
+  const frequency = sub.frequency || 'monthly';
+  const results   = [];
+
+  if (frequency === 'monthly') {
+    // Renewal day is the day-of-month from the stored date (e.g. 13th of each month)
+    const renewalDay = baseDate.getDate();
+    const cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    while (cur <= endDate) {
+      const maxDay    = new Date(cur.getFullYear(), cur.getMonth() + 1, 0).getDate();
+      const day       = Math.min(renewalDay, maxDay);
+      const candidate = new Date(cur.getFullYear(), cur.getMonth(), day);
+      if (candidate >= startDate && candidate <= endDate) {
+        results.push(candidate.toISOString().split('T')[0]);
+      }
+      cur.setMonth(cur.getMonth() + 1);
+    }
+
+  } else if (frequency === 'annual') {
+    // Annual anniversary: same month+day each year
+    for (let y = startDate.getFullYear(); y <= endDate.getFullYear(); y++) {
+      const candidate = new Date(y, baseDate.getMonth(), baseDate.getDate());
+      if (candidate >= startDate && candidate <= endDate) {
+        results.push(candidate.toISOString().split('T')[0]);
+      }
+    }
+
+  } else if (frequency === 'quarterly') {
+    // Every 3 months from baseDate
+    let candidate = new Date(baseDate);
+    // Fast-forward to vicinity of startDate to avoid needless iterations
+    const monthsDiff = (startDate.getFullYear() - baseDate.getFullYear()) * 12
+                     + (startDate.getMonth() - baseDate.getMonth());
+    if (monthsDiff > 3) {
+      const steps = Math.floor(monthsDiff / 3) - 1;
+      candidate   = new Date(baseDate.getFullYear(), baseDate.getMonth() + steps * 3, baseDate.getDate());
+    }
+    while (candidate <= endDate) {
+      if (candidate >= startDate) {
+        results.push(candidate.toISOString().split('T')[0]);
+      }
+      const next = new Date(candidate.getFullYear(), candidate.getMonth() + 3, candidate.getDate());
+      if (+next === +candidate) break; // safety break against infinite loop
+      candidate = next;
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Calculate the current bi-weekly period start from state.payStart.
+ * Returns YYYY-MM-DD string, or null if payStart is not configured.
+ */
+function getCurrentPeriodStart() {
+  if (!state.payStart) return null;
+  const payStart = new Date(state.payStart + 'T00:00:00');
+  const today    = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysDiff = Math.floor((today - payStart) / 86400000);
+  if (daysDiff < 0) return state.payStart; // payStart is in the future
+  const periodsElapsed = Math.floor(daysDiff / 14);
+  const result = new Date(payStart);
+  result.setDate(result.getDate() + periodsElapsed * 14);
+  return result.toISOString().split('T')[0];
+}
+
+/**
+ * Get all Wants subscriptions that renewed during the current bi-weekly period.
+ * Each returned item is augmented with a `renewalDates` string array.
+ * Returns [] if payStart is not configured.
+ */
+function getSubsDeductedThisPeriod() {
+  const periodStart = getCurrentPeriodStart();
+  if (!periodStart) return [];
+
+  const start = new Date(periodStart + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return (state.subscriptions || [])
+    .filter(sub => (sub.budgetType || 'wants') === 'wants')
+    .map(sub => ({ ...sub, renewalDates: getRenewalDatesBetween(sub, start, today) }))
+    .filter(sub => sub.renewalDates.length > 0);
+}
+
+/**
+ * Get all Needs subscriptions that renewed so far this calendar month.
+ * Each returned item is augmented with a `renewalDates` string array.
+ */
+function getSubsDeductedThisMonth() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  return (state.subscriptions || [])
+    .filter(sub => sub.budgetType === 'needs')
+    .map(sub => ({ ...sub, renewalDates: getRenewalDatesBetween(sub, firstOfMonth, today) }))
+    .filter(sub => sub.renewalDates.length > 0);
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -297,18 +419,33 @@ function getMonthForecast(year, month) {
 
   // ── Subscriptions ─────────────────────────────────────────────
   (state.subscriptions || []).forEach(sub => {
-    // Extract the day-of-month from the stored date string (YYYY-MM-DD or similar)
+    const frequency     = sub.frequency || 'monthly';
+    const startOfMonth  = new Date(year, month - 1, 1);
+    const endOfMonth    = new Date(year, month - 1, maxDay);
+    startOfMonth.setHours(0, 0, 0, 0);
+    endOfMonth.setHours(0, 0, 0, 0);
+
+    // For annual/quarterly: only include if a renewal occurs this month
+    const renewalDates = frequency !== 'monthly'
+      ? getRenewalDatesBetween(sub, startOfMonth, endOfMonth)
+      : [];
+    if (frequency !== 'monthly' && renewalDates.length === 0) return;
+
+    // Determine the due day for this month
     let dueDay = null;
-    if (sub.date) {
+    if (renewalDates.length > 0) {
+      // Use the actual renewal date for this specific month
+      dueDay = Math.min(parseInt(renewalDates[0].split('-')[2], 10), maxDay);
+    } else if (sub.date) {
+      // Monthly: use the day-of-month from the stored next-renewal date
       const parts = sub.date.split('-');
-      // parts[2] is the day if the format is YYYY-MM-DD
-      // For a plain day number stored as string, fall back gracefully
       const parsedDay = parts.length >= 3 ? parseInt(parts[2], 10) : parseInt(sub.date, 10);
       if (!isNaN(parsedDay) && parsedDay >= 1) {
         dueDay = Math.min(parsedDay, maxDay);
       }
     }
 
+    const occurrences = renewalDates.length || 1;
     items.push({
       id:            sub.id,
       name:          sub.name,
@@ -316,9 +453,12 @@ function getMonthForecast(year, month) {
       dueDay,
       source:        'subscription',
       cardLabel:     'Subscriptions',
-      occurrences:   1,
-      totalForMonth: +sub.amount || 0,
+      occurrences,
+      totalForMonth: (+sub.amount || 0) * occurrences,
       biweekly:      false,
+      budgetType:    sub.budgetType || 'wants',
+      category:      sub.category   || 'Other',
+      frequency,
     });
   });
 

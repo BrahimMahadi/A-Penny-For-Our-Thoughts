@@ -649,37 +649,107 @@ function deleteGoal(id) {
 // ────────────────────────────────────────────────────────────────
 // SUBSCRIPTIONS — CRUD
 // ────────────────────────────────────────────────────────────────
-function addSubscription() {
-  const name = document.getElementById('new-sub-name').value.trim();
-  const date = document.getElementById('new-sub-date').value;
-  if (!name || !date) return;
-  state.subscriptions.push({ id: genId(), name, date });
-  document.getElementById('new-sub-name').value = '';
-  document.getElementById('new-sub-date').value = '';
-  saveToStorage(); renderSubscriptions();
+const SUB_CATEGORIES = ['Entertainment', 'Utilities', 'Health', 'Productivity', 'Other'];
+
+function _subModalBody(sub) {
+  const catOpts  = SUB_CATEGORIES.map(c =>
+    `<option value="${c}" ${c === (sub?.category || 'Other') ? 'selected' : ''}>${c}</option>`
+  ).join('');
+  const freqOpts = [
+    ['monthly',   'Monthly'],
+    ['quarterly', 'Quarterly'],
+    ['annual',    'Annual'],
+  ].map(([v, l]) =>
+    `<option value="${v}" ${v === (sub?.frequency || 'monthly') ? 'selected' : ''}>${l}</option>`
+  ).join('');
+
+  return (
+    mField('Service Name', 'ms-name',   'text',   sub?.name        ?? '',     'e.g. Spotify, Netflix') +
+    mField('Cost ($)',     'ms-amount', 'number', sub?.amount      ?? '',     '0.00', 'min="0" step="0.01"') +
+    `<div class="modal-row">
+      <div class="modal-field">
+        <label>Frequency</label>
+        <select id="ms-frequency">${freqOpts}</select>
+      </div>
+      <div class="modal-field">
+        <label>Budget Type</label>
+        <select id="ms-budgettype">
+          <option value="wants" ${(sub?.budgetType ?? 'wants') === 'wants' ? 'selected' : ''}>Wants</option>
+          <option value="needs" ${sub?.budgetType === 'needs' ? 'selected' : ''}>Needs</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label>Category</label>
+        <select id="ms-category">${catOpts}</select>
+      </div>
+      <div class="modal-field">
+        <label>Next Renewal Date</label>
+        <input type="date" id="ms-date" value="${sub?.date ?? ''}" />
+      </div>
+    </div>`
+  );
+}
+
+function _readSubModal() {
+  return {
+    name:       document.getElementById('ms-name').value.trim(),
+    amount:     parseFloat(document.getElementById('ms-amount').value) || 0,
+    frequency:  document.getElementById('ms-frequency').value,
+    budgetType: document.getElementById('ms-budgettype').value,
+    category:   document.getElementById('ms-category').value,
+    date:       document.getElementById('ms-date').value,
+  };
+}
+
+function openAddSubscription() {
+  openModal('Add Subscription', _subModalBody(null), () => {
+    const { name, amount, frequency, budgetType, category, date } = _readSubModal();
+    if (!name || !date) { alert('Please enter a name and renewal date.'); return; }
+    state.subscriptions.push({ id: genId(), name, amount, frequency, date, category, budgetType });
+    saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); closeModal();
+  });
 }
 
 function openEditSubscription(id) {
   const sub = (state.subscriptions || []).find(s => s.id === id);
   if (!sub) return;
-  openModal(
-    'Edit Subscription',
-    mField('Service Name',  'ms-name', 'text', sub.name, '') +
-    mField('Renewal Date',  'ms-date', 'date', sub.date, ''),
-    () => {
-      const name = document.getElementById('ms-name').value.trim();
-      const date = document.getElementById('ms-date').value;
-      if (!name || !date) return;
-      Object.assign(sub, { name, date });
-      saveToStorage(); renderSubscriptions(); closeModal();
-    }
-  );
+  openModal('Edit Subscription', _subModalBody(sub), () => {
+    const { name, amount, frequency, budgetType, category, date } = _readSubModal();
+    if (!name || !date) return;
+    Object.assign(sub, { name, amount, frequency, date, category, budgetType });
+    saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); closeModal();
+  });
 }
 
 function deleteSubscription(id) {
   if (!confirm('Remove this subscription?')) return;
   state.subscriptions = state.subscriptions.filter(s => s.id !== id);
-  saveToStorage(); renderSubscriptions();
+  saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards();
+}
+
+// ────────────────────────────────────────────────────────────────
+// PAYDAY ANCHOR
+// ────────────────────────────────────────────────────────────────
+function openSetPayStart() {
+  openModal(
+    'Set Payday Anchor',
+    `<div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+       Choose the date of your most recent paycheque. All bi-weekly periods are
+       calculated automatically from this anchor — no manual resets needed.
+     </div>` +
+    mField('Most Recent Payday', 'pay-start-date', 'date', state.payStart || '', '') +
+    `<div style="font-size:12px;color:var(--muted);margin-top:12px;padding:10px;background:var(--surface);border-radius:6px;border-left:3px solid var(--accent2)">
+       💡 Example: if you last got paid May 7, pick May 7. Your next period starts May 21, then June 4, etc.
+     </div>`,
+    () => {
+      const date = document.getElementById('pay-start-date').value;
+      if (!date) { alert('Please select a date.'); return; }
+      state.payStart = date;
+      saveToStorage(); renderAll(); closeModal();
+    }
+  );
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -776,7 +846,7 @@ function exportCsv() {
   const e     = csvEscape;
   const today = new Date().toISOString().split('T')[0];
 
-  rows.push('SECTION:meta', 'key,value', `exported,${today}`, '');
+  rows.push('SECTION:meta', 'key,value', `exported,${today}`, `payStart,${state.payStart || ''}`, '');
   rows.push('SECTION:allocation', 'needs,wants,savings',
     `${state.allocation.needs},${state.allocation.wants},${state.allocation.savings}`, '');
   rows.push('SECTION:budgetDisplayMode', 'needs,wants,savings',
@@ -822,8 +892,10 @@ function exportCsv() {
   (state.creditCards || []).forEach(c => rows.push(`${e(c.id)},${e(c.name)},${c.balance},${c.limit}`));
   rows.push('');
 
-  rows.push('SECTION:subscriptions', 'id,name,date');
-  (state.subscriptions || []).forEach(s => rows.push(`${e(s.id)},${e(s.name)},${s.date}`));
+  rows.push('SECTION:subscriptions', 'id,name,amount,frequency,date,category,budgetType');
+  (state.subscriptions || []).forEach(s =>
+    rows.push(`${e(s.id)},${e(s.name)},${s.amount ?? 0},${e(s.frequency || 'monthly')},${e(s.date)},${e(s.category || 'Other')},${e(s.budgetType || 'wants')}`)
+  );
   rows.push('');
 
   rows.push('SECTION:wishlist', 'id,icon,name,url');
@@ -904,7 +976,10 @@ function parseCsv(text) {
 
     const vals = parseCSVRow(line);
     switch (currentSection) {
-      case 'meta': break;
+      case 'meta':
+        // Persist payStart stored in meta section
+        if (vals[0] === 'payStart' && vals[1]) parsed.payStart = vals[1] || null;
+        break;
 
       case 'allocation':
         parsed.allocation = { needs: +vals[0] || 50, wants: +vals[1] || 30, savings: +vals[2] || 20 };
@@ -958,7 +1033,21 @@ function parseCsv(text) {
 
       case 'subscriptions':
         if (!parsed.subscriptions) parsed.subscriptions = [];
-        parsed.subscriptions.push({ id: vals[0], name: vals[1], date: vals[2] });
+        if (vals.length >= 7) {
+          // New format: id,name,amount,frequency,date,category,budgetType
+          parsed.subscriptions.push({
+            id: vals[0], name: vals[1], amount: +vals[2] || 0,
+            frequency: vals[3] || 'monthly', date: vals[4],
+            category: vals[5] || 'Other', budgetType: vals[6] || 'wants',
+          });
+        } else {
+          // Old format fallback: id,name,date
+          parsed.subscriptions.push({
+            id: vals[0], name: vals[1], amount: 0,
+            frequency: 'monthly', date: vals[2],
+            category: 'Other', budgetType: 'wants',
+          });
+        }
         break;
 
       case 'wishlist':
@@ -1006,6 +1095,7 @@ function parseCsv(text) {
   if (!parsed.goals)             parsed.goals              = [];
   if (!parsed.assets)            parsed.assets             = [];
   if (!parsed.netWorthHistory)   parsed.netWorthHistory    = [];
+  if (parsed.payStart === undefined) parsed.payStart       = null;
 
   return parsed;
 }

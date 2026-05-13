@@ -35,9 +35,9 @@ const DEFAULT_STATE = {
   ],
 
   subscriptions: [
-    { id: genId(), name: 'Usenet Provider', date: '2026-09-13' },
-    { id: genId(), name: 'Real Debrid',     date: '2026-09-22' },
-    { id: genId(), name: 'IPVanish',        date: '2027-04-17' },
+    { id: genId(), name: 'Usenet Provider', amount: 13.99, frequency: 'monthly',  date: '2026-09-13', category: 'Utilities',    budgetType: 'wants' },
+    { id: genId(), name: 'Real Debrid',     amount: 4.99,  frequency: 'monthly',  date: '2026-09-22', category: 'Entertainment', budgetType: 'wants' },
+    { id: genId(), name: 'IPVanish',        amount: 89.99, frequency: 'annual',   date: '2027-04-17', category: 'Productivity',  budgetType: 'wants' },
   ],
 
   wishlist: [
@@ -60,6 +60,8 @@ const DEFAULT_STATE = {
   goals:          [],
   assets:         [], // [{ id, name, category, value }]
   netWorthHistory: [], // [{ id, date: 'YYYY-MM', netWorth, totalAssets, totalLiabilities }]
+
+  payStart: null, // YYYY-MM-DD anchor date for bi-weekly period calculation; null = not configured
 };
 
 // ────────────────────────────────────────────────────────────────
@@ -93,6 +95,16 @@ function loadFromStorage() {
     delete state.expenses;
   }
 
+  // ── Migration: old subscriptions → add amount, frequency, category, budgetType ──
+  if (state.subscriptions) {
+    state.subscriptions.forEach(sub => {
+      if (sub.amount    === undefined) sub.amount    = 0;
+      if (!sub.frequency)              sub.frequency  = 'monthly';
+      if (!sub.category)               sub.category   = 'Other';
+      if (!sub.budgetType)             sub.budgetType = 'wants';
+    });
+  }
+
   // ── Migration: old savings accounts (allocated only) → new structure ──
   if (state.savingsAccounts) {
     state.savingsAccounts.forEach(acct => {
@@ -120,6 +132,7 @@ function loadFromStorage() {
   if (!state.goals)             state.goals              = [];
   if (!state.assets)            state.assets             = [];
   if (!state.netWorthHistory)   state.netWorthHistory    = [];
+  if (state.payStart === undefined) state.payStart       = null;
 
   recordNetWorthSnapshot();
 }
