@@ -368,6 +368,95 @@
     <button class="btn" onclick="openAddGoal()" style="margin-top: 12px;">+ Add Goal</button>
   </div>
 
+  <!-- ── Net Worth ── -->
+  <div class="section-title">Net Worth</div>
+  <div id="net-worth-section">
+
+    <!-- Stat tiles -->
+    <div class="nw-stat-tiles">
+      <div class="card nw-stat-tile">
+        <div class="nw-stat-label">Net Worth</div>
+        <div class="nw-stat-value" id="nw-net-worth">—</div>
+      </div>
+      <div class="card nw-stat-tile">
+        <div class="nw-stat-label">Total Assets</div>
+        <div class="nw-stat-value" id="nw-total-assets">—</div>
+      </div>
+      <div class="card nw-stat-tile">
+        <div class="nw-stat-label">Total Liabilities</div>
+        <div class="nw-stat-value" id="nw-total-liab">—</div>
+      </div>
+      <div class="card nw-stat-tile">
+        <div class="nw-stat-label">vs. Last Month</div>
+        <div id="nw-mom-change">—</div>
+      </div>
+    </div>
+
+    <!-- Trend chart -->
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Net Worth Trend</div>
+      <div style="position:relative;height:180px">
+        <canvas id="netWorthChart"></canvas>
+      </div>
+      <div id="nw-chart-note" style="display:none;font-size:12px;color:var(--muted);margin-top:8px;text-align:center">
+        📈 Only one month of data so far — your trend will appear as you return each month.
+      </div>
+    </div>
+
+    <!-- Breakdown panels -->
+    <div class="nw-panels">
+
+      <!-- Assets panel -->
+      <div class="card nw-panel">
+        <div class="nw-panel-header">
+          <span>Assets</span>
+          <span class="nw-panel-total" id="nw-total-assets-panel">—</span>
+        </div>
+
+        <!-- Liquid savings (auto) -->
+        <div class="nw-category-section">
+          <div class="nw-category-header">
+            <span>🏦 Savings Accounts <span style="font-size:11px;color:var(--muted)">(auto)</span></span>
+            <span class="nw-category-total" id="nw-savings-total">—</span>
+          </div>
+          <div id="nw-savings-rows"></div>
+        </div>
+
+        <!-- Manual categories -->
+        <div id="nw-category-rows"></div>
+      </div>
+
+      <!-- Liabilities panel -->
+      <div class="card nw-panel">
+        <div class="nw-panel-header">
+          <span>Liabilities</span>
+          <span class="nw-panel-total nw-liab-total" id="nw-liab-total">—</span>
+        </div>
+
+        <div class="nw-category-section">
+          <div class="nw-category-header">
+            <span>Loans</span>
+            <span class="nw-category-total" id="nw-loan-total">—</span>
+          </div>
+          <div id="nw-loan-rows"></div>
+        </div>
+
+        <div class="nw-category-section">
+          <div class="nw-category-header">
+            <span>Credit Cards</span>
+            <span class="nw-category-total" id="nw-cc-total">—</span>
+          </div>
+          <div id="nw-cc-rows"></div>
+        </div>
+
+        <div class="nw-liab-note">
+          Manage loans and credit cards in their own sections above.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- ── Subscriptions ── -->
   <div class="section-title">Subscription Renewals</div>
   <div class="card">

@@ -1362,6 +1362,87 @@ canvas {
 }
 
 /* ═══════════════════════════════════════════════════
+   NET WORTH
+═══════════════════════════════════════════════════ */
+.nw-stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.nw-stat-tile { padding: 16px 18px; }
+.nw-stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.nw-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.nw-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.nw-panel { padding: 16px 18px; }
+.nw-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.nw-panel-total { font-size: 15px; font-weight: 700; color: var(--accent2); }
+.nw-liab-total  { color: var(--danger); }
+
+.nw-category-section { margin-bottom: 14px; }
+.nw-category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.nw-category-total { font-size: 12px; font-weight: 700; color: var(--text); }
+
+.nw-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.nw-breakdown-row:last-child { border-bottom: none; }
+.nw-item-row { padding: 4px 0; }
+.nw-breakdown-name { color: var(--text); flex: 1; }
+.nw-breakdown-val  { font-weight: 600; color: var(--text); }
+.nw-breakdown-empty {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 0 6px;
+  font-style: italic;
+}
+.nw-liab-note {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+/* ═══════════════════════════════════════════════════
    RESPONSIVE — 540px (phones)
 ═══════════════════════════════════════════════════ */
 @media (max-width: 540px) {
@@ -1558,4 +1639,8 @@ canvas {
 
   /* Edit tab grid */
   .edit-grid { grid-template-columns: 1fr; gap: 10px; }
+
+  /* Net Worth responsive */
+  .nw-stat-tiles { grid-template-columns: 1fr 1fr; }
+  .nw-panels { grid-template-columns: 1fr; }
 }

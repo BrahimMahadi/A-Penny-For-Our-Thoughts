@@ -98,6 +98,9 @@ const DEFAULT_STATE = {
   ],
 
   goals: [],
+
+  assets: [],          // Manual assets: [{ id, name, category, value }]
+  netWorthHistory: [], // Monthly snapshots: [{ id, date: 'YYYY-MM', netWorth, totalAssets, totalLiabilities }]
 };
 
 // ────────────────────────────────────────────────────────────────
@@ -323,6 +326,75 @@ function getGoalProgress(goal) {
 }
 
 // ────────────────────────────────────────────────────────────────
+// NET WORTH — CALCULATIONS
+// ────────────────────────────────────────────────────────────────
+
+const ASSET_CATEGORIES = [
+  { key: 'investment', label: 'Investments', icon: '💰' },
+  { key: 'real_estate', label: 'Real Estate', icon: '🏠' },
+  { key: 'vehicle',    label: 'Vehicles',    icon: '🚗' },
+  { key: 'other',      label: 'Other',       icon: '📦' },
+];
+
+/** Compute a full net worth snapshot from current state */
+function getNetWorthData() {
+  const liquidAssets   = (state.savingsAccounts || []).reduce((s, a) => s + (a.balance || 0), 0);
+  const manualAssets   = (state.assets          || []).reduce((s, a) => s + (a.value   || 0), 0);
+  const totalAssets    = liquidAssets + manualAssets;
+
+  const totalLoans     = (state.loans       || []).reduce((s, l) => s + (l.remaining || 0), 0);
+  const totalCC        = (state.creditCards  || []).reduce((s, c) => s + (c.balance   || 0), 0);
+  const totalLiabilities = totalLoans + totalCC;
+
+  const netWorth = totalAssets - totalLiabilities;
+
+  // MoM change — compare to previous month's snapshot
+  const history = (state.netWorthHistory || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+  const today = new Date();
+  const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const prevSnapshots = history.filter(h => h.date < currentMonthKey);
+  const prevSnapshot  = prevSnapshots.length ? prevSnapshots[prevSnapshots.length - 1] : null;
+  const momChange     = prevSnapshot !== null ? netWorth - prevSnapshot.netWorth : null;
+
+  // Assets grouped by category
+  const byCategory = ASSET_CATEGORIES.map(cat => ({
+    ...cat,
+    items: (state.assets || []).filter(a => a.category === cat.key),
+    total: (state.assets || []).filter(a => a.category === cat.key).reduce((s, a) => s + (a.value || 0), 0),
+  }));
+
+  return {
+    liquidAssets, manualAssets, totalAssets,
+    totalLoans, totalCC, totalLiabilities,
+    netWorth, momChange, byCategory, history,
+  };
+}
+
+/** Record a net worth snapshot for the current month if one doesn't exist yet */
+function recordNetWorthSnapshot() {
+  if (!state.netWorthHistory) state.netWorthHistory = [];
+  const today = new Date();
+  const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+  // Only record once per month
+  if (state.netWorthHistory.some(h => h.date === monthKey)) return;
+
+  const totalAssets      = (state.savingsAccounts || []).reduce((s, a) => s + (a.balance || 0), 0)
+                         + (state.assets           || []).reduce((s, a) => s + (a.value   || 0), 0);
+  const totalLiabilities = (state.loans       || []).reduce((s, l) => s + (l.remaining || 0), 0)
+                         + (state.creditCards  || []).reduce((s, c) => s + (c.balance   || 0), 0);
+
+  state.netWorthHistory.push({
+    id: genId(), date: monthKey,
+    netWorth: totalAssets - totalLiabilities,
+    totalAssets, totalLiabilities,
+  });
+  // Trim to last 24 months
+  state.netWorthHistory.sort((a, b) => a.date.localeCompare(b.date));
+  if (state.netWorthHistory.length > 24) state.netWorthHistory = state.netWorthHistory.slice(-24);
+}
+
+// ────────────────────────────────────────────────────────────────
 // THEME
 // ────────────────────────────────────────────────────────────────
 const THEME_KEY     = 'penny_theme';
@@ -406,6 +478,11 @@ function loadFromStorage() {
   if (!state.savingsAccounts)   state.savingsAccounts    = [];
   if (!state.subscriptions)     state.subscriptions      = [];
   if (!state.goals)             state.goals              = [];
+  if (!state.assets)            state.assets             = [];
+  if (!state.netWorthHistory)   state.netWorthHistory    = [];
+
+  // Auto-snapshot net worth for the current month if not already recorded
+  recordNetWorthSnapshot();
 }
 
 function saveToStorage() {
@@ -850,20 +927,6 @@ function renderBudgetVsActual() {
   const actuals = getMonthActuals(year, month);
   const budgeted = getMonthBudgeted(year, month);
   const income = getTotalMonthlyIncome();
-
-  // Debug: Log actual calculation values
-  console.log('Budget vs. Actual Debug:', {
-    income,
-    needs_budgeted: budgeted.needs,
-    needs_actual: actuals.needs,
-    wants_budgeted: budgeted.wants,
-    wants_actual: actuals.wants,
-    savings_budgeted: budgeted.savings,
-    savings_actual: actuals.savings,
-    purchases_count: (state.purchases || []).length,
-    purchases_total: (state.purchases || []).reduce((sum, p) => sum + (p.amount || 0), 0),
-    spending_history_count: (state.spendingHistory || []).length,
-  });
 
   renderBudgetVarianceCards(budgeted, actuals);
   renderBudgetVsActualChart(budgeted, actuals);
@@ -2313,6 +2376,20 @@ function exportCsv() {
   );
   rows.push('');
 
+  // ── Manual assets ──
+  rows.push('SECTION:assets', 'id,name,category,value');
+  (state.assets || []).forEach(a =>
+    rows.push(`${e(a.id)},${e(a.name)},${e(a.category)},${a.value}`)
+  );
+  rows.push('');
+
+  // ── Net worth history ──
+  rows.push('SECTION:netWorthHistory', 'id,date,netWorth,totalAssets,totalLiabilities');
+  (state.netWorthHistory || []).forEach(h =>
+    rows.push(`${e(h.id)},${h.date},${h.netWorth},${h.totalAssets},${h.totalLiabilities}`)
+  );
+  rows.push('');
+
   // ── Trigger download ──
   const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
@@ -2532,6 +2609,18 @@ function parseCsv(text) {
           id: vals[0], accountId: vals[1], targetAmount: +vals[2], targetDate: vals[3],
         });
         break;
+
+      case 'assets':
+        if (!parsed.assets) parsed.assets = [];
+        parsed.assets.push({ id: vals[0], name: vals[1], category: vals[2], value: +vals[3] });
+        break;
+
+      case 'netWorthHistory':
+        if (!parsed.netWorthHistory) parsed.netWorthHistory = [];
+        parsed.netWorthHistory.push({
+          id: vals[0], date: vals[1], netWorth: +vals[2], totalAssets: +vals[3], totalLiabilities: +vals[4],
+        });
+        break;
     }
   }
 
@@ -2548,6 +2637,8 @@ function parseCsv(text) {
   if (!parsed.wishlist)          parsed.wishlist           = [];
   if (!parsed.savingsAccounts)   parsed.savingsAccounts    = [];
   if (!parsed.goals)             parsed.goals              = [];
+  if (!parsed.assets)            parsed.assets             = [];
+  if (!parsed.netWorthHistory)   parsed.netWorthHistory    = [];
 
   return parsed;
 }
@@ -2565,6 +2656,207 @@ function renderDate() {
 }
 
 // ────────────────────────────────────────────────────────────────
+// NET WORTH — CRUD (manual assets)
+// ────────────────────────────────────────────────────────────────
+
+function openAddAsset(category) {
+  const cat = ASSET_CATEGORIES.find(c => c.key === category);
+  const bodyHTML = `
+    ${mField('Name', 'asset-name', 'text', '', `e.g. ${category === 'investment' ? 'RRSP' : category === 'vehicle' ? '2022 Honda Civic' : category === 'real_estate' ? 'Primary Residence' : 'Collectibles'}`)}
+    ${mField('Current Value ($)', 'asset-value', 'number', '', '0', 'min="0" step="0.01"')}
+  `;
+  openModal(`Add ${cat.icon} ${cat.label.slice(0, -1)}`, bodyHTML, () => {
+    const name  = document.getElementById('asset-name').value.trim();
+    const value = parseFloat(document.getElementById('asset-value').value) || 0;
+    if (!name) { alert('Please enter a name.'); return; }
+    state.assets.push({ id: genId(), name, category, value });
+    saveToStorage(); renderNetWorth();
+  });
+}
+
+function openEditAsset(id) {
+  const asset = (state.assets || []).find(a => a.id === id);
+  if (!asset) return;
+  const cat = ASSET_CATEGORIES.find(c => c.key === asset.category);
+  const bodyHTML = `
+    ${mField('Name', 'asset-name', 'text', asset.name, '')}
+    ${mField('Current Value ($)', 'asset-value', 'number', asset.value, '0', 'min="0" step="0.01"')}
+  `;
+  openModal(`Edit ${cat?.icon ?? ''} ${asset.name}`, bodyHTML, () => {
+    const name  = document.getElementById('asset-name').value.trim();
+    const value = parseFloat(document.getElementById('asset-value').value) || 0;
+    if (!name) { alert('Please enter a name.'); return; }
+    Object.assign(asset, { name, value });
+    saveToStorage(); renderNetWorth();
+  });
+}
+
+function deleteAsset(id) {
+  if (!confirm('Remove this asset?')) return;
+  state.assets = state.assets.filter(a => a.id !== id);
+  saveToStorage(); renderNetWorth();
+}
+
+// ────────────────────────────────────────────────────────────────
+// NET WORTH — RENDER
+// ────────────────────────────────────────────────────────────────
+
+let netWorthChart = null;
+
+function renderNetWorth() {
+  const container = document.getElementById('net-worth-section');
+  if (!container) return;
+
+  const d = getNetWorthData();
+  const nwColor = d.netWorth >= 0 ? 'var(--accent2)' : 'var(--danger)';
+
+  // MoM badge
+  let momHTML = '<span style="color:var(--muted);font-size:13px">No prior data</span>';
+  if (d.momChange !== null) {
+    const sign  = d.momChange >= 0 ? '+' : '';
+    const color = d.momChange >= 0 ? 'var(--accent2)' : 'var(--danger)';
+    const arrow = d.momChange >= 0 ? '▲' : '▼';
+    momHTML = `<span style="color:${color};font-size:20px;font-weight:700">${arrow} ${sign}${fmt(d.momChange)}</span>`;
+  }
+
+  // Stat tiles
+  document.getElementById('nw-net-worth').textContent       = fmt(d.netWorth);
+  document.getElementById('nw-net-worth').style.color       = nwColor;
+  document.getElementById('nw-total-assets').textContent    = fmt(d.totalAssets);
+  document.getElementById('nw-total-liab').textContent      = fmt(d.totalLiabilities);
+  document.getElementById('nw-mom-change').innerHTML        = momHTML;
+
+  // Panel header totals
+  const totalAssetsPanel = document.getElementById('nw-total-assets-panel');
+  if (totalAssetsPanel) totalAssetsPanel.textContent = fmt(d.totalAssets);
+
+  // Assets panel — liquid savings
+  let savingsRows = (state.savingsAccounts || []).map(a =>
+    `<div class="nw-breakdown-row">
+      <span class="nw-breakdown-name">${a.name}</span>
+      <span class="nw-breakdown-val">${fmt(a.balance || 0)}</span>
+    </div>`
+  ).join('');
+  if (!savingsRows) savingsRows = '<div class="nw-breakdown-empty">No savings accounts</div>';
+  document.getElementById('nw-savings-rows').innerHTML = savingsRows;
+  document.getElementById('nw-savings-total').textContent = fmt(d.liquidAssets);
+
+  // Assets panel — manual categories
+  const catContainer = document.getElementById('nw-category-rows');
+  catContainer.innerHTML = '';
+  d.byCategory.forEach(cat => {
+    const itemRows = cat.items.map(a => `
+      <div class="nw-breakdown-row nw-item-row">
+        <span class="nw-breakdown-name">${a.name}</span>
+        <span style="display:flex;align-items:center;gap:6px">
+          <span class="nw-breakdown-val">${fmt(a.value)}</span>
+          <button class="btn icon-btn" onclick="openEditAsset('${a.id}')" title="Edit">✎</button>
+          <button class="btn icon-btn del" onclick="deleteAsset('${a.id}')" title="Delete">×</button>
+        </span>
+      </div>`).join('');
+
+    const section = document.createElement('div');
+    section.className = 'nw-category-section';
+    section.innerHTML = `
+      <div class="nw-category-header">
+        <span>${cat.icon} ${cat.label}</span>
+        <span style="display:flex;align-items:center;gap:8px">
+          <span class="nw-category-total">${fmt(cat.total)}</span>
+          <button class="btn" style="font-size:11px;padding:3px 8px" onclick="openAddAsset('${cat.key}')">+ Add</button>
+        </span>
+      </div>
+      ${itemRows || `<div class="nw-breakdown-empty">None added</div>`}
+    `;
+    catContainer.appendChild(section);
+  });
+
+  // Liabilities panel
+  const loanRows = (state.loans || []).map(l =>
+    `<div class="nw-breakdown-row">
+      <span class="nw-breakdown-name">${l.name}</span>
+      <span class="nw-breakdown-val" style="color:var(--danger)">${fmt(l.remaining)}</span>
+    </div>`
+  ).join('') || '<div class="nw-breakdown-empty">No loans</div>';
+
+  const ccRows = (state.creditCards || []).map(c =>
+    `<div class="nw-breakdown-row">
+      <span class="nw-breakdown-name">${c.name}</span>
+      <span class="nw-breakdown-val" style="color:var(--danger)">${fmt(c.balance)}</span>
+    </div>`
+  ).join('') || '<div class="nw-breakdown-empty">No credit cards</div>';
+
+  document.getElementById('nw-loan-rows').innerHTML      = loanRows;
+  document.getElementById('nw-loan-total').textContent   = fmt(d.totalLoans);
+  document.getElementById('nw-cc-rows').innerHTML        = ccRows;
+  document.getElementById('nw-cc-total').textContent     = fmt(d.totalCC);
+  document.getElementById('nw-liab-total').textContent   = fmt(d.totalLiabilities);
+
+  // Chart
+  renderNetWorthChart(d.history);
+}
+
+function renderNetWorthChart(history) {
+  const canvas = document.getElementById('netWorthChart');
+  if (!canvas) return;
+
+  if (netWorthChart) { netWorthChart.destroy(); netWorthChart = null; }
+
+  const labels = history.map(h => {
+    const [y, m] = h.date.split('-');
+    return new Date(+y, +m - 1).toLocaleString('en-CA', { month: 'short', year: '2-digit' });
+  });
+  const values = history.map(h => h.netWorth);
+
+  const noteEl = document.getElementById('nw-chart-note');
+  if (history.length < 2 && noteEl) {
+    noteEl.style.display = 'block';
+  } else if (noteEl) {
+    noteEl.style.display = 'none';
+  }
+
+  const positiveColor = 'rgba(0, 212, 170, 0.8)';
+  const negativeColor = 'rgba(255, 77, 109, 0.8)';
+  const lastValue     = values[values.length - 1] ?? 0;
+
+  netWorthChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Net Worth',
+        data: values,
+        borderColor: lastValue >= 0 ? positiveColor : negativeColor,
+        backgroundColor: lastValue >= 0 ? 'rgba(0,212,170,0.08)' : 'rgba(255,77,109,0.08)',
+        borderWidth: 2,
+        pointRadius: history.length === 1 ? 6 : 3,
+        pointBackgroundColor: lastValue >= 0 ? positiveColor : negativeColor,
+        tension: 0.3,
+        fill: true,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ' ' + fmt(ctx.parsed.y),
+          },
+        },
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--muted)', font: { size: 11 } } },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: 'var(--muted)', font: { size: 11 }, callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v) },
+        },
+      },
+    },
+  });
+}
+
+// ────────────────────────────────────────────────────────────────
 // RENDER ALL
 // ────────────────────────────────────────────────────────────────
 function renderAll() {
@@ -2577,6 +2869,7 @@ function renderAll() {
   renderCreditCards();
   renderSavings();
   renderGoals();
+  renderNetWorth();
   renderSubscriptions();
   renderWishlist();
 }
