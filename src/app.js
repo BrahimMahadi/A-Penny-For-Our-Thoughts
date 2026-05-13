@@ -289,22 +289,20 @@ function getGoalProgress(goal) {
   // Calculate progress percentage
   const progressPercent = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
 
-  // Determine if on track (for now, simple: have we allocated the right amount?)
-  // More sophisticated: check if current >= requiredAmount at this point in timeline
+  // Determine status by comparing monthly allocation vs. monthly savings needed
+  const today2 = new Date();
+  const monthlyAllocation = getAllocationForMonth(account, today2.getFullYear(), today2.getMonth() + 1);
+
   let status = 'on-track';
   if (monthsRemaining <= 0) {
-    // Goal date passed
     status = currentAmount >= targetAmount ? 'complete' : 'missed';
+  } else if (currentAmount >= targetAmount) {
+    status = 'on-track';
   } else {
-    // Goal in future: are we ahead, on-track, or behind?
-    const requiredAmount = targetAmount * ((Date.now() - new Date(goal.targetDate.split('-')[0], goal.targetDate.split('-')[1] - 1, 1)) /
-      ((new Date(goal.targetDate.split('-')[0], goal.targetDate.split('-')[1], 0) - new Date(goal.targetDate.split('-')[0], goal.targetDate.split('-')[1] - 1, 1)) / 1000 / 60 / 60 / 24));
-
-    // Simpler approach: if we're on pace, we're on track
-    // Just check if current >= what we should have by this point in the year
-    if (progressPercent >= 100) {
+    // Are we allocating enough each month to hit the goal?
+    if (monthlyAllocation >= monthlySavingsNeeded) {
       status = 'on-track';
-    } else if (progressPercent >= 80) {
+    } else if (monthlyAllocation >= monthlySavingsNeeded * 0.8) {
       status = 'caution';
     } else {
       status = 'off-track';
