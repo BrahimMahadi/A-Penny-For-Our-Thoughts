@@ -74,16 +74,19 @@ Real-time tracking of development progress. Updated as work completes.
 ---
 
 ## Phase 2: Advanced Features 📅
-**Status**: 🟡 **PENDING**  
+**Status**: 🟡 **IN PROGRESS**  
 **Goal**: Handle complex financial scenarios
 
-### 2A: Net Worth Tracker
-**Priority**: 🔴 HIGH (NEXT)
-- [ ] Assets: savings accounts (auto), investments, property (manual entry)
-- [ ] Liabilities: loans + credit card balances (already tracked — auto-sum)
-- [ ] Net worth = assets − liabilities, displayed as a stat card
-- [ ] Monthly net worth history (stored in state, chart of 12+ months)
-- [ ] `renderNetWorth()` + `renderNetWorthChart()`
+### 2A: Net Worth Tracker ✅
+**Priority**: 🔴 HIGH — COMPLETE
+- ✅ Assets: savings accounts (auto-listed), typed manual assets (💰 Investments, 🏠 Real Estate, 🚗 Vehicles, 📦 Other)
+- ✅ Liabilities: loans + credit card balances (auto-summed, read-only)
+- ✅ Net worth = totalAssets − totalLiabilities, displayed as 4 stat tiles (net worth, assets, liabilities, MoM change)
+- ✅ Monthly auto-snapshot on `loadFromStorage()`, stored in `netWorthHistory[]`, trimmed to 24 months
+- ✅ `renderNetWorth()` + `renderNetWorthChart()` — line chart with single-point note when <2 months of data
+- ✅ Full CRUD on manual assets (Add per category, Edit, Delete)
+- ✅ CSV import/export: `SECTION:assets` and `SECTION:netWorthHistory`
+- ✅ Mobile responsive (2-column stat tiles, stacked panels at 380px)
 
 ### 2B: Recurring Expense Calendar
 **Priority**: 🟡 MEDIUM
@@ -142,9 +145,9 @@ Real-time tracking of development progress. Updated as work completes.
 |-------|--------|--------|
 | Phase 0 — Design & Visual Polish | ✅ Complete | 100% |
 | Phase 1 — Analytics & Goal Tracking | ✅ Complete | 100% |
-| Phase 2 — Advanced Features | 🟡 Pending | 0% |
+| Phase 2 — Advanced Features | 🟡 In Progress | 25% (2A done) |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
-| **Overall** | **In Progress** | **~50%** |
+| **Overall** | **In Progress** | **~62%** |
 
 ---
 
@@ -167,6 +170,6 @@ Real-time tracking of development progress. Updated as work completes.
 
 ---
 
-**Last Updated**: May 12, 2026  
-**Current Phase**: Phase 2 (Advanced Features) — Net Worth Tracker is the recommended next feature  
+**Last Updated**: May 13, 2026  
+**Current Phase**: Phase 2 (Advanced Features) — Net Worth Tracker complete; Recurring Expense Calendar (2B) is next  
 **Branch**: `phase-1/budget-vs-actual` (Phase 1 work; consider branching `phase-2/net-worth` for next initiative)

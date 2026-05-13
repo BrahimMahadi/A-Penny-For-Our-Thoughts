@@ -116,13 +116,40 @@ savingsAccounts: id,name,balance,defaultAllocated,monthlyAllocations
 ### SAVINGS GOALS (Optional)
 ```
 goals: id,accountId,targetAmount,targetDate
-[unique-id],[account-id],50000,2027-12-31
-[unique-id],[account-id],10000,2026-08-31
+[unique-id],[account-id],50000,2027-12
+[unique-id],[account-id],10000,2026-08
 ```
 - **id**: Unique goal identifier
 - **accountId**: ID of the savings account this goal is for (must match a savings account id)
 - **targetAmount**: Target amount in dollars (e.g., `50000` for $50,000)
 - **targetDate**: Target date in YYYY-MM format (e.g., `2027-12` for December 2027)
+
+### ASSETS (Optional)
+```
+assets: id,name,category,value
+[unique-id],Wealthsimple Portfolio,investment,12500
+[unique-id],2022 Honda Civic,vehicle,18500
+[unique-id],Rental Property,real_estate,350000
+[unique-id],Jewelry Collection,other,2000
+```
+- **id**: Unique asset identifier
+- **name**: Asset name / description
+- **category**: One of `investment`, `real_estate`, `vehicle`, `other`
+- **value**: Current market value in dollars
+
+### NET WORTH HISTORY (Optional)
+```
+netWorthHistory: id,date,netWorth,totalAssets,totalLiabilities
+[unique-id],2026-04,-1200.00,24000,25200
+[unique-id],2026-05,-959.54,25500,26459.54
+```
+- **id**: Unique entry identifier
+- **date**: Month in YYYY-MM format (one entry per month, auto-recorded by the app)
+- **netWorth**: Net worth snapshot for that month
+- **totalAssets**: Total assets snapshot
+- **totalLiabilities**: Total liabilities snapshot
+
+> **Note:** The app auto-records a net worth snapshot each month. You only need to populate this section if you want to seed historical data before first use.
 
 ## Tips
 

@@ -38,7 +38,8 @@
 </header>
 
 <div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+  <button class="tab-btn active" id="tab-btn-dashboard"  onclick="switchTab('dashboard')">Dashboard</button>
+  <button class="tab-btn"        id="tab-btn-schedule"   onclick="switchTab('schedule')">📅 Schedule</button>
 </div>
 
 
@@ -59,7 +60,20 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Needs Budget</div>
+      <div class="card-title">
+        Needs Budget
+        <div class="info-wrap">
+          <button class="info-btn" onclick="toggleInfoTip(event,'tip-needs')" title="How is this calculated?">ℹ</button>
+          <div class="info-tip" id="tip-needs">
+            <div class="tip-title">What are Needs?</div>
+            Fixed, essential expenses you must pay every month — rent, utilities, groceries, transportation, and insurance. Every expense card you create counts toward this budget.
+            <div class="tip-formula">
+              Total Income × Needs %<br>
+              e.g. $3,900 × 50% = $1,950 / mo
+            </div>
+          </div>
+        </div>
+      </div>
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div>
           <div style="font-size:26px;font-weight:800" id="disp-needs">—</div>
@@ -72,7 +86,21 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Wants Budget</div>
+      <div class="card-title">
+        Wants Budget
+        <div class="info-wrap">
+          <button class="info-btn" onclick="toggleInfoTip(event,'tip-wants')" title="How is this calculated?">ℹ</button>
+          <div class="info-tip" id="tip-wants">
+            <div class="tip-title">What are Wants?</div>
+            Discretionary spending on things you enjoy but don't strictly need — dining out, entertainment, subscriptions, and shopping. Tracked via the bi-weekly Wants Envelope, which resets every two weeks.
+            <div class="tip-formula">
+              Total Income × Wants %<br>
+              e.g. $3,900 × 30% = $1,170 / mo<br>
+              → $585 per bi-weekly envelope
+            </div>
+          </div>
+        </div>
+      </div>
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div>
           <div style="font-size:26px;font-weight:800" id="disp-wants">—</div>
@@ -88,7 +116,21 @@
     </div>
 
     <div class="card warn">
-      <div class="card-title">Savings Budget</div>
+      <div class="card-title">
+        Savings Budget
+        <div class="info-wrap">
+          <button class="info-btn" onclick="toggleInfoTip(event,'tip-savings')" title="How is this calculated?">ℹ</button>
+          <div class="info-tip" id="tip-savings">
+            <div class="tip-title">What is Savings?</div>
+            Money set aside each month for future goals, emergencies, and investments. Distribute this amount across your savings accounts — any unallocated remainder is shown as a warning.
+            <div class="tip-formula">
+              Total Income × Savings %<br>
+              e.g. $3,900 × 20% = $780 / mo<br>
+              → $390 per bi-weekly period
+            </div>
+          </div>
+        </div>
+      </div>
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div>
           <div style="font-size:26px;font-weight:800" id="disp-savings-income">—</div>
@@ -368,6 +410,95 @@
     <button class="btn" onclick="openAddGoal()" style="margin-top: 12px;">+ Add Goal</button>
   </div>
 
+  <!-- ── Net Worth ── -->
+  <div class="section-title">Net Worth</div>
+  <div id="net-worth-section">
+
+    <!-- Stat tiles -->
+    <div class="nw-stat-tiles">
+      <div class="card nw-stat-tile">
+        <div class="nw-stat-label">Net Worth</div>
+        <div class="nw-stat-value" id="nw-net-worth">—</div>
+      </div>
+      <div class="card nw-stat-tile">
+        <div class="nw-stat-label">Total Assets</div>
+        <div class="nw-stat-value" id="nw-total-assets">—</div>
+      </div>
+      <div class="card nw-stat-tile">
+        <div class="nw-stat-label">Total Liabilities</div>
+        <div class="nw-stat-value" id="nw-total-liab">—</div>
+      </div>
+      <div class="card nw-stat-tile">
+        <div class="nw-stat-label">vs. Last Month</div>
+        <div id="nw-mom-change">—</div>
+      </div>
+    </div>
+
+    <!-- Trend chart -->
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Net Worth Trend</div>
+      <div style="position:relative;height:180px">
+        <canvas id="netWorthChart"></canvas>
+      </div>
+      <div id="nw-chart-note" style="display:none;font-size:12px;color:var(--muted);margin-top:8px;text-align:center">
+        📈 Only one month of data so far — your trend will appear as you return each month.
+      </div>
+    </div>
+
+    <!-- Breakdown panels -->
+    <div class="nw-panels">
+
+      <!-- Assets panel -->
+      <div class="card nw-panel">
+        <div class="nw-panel-header">
+          <span>Assets</span>
+          <span class="nw-panel-total" id="nw-total-assets-panel">—</span>
+        </div>
+
+        <!-- Liquid savings (auto) -->
+        <div class="nw-category-section">
+          <div class="nw-category-header">
+            <span>🏦 Savings Accounts <span style="font-size:11px;color:var(--muted)">(auto)</span></span>
+            <span class="nw-category-total" id="nw-savings-total">—</span>
+          </div>
+          <div id="nw-savings-rows"></div>
+        </div>
+
+        <!-- Manual categories -->
+        <div id="nw-category-rows"></div>
+      </div>
+
+      <!-- Liabilities panel -->
+      <div class="card nw-panel">
+        <div class="nw-panel-header">
+          <span>Liabilities</span>
+          <span class="nw-panel-total nw-liab-total" id="nw-liab-total">—</span>
+        </div>
+
+        <div class="nw-category-section">
+          <div class="nw-category-header">
+            <span>Loans</span>
+            <span class="nw-category-total" id="nw-loan-total">—</span>
+          </div>
+          <div id="nw-loan-rows"></div>
+        </div>
+
+        <div class="nw-category-section">
+          <div class="nw-category-header">
+            <span>Credit Cards</span>
+            <span class="nw-category-total" id="nw-cc-total">—</span>
+          </div>
+          <div id="nw-cc-rows"></div>
+        </div>
+
+        <div class="nw-liab-note">
+          Manage loans and credit cards in their own sections above.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- ── Subscriptions ── -->
   <div class="section-title">Subscription Renewals</div>
   <div class="card">
@@ -395,6 +526,34 @@
 </div><!-- end dashboard tab -->
 
 
+<!-- ══════════════════════════════════════
+     SCHEDULE TAB
+══════════════════════════════════════ -->
+<div id="tab-schedule" class="page">
+
+  <div class="section-title" style="margin-top:8px">Expense Schedule</div>
+
+  <!-- 3-month summary cards -->
+  <div id="schedule-summary" class="schedule-summary-row"></div>
+
+  <!-- Active-month bill list -->
+  <div class="card" style="margin-top:16px">
+    <div id="schedule-detail"></div>
+  </div>
+
+  <!-- Tip: how to add due dates -->
+  <div class="card" style="margin-top:12px;padding:14px 18px;display:flex;align-items:center;gap:12px">
+    <span style="font-size:20px">💡</span>
+    <span style="font-size:12px;color:var(--muted);line-height:1.5">
+      <strong style="color:var(--text)">Tip:</strong>
+      Add due dates to your expense items to see them sorted by date.
+      Edit any expense item and enter an optional <em>Due Day</em> (1–31).
+      Subscriptions use their renewal date automatically.
+    </span>
+  </div>
+
+</div><!-- end schedule tab -->
+
 
 <!-- ══════════════════════════════════════
      MODAL
@@ -414,6 +573,11 @@
 </div>
 
 
+<script src="src/utils.js"></script>
+<script src="src/state.js"></script>
+<script src="src/analytics.js"></script>
+<script src="src/charts.js"></script>
+<script src="src/render.js"></script>
 <script src="src/app.js"></script>
 </body>
 </html>

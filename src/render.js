@@ -1,0 +1,854 @@
+/* ═══════════════════════════════════════════════════════════════
+   Module:   render.js
+   Project:  A Penny For Our Thoughts
+   Created:  May 2026
+   Summary:  All DOM render functions. Each function reads from
+             global state and rebuilds its section idempotently.
+             No state mutations here — rendering only.
+   Functions: renderDate, renderIncome, renderIncomeStreams,
+              renderWants, renderPurchaseList,
+              renderBudgetVsActual, renderBudgetVarianceCards,
+              renderVarianceSummary, toggleAnalyticsPanel,
+              renderSpendingAnalytics, renderAnalyticsHistory,
+              renderExpenseCards, renderLoans, renderCreditCards,
+              renderSavings, renderGoals, renderNetWorth,
+              renderSubscriptions, renderWishlist,
+              renderSchedule, renderAll
+   Depends on: utils.js, state.js, analytics.js, charts.js
+═══════════════════════════════════════════════════════════════ */
+
+// ────────────────────────────────────────────────────────────────
+// HEADER
+// ────────────────────────────────────────────────────────────────
+function renderDate() {
+  const el = document.getElementById('header-date');
+  if (el) {
+    el.textContent = new Date().toLocaleDateString('en-CA', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────
+// INCOME OVERVIEW
+// ────────────────────────────────────────────────────────────────
+function renderIncome() {
+  const inc   = getTotalMonthlyIncome();
+  const alloc = getAlloc();
+
+  const needs   = inc * alloc.needs;
+  const wants   = inc * alloc.wants;
+  const savings = inc * alloc.savings;
+  const biWants   = wants   / 2;
+  const biSavings = savings / 2;
+
+  const { needs: nPct, wants: wPct, savings: sPct } = state.allocation;
+  const displayMode = state.budgetDisplayMode || { needs: 'monthly', wants: 'monthly', savings: 'monthly' };
+
+  document.getElementById('disp-income-sub').textContent =
+    (state.incomeStreams || []).length === 0 ? 'no income streams added' :
+    (state.incomeStreams || []).length === 1 ? 'from 1 stream' :
+    `from ${(state.incomeStreams || []).length} streams`;
+
+  document.getElementById('disp-income').textContent           = fmt(inc);
+  document.getElementById('disp-needs').textContent            = fmt(displayMode.needs   === 'biweekly' ? needs   / 2 : needs);
+  document.getElementById('disp-wants').textContent            = fmt(displayMode.wants   === 'biweekly' ? wants   / 2 : wants);
+  document.getElementById('disp-savings-income').textContent   = fmt(displayMode.savings === 'biweekly' ? savings / 2 : savings);
+  document.getElementById('disp-biwants').textContent          = fmt(biWants);
+  document.getElementById('disp-savings-biweekly').textContent = fmt(biSavings);
+
+  document.getElementById('needs-toggle-label').textContent   = displayMode.needs   === 'biweekly' ? 'Bi-Weekly' : 'Monthly';
+  document.getElementById('wants-toggle-label').textContent   = displayMode.wants   === 'biweekly' ? 'Bi-Weekly' : 'Monthly';
+  document.getElementById('savings-toggle-label').textContent = displayMode.savings === 'biweekly' ? 'Bi-Weekly' : 'Monthly';
+
+  document.getElementById('disp-needs-pct-label').textContent   = `${nPct}% of income`;
+  document.getElementById('disp-wants-pct-label').textContent   = `${wPct}% of income`;
+  document.getElementById('disp-savings-pct-label').textContent = `${sPct}% of income`;
+
+  document.getElementById('bar-needs-pct').textContent   = nPct;
+  document.getElementById('bar-wants-pct').textContent   = wPct;
+  document.getElementById('bar-savings-pct').textContent = sPct;
+  document.getElementById('bar-needs').textContent       = fmt(needs);
+  document.getElementById('bar-wants').textContent       = fmt(wants);
+  document.getElementById('bar-savings').textContent     = fmt(savings);
+
+  document.getElementById('seg-needs').style.width   = nPct + '%';
+  document.getElementById('seg-wants').style.width   = wPct + '%';
+  document.getElementById('seg-savings').style.width = sPct + '%';
+
+  document.getElementById('disp-savings').textContent = fmt(savings);
+
+  // Update tooltip formula examples with live numbers
+  const tipNeeds = document.getElementById('tip-needs');
+  if (tipNeeds) {
+    tipNeeds.querySelector('.tip-formula').innerHTML =
+      `Total Income × Needs %<br>${fmt(inc)} × ${nPct}% = <strong>${fmt(needs)}</strong> / mo`;
+  }
+  const tipWants = document.getElementById('tip-wants');
+  if (tipWants) {
+    tipWants.querySelector('.tip-formula').innerHTML =
+      `Total Income × Wants %<br>${fmt(inc)} × ${wPct}% = <strong>${fmt(wants)}</strong> / mo<br>→ <strong>${fmt(biWants)}</strong> per bi-weekly envelope`;
+  }
+  const tipSavings = document.getElementById('tip-savings');
+  if (tipSavings) {
+    tipSavings.querySelector('.tip-formula').innerHTML =
+      `Total Income × Savings %<br>${fmt(inc)} × ${sPct}% = <strong>${fmt(savings)}</strong> / mo<br>→ <strong>${fmt(biSavings)}</strong> per bi-weekly period`;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────
+// INCOME STREAMS
+// ────────────────────────────────────────────────────────────────
+function renderIncomeStreams() {
+  const streams = state.incomeStreams || [];
+  const ul      = document.getElementById('income-stream-list');
+  const empty   = document.getElementById('income-empty-state');
+  const counter = document.getElementById('income-stream-count');
+
+  counter.textContent = `${streams.length} stream${streams.length !== 1 ? 's' : ''}`;
+  ul.innerHTML        = '';
+
+  if (!streams.length) { empty.style.display = 'flex'; return; }
+  empty.style.display = 'none';
+
+  streams.forEach(stream => {
+    const monthly = stream.biweekly ? stream.amount * 2 : +stream.amount;
+    const li = document.createElement('li');
+    li.className = 'income-stream-item';
+    li.innerHTML = `
+      <span class="stream-name">${stream.name}</span>
+      ${stream.biweekly ? '<span class="chip purple" style="font-size:10px;padding:2px 7px">bi-wk</span>' : ''}
+      <span class="stream-raw">${fmt(stream.amount)}${stream.biweekly ? '/pay' : '/mo'}</span>
+      <span class="stream-monthly">${fmt(monthly)}/mo</span>
+      <button class="btn icon-btn" onclick="openEditIncomeStream('${stream.id}')" title="Edit">✎</button>
+      <button class="btn icon-btn del" onclick="deleteIncomeStream('${stream.id}')" title="Delete">×</button>`;
+    ul.appendChild(li);
+  });
+}
+
+// ────────────────────────────────────────────────────────────────
+// WANTS TRACKER
+// ────────────────────────────────────────────────────────────────
+function renderWants() {
+  const inc       = getTotalMonthlyIncome();
+  const biWants   = inc * getAlloc().wants / 2;
+  const spent     = (state.purchases || []).reduce((s, p) => s + +p.amount, 0);
+  const remaining = biWants - spent;
+  const usedPct   = biWants > 0 ? Math.min(100, (spent / biWants) * 100) : 0;
+
+  document.getElementById('disp-biwants2').textContent             = fmt(biWants);
+  document.getElementById('disp-wants-spent').textContent          = fmt(spent);
+  document.getElementById('disp-wants-remaining-amt').textContent  = fmt(Math.max(0, remaining));
+  document.getElementById('disp-wants-remaining-label').textContent = remaining >= 0 ? 'remaining' : 'over by';
+  document.getElementById('donut-pct').textContent                  = usedPct.toFixed(0) + '%';
+
+  document.getElementById('wants-status-chip').innerHTML = remaining >= 0
+    ? `<span class="chip green">✓ On Track</span>`
+    : `<span class="chip red">⚠ Over by ${fmt(Math.abs(remaining))}</span>`;
+
+  renderPurchaseList();
+  renderWantsDonut(spent, remaining, usedPct);
+}
+
+function renderPurchaseList() {
+  const ul = document.getElementById('purchase-list');
+  ul.innerHTML = '';
+
+  if (!(state.purchases || []).length) {
+    ul.innerHTML = '<li style="color:var(--muted);font-size:12px;padding:4px 0">No purchases yet this period.</li>';
+    return;
+  }
+  state.purchases.forEach(p => {
+    const li = document.createElement('li');
+    li.className = 'purchase-item';
+    li.innerHTML = `
+      <span class="name">${p.name}</span>
+      <span class="amount">${fmt(p.amount)}</span>
+      <button class="btn icon-btn del" onclick="removePurchase('${p.id}')">×</button>`;
+    ul.appendChild(li);
+  });
+}
+
+// ────────────────────────────────────────────────────────────────
+// BUDGET VS. ACTUAL
+// ────────────────────────────────────────────────────────────────
+function renderBudgetVsActual() {
+  const today    = new Date();
+  const actuals  = getMonthActuals(today.getFullYear(), today.getMonth() + 1);
+  const budgeted = getMonthBudgeted(today.getFullYear(), today.getMonth() + 1);
+
+  renderBudgetVarianceCards(budgeted, actuals);
+  renderBudgetVsActualChart(budgeted, actuals);
+  renderVarianceSummary(budgeted, actuals, getTotalMonthlyIncome());
+}
+
+/** Render three variance cards (Needs, Wants, Savings) */
+function renderBudgetVarianceCards(budgeted, actuals) {
+  const container  = document.getElementById('budget-variance-cards');
+  container.innerHTML = '';
+
+  const categories = [
+    { key: 'needs',   label: 'Needs',   color: '#6c63ff' },
+    { key: 'wants',   label: 'Wants',   color: '#00d4aa' },
+    { key: 'savings', label: 'Savings', color: '#ffa63d' },
+  ];
+
+  categories.forEach(cat => {
+    const variance    = calculateVariance(budgeted[cat.key], actuals[cat.key], cat.key);
+    const statusColor = variance.status === 'on-track' ? '#00d4aa' : variance.status === 'caution' ? '#ffa63d' : '#ff4d6d';
+    const statusLabel = variance.status === 'on-track' ? 'On Track' : variance.status === 'caution' ? 'Caution' : 'Over';
+
+    const card = document.createElement('div');
+    card.className  = 'card';
+    card.style.borderLeft = `4px solid ${statusColor}`;
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <span style="font-size:12px;font-weight:700;color:${cat.color}">${cat.label}</span>
+        <span style="font-size:11px;font-weight:600;padding:2px 6px;border-radius:3px;background:${statusColor}20;color:${statusColor}">${statusLabel}</span>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:4px">Budgeted</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:12px">${fmt(budgeted[cat.key])}</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:4px">Actual</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:12px">${fmt(actuals[cat.key])}</div>
+      <div style="font-size:12px;color:${statusColor};font-weight:600">${variance.percent.toFixed(1)}% of budget</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+/** Render variance summary table */
+function renderVarianceSummary(budgeted, actuals, income) {
+  const container = document.getElementById('budget-variance-summary');
+
+  const rows = ['needs', 'wants', 'savings'].map(key => {
+    const variance = calculateVariance(budgeted[key], actuals[key], key);
+    const varColor = variance.status === 'on-track' ? '#00d4aa' : variance.status === 'caution' ? '#ffa63d' : '#ff4d6d';
+    const label    = key.charAt(0).toUpperCase() + key.slice(1);
+    return `
+      <tr style="border-bottom:1px solid var(--border-light)">
+        <td style="padding:8px 0;color:var(--text)">${label}</td>
+        <td style="text-align:right;padding:8px 0;color:var(--muted)">${fmt(budgeted[key])}</td>
+        <td style="text-align:right;padding:8px 0;color:var(--text);font-weight:600">${fmt(actuals[key])}</td>
+        <td style="text-align:right;padding:8px 0;color:${varColor};font-weight:600">
+          ${variance.dollar >= 0 ? '+' : ''}${fmt(variance.dollar)} (${variance.percent.toFixed(1)}%)
+        </td>
+      </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="font-size:12px;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border-light)">
+            <th style="text-align:left;padding:8px 0;color:var(--muted);font-weight:600">Category</th>
+            <th style="text-align:right;padding:8px 0;color:var(--muted);font-weight:600">Budgeted</th>
+            <th style="text-align:right;padding:8px 0;color:var(--muted);font-weight:600">Actual</th>
+            <th style="text-align:right;padding:8px 0;color:var(--muted);font-weight:600">Variance</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:16px;padding:12px;background:rgba(139,149,173,0.05);border-left:3px solid #8b95ad;border-radius:4px;font-size:12px;color:var(--muted);line-height:1.5">
+      <strong style="color:var(--text)">Note:</strong> Actual values include both current period spending and archived spending history from this month.
+    </div>`;
+}
+
+// ────────────────────────────────────────────────────────────────
+// SPENDING ANALYTICS
+// ────────────────────────────────────────────────────────────────
+function toggleAnalyticsPanel() {
+  const panel   = document.getElementById('analytics-panel');
+  const btn     = document.getElementById('analytics-toggle-btn');
+  const visible = panel.style.display !== 'none';
+
+  if (visible) resetAnalyticsFilters();
+  panel.style.display = visible ? 'none' : 'block';
+  btn.textContent     = visible ? '📊 Show Spending Analytics' : '📊 Hide Spending Analytics';
+  if (!visible) renderSpendingAnalytics();
+}
+
+function renderSpendingAnalytics() {
+  const history = getFilteredSpendingHistory();
+
+  const allTimeTotal = history.reduce((s, p) => s + p.total, 0);
+  const avgPerPeriod = history.length > 0 ? allTimeTotal / history.length : 0;
+  const allPurchases = history.flatMap(p => p.items || []);
+  const largestPurch = allPurchases.reduce((max, p) => +p.amount > max ? +p.amount : max, 0);
+
+  const hasActiveFilters = analyticsFilters.startDate || analyticsFilters.endDate || analyticsFilters.search;
+  const filterHint = hasActiveFilters ? ` <span style="font-size:10px;color:var(--accent)">ℹ Filters Active</span>` : '';
+
+  document.getElementById('analytics-stats').innerHTML = `
+    <div class="analytics-stat-card">
+      <div class="analytics-stat-label">Periods Tracked${filterHint}</div>
+      <div class="analytics-stat-value">${history.length}</div>
+    </div>
+    <div class="analytics-stat-card">
+      <div class="analytics-stat-label">Filtered Total</div>
+      <div class="analytics-stat-value">${fmt(allTimeTotal)}</div>
+    </div>
+    <div class="analytics-stat-card">
+      <div class="analytics-stat-label">Avg / Period</div>
+      <div class="analytics-stat-value">${fmt(avgPerPeriod)}</div>
+    </div>
+    <div class="analytics-stat-card">
+      <div class="analytics-stat-label">Largest Purchase</div>
+      <div class="analytics-stat-value">${fmt(largestPurch)}</div>
+    </div>`;
+
+  renderAnalyticsLineChart(history);
+  renderAnalyticsBarChart(history);
+  renderAnalyticsHistory(history);
+}
+
+function renderAnalyticsHistory(filteredHistory) {
+  const container = document.getElementById('analytics-history');
+  const history   = filteredHistory || [];
+
+  if (!history.length) {
+    container.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:16px">No periods match the current filters.</div>';
+    return;
+  }
+
+  container.innerHTML = [...history].reverse().map(period => `
+    <div class="period-history-item" id="period-${period.id}">
+      <div class="period-header">
+        <div>
+          <span class="period-label">${period.label}</span>
+          <span style="font-size:11px;color:var(--muted);margin-left:8px">${period.date}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <span style="font-weight:700;color:var(--accent2)">${fmt(period.total)}</span>
+          <button class="btn xs danger" onclick="deleteHistoryPeriod('${period.id}')">Delete Period</button>
+        </div>
+      </div>
+      <div class="period-purchases">
+        ${!(period.items || []).length
+          ? '<div style="color:var(--muted);font-size:12px;padding:4px 0">No purchases in this period.</div>'
+          : (period.items || []).map(p => `
+            <div class="period-purchase-row">
+              <span class="period-purchase-name">${p.name}</span>
+              <span class="period-purchase-amt">${fmt(p.amount)}</span>
+              <button class="btn xs secondary" onclick="openEditHistoryPurchase('${period.id}','${p.id}')">Edit</button>
+              <button class="btn xs danger"    onclick="deleteHistoryPurchase('${period.id}','${p.id}')">×</button>
+            </div>`).join('')
+        }
+      </div>
+    </div>`).join('');
+}
+
+// ────────────────────────────────────────────────────────────────
+// EXPENSE CARDS
+// ────────────────────────────────────────────────────────────────
+function renderExpenseCards() {
+  const cards = state.expenseCards || [];
+  const grid  = document.getElementById('expense-cards-grid');
+  const empty = document.getElementById('expense-empty-state');
+  const count = document.getElementById('disp-card-count');
+
+  grid.innerHTML = '';
+  empty.style.display = cards.length ? 'none' : 'block';
+  count.textContent   = cards.length
+    ? `across ${cards.length} payment card${cards.length !== 1 ? 's' : ''}`
+    : 'no payment cards added';
+
+  cards.forEach(card => {
+    const cardTotal = (card.items || []).reduce((s, i) => s + monthlyAmount(i), 0);
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.id        = 'ecard-' + card.id;
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="card-title">${card.label}</div>
+        <div style="display:flex;gap:4px">
+          <button class="btn icon-btn" onclick="openEditExpenseCard('${card.id}')" title="Rename card">✎</button>
+          <button class="btn icon-btn del" onclick="deleteExpenseCard('${card.id}')" title="Delete card">×</button>
+        </div>
+      </div>
+      <ul class="expense-list" id="list-${card.id}"></ul>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--border);margin-top:4px">
+        <span style="font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--muted)">TOTAL</span>
+        <span style="font-weight:700" id="total-${card.id}">${fmt(cardTotal)}</span>
+      </div>
+      <div class="add-row" style="margin-top:8px">
+        <input id="new-name-${card.id}"   placeholder="Expense name" style="flex:2;min-width:80px" />
+        <input id="new-amount-${card.id}" type="number" placeholder="$0.00" min="0" step="0.01" style="max-width:80px" />
+        <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--muted);white-space:nowrap;cursor:pointer">
+          <input type="checkbox" id="new-bw-${card.id}" /> Bi-wk
+        </label>
+        <button class="btn sm" onclick="addExpense('${card.id}')">Add</button>
+      </div>`;
+    grid.appendChild(div);
+
+    const ul = div.querySelector('#list-' + card.id);
+    (card.items || []).forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'expense-item';
+      const dueBadge = item.dueDay
+        ? `<span class="e-due">due ${ordinal(item.dueDay)}</span>`
+        : '';
+      li.innerHTML = `
+        <span class="e-name">${item.name}</span>
+        ${item.biweekly ? '<span class="e-biweekly">bi-wk ×2</span>' : ''}
+        ${dueBadge}
+        <span class="e-amount">${fmt(monthlyAmount(item))}</span>
+        <button class="btn icon-btn" onclick="openEditExpenseItem('${card.id}','${item.id}')" title="Edit">✎</button>
+        <button class="btn icon-btn del" onclick="removeExpense('${card.id}','${item.id}')" title="Delete">×</button>`;
+      ul.appendChild(li);
+    });
+  });
+
+  const grand       = grandTotal();
+  const needsBudget = getTotalMonthlyIncome() * getAlloc().needs;
+  const remaining   = needsBudget - grand;
+
+  document.getElementById('disp-grand-total').textContent     = fmt(grand);
+  document.getElementById('disp-needs-remaining').textContent = fmt(remaining);
+  document.getElementById('disp-needs-used-pct').textContent  = remaining >= 0
+    ? `${pct(grand, needsBudget)}% of needs budget used`
+    : `Over needs budget by ${fmt(Math.abs(remaining))}`;
+
+  document.getElementById('needs-status-card').className = 'card ' + (remaining >= 0 ? '' : 'danger');
+  document.getElementById('disp-needs-remaining').style.color = remaining >= 0 ? 'var(--accent2)' : 'var(--danger)';
+}
+
+// ────────────────────────────────────────────────────────────────
+// LOANS
+// ────────────────────────────────────────────────────────────────
+function renderLoans() {
+  const grid = document.getElementById('loans-grid');
+  grid.innerHTML = '';
+
+  (state.loans || []).forEach(loan => {
+    const pctUsed = (+loan.remaining / +loan.original) * 100;
+    const colour  = pctUsed > 70 ? '#ff4d6d' : pctUsed > 40 ? '#ffa63d' : '#00d4aa';
+    const div = document.createElement('div');
+    div.className = 'card loan-card';
+    div.innerHTML = `
+      <div class="loan-name">${loan.name}</div>
+      <div class="loan-amounts">
+        <span>${fmt(loan.remaining)} remaining</span>
+        <span>${pct(loan.remaining, loan.original)}%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" style="width:${Math.min(100, pctUsed).toFixed(1)}%;background:${colour}"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">of ${fmt(loan.original)} original</div>
+      <div class="loan-actions">
+        <button class="btn xs secondary" onclick="openEditLoan('${loan.id}')">Edit</button>
+        <button class="btn xs danger"    onclick="deleteLoan('${loan.id}')">Delete</button>
+      </div>`;
+    grid.appendChild(div);
+  });
+}
+
+// ────────────────────────────────────────────────────────────────
+// CREDIT CARDS
+// ────────────────────────────────────────────────────────────────
+function renderCreditCards() {
+  const cards     = state.creditCards || [];
+  const container = document.getElementById('cc-bars-container');
+  container.innerHTML = '';
+
+  let totalBal = 0, totalLim = 0;
+
+  cards.forEach(cc => {
+    totalBal += +cc.balance;
+    totalLim += +cc.limit;
+    const usePct  = (+cc.balance / +cc.limit) * 100;
+    const colour  = usePct > 50 ? '#ff4d6d' : usePct > 30 ? '#ffa63d' : '#00d4aa';
+    const chipCls = usePct > 30 ? 'red' : 'green';
+
+    const div = document.createElement('div');
+    div.className = 'cc-bar-wrap';
+    div.innerHTML = `
+      <div class="cc-bar-header">
+        <span style="font-weight:600">${cc.name}</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span>
+            ${fmt(cc.balance)} / ${fmt(cc.limit)}
+            <span class="chip ${chipCls}">${usePct.toFixed(0)}%</span>
+          </span>
+          <button class="btn icon-btn" onclick="openEditCreditCard('${cc.id}')" title="Edit">✎</button>
+          <button class="btn icon-btn del" onclick="deleteCreditCard('${cc.id}')" title="Delete">×</button>
+        </div>
+      </div>
+      <div class="cc-bar-track">
+        <div class="cc-bar-fill" style="width:${Math.min(100, usePct).toFixed(1)}%;background:${colour}"></div>
+        <div class="cc-bar-threshold" style="left:30%"></div>
+      </div>`;
+    container.appendChild(div);
+  });
+
+  const totalPct = totalLim > 0 ? (totalBal / totalLim) * 100 : 0;
+  document.getElementById('cc-total-balance').textContent = fmt(totalBal);
+  document.getElementById('cc-total-limit').textContent   = fmt(totalLim);
+  document.getElementById('cc-total-chip').innerHTML =
+    `<span class="chip ${totalPct > 30 ? 'red' : 'green'}">${totalPct.toFixed(1)}% total</span>`;
+
+  renderCcBarChart(cards);
+}
+
+// ────────────────────────────────────────────────────────────────
+// SAVINGS
+// ────────────────────────────────────────────────────────────────
+function renderSavings() {
+  const today     = new Date();
+  const year      = today.getFullYear();
+  const month     = today.getMonth() + 1;
+  const budget    = getTotalMonthlyIncome() * getAlloc().savings;
+  const accounts  = state.savingsAccounts || [];
+  const allocated   = accounts.reduce((s, a) => s + getAllocationForMonth(a, year, month), 0);
+  const unallocated = budget - allocated;
+  const allocPct    = budget > 0 ? Math.min(100, (allocated / budget) * 100) : 0;
+
+  document.getElementById('disp-savings').textContent             = fmt(budget);
+  document.getElementById('disp-savings-allocated').textContent   = fmt(allocated);
+  document.getElementById('disp-savings-unallocated').textContent = fmt(unallocated);
+  document.getElementById('disp-savings-unallocated').style.color = unallocated >= 0 ? 'var(--text)' : 'var(--danger)';
+
+  document.getElementById('savings-alloc-pct').textContent      = allocPct.toFixed(0) + '%';
+  document.getElementById('savings-alloc-bar').style.width      = allocPct.toFixed(1) + '%';
+  document.getElementById('savings-alloc-bar').style.background =
+    allocPct > 100 ? 'var(--danger)' : allocPct >= 90 ? 'var(--warn)' : 'var(--accent2)';
+
+  const ul = document.getElementById('savings-accounts-list');
+  ul.innerHTML = '';
+  accounts.forEach(acct => {
+    const monthlyAlloc = getAllocationForMonth(acct, year, month);
+    const li = document.createElement('li');
+    li.className = 'savings-acct-item';
+    li.innerHTML = `
+      <span class="dot"></span>
+      <span class="acct-name">${acct.name}</span>
+      <div class="acct-details">
+        <span class="acct-balance">Balance: ${fmt(acct.balance || 0)}</span>
+        <span class="acct-monthly">Monthly: ${fmt(monthlyAlloc)}</span>
+      </div>
+      <button class="btn icon-btn" onclick="openEditSavingsAccount('${acct.id}')" title="Edit">✎</button>
+      <button class="btn icon-btn del" onclick="deleteSavingsAccount('${acct.id}')" title="Delete">×</button>`;
+    ul.appendChild(li);
+  });
+}
+
+// ────────────────────────────────────────────────────────────────
+// SAVINGS GOALS
+// ────────────────────────────────────────────────────────────────
+function renderGoals() {
+  const container = document.getElementById('goals-list');
+  if (!container) return;
+
+  const goals = state.goals || [];
+  if (!goals.length) {
+    container.innerHTML = '<p style="color:var(--text-secondary);padding:16px 0">No savings goals yet. Add one to get started!</p>';
+    return;
+  }
+
+  container.innerHTML = '';
+  goals.forEach(goal => {
+    const progress = getGoalProgress(goal);
+    if (!progress) return;
+
+    const li = document.createElement('div');
+    li.className = `goal-item goal-status-${progress.status}`;
+    li.innerHTML = `
+      <div class="goal-header">
+        <span class="goal-account-name">${progress.accountName}</span>
+        <span class="goal-target">${fmt(progress.targetAmount)} by ${progress.targetDate}</span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn icon-btn" onclick="openEditGoal('${goal.id}')" title="Edit">✎</button>
+          <button class="btn icon-btn del" onclick="deleteGoal('${goal.id}')" title="Delete">×</button>
+        </div>
+      </div>
+      <div class="goal-progress-container">
+        <div class="progress-bar" style="width:${progress.progressPercent.toFixed(1)}%">
+          <span class="progress-label">${fmt(progress.currentAmount)} / ${fmt(progress.targetAmount)}</span>
+        </div>
+      </div>
+      <div class="goal-stats">
+        <div class="stat">
+          <span class="stat-label">Monthly Needed</span>
+          <span class="stat-value">${fmt(progress.monthlySavingsNeeded)}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Time Remaining</span>
+          <span class="stat-value">${progress.monthsRemaining} month${progress.monthsRemaining !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Status</span>
+          <span class="status-badge status-${progress.status}">
+            ${progress.status === 'on-track' ? '✓ On Track' : progress.status === 'caution' ? '⚠ Caution' : progress.status === 'complete' ? '✓ Complete' : '✗ Off Track'}
+          </span>
+        </div>
+      </div>`;
+    container.appendChild(li);
+  });
+}
+
+// ────────────────────────────────────────────────────────────────
+// NET WORTH
+// ────────────────────────────────────────────────────────────────
+function renderNetWorth() {
+  if (!document.getElementById('net-worth-section')) return;
+
+  const d       = getNetWorthData();
+  const nwColor = d.netWorth >= 0 ? 'var(--accent2)' : 'var(--danger)';
+
+  let momHTML = '<span style="color:var(--muted);font-size:13px">No prior data</span>';
+  if (d.momChange !== null) {
+    const sign  = d.momChange >= 0 ? '+' : '';
+    const color = d.momChange >= 0 ? 'var(--accent2)' : 'var(--danger)';
+    const arrow = d.momChange >= 0 ? '▲' : '▼';
+    momHTML = `<span style="color:${color};font-size:20px;font-weight:700">${arrow} ${sign}${fmt(d.momChange)}</span>`;
+  }
+
+  document.getElementById('nw-net-worth').textContent    = fmt(d.netWorth);
+  document.getElementById('nw-net-worth').style.color    = nwColor;
+  document.getElementById('nw-total-assets').textContent = fmt(d.totalAssets);
+  document.getElementById('nw-total-liab').textContent   = fmt(d.totalLiabilities);
+  document.getElementById('nw-mom-change').innerHTML     = momHTML;
+
+  const totalAssetsPanel = document.getElementById('nw-total-assets-panel');
+  if (totalAssetsPanel) totalAssetsPanel.textContent = fmt(d.totalAssets);
+
+  // Liquid savings rows
+  let savingsRows = (state.savingsAccounts || []).map(a =>
+    `<div class="nw-breakdown-row">
+      <span class="nw-breakdown-name">${a.name}</span>
+      <span class="nw-breakdown-val">${fmt(a.balance || 0)}</span>
+    </div>`
+  ).join('') || '<div class="nw-breakdown-empty">No savings accounts</div>';
+  document.getElementById('nw-savings-rows').innerHTML      = savingsRows;
+  document.getElementById('nw-savings-total').textContent   = fmt(d.liquidAssets);
+
+  // Manual asset categories
+  const catContainer = document.getElementById('nw-category-rows');
+  catContainer.innerHTML = '';
+  d.byCategory.forEach(cat => {
+    const itemRows = cat.items.map(a => `
+      <div class="nw-breakdown-row nw-item-row">
+        <span class="nw-breakdown-name">${a.name}</span>
+        <span style="display:flex;align-items:center;gap:6px">
+          <span class="nw-breakdown-val">${fmt(a.value)}</span>
+          <button class="btn icon-btn" onclick="openEditAsset('${a.id}')" title="Edit">✎</button>
+          <button class="btn icon-btn del" onclick="deleteAsset('${a.id}')" title="Delete">×</button>
+        </span>
+      </div>`).join('');
+
+    const section = document.createElement('div');
+    section.className = 'nw-category-section';
+    section.innerHTML = `
+      <div class="nw-category-header">
+        <span>${cat.icon} ${cat.label}</span>
+        <span style="display:flex;align-items:center;gap:8px">
+          <span class="nw-category-total">${fmt(cat.total)}</span>
+          <button class="btn" style="font-size:11px;padding:3px 8px" onclick="openAddAsset('${cat.key}')">+ Add</button>
+        </span>
+      </div>
+      ${itemRows || '<div class="nw-breakdown-empty">None added</div>'}`;
+    catContainer.appendChild(section);
+  });
+
+  // Liabilities
+  const loanRows = (state.loans || []).map(l =>
+    `<div class="nw-breakdown-row">
+      <span class="nw-breakdown-name">${l.name}</span>
+      <span class="nw-breakdown-val" style="color:var(--danger)">${fmt(l.remaining)}</span>
+    </div>`
+  ).join('') || '<div class="nw-breakdown-empty">No loans</div>';
+
+  const ccRows = (state.creditCards || []).map(c =>
+    `<div class="nw-breakdown-row">
+      <span class="nw-breakdown-name">${c.name}</span>
+      <span class="nw-breakdown-val" style="color:var(--danger)">${fmt(c.balance)}</span>
+    </div>`
+  ).join('') || '<div class="nw-breakdown-empty">No credit cards</div>';
+
+  document.getElementById('nw-loan-rows').innerHTML    = loanRows;
+  document.getElementById('nw-loan-total').textContent = fmt(d.totalLoans);
+  document.getElementById('nw-cc-rows').innerHTML      = ccRows;
+  document.getElementById('nw-cc-total').textContent   = fmt(d.totalCC);
+  document.getElementById('nw-liab-total').textContent = fmt(d.totalLiabilities);
+
+  renderNetWorthChart(d.history);
+}
+
+// ────────────────────────────────────────────────────────────────
+// SUBSCRIPTIONS
+// ────────────────────────────────────────────────────────────────
+function renderSubscriptions() {
+  const ul     = document.getElementById('sub-list');
+  ul.innerHTML = '';
+
+  [...(state.subscriptions || [])].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(sub => {
+    const days    = daysUntil(sub.date);
+    const chipCls = days < 0 ? 'red' : days < 60 ? 'warn' : 'green';
+    const chipTxt = days < 0 ? 'Expired' : days === 0 ? 'Today!' : `${days}d`;
+    const li = document.createElement('li');
+    li.className = 'sub-item';
+    li.innerHTML = `
+      <span class="sub-name">${sub.name}</span>
+      <span class="sub-date">${sub.date}</span>
+      <span class="chip ${chipCls}">${chipTxt}</span>
+      <button class="btn icon-btn" onclick="openEditSubscription('${sub.id}')" title="Edit">✎</button>
+      <button class="btn icon-btn del" onclick="deleteSubscription('${sub.id}')" title="Delete">×</button>`;
+    ul.appendChild(li);
+  });
+}
+
+// ────────────────────────────────────────────────────────────────
+// WISHLIST
+// ────────────────────────────────────────────────────────────────
+function renderWishlist() {
+  const ul     = document.getElementById('wishlist');
+  ul.innerHTML = '';
+
+  (state.wishlist || []).forEach(item => {
+    const li = document.createElement('li');
+    li.className = 'wish-item';
+    li.innerHTML = `
+      <span class="wish-icon">${item.icon || '🛒'}</span>
+      <span class="wish-name">${item.name}</span>
+      ${item.url ? `<a class="wish-link" href="${item.url}" target="_blank" rel="noopener">Link ↗</a>` : ''}
+      <div class="wish-actions">
+        <button class="btn icon-btn" onclick="openEditWishlistItem('${item.id}')" title="Edit">✎</button>
+        <button class="btn icon-btn del" onclick="deleteWishlistItem('${item.id}')" title="Delete">×</button>
+      </div>`;
+    ul.appendChild(li);
+  });
+}
+
+// ────────────────────────────────────────────────────────────────
+// RENDER ALL
+// ────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
+// EXPENSE SCHEDULE
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Render the 3-month summary bar + active-month bill list.
+ * Reads scheduleViewYear/Month from app.js globals.
+ */
+function renderSchedule() {
+  const summaryEl = document.getElementById('schedule-summary');
+  const detailEl  = document.getElementById('schedule-detail');
+  if (!summaryEl || !detailEl) return;
+
+  const today = new Date();
+
+  // ── 3-month summary cards ──────────────────────────────────────
+  summaryEl.innerHTML = '';
+  for (let offset = 0; offset < 3; offset++) {
+    const d     = new Date(scheduleViewYear, scheduleViewMonth - 1 + offset, 1);
+    const y     = d.getFullYear();
+    const m     = d.getMonth() + 1;
+    const fc    = getMonthForecast(y, m);
+    const isActive = (y === scheduleViewYear && m === scheduleViewMonth);
+
+    const overBudget = fc.variance < 0;
+    const atLabel    = d.toLocaleString('en-CA', { month: 'long', year: 'numeric' });
+    const varSign    = overBudget ? '+' : '-';
+    const varAmt     = fmt(Math.abs(fc.variance));
+    const varColor   = overBudget ? 'var(--danger)' : 'var(--accent2)';
+    const varLabel   = overBudget ? 'over budget' : 'under budget';
+
+    const card = document.createElement('div');
+    card.className = 'schedule-summary-card' + (isActive ? ' active' : '');
+    card.onclick   = () => { scheduleViewYear = y; scheduleViewMonth = m; renderSchedule(); };
+    card.innerHTML = `
+      <div class="ssc-month">${atLabel}</div>
+      <div class="ssc-total">${fmt(fc.total)}</div>
+      <div class="ssc-variance" style="color:${varColor}">
+        ${varSign}${varAmt} ${varLabel}
+      </div>
+      <div class="ssc-count">${fc.dated.length + fc.undated.length} recurring bill${fc.dated.length + fc.undated.length !== 1 ? 's' : ''}</div>`;
+    summaryEl.appendChild(card);
+  }
+
+  // ── Active-month detail ───────────────────────────────────────
+  const fc       = getMonthForecast(scheduleViewYear, scheduleViewMonth);
+  const monthLabel = new Date(scheduleViewYear, scheduleViewMonth - 1, 1)
+    .toLocaleString('en-CA', { month: 'long', year: 'numeric' });
+
+  /** Render a single bill row */
+  function billRow(item) {
+    const dayLabel   = item.dueDay ? ordinal(item.dueDay) : '∞';
+    const cardBadge  = `<span class="schedule-badge card-label">${item.cardLabel}</span>`;
+    const typeBadge  = item.biweekly
+      ? `<span class="schedule-badge biweekly">×2 bi-wk</span>`
+      : item.source === 'subscription'
+        ? `<span class="schedule-badge sub">subscription</span>`
+        : '';
+    return `
+      <div class="schedule-bill-row">
+        <span class="sched-day">${dayLabel}</span>
+        <span class="sched-name">${item.name}</span>
+        ${cardBadge}
+        ${typeBadge}
+        <span class="sched-amt">${fmt(item.totalForMonth)}</span>
+      </div>`;
+  }
+
+  const datedHtml   = fc.dated.map(billRow).join('');
+  const undatedHtml = fc.undated.map(billRow).join('');
+
+  const emptyHtml = `
+    <div class="empty-state" style="margin-top:16px">
+      <div>📅</div>
+      <div>No recurring bills yet — add expense cards or subscriptions to see them here.</div>
+    </div>`;
+
+  const hasAny = fc.dated.length > 0 || fc.undated.length > 0;
+
+  const overBudget = fc.variance < 0;
+  const totalColor = overBudget ? 'var(--danger)' : 'var(--accent2)';
+
+  detailEl.innerHTML = `
+    <div class="schedule-detail-header">
+      <button class="btn xs secondary" onclick="prevScheduleMonth()">‹ Prev</button>
+      <div class="schedule-detail-title">
+        ${monthLabel}
+        <span class="schedule-total" style="color:${totalColor}">${fmt(fc.total)} / mo</span>
+      </div>
+      <button class="btn xs secondary" onclick="nextScheduleMonth()">Next ›</button>
+    </div>
+
+    ${!hasAny ? emptyHtml : `
+      ${fc.dated.length ? `
+        <div class="schedule-group-label">Scheduled by date</div>
+        ${datedHtml}
+      ` : ''}
+      ${fc.undated.length ? `
+        <div class="schedule-group-label">Any time this month</div>
+        ${undatedHtml}
+      ` : ''}
+      <div class="schedule-total-row">
+        <span>Total recurring</span>
+        <span style="color:${totalColor};font-weight:800">${fmt(fc.total)}</span>
+      </div>
+    `}`;
+}
+
+/** Format a day number as an ordinal string (1 → "1st", 15 → "15th"). */
+function ordinal(n) {
+  const s = ['th','st','nd','rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function renderAll() {
+  renderIncome();
+  renderIncomeStreams();
+  renderWants();
+  renderBudgetVsActual();
+  renderExpenseCards();
+  renderLoans();
+  renderCreditCards();
+  renderSavings();
+  renderGoals();
+  renderNetWorth();
+  renderSubscriptions();
+  renderWishlist();
+  renderSchedule();
+}
