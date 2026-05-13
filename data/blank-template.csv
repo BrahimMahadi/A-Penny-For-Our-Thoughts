@@ -26,3 +26,7 @@ SECTION:savingsAccounts
 id,name,balance,defaultAllocated,monthlyAllocations
 SECTION:goals
 id,accountId,targetAmount,targetDate
+SECTION:assets
+id,name,category,value
+SECTION:netWorthHistory
+id,date,netWorth,totalAssets,totalLiabilities
