@@ -97,14 +97,16 @@ wishlist: id,icon,name,url
 
 ### SAVINGS ACCOUNTS (Optional)
 ```
-savingsAccounts: id,name,allocated
-[unique-id],TFSA,135
-[unique-id],FHSA,150
-[unique-id],Emergency Fund,200
+savingsAccounts: id,name,balance,defaultAllocated,monthlyAllocations
+[unique-id],TFSA,25000,135,"{}"
+[unique-id],FHSA,5000,150,"{""2026-06"":200}"
+[unique-id],Emergency Fund,10000,200,"{}"
 ```
 - **id**: Unique account identifier
 - **name**: Account name (e.g., TFSA, RRSP, Emergency Fund)
-- **allocated**: Monthly allocation to this account (in dollars)
+- **balance**: Current balance in account (e.g., `25000` for $25,000)
+- **defaultAllocated**: Default monthly allocation from savings budget (e.g., `135` for $135/month)
+- **monthlyAllocations**: JSON object with monthly overrides (e.g., `{"2026-06":200}` to allocate $200 in June 2026 instead of default)
 
 ### SAVINGS GOALS (Optional)
 ```

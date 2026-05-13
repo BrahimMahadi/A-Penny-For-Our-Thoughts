@@ -23,6 +23,6 @@ id,name,date
 SECTION:wishlist
 id,icon,name,url
 SECTION:savingsAccounts
-id,name,allocated
+id,name,balance,defaultAllocated,monthlyAllocations
 SECTION:goals
 id,accountId,targetAmount,targetDate

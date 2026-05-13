@@ -47,13 +47,13 @@ wish_1,💻,"MacBook Pro 14"" M5 Pro — Space Black",https://www.apple.com/ca/s
 wish_2,🪑,Herman Miller Embody Gaming Chair,https://store.hermanmiller.com/gaming-chairs/embody-gaming-chair/100206608.html
 wish_3,🔊,Sennheiser AMBEO Soundbar + Subwoofer,https://www.amazon.ca/dp/B0B9CBWD95
 SECTION:savingsAccounts
-id,name,allocated
-sa_1,CC Payments,135
-sa_2,Crypto,135
-sa_3,FHSA,135
-sa_4,TFSA,135
-sa_5,USD Savings,67.50
-sa_6,Life with B&S,67.50
+id,name,balance,defaultAllocated,monthlyAllocations
+sa_1,CC Payments,500,135,"{""2026-06"":200}"
+sa_2,Crypto,2000,135,"{}"
+sa_3,FHSA,5000,135,"{}"
+sa_4,TFSA,25000,135,"{}"
+sa_5,USD Savings,3000,67.50,"{}"
+sa_6,Life with B&S,1200,67.50,"{}"
 SECTION:goals
 id,accountId,targetAmount,targetDate
 goal_1,sa_4,50000,2027-12-31

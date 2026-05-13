@@ -89,12 +89,12 @@ const DEFAULT_STATE = {
   ],
 
   savingsAccounts: [
-    { id: genId(), name: 'CC Payments',   allocated: 135   },
-    { id: genId(), name: 'Crypto',        allocated: 135   },
-    { id: genId(), name: 'FHSA',          allocated: 135   },
-    { id: genId(), name: 'TFSA',          allocated: 135   },
-    { id: genId(), name: 'USD Savings',   allocated: 67.50 },
-    { id: genId(), name: 'Life with B&S', allocated: 67.50 },
+    { id: genId(), name: 'CC Payments',   balance: 500,   defaultAllocated: 135,   monthlyAllocations: {} },
+    { id: genId(), name: 'Crypto',        balance: 2000,  defaultAllocated: 135,   monthlyAllocations: {} },
+    { id: genId(), name: 'FHSA',          balance: 5000,  defaultAllocated: 135,   monthlyAllocations: {} },
+    { id: genId(), name: 'TFSA',          balance: 25000, defaultAllocated: 135,   monthlyAllocations: {} },
+    { id: genId(), name: 'USD Savings',   balance: 3000,  defaultAllocated: 67.50, monthlyAllocations: {} },
+    { id: genId(), name: 'Life with B&S', balance: 1200,  defaultAllocated: 67.50, monthlyAllocations: {} },
   ],
 
   goals: [],
@@ -249,6 +249,15 @@ function calculateVariance(budgeted, actual, category) {
 
 function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
+// ─── SAVINGS ACCOUNTS CALCULATIONS ───
+/** Get the allocation for a given month, checking for overrides */
+function getAllocationForMonth(account, year, month) {
+  const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+  return account.monthlyAllocations && account.monthlyAllocations[monthKey] !== undefined
+    ? account.monthlyAllocations[monthKey]
+    : account.defaultAllocated || 0;
+}
+
 // ─── SAVINGS GOALS CALCULATIONS ───
 /** Calculate months between two YYYY-MM date strings */
 function calculateMonthsBetween(startDate, endDate) {
@@ -262,7 +271,7 @@ function getGoalProgress(goal) {
   const account = (state.savingsAccounts || []).find(a => a.id === goal.accountId);
   if (!account) return null;
 
-  const currentAmount = account.allocated || 0;
+  const currentAmount = account.balance || 0;
   const targetAmount = goal.targetAmount || 0;
   const targetDate = goal.targetDate;
 
@@ -372,6 +381,19 @@ function loadFromStorage() {
       id: genId(), label: labelMap[key] || key, items: items || [],
     }));
     delete state.expenses;
+  }
+
+  // ── Migration: old savings accounts (allocated only) → new structure (balance + defaultAllocated + monthlyAllocations) ──
+  if (state.savingsAccounts) {
+    state.savingsAccounts.forEach(acct => {
+      if (acct.balance === undefined) acct.balance = 0; // Default to $0 if not present
+      if (acct.defaultAllocated === undefined) {
+        // Migrate old "allocated" field to "defaultAllocated"
+        acct.defaultAllocated = acct.allocated || 0;
+        delete acct.allocated; // Remove old field
+      }
+      if (!acct.monthlyAllocations) acct.monthlyAllocations = {};
+    });
   }
 
   // ── Forward-compatibility: ensure all keys exist ──
@@ -1708,9 +1730,12 @@ function deleteCreditCard(id) {
 // RENDER — SAVINGS (full CRUD with per-account allocation)
 // ────────────────────────────────────────────────────────────────
 function renderSavings() {
+  const today     = new Date();
+  const year      = today.getFullYear();
+  const month     = today.getMonth() + 1;
   const budget    = getTotalMonthlyIncome() * getAlloc().savings;
   const accounts  = state.savingsAccounts || [];
-  const allocated   = accounts.reduce((s, a) => s + +a.allocated, 0);
+  const allocated   = accounts.reduce((s, a) => s + getAllocationForMonth(a, year, month), 0);
   const unallocated = budget - allocated;
   const allocPct    = budget > 0 ? Math.min(100, (allocated / budget) * 100) : 0;
 
@@ -1728,12 +1753,16 @@ function renderSavings() {
   const ul = document.getElementById('savings-accounts-list');
   ul.innerHTML = '';
   accounts.forEach(acct => {
+    const monthlyAlloc = getAllocationForMonth(acct, year, month);
     const li = document.createElement('li');
     li.className = 'savings-acct-item';
     li.innerHTML = `
       <span class="dot"></span>
       <span class="acct-name">${acct.name}</span>
-      <span class="acct-amount">${fmt(acct.allocated)}/mo</span>
+      <div class="acct-details">
+        <span class="acct-balance">Balance: ${fmt(acct.balance || 0)}</span>
+        <span class="acct-monthly">Monthly: ${fmt(monthlyAlloc)}</span>
+      </div>
       <button class="btn icon-btn" onclick="openEditSavingsAccount('${acct.id}')" title="Edit">✎</button>
       <button class="btn icon-btn del" onclick="deleteSavingsAccount('${acct.id}')" title="Delete">×</button>`;
     ul.appendChild(li);
@@ -1741,10 +1770,16 @@ function renderSavings() {
 }
 
 function addSavingsAccount() {
-  const name      = document.getElementById('new-savings-name').value.trim();
-  const allocated = parseFloat(document.getElementById('new-savings-amount').value) || 0;
+  const name               = document.getElementById('new-savings-name').value.trim();
+  const defaultAllocated   = parseFloat(document.getElementById('new-savings-amount').value) || 0;
   if (!name) return;
-  state.savingsAccounts.push({ id: genId(), name, allocated });
+  state.savingsAccounts.push({
+    id: genId(),
+    name,
+    balance: 0,
+    defaultAllocated,
+    monthlyAllocations: {}
+  });
   document.getElementById('new-savings-name').value   = '';
   document.getElementById('new-savings-amount').value = '';
   saveToStorage(); renderSavings();
@@ -1756,12 +1791,16 @@ function openEditSavingsAccount(id) {
   openModal(
     'Edit Savings Account',
     mField('Account Name', 'msa-name', 'text', acct.name, '') +
-    mField('Monthly Allocation ($)', 'msa-amount', 'number', acct.allocated, '0.00', 'min="0" step="0.01"'),
+    '<div class="modal-row">' +
+    mField('Current Balance ($)', 'msa-balance', 'number', acct.balance || 0, '0.00', 'min="0" step="0.01"') +
+    mField('Monthly Allocation ($)', 'msa-default-alloc', 'number', acct.defaultAllocated || 0, '0.00', 'min="0" step="0.01"') +
+    '</div>',
     () => {
-      const name      = document.getElementById('msa-name').value.trim();
-      const allocated = parseFloat(document.getElementById('msa-amount').value);
-      if (!name || isNaN(allocated)) return;
-      Object.assign(acct, { name, allocated });
+      const name               = document.getElementById('msa-name').value.trim();
+      const balance            = parseFloat(document.getElementById('msa-balance').value);
+      const defaultAllocated   = parseFloat(document.getElementById('msa-default-alloc').value);
+      if (!name || isNaN(balance) || isNaN(defaultAllocated)) return;
+      Object.assign(acct, { name, balance, defaultAllocated });
       saveToStorage(); renderSavings(); closeModal();
     }
   );
@@ -1771,6 +1810,124 @@ function deleteSavingsAccount(id) {
   if (!confirm('Remove this savings account?')) return;
   state.savingsAccounts = state.savingsAccounts.filter(a => a.id !== id);
   saveToStorage(); renderSavings();
+}
+
+function openAllocateSavingsModal() {
+  const today      = new Date();
+  const year       = today.getFullYear();
+  const month      = today.getMonth() + 1;
+  const monthStr   = `${year}-${String(month).padStart(2, '0')}`;
+  const monthName  = today.toLocaleString('en-CA', { month: 'long', year: 'numeric' });
+
+  const budget     = getTotalMonthlyIncome() * getAlloc().savings;
+  const accounts   = state.savingsAccounts || [];
+
+  // Build modal body with allocation inputs
+  let bodyHTML = `
+    <div style="margin-bottom: 16px; padding: 12px; background: var(--surface); border-radius: 8px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; font-size: 13px;">
+        <div>
+          <div style="color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Monthly Savings Budget</div>
+          <div style="font-size: 18px; font-weight: 700; margin-top: 4px;">${fmt(budget)}</div>
+        </div>
+        <div>
+          <div style="color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Currently Allocated</div>
+          <div style="font-size: 18px; font-weight: 700; margin-top: 4px;" id="alloc-current">—</div>
+        </div>
+        <div>
+          <div style="color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Remaining</div>
+          <div style="font-size: 18px; font-weight: 700; margin-top: 4px;" id="alloc-remaining">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">Allocating for: <strong>${monthName}</strong></div>
+
+    <div id="allocation-fields" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
+  `;
+
+  accounts.forEach(acct => {
+    const currentMonthAlloc = getAllocationForMonth(acct, year, month);
+    bodyHTML += `
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px; align-items: center; padding: 8px; background: var(--surface); border-radius: 6px;">
+        <span style="font-weight: 600; font-size: 13px;">${acct.name}</span>
+        <input type="number" class="alloc-input" id="alloc-${acct.id}" value="${currentMonthAlloc}" min="0" step="0.01" style="font-size: 13px; padding: 6px;">
+      </div>
+    `;
+  });
+
+  bodyHTML += `
+    </div>
+    <div style="font-size: 12px; color: var(--muted); padding: 10px; background: var(--surface); border-radius: 6px; border-left: 3px solid var(--accent2);">
+      💡 Adjust amounts per account. Total must not exceed budget. Changes apply to <strong>${monthName}</strong> only.
+    </div>
+  `;
+
+  openModal(
+    'Allocate Monthly Savings Budget',
+    bodyHTML,
+    () => {
+      // Validate and update allocations
+      let totalAllocated = 0;
+      const updates = {};
+
+      accounts.forEach(acct => {
+        const input = document.getElementById(`alloc-${acct.id}`);
+        const value = parseFloat(input.value) || 0;
+        totalAllocated += value;
+        updates[acct.id] = value;
+      });
+
+      if (totalAllocated > budget) {
+        alert(`❌ Total allocation ($${totalAllocated.toFixed(2)}) exceeds budget ($${budget.toFixed(2)})`);
+        return;
+      }
+
+      // Save allocations to monthlyAllocations
+      accounts.forEach(acct => {
+        if (!acct.monthlyAllocations) acct.monthlyAllocations = {};
+        const newValue = updates[acct.id];
+        const defaultValue = acct.defaultAllocated;
+
+        // Only store override if different from default
+        if (newValue !== defaultValue) {
+          acct.monthlyAllocations[monthStr] = newValue;
+        } else {
+          delete acct.monthlyAllocations[monthStr];
+        }
+      });
+
+      saveToStorage();
+      renderSavings();
+      renderBudgetVsActual();
+      closeModal();
+      alert('✓ Allocation updated for ' + monthName);
+    }
+  );
+
+  // Real-time validation
+  const updateValidation = () => {
+    let total = 0;
+    accounts.forEach(acct => {
+      const input = document.getElementById(`alloc-${acct.id}`);
+      total += parseFloat(input.value) || 0;
+    });
+
+    const remaining = budget - total;
+    const color = remaining < 0 ? 'var(--danger)' : 'var(--text)';
+
+    document.getElementById('alloc-current').textContent = fmt(total);
+    document.getElementById('alloc-remaining').textContent = fmt(remaining);
+    document.getElementById('alloc-remaining').style.color = color;
+  };
+
+  // Attach event listeners after modal is rendered
+  setTimeout(() => {
+    document.querySelectorAll('.alloc-input').forEach(input => {
+      input.addEventListener('input', updateValidation);
+    });
+    updateValidation();
+  }, 0);
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -2145,9 +2302,9 @@ function exportCsv() {
   rows.push('');
 
   // ── Savings accounts ──
-  rows.push('SECTION:savingsAccounts', 'id,name,allocated');
+  rows.push('SECTION:savingsAccounts', 'id,name,balance,defaultAllocated,monthlyAllocations');
   (state.savingsAccounts || []).forEach(a =>
-    rows.push(`${e(a.id)},${e(a.name)},${a.allocated}`)
+    rows.push(`${e(a.id)},${e(a.name)},${a.balance || 0},${a.defaultAllocated || 0},${e(JSON.stringify(a.monthlyAllocations || {}))}`)
   );
   rows.push('');
 
@@ -2349,7 +2506,26 @@ function parseCsv(text) {
 
       case 'savingsAccounts':
         if (!parsed.savingsAccounts) parsed.savingsAccounts = [];
-        parsed.savingsAccounts.push({ id: vals[0], name: vals[1], allocated: +vals[2] });
+        // Handle both old format (id, name, allocated) and new format (id, name, balance, defaultAllocated, monthlyAllocations)
+        if (vals.length >= 5) {
+          // New format
+          parsed.savingsAccounts.push({
+            id: vals[0],
+            name: vals[1],
+            balance: +vals[2],
+            defaultAllocated: +vals[3],
+            monthlyAllocations: vals[4] ? JSON.parse(vals[4]) : {}
+          });
+        } else {
+          // Old format - migrate allocated to defaultAllocated
+          parsed.savingsAccounts.push({
+            id: vals[0],
+            name: vals[1],
+            balance: 0,
+            defaultAllocated: +vals[2],
+            monthlyAllocations: {}
+          });
+        }
         break;
 
       case 'goals':
