@@ -1252,6 +1252,130 @@ input {
 }
 
 /* ═══════════════════════════════════════════════════
+   EXPENSE SCHEDULE
+═══════════════════════════════════════════════════ */
+
+/* 3-month summary row */
+.schedule-summary-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.schedule-summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: var(--transition);
+
+  &:hover { border-color: var(--border-light); box-shadow: var(--card-shadow); }
+
+  &.active {
+    border-color: var(--accent);
+    background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+  }
+
+  & .ssc-month  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }
+  & .ssc-total  { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+  & .ssc-variance { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+  & .ssc-count  { font-size: 11px; color: var(--muted); }
+}
+
+/* Active month detail */
+.schedule-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.schedule-detail-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.schedule-total {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.schedule-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin: 14px 0 8px;
+
+  &:first-child { margin-top: 0; }
+}
+
+.schedule-bill-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--surface2);
+  border-radius: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+
+  & .sched-day  {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    min-width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  & .sched-name { flex: 1; font-size: 13px; font-weight: 500; min-width: 120px; }
+  & .sched-amt  { font-size: 13px; font-weight: 700; color: var(--text); flex-shrink: 0; }
+}
+
+.schedule-badge {
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 2px 7px;
+  flex-shrink: 0;
+
+  &.biweekly    { background: rgba(108,99,255,.15); color: var(--accent); }
+  &.sub         { background: rgba(0,212,170,.12);  color: var(--accent2); }
+}
+
+.schedule-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 12px 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Due-day badge on expense items */
+.e-due {
+  font-size: 10px;
+  color: var(--accent2);
+  background: rgba(0,212,170,.12);
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════
    SCROLLBAR
 ═══════════════════════════════════════════════════ */
 ::-webkit-scrollbar       { width: 6px; }
@@ -1410,6 +1534,9 @@ canvas { max-width: 100%; height: auto; }
   .goal-stats  { grid-template-columns: 1fr; }
   .goal-header { flex-direction: column; align-items: flex-start; }
   .goal-target { flex: none; }
+
+  /* Schedule */
+  .schedule-summary-row { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -1511,6 +1638,10 @@ canvas { max-width: 100%; height: auto; }
   .savings-acct-item { padding: 12px 14px; }
   .sub-item          { padding: 12px 14px; }
   .wish-item         { padding: 12px 14px; }
+
+  /* Schedule */
+  .schedule-summary-row { grid-template-columns: 1fr; }
+  .schedule-detail-header { flex-direction: column; align-items: flex-start; gap: 10px; }
 }
 
 /* ═══════════════════════════════════════════════════

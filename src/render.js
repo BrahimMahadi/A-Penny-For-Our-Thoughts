@@ -12,7 +12,8 @@
               renderSpendingAnalytics, renderAnalyticsHistory,
               renderExpenseCards, renderLoans, renderCreditCards,
               renderSavings, renderGoals, renderNetWorth,
-              renderSubscriptions, renderWishlist, renderAll
+              renderSubscriptions, renderWishlist,
+              renderSchedule, renderAll
    Depends on: utils.js, state.js, analytics.js, charts.js
 ═══════════════════════════════════════════════════════════════ */
 
@@ -384,11 +385,16 @@ function renderExpenseCards() {
     (card.items || []).forEach(item => {
       const li = document.createElement('li');
       li.className = 'expense-item';
+      const dueBadge = item.dueDay
+        ? `<span class="e-due">due ${ordinal(item.dueDay)}</span>`
+        : '';
       li.innerHTML = `
         <span class="e-name">${item.name}</span>
         ${item.biweekly ? '<span class="e-biweekly">bi-wk ×2</span>' : ''}
+        ${dueBadge}
         <span class="e-amount">${fmt(monthlyAmount(item))}</span>
-        <button class="btn icon-btn del" onclick="removeExpense('${card.id}','${item.id}')">×</button>`;
+        <button class="btn icon-btn" onclick="openEditExpenseItem('${card.id}','${item.id}')" title="Edit">✎</button>
+        <button class="btn icon-btn del" onclick="removeExpense('${card.id}','${item.id}')" title="Delete">×</button>`;
       ul.appendChild(li);
     });
   });
@@ -716,6 +722,119 @@ function renderWishlist() {
 // ────────────────────────────────────────────────────────────────
 // RENDER ALL
 // ────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
+// EXPENSE SCHEDULE
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Render the 3-month summary bar + active-month bill list.
+ * Reads scheduleViewYear/Month from app.js globals.
+ */
+function renderSchedule() {
+  const summaryEl = document.getElementById('schedule-summary');
+  const detailEl  = document.getElementById('schedule-detail');
+  if (!summaryEl || !detailEl) return;
+
+  const today = new Date();
+
+  // ── 3-month summary cards ──────────────────────────────────────
+  summaryEl.innerHTML = '';
+  for (let offset = 0; offset < 3; offset++) {
+    const d     = new Date(scheduleViewYear, scheduleViewMonth - 1 + offset, 1);
+    const y     = d.getFullYear();
+    const m     = d.getMonth() + 1;
+    const fc    = getMonthForecast(y, m);
+    const isActive = (y === scheduleViewYear && m === scheduleViewMonth);
+
+    const overBudget = fc.variance < 0;
+    const atLabel    = d.toLocaleString('en-CA', { month: 'long', year: 'numeric' });
+    const varSign    = overBudget ? '+' : '-';
+    const varAmt     = fmt(Math.abs(fc.variance));
+    const varColor   = overBudget ? 'var(--danger)' : 'var(--accent2)';
+    const varLabel   = overBudget ? 'over budget' : 'under budget';
+
+    const card = document.createElement('div');
+    card.className = 'schedule-summary-card' + (isActive ? ' active' : '');
+    card.onclick   = () => { scheduleViewYear = y; scheduleViewMonth = m; renderSchedule(); };
+    card.innerHTML = `
+      <div class="ssc-month">${atLabel}</div>
+      <div class="ssc-total">${fmt(fc.total)}</div>
+      <div class="ssc-variance" style="color:${varColor}">
+        ${varSign}${varAmt} ${varLabel}
+      </div>
+      <div class="ssc-count">${fc.dated.length + fc.undated.length} recurring bill${fc.dated.length + fc.undated.length !== 1 ? 's' : ''}</div>`;
+    summaryEl.appendChild(card);
+  }
+
+  // ── Active-month detail ───────────────────────────────────────
+  const fc       = getMonthForecast(scheduleViewYear, scheduleViewMonth);
+  const monthLabel = new Date(scheduleViewYear, scheduleViewMonth - 1, 1)
+    .toLocaleString('en-CA', { month: 'long', year: 'numeric' });
+
+  /** Render a single bill row */
+  function billRow(item) {
+    const dayLabel = item.dueDay ? ordinal(item.dueDay) : '∞';
+    const badgeHtml = item.biweekly
+      ? `<span class="schedule-badge biweekly">×2 bi-wk</span>`
+      : item.source === 'subscription'
+        ? `<span class="schedule-badge sub">subscription</span>`
+        : '';
+    return `
+      <div class="schedule-bill-row">
+        <span class="sched-day">${dayLabel}</span>
+        <span class="sched-name">${item.name}</span>
+        ${badgeHtml}
+        <span class="sched-amt">${fmt(item.totalForMonth)}</span>
+      </div>`;
+  }
+
+  const datedHtml   = fc.dated.map(billRow).join('');
+  const undatedHtml = fc.undated.map(billRow).join('');
+
+  const emptyHtml = `
+    <div class="empty-state" style="margin-top:16px">
+      <div>📅</div>
+      <div>No recurring bills yet — add expense cards or subscriptions to see them here.</div>
+    </div>`;
+
+  const hasAny = fc.dated.length > 0 || fc.undated.length > 0;
+
+  const overBudget = fc.variance < 0;
+  const totalColor = overBudget ? 'var(--danger)' : 'var(--accent2)';
+
+  detailEl.innerHTML = `
+    <div class="schedule-detail-header">
+      <button class="btn xs secondary" onclick="prevScheduleMonth()">‹ Prev</button>
+      <div class="schedule-detail-title">
+        ${monthLabel}
+        <span class="schedule-total" style="color:${totalColor}">${fmt(fc.total)} / mo</span>
+      </div>
+      <button class="btn xs secondary" onclick="nextScheduleMonth()">Next ›</button>
+    </div>
+
+    ${!hasAny ? emptyHtml : `
+      ${fc.dated.length ? `
+        <div class="schedule-group-label">Scheduled by date</div>
+        ${datedHtml}
+      ` : ''}
+      ${fc.undated.length ? `
+        <div class="schedule-group-label">Any time this month</div>
+        ${undatedHtml}
+      ` : ''}
+      <div class="schedule-total-row">
+        <span>Total recurring</span>
+        <span style="color:${totalColor};font-weight:800">${fmt(fc.total)}</span>
+      </div>
+    `}`;
+}
+
+/** Format a day number as an ordinal string (1 → "1st", 15 → "15th"). */
+function ordinal(n) {
+  const s = ['th','st','nd','rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
 function renderAll() {
   renderIncome();
   renderIncomeStreams();
@@ -729,4 +848,5 @@ function renderAll() {
   renderNetWorth();
   renderSubscriptions();
   renderWishlist();
+  renderSchedule();
 }

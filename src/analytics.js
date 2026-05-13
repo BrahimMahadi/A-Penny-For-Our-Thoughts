@@ -240,6 +240,101 @@ function recordNetWorthSnapshot() {
 }
 
 // ────────────────────────────────────────────────────────────────
+// EXPENSE SCHEDULE / RECURRING CALENDAR
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Returns the number of days in a given month.
+ * @param {number} year
+ * @param {number} month - 1-based (1 = Jan)
+ */
+function daysInMonth(year, month) {
+  return new Date(year, month, 0).getDate();
+}
+
+/**
+ * Build the full recurring bill forecast for a single month.
+ *
+ * Each entry in the returned arrays has the shape:
+ *   { id, name, amount, dueDay, source, occurrences, totalForMonth }
+ *
+ * - source: 'expense' | 'subscription'
+ * - occurrences: 1 (monthly) or 2 (bi-weekly items)
+ * - dueDay: null means "any time this month" (undated)
+ * - totalForMonth: amount * occurrences
+ *
+ * @param {number} year
+ * @param {number} month - 1-based
+ * @returns {{ dated: Array, undated: Array, total: number, budgeted: number, variance: number }}
+ */
+function getMonthForecast(year, month) {
+  const items = [];
+  const maxDay = daysInMonth(year, month);
+
+  // ── Expense card items ────────────────────────────────────────
+  (state.expenseCards || []).forEach(card => {
+    (card.items || []).forEach(item => {
+      const occurrences = item.biweekly ? 2 : 1;
+      const rawAmt      = +item.amount;
+      // dueDay: clamp to valid range for this month; null stays null
+      const dueDay = (item.dueDay != null && item.dueDay >= 1)
+        ? Math.min(+item.dueDay, maxDay)
+        : null;
+
+      items.push({
+        id:            item.id,
+        name:          item.name,
+        amount:        rawAmt,
+        dueDay,
+        source:        'expense',
+        cardLabel:     card.label,
+        occurrences,
+        totalForMonth: rawAmt * occurrences,
+        biweekly:      !!item.biweekly,
+      });
+    });
+  });
+
+  // ── Subscriptions ─────────────────────────────────────────────
+  (state.subscriptions || []).forEach(sub => {
+    // Extract the day-of-month from the stored date string (YYYY-MM-DD or similar)
+    let dueDay = null;
+    if (sub.date) {
+      const parts = sub.date.split('-');
+      // parts[2] is the day if the format is YYYY-MM-DD
+      // For a plain day number stored as string, fall back gracefully
+      const parsedDay = parts.length >= 3 ? parseInt(parts[2], 10) : parseInt(sub.date, 10);
+      if (!isNaN(parsedDay) && parsedDay >= 1) {
+        dueDay = Math.min(parsedDay, maxDay);
+      }
+    }
+
+    items.push({
+      id:            sub.id,
+      name:          sub.name,
+      amount:        +sub.amount || 0,
+      dueDay,
+      source:        'subscription',
+      cardLabel:     'Subscriptions',
+      occurrences:   1,
+      totalForMonth: +sub.amount || 0,
+      biweekly:      false,
+    });
+  });
+
+  // ── Split into dated / undated lists ─────────────────────────
+  const dated   = items.filter(i => i.dueDay !== null).sort((a, b) => a.dueDay - b.dueDay);
+  const undated = items.filter(i => i.dueDay === null);
+
+  // ── Totals ────────────────────────────────────────────────────
+  const total    = items.reduce((s, i) => s + i.totalForMonth, 0);
+  const budgeted = getTotalMonthlyIncome() * getAlloc().needs;
+  const variance = budgeted - total;        // positive = under budget
+
+  return { dated, undated, total, budgeted, variance };
+}
+
+// ────────────────────────────────────────────────────────────────
 // SPENDING ANALYTICS
 // ────────────────────────────────────────────────────────────────
 

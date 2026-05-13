@@ -15,11 +15,41 @@
 // ────────────────────────────────────────────────────────────────
 let analyticsFilters = { startDate: '', endDate: '', search: '' };
 
+// Schedule view — defaults to current month on load
+const _now = new Date();
+let scheduleViewYear  = _now.getFullYear();
+let scheduleViewMonth = _now.getMonth() + 1;  // 1-based
+
 // ────────────────────────────────────────────────────────────────
 // TABS
 // ────────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  // Single-tab dashboard — kept for CSV import compatibility
+  // Hide all pages and deactivate all tab buttons
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+  const page    = document.getElementById('tab-' + tab);
+  const tabBtn  = document.getElementById('tab-btn-' + tab);
+  if (page)   page.classList.add('active');
+  if (tabBtn) tabBtn.classList.add('active');
+
+  // Re-render schedule when navigating to it (data may have changed)
+  if (tab === 'schedule') renderSchedule();
+}
+
+// ────────────────────────────────────────────────────────────────
+// SCHEDULE NAVIGATION
+// ────────────────────────────────────────────────────────────────
+function prevScheduleMonth() {
+  scheduleViewMonth--;
+  if (scheduleViewMonth < 1) { scheduleViewMonth = 12; scheduleViewYear--; }
+  renderSchedule();
+}
+
+function nextScheduleMonth() {
+  scheduleViewMonth++;
+  if (scheduleViewMonth > 12) { scheduleViewMonth = 1; scheduleViewYear++; }
+  renderSchedule();
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -305,6 +335,38 @@ function deleteExpenseCard(id) {
   if (!confirm('Delete this payment card and all its expenses?')) return;
   state.expenseCards = state.expenseCards.filter(c => c.id !== id);
   saveToStorage(); renderAll();
+}
+
+function openEditExpenseItem(cardId, itemId) {
+  const card = (state.expenseCards || []).find(c => c.id === cardId);
+  if (!card) return;
+  const item = (card.items || []).find(i => i.id === itemId);
+  if (!item) return;
+
+  const body =
+    mField('Expense Name', 'mei-name', 'text', item.name, 'e.g. Rent') +
+    `<div class="modal-row">` +
+      mField('Amount ($)', 'mei-amount', 'number', item.amount, '0.00', 'min="0" step="0.01"') +
+      mField('Due Day (optional)', 'mei-dueday', 'number', item.dueDay ?? '', '1–31', 'min="1" max="31" step="1"') +
+    `</div>` +
+    `<div class="modal-field">
+      <label style="flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px;font-weight:600;color:var(--text)">
+        <input type="checkbox" id="mei-biweekly" ${item.biweekly ? 'checked' : ''} />
+        Bi-weekly pay (amount is per paycheque — ×2 for monthly)
+      </label>
+    </div>`;
+
+  openModal('Edit Expense Item', body, () => {
+    const name     = document.getElementById('mei-name').value.trim();
+    const amount   = parseFloat(document.getElementById('mei-amount').value);
+    const biweekly = document.getElementById('mei-biweekly').checked;
+    const dueDayRaw = parseInt(document.getElementById('mei-dueday').value, 10);
+    const dueDay   = (!isNaN(dueDayRaw) && dueDayRaw >= 1 && dueDayRaw <= 31) ? dueDayRaw : null;
+
+    if (!name || isNaN(amount) || amount <= 0) return;
+    Object.assign(item, { name, amount, biweekly, dueDay });
+    saveToStorage(); renderAll(); closeModal();
+  });
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -724,13 +786,13 @@ function exportCsv() {
   (state.incomeStreams || []).forEach(s => rows.push(`${e(s.id)},${e(s.name)},${s.amount},${s.biweekly}`));
   rows.push('');
 
-  rows.push('SECTION:expenseCards', 'cardId,cardLabel,itemId,itemName,itemAmount,itemBiweekly');
+  rows.push('SECTION:expenseCards', 'cardId,cardLabel,itemId,itemName,itemAmount,itemBiweekly,itemDueDay');
   (state.expenseCards || []).forEach(card => {
     if (!(card.items || []).length) {
-      rows.push(`${e(card.id)},${e(card.label)},,,, `);
+      rows.push(`${e(card.id)},${e(card.label)},,,,, `);
     } else {
       card.items.forEach(item =>
-        rows.push(`${e(card.id)},${e(card.label)},${e(item.id)},${e(item.name)},${item.amount},${item.biweekly}`)
+        rows.push(`${e(card.id)},${e(card.label)},${e(item.id)},${e(item.name)},${item.amount},${item.biweekly},${item.dueDay ?? ''}`)
       );
     }
   });
@@ -859,10 +921,14 @@ function parseCsv(text) {
 
       case 'expenseCards': {
         if (!parsed.expenseCards) parsed.expenseCards = [];
-        const [cardId, cardLabel, itemId, itemName, itemAmount, itemBiweekly] = vals;
+        const [cardId, cardLabel, itemId, itemName, itemAmount, itemBiweekly, itemDueDay] = vals;
         let card = parsed.expenseCards.find(c => c.id === cardId);
         if (!card) { card = { id: cardId, label: cardLabel, items: [] }; parsed.expenseCards.push(card); }
-        if (itemId && itemName) card.items.push({ id: itemId, name: itemName, amount: +itemAmount, biweekly: itemBiweekly === 'true' });
+        if (itemId && itemName) {
+          const dueDayParsed = parseInt(itemDueDay, 10);
+          const dueDay = (!isNaN(dueDayParsed) && dueDayParsed >= 1 && dueDayParsed <= 31) ? dueDayParsed : null;
+          card.items.push({ id: itemId, name: itemName, amount: +itemAmount, biweekly: itemBiweekly === 'true', dueDay });
+        }
         break;
       }
 
