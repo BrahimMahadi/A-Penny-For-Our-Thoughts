@@ -230,6 +230,9 @@
       </div>
     </div>
 
+    <!-- Payday anchor line -->
+    <div class="payday-anchor-line" id="payday-anchor-line"></div>
+
     <!-- Donut + purchase list -->
     <div class="wants-row">
       <div class="wants-chart-wrap">
@@ -248,6 +251,8 @@
           <button class="btn sm" onclick="addPurchase()">Add</button>
           <button class="btn sm danger" onclick="resetWants()">Reset Period</button>
         </div>
+        <!-- Subscription deductions breakdown (shown when payStart configured + subs due) -->
+        <div id="wants-sub-breakdown" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div>
       </div>
     </div>
 
@@ -502,12 +507,16 @@
   <!-- ── Subscriptions ── -->
   <div class="section-title">Subscription Renewals</div>
   <div class="card">
-    <ul class="sub-list" id="sub-list"></ul>
-    <div class="add-item-form" style="margin-top:12px">
-      <input id="new-sub-name" placeholder="Service name" style="flex:2" />
-      <input id="new-sub-date" type="date" />
-      <button class="btn sm" onclick="addSubscription()">Add</button>
+    <!-- Totals header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;gap:20px;font-size:12px;color:var(--muted)">
+        <span>Wants: <strong id="sub-wants-monthly" style="color:var(--accent2)">—</strong></span>
+        <span>Needs: <strong id="sub-needs-monthly" style="color:var(--accent)">—</strong></span>
+      </div>
+      <span style="font-size:11px;color:var(--muted)">monthly equiv.</span>
     </div>
+    <ul class="sub-list" id="sub-list"></ul>
+    <button class="btn sm secondary" onclick="openAddSubscription()" style="margin-top:12px">+ Add Subscription</button>
   </div>
 
 

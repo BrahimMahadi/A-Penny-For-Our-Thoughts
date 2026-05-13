@@ -130,11 +130,16 @@ function renderIncomeStreams() {
 // WANTS TRACKER
 // ────────────────────────────────────────────────────────────────
 function renderWants() {
-  const inc       = getTotalMonthlyIncome();
-  const biWants   = inc * getAlloc().wants / 2;
-  const spent     = (state.purchases || []).reduce((s, p) => s + +p.amount, 0);
-  const remaining = biWants - spent;
-  const usedPct   = biWants > 0 ? Math.min(100, (spent / biWants) * 100) : 0;
+  const inc     = getTotalMonthlyIncome();
+  const biWants = inc * getAlloc().wants / 2;
+
+  // Manual purchases + Wants subscription deductions this period
+  const purchases    = (state.purchases || []).reduce((s, p) => s + +p.amount, 0);
+  const deductedSubs = getSubsDeductedThisPeriod();
+  const subTotal     = deductedSubs.reduce((s, sub) => s + (+sub.amount || 0) * sub.renewalDates.length, 0);
+  const spent        = purchases + subTotal;
+  const remaining    = biWants - spent;
+  const usedPct      = biWants > 0 ? Math.min(100, (spent / biWants) * 100) : 0;
 
   document.getElementById('disp-biwants2').textContent             = fmt(biWants);
   document.getElementById('disp-wants-spent').textContent          = fmt(spent);
@@ -145,6 +150,51 @@ function renderWants() {
   document.getElementById('wants-status-chip').innerHTML = remaining >= 0
     ? `<span class="chip green">✓ On Track</span>`
     : `<span class="chip red">⚠ Over by ${fmt(Math.abs(remaining))}</span>`;
+
+  // ── Payday anchor line ────────────────────────────────────────
+  const anchorEl = document.getElementById('payday-anchor-line');
+  if (anchorEl) {
+    const periodStart = getCurrentPeriodStart();
+    if (!periodStart) {
+      anchorEl.innerHTML = `
+        <span style="color:var(--muted);font-size:12px">No payday configured —</span>
+        <button class="btn xs secondary" onclick="openSetPayStart()" style="font-size:11px">Set Payday</button>
+        <span style="color:var(--muted);font-size:12px">to enable subscription deductions</span>`;
+    } else {
+      const start  = new Date(periodStart + 'T00:00:00');
+      const end    = new Date(start);
+      end.setDate(end.getDate() + 13);
+      const opts   = { month: 'short', day: 'numeric' };
+      const sLabel = start.toLocaleDateString('en-CA', opts);
+      const eLabel = end.toLocaleDateString('en-CA', opts);
+      const subInfo = subTotal > 0
+        ? ` · <span style="color:var(--accent2)">${fmt(subTotal)} in subscriptions</span>`
+        : '';
+      anchorEl.innerHTML = `
+        <span style="font-size:12px;color:var(--muted)">
+          Period: <strong style="color:var(--text)">${sLabel} – ${eLabel}</strong>${subInfo}
+        </span>
+        <button class="btn xs secondary" onclick="openSetPayStart()" style="font-size:11px">✎ Payday</button>`;
+    }
+  }
+
+  // ── Subscription deduction breakdown ─────────────────────────
+  const subBreakdownEl = document.getElementById('wants-sub-breakdown');
+  if (subBreakdownEl) {
+    if (deductedSubs.length > 0) {
+      subBreakdownEl.style.display = 'block';
+      subBreakdownEl.innerHTML = `
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px">Subscriptions This Period</div>
+        ${deductedSubs.map(sub => `
+          <div class="sub-deduction-row">
+            <span class="sub-deduction-name">${sub.name}</span>
+            <span class="sub-deduction-date">${sub.renewalDates[0]}</span>
+            <span class="sub-deduction-amt">${fmt(+sub.amount * sub.renewalDates.length)}</span>
+          </div>`).join('')}`;
+    } else {
+      subBreakdownEl.style.display = 'none';
+    }
+  }
 
   renderPurchaseList();
   renderWantsDonut(spent, remaining, usedPct);
@@ -399,14 +449,17 @@ function renderExpenseCards() {
     });
   });
 
-  const grand       = grandTotal();
-  const needsBudget = getTotalMonthlyIncome() * getAlloc().needs;
-  const remaining   = needsBudget - grand;
+  const grand         = grandTotal();
+  const needsSubTotal = getSubsDeductedThisMonth()
+    .reduce((sum, sub) => sum + (+sub.amount || 0) * sub.renewalDates.length, 0);
+  const needsBudget   = getTotalMonthlyIncome() * getAlloc().needs;
+  const totalNeeds    = grand + needsSubTotal;
+  const remaining     = needsBudget - totalNeeds;
 
   document.getElementById('disp-grand-total').textContent     = fmt(grand);
   document.getElementById('disp-needs-remaining').textContent = fmt(remaining);
   document.getElementById('disp-needs-used-pct').textContent  = remaining >= 0
-    ? `${pct(grand, needsBudget)}% of needs budget used`
+    ? `${pct(totalNeeds, needsBudget)}% of needs budget used${needsSubTotal > 0 ? ` (incl. ${fmt(needsSubTotal)} in subs)` : ''}`
     : `Over needs budget by ${fmt(Math.abs(remaining))}`;
 
   document.getElementById('needs-status-card').className = 'card ' + (remaining >= 0 ? '' : 'danger');
@@ -681,20 +734,43 @@ function renderSubscriptions() {
   const ul     = document.getElementById('sub-list');
   ul.innerHTML = '';
 
+  const freqLabel = { monthly: '/mo', quarterly: '/qtr', annual: '/yr' };
+
   [...(state.subscriptions || [])].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(sub => {
-    const days    = daysUntil(sub.date);
-    const chipCls = days < 0 ? 'red' : days < 60 ? 'warn' : 'green';
-    const chipTxt = days < 0 ? 'Expired' : days === 0 ? 'Today!' : `${days}d`;
+    const days       = daysUntil(sub.date);
+    const chipCls    = days < 0 ? 'red' : days < 60 ? 'warn' : 'green';
+    const chipTxt    = days < 0 ? 'Expired' : days === 0 ? 'Today!' : `${days}d`;
+    const amount     = +sub.amount || 0;
+    const suffix     = freqLabel[sub.frequency || 'monthly'] || '/mo';
+    const budgetType = sub.budgetType || 'wants';
+
     const li = document.createElement('li');
     li.className = 'sub-item';
     li.innerHTML = `
       <span class="sub-name">${sub.name}</span>
+      <span class="sub-badge ${budgetType}">${budgetType === 'needs' ? 'Needs' : 'Wants'}</span>
+      <span class="sub-category-tag">${sub.category || 'Other'}</span>
+      <span class="sub-amount">${amount > 0 ? fmt(amount) + suffix : '—'}</span>
       <span class="sub-date">${sub.date}</span>
       <span class="chip ${chipCls}">${chipTxt}</span>
       <button class="btn icon-btn" onclick="openEditSubscription('${sub.id}')" title="Edit">✎</button>
       <button class="btn icon-btn del" onclick="deleteSubscription('${sub.id}')" title="Delete">×</button>`;
     ul.appendChild(li);
   });
+
+  // ── Totals by budget type ─────────────────────────────────────
+  const moRate = { monthly: 1, quarterly: 1 / 3, annual: 1 / 12 };
+  const wantsMo = (state.subscriptions || [])
+    .filter(s => (s.budgetType || 'wants') !== 'needs')
+    .reduce((sum, s) => sum + (+s.amount || 0) * (moRate[s.frequency || 'monthly'] ?? 1), 0);
+  const needsMo = (state.subscriptions || [])
+    .filter(s => s.budgetType === 'needs')
+    .reduce((sum, s) => sum + (+s.amount || 0) * (moRate[s.frequency || 'monthly'] ?? 1), 0);
+
+  const wantsTotEl = document.getElementById('sub-wants-monthly');
+  const needsTotEl = document.getElementById('sub-needs-monthly');
+  if (wantsTotEl) wantsTotEl.textContent = fmt(wantsMo) + '/mo';
+  if (needsTotEl) needsTotEl.textContent = fmt(needsMo) + '/mo';
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -748,7 +824,7 @@ function renderSchedule() {
 
     const overBudget = fc.variance < 0;
     const atLabel    = d.toLocaleString('en-CA', { month: 'long', year: 'numeric' });
-    const varSign    = overBudget ? '+' : '-';
+    const varSign    = overBudget ? '+' : '';
     const varAmt     = fmt(Math.abs(fc.variance));
     const varColor   = overBudget ? 'var(--danger)' : 'var(--accent2)';
     const varLabel   = overBudget ? 'over budget' : 'under budget';
