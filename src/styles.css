@@ -947,6 +947,121 @@ input {
   & .sub-deduction-amt  { font-weight: 700; color: var(--danger); }
 }
 
+/* ─────────────────────────────────────────────────────
+   TRANSACTION RULES ENGINE
+───────────────────────────────────────────────────── */
+
+/* Alert chips row at top of Wants card */
+.wants-alert-chips {
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.alert-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(255, 77, 109, 0.15);
+  color: #ff4d6d;
+  border: 1px solid rgba(255, 77, 109, 0.4);
+}
+
+/* Purchase item category badge with embedded select */
+.purchase-cat-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.cat-inline-select {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  max-width: 110px;
+}
+
+/* Category breakdown chips (below purchase list) */
+.cat-breakdown-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cat-breakdown-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Spending Rules list */
+.rule-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--surface2);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.rule-pattern  { font-size: 12px; font-weight: 600; color: var(--text); font-family: monospace; }
+.rule-matchtype { font-size: 11px; color: var(--muted); }
+.rule-arrow    { font-size: 12px; color: var(--muted); }
+.rule-category {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Budget alert items */
+.alert-item {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--surface2);
+  margin-bottom: 8px;
+  border-left: 3px solid transparent;
+
+  &.triggered { border-left-color: var(--danger); }
+}
+
+.alert-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.alert-category {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.alert-amounts {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* ═══════════════════════════════════════════════════
    WISHLIST
 ═══════════════════════════════════════════════════ */

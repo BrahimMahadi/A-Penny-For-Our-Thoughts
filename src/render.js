@@ -12,8 +12,8 @@
               renderSpendingAnalytics, renderAnalyticsHistory,
               renderExpenseCards, renderLoans, renderCreditCards,
               renderSavings, renderGoals, renderNetWorth,
-              renderSubscriptions, renderWishlist,
-              renderSchedule, renderAll
+              renderSubscriptions, renderRules, renderBudgetAlerts,
+              renderWishlist, renderSchedule, renderAll
    Depends on: utils.js, state.js, analytics.js, charts.js
 ═══════════════════════════════════════════════════════════════ */
 
@@ -151,6 +151,21 @@ function renderWants() {
     ? `<span class="chip green">✓ On Track</span>`
     : `<span class="chip red">⚠ Over by ${fmt(Math.abs(remaining))}</span>`;
 
+  // ── Budget alert chips ────────────────────────────────────────
+  const alertChipsEl = document.getElementById('wants-alert-chips');
+  if (alertChipsEl) {
+    const triggered = getTriggeredAlerts();
+    if (triggered.length > 0) {
+      alertChipsEl.innerHTML = triggered.map(a =>
+        `<span class="alert-chip">⚠ ${a.category}: ${fmt(a.spent)} &gt; ${fmt(a.threshold)}</span>`
+      ).join('');
+      alertChipsEl.style.display = 'flex';
+    } else {
+      alertChipsEl.innerHTML = '';
+      alertChipsEl.style.display = 'none';
+    }
+  }
+
   // ── Payday anchor line ────────────────────────────────────────
   const anchorEl = document.getElementById('payday-anchor-line');
   if (anchorEl) {
@@ -196,6 +211,27 @@ function renderWants() {
     }
   }
 
+  // ── Category spending breakdown ───────────────────────────────
+  const catBreakdownEl = document.getElementById('purchase-cat-breakdown');
+  if (catBreakdownEl) {
+    const purchases = state.purchases || [];
+    if (purchases.length > 0) {
+      const spending = getCategorySpending(purchases);
+      const entries  = Object.entries(spending).sort((a, b) => b[1] - a[1]);
+      catBreakdownEl.innerHTML = `
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px">Spending by Category</div>
+        <div class="cat-breakdown-chips">
+          ${entries.map(([cat, amt]) => {
+            const colour = CATEGORY_COLOURS[cat] || '#8b95ad';
+            return `<span class="cat-breakdown-chip" style="background:${colour}20;color:${colour}">${cat} · ${fmt(amt)}</span>`;
+          }).join('')}
+        </div>`;
+      catBreakdownEl.style.display = 'block';
+    } else {
+      catBreakdownEl.style.display = 'none';
+    }
+  }
+
   renderPurchaseList();
   renderWantsDonut(spent, remaining, usedPct);
 }
@@ -209,10 +245,19 @@ function renderPurchaseList() {
     return;
   }
   state.purchases.forEach(p => {
+    const cat    = p.category || 'Other';
+    const colour = CATEGORY_COLOURS[cat] || '#8b95ad';
+    const catOpts = WANT_CATEGORIES
+      .map(c => `<option value="${c}" ${c === cat ? 'selected' : ''}>${c}</option>`)
+      .join('');
+
     const li = document.createElement('li');
     li.className = 'purchase-item';
     li.innerHTML = `
       <span class="name">${p.name}</span>
+      <span class="purchase-cat-badge" style="background:${colour}20;color:${colour}">
+        <select class="cat-inline-select" onchange="setPurchaseCategory('${p.id}',this.value)" style="color:${colour}">${catOpts}</select>
+      </span>
       <span class="amount">${fmt(p.amount)}</span>
       <button class="btn icon-btn del" onclick="removePurchase('${p.id}')">×</button>`;
     ul.appendChild(li);
@@ -796,6 +841,75 @@ function renderWishlist() {
 }
 
 // ────────────────────────────────────────────────────────────────
+// SPENDING RULES
+// ────────────────────────────────────────────────────────────────
+function renderRules() {
+  const container = document.getElementById('rules-list');
+  if (!container) return;
+
+  const rules = state.rules || [];
+  if (!rules.length) {
+    container.innerHTML = '<p style="color:var(--muted);font-size:12px;padding:8px 0">No rules yet. Add a rule to auto-categorize purchases as you type.</p>';
+    return;
+  }
+
+  const matchLabels = { contains: 'contains', startsWith: 'starts with', exact: 'exactly' };
+  container.innerHTML = rules.map(r => {
+    const colour = CATEGORY_COLOURS[r.category] || '#8b95ad';
+    return `
+      <div class="rule-item">
+        <span class="rule-pattern">"${r.pattern}"</span>
+        <span class="rule-matchtype">${matchLabels[r.matchType] || r.matchType}</span>
+        <span class="rule-arrow">→</span>
+        <span class="rule-category" style="background:${colour}20;color:${colour}">${r.category}</span>
+        <div style="margin-left:auto;display:flex;gap:4px">
+          <button class="btn icon-btn" onclick="openEditRule('${r.id}')" title="Edit">✎</button>
+          <button class="btn icon-btn del" onclick="deleteRule('${r.id}')" title="Delete">×</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ────────────────────────────────────────────────────────────────
+// BUDGET ALERTS
+// ────────────────────────────────────────────────────────────────
+function renderBudgetAlerts() {
+  const container = document.getElementById('budget-alerts-list');
+  if (!container) return;
+
+  const alerts = state.budgetAlerts || [];
+  if (!alerts.length) {
+    container.innerHTML = '<p style="color:var(--muted);font-size:12px;padding:8px 0">No alerts set. Add an alert to be warned when spending in a category exceeds your threshold.</p>';
+    return;
+  }
+
+  const spending = getCategorySpending(state.purchases || []);
+  container.innerHTML = alerts.map(a => {
+    const spent     = spending[a.category] || 0;
+    const pctUsed   = a.threshold > 0 ? Math.min(100, (spent / a.threshold) * 100) : 0;
+    const triggered = spent > a.threshold;
+    const barColour = triggered ? '#ff4d6d' : pctUsed > 75 ? '#ffa63d' : 'var(--accent2)';
+    const catColour = CATEGORY_COLOURS[a.category] || '#8b95ad';
+    return `
+      <div class="alert-item${triggered ? ' triggered' : ''}">
+        <div class="alert-item-header">
+          <span class="alert-category" style="background:${catColour}20;color:${catColour}">${a.category}</span>
+          <span class="alert-amounts">${fmt(spent)} / ${fmt(a.threshold)}</span>
+          ${triggered ? '<span class="chip red" style="font-size:10px;padding:2px 6px">⚠ Over</span>' : ''}
+          <div style="margin-left:auto;display:flex;gap:4px">
+            <button class="btn icon-btn" onclick="openEditAlert('${a.id}')" title="Edit">✎</button>
+            <button class="btn icon-btn del" onclick="deleteAlert('${a.id}')" title="Delete">×</button>
+          </div>
+        </div>
+        <div class="progress-track" style="margin-top:8px">
+          <div class="progress-fill" style="width:${pctUsed.toFixed(1)}%;background:${barColour}"></div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">${pctUsed.toFixed(0)}% of threshold</div>
+      </div>`;
+  }).join('');
+}
+
+// ────────────────────────────────────────────────────────────────
 // RENDER ALL
 // ────────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────────
@@ -925,6 +1039,8 @@ function renderAll() {
   renderGoals();
   renderNetWorth();
   renderSubscriptions();
+  renderRules();
+  renderBudgetAlerts();
   renderWishlist();
   renderSchedule();
 }

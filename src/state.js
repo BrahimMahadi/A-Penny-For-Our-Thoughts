@@ -62,6 +62,9 @@ const DEFAULT_STATE = {
   netWorthHistory: [], // [{ id, date: 'YYYY-MM', netWorth, totalAssets, totalLiabilities }]
 
   payStart: null, // YYYY-MM-DD anchor date for bi-weekly period calculation; null = not configured
+
+  rules:        [], // [{ id, pattern, matchType: 'contains'|'startsWith'|'exact', category }]
+  budgetAlerts: [], // [{ id, category, threshold }]
 };
 
 // ────────────────────────────────────────────────────────────────
@@ -132,7 +135,9 @@ function loadFromStorage() {
   if (!state.goals)             state.goals              = [];
   if (!state.assets)            state.assets             = [];
   if (!state.netWorthHistory)   state.netWorthHistory    = [];
-  if (state.payStart === undefined) state.payStart       = null;
+  if (state.payStart    === undefined) state.payStart    = null;
+  if (!state.rules)                    state.rules        = [];
+  if (!state.budgetAlerts)             state.budgetAlerts = [];
 
   recordNetWorthSnapshot();
 }
