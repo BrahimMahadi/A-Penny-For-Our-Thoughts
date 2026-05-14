@@ -527,6 +527,14 @@ function setPurchaseCategory(id, category) {
   saveToStorage(); renderPurchaseList(); renderWants();
 }
 
+/** Update the linked payment card on an existing purchase */
+function setPurchaseCard(id, cardId) {
+  const p = (state.purchases || []).find(p => p.id === id);
+  if (!p) return;
+  p.cardId = cardId || null;
+  saveToStorage(); renderPurchaseList();
+}
+
 /** Re-apply all rules to current-period purchases (non-destructive: only sets if a rule matches) */
 function reapplyRulesToPurchases() {
   let changed = 0;

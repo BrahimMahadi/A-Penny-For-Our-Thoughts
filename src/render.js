@@ -249,6 +249,9 @@ function renderPurchaseList() {
     ul.innerHTML = '<li style="color:var(--muted);font-size:12px;padding:4px 0">No purchases yet this period.</li>';
     return;
   }
+  const cards    = state.expenseCards || [];
+  const hasCards = cards.length > 0;
+
   state.purchases.forEach(p => {
     const cat    = p.category || 'Other';
     const colour = CATEGORY_COLOURS[cat] || '#8b95ad';
@@ -256,13 +259,20 @@ function renderPurchaseList() {
       .map(c => `<option value="${c}" ${c === cat ? 'selected' : ''}>${c}</option>`)
       .join('');
 
-    // Optional payment card chip
-    const linkedCard = p.cardId
-      ? (state.expenseCards || []).find(c => c.id === p.cardId)
-      : null;
-    const cardChip = linkedCard
-      ? `<span class="purchase-card-chip">💳 ${linkedCard.label}</span>`
-      : '';
+    // Inline card selector chip — shown only when expense cards exist
+    let cardChip = '';
+    if (hasCards) {
+      const cardOpts = cards
+        .map(c => `<option value="${c.id}"${c.id === p.cardId ? ' selected' : ''}>${c.label}</option>`)
+        .join('');
+      cardChip = `
+        <span class="purchase-card-chip${p.cardId ? '' : ' no-card'}">
+          💳 <select class="card-inline-select" onchange="setPurchaseCard('${p.id}',this.value)" aria-label="Payment card for ${p.name}">
+            <option value="">No card</option>
+            ${cardOpts}
+          </select>
+        </span>`;
+    }
 
     const li = document.createElement('li');
     li.className = 'purchase-item swipeable';
@@ -531,18 +541,30 @@ function renderExpenseCards() {
     (card.items || []).forEach(item => {
       const li = document.createElement('li');
       li.className = 'expense-item swipeable';
-      const dueBadge = item.dueDay
-        ? `<span class="e-due">due ${ordinal(item.dueDay)}</span>`
-        : '';
+
+      // Build the row-2 badge: merge bi-wk + due into one pill when both exist
+      let badge = '';
+      if (item.biweekly && item.dueDay) {
+        badge = `<span class="e-badge">2× · due ${ordinal(item.dueDay)}</span>`;
+      } else if (item.biweekly) {
+        badge = `<span class="e-biweekly">bi-wk ×2</span>`;
+      } else if (item.dueDay) {
+        badge = `<span class="e-due">due ${ordinal(item.dueDay)}</span>`;
+      }
+
       li.innerHTML = `
         <div class="swipe-delete-bg" aria-hidden="true">🗑</div>
         <div class="swipe-content">
-          <span class="e-name">${item.name}</span>
-          ${item.biweekly ? '<span class="e-biweekly">bi-wk ×2</span>' : ''}
-          ${dueBadge}
-          <span class="e-amount">${fmt(monthlyAmount(item))}</span>
-          <button class="btn icon-btn" onclick="openEditExpenseItem('${card.id}','${item.id}')" aria-label="Edit ${item.name}">✎</button>
-          <button class="btn icon-btn del" onclick="removeExpense('${card.id}','${item.id}')" aria-label="Delete ${item.name}">×</button>
+          <div class="e-row">
+            <span class="e-name">${item.name}</span>
+            <span class="e-amount">${fmt(monthlyAmount(item))}</span>
+          </div>
+          <div class="e-row">
+            ${badge}
+            <span class="e-row-spacer"></span>
+            <button class="btn icon-btn" onclick="openEditExpenseItem('${card.id}','${item.id}')" aria-label="Edit ${item.name}">✎</button>
+            <button class="btn icon-btn del" onclick="removeExpense('${card.id}','${item.id}')" aria-label="Delete ${item.name}">×</button>
+          </div>
         </div>`;
       ul.appendChild(li);
     });
