@@ -120,8 +120,8 @@ function renderIncomeStreams() {
       ${stream.biweekly ? '<span class="chip purple" style="font-size:10px;padding:2px 7px">bi-wk</span>' : ''}
       <span class="stream-raw">${fmt(stream.amount)}${stream.biweekly ? '/pay' : '/mo'}</span>
       <span class="stream-monthly">${fmt(monthly)}/mo</span>
-      <button class="btn icon-btn" onclick="openEditIncomeStream('${stream.id}')" title="Edit">✎</button>
-      <button class="btn icon-btn del" onclick="deleteIncomeStream('${stream.id}')" title="Delete">×</button>`;
+      <button class="btn icon-btn" onclick="openEditIncomeStream('${stream.id}')" aria-label="Edit ${stream.name}">✎</button>
+      <button class="btn icon-btn del" onclick="deleteIncomeStream('${stream.id}')" aria-label="Delete ${stream.name}">×</button>`;
     ul.appendChild(li);
   });
 }
@@ -254,14 +254,14 @@ function renderPurchaseList() {
     const li = document.createElement('li');
     li.className = 'purchase-item swipeable';
     li.innerHTML = `
-      <div class="swipe-delete-bg">🗑</div>
+      <div class="swipe-delete-bg" aria-hidden="true">🗑</div>
       <div class="swipe-content">
         <span class="name">${p.name}</span>
         <span class="purchase-cat-badge" style="background:${colour}20;color:${colour}">
-          <select class="cat-inline-select" onchange="setPurchaseCategory('${p.id}',this.value)" style="color:${colour}">${catOpts}</select>
+          <select class="cat-inline-select" onchange="setPurchaseCategory('${p.id}',this.value)" style="color:${colour}" aria-label="Category for ${p.name}">${catOpts}</select>
         </span>
         <span class="amount">${fmt(p.amount)}</span>
-        <button class="btn icon-btn del" onclick="removePurchase('${p.id}')">×</button>
+        <button class="btn icon-btn del" onclick="removePurchase('${p.id}')" aria-label="Delete ${p.name}">×</button>
       </div>`;
     ul.appendChild(li);
   });
@@ -286,9 +286,9 @@ function renderBudgetVarianceCards(budgeted, actuals) {
   container.innerHTML = '';
 
   const categories = [
-    { key: 'needs',   label: 'Needs',   color: '#6c63ff' },
-    { key: 'wants',   label: 'Wants',   color: '#00d4aa' },
-    { key: 'savings', label: 'Savings', color: '#ffa63d' },
+    { key: 'needs',   label: 'Needs',   color: 'var(--accent-text)' },
+    { key: 'wants',   label: 'Wants',   color: 'var(--accent2)' },
+    { key: 'savings', label: 'Savings', color: 'var(--warn)' },
   ];
 
   categories.forEach(cat => {
@@ -335,13 +335,13 @@ function renderVarianceSummary(budgeted, actuals, income) {
 
   container.innerHTML = `
     <div style="font-size:12px;overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse">
+      <table style="width:100%;border-collapse:collapse" aria-label="Budget vs. actual variance summary">
         <thead>
           <tr style="border-bottom:1px solid var(--border-light)">
-            <th style="text-align:left;padding:8px 0;color:var(--muted);font-weight:600">Category</th>
-            <th style="text-align:right;padding:8px 0;color:var(--muted);font-weight:600">Budgeted</th>
-            <th style="text-align:right;padding:8px 0;color:var(--muted);font-weight:600">Actual</th>
-            <th style="text-align:right;padding:8px 0;color:var(--muted);font-weight:600">Variance</th>
+            <th scope="col" style="text-align:left;padding:8px 0;color:var(--muted);font-weight:600">Category</th>
+            <th scope="col" style="text-align:right;padding:8px 0;color:var(--muted);font-weight:600">Budgeted</th>
+            <th scope="col" style="text-align:right;padding:8px 0;color:var(--muted);font-weight:600">Actual</th>
+            <th scope="col" style="text-align:right;padding:8px 0;color:var(--muted);font-weight:600">Variance</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -460,8 +460,8 @@ function renderExpenseCards() {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div class="card-title">${card.label}</div>
         <div style="display:flex;gap:4px">
-          <button class="btn icon-btn" onclick="openEditExpenseCard('${card.id}')" title="Rename card">✎</button>
-          <button class="btn icon-btn del" onclick="deleteExpenseCard('${card.id}')" title="Delete card">×</button>
+          <button class="btn icon-btn" onclick="openEditExpenseCard('${card.id}')" aria-label="Rename ${card.label} card">✎</button>
+          <button class="btn icon-btn del" onclick="deleteExpenseCard('${card.id}')" aria-label="Delete ${card.label} card">×</button>
         </div>
       </div>
       <ul class="expense-list" id="list-${card.id}"></ul>
@@ -487,14 +487,14 @@ function renderExpenseCards() {
         ? `<span class="e-due">due ${ordinal(item.dueDay)}</span>`
         : '';
       li.innerHTML = `
-        <div class="swipe-delete-bg">🗑</div>
+        <div class="swipe-delete-bg" aria-hidden="true">🗑</div>
         <div class="swipe-content">
           <span class="e-name">${item.name}</span>
           ${item.biweekly ? '<span class="e-biweekly">bi-wk ×2</span>' : ''}
           ${dueBadge}
           <span class="e-amount">${fmt(monthlyAmount(item))}</span>
-          <button class="btn icon-btn" onclick="openEditExpenseItem('${card.id}','${item.id}')" title="Edit">✎</button>
-          <button class="btn icon-btn del" onclick="removeExpense('${card.id}','${item.id}')" title="Delete">×</button>
+          <button class="btn icon-btn" onclick="openEditExpenseItem('${card.id}','${item.id}')" aria-label="Edit ${item.name}">✎</button>
+          <button class="btn icon-btn del" onclick="removeExpense('${card.id}','${item.id}')" aria-label="Delete ${item.name}">×</button>
         </div>`;
       ul.appendChild(li);
     });
@@ -574,8 +574,8 @@ function renderCreditCards() {
             ${fmt(cc.balance)} / ${fmt(cc.limit)}
             <span class="chip ${chipCls}">${usePct.toFixed(0)}%</span>
           </span>
-          <button class="btn icon-btn" onclick="openEditCreditCard('${cc.id}')" title="Edit">✎</button>
-          <button class="btn icon-btn del" onclick="deleteCreditCard('${cc.id}')" title="Delete">×</button>
+          <button class="btn icon-btn" onclick="openEditCreditCard('${cc.id}')" aria-label="Edit ${cc.name}">✎</button>
+          <button class="btn icon-btn del" onclick="deleteCreditCard('${cc.id}')" aria-label="Delete ${cc.name}">×</button>
         </div>
       </div>
       <div class="cc-bar-track">
@@ -624,7 +624,7 @@ function renderSavings() {
     const li = document.createElement('li');
     li.className = 'savings-acct-item swipeable';
     li.innerHTML = `
-      <div class="swipe-delete-bg">🗑</div>
+      <div class="swipe-delete-bg" aria-hidden="true">🗑</div>
       <div class="swipe-content">
         <span class="dot"></span>
         <span class="acct-name">${acct.name}</span>
@@ -632,8 +632,8 @@ function renderSavings() {
           <span class="acct-balance">Balance: ${fmt(acct.balance || 0)}</span>
           <span class="acct-monthly">Monthly: ${fmt(monthlyAlloc)}</span>
         </div>
-        <button class="btn icon-btn" onclick="openEditSavingsAccount('${acct.id}')" title="Edit">✎</button>
-        <button class="btn icon-btn del" onclick="deleteSavingsAccount('${acct.id}')" title="Delete">×</button>
+        <button class="btn icon-btn" onclick="openEditSavingsAccount('${acct.id}')" aria-label="Edit ${acct.name}">✎</button>
+        <button class="btn icon-btn del" onclick="deleteSavingsAccount('${acct.id}')" aria-label="Delete ${acct.name}">×</button>
       </div>`;
     ul.appendChild(li);
   });
@@ -664,8 +664,8 @@ function renderGoals() {
         <span class="goal-account-name">${progress.accountName}</span>
         <span class="goal-target">${fmt(progress.targetAmount)} by ${progress.targetDate}</span>
         <div style="margin-left:auto;display:flex;gap:8px">
-          <button class="btn icon-btn" onclick="openEditGoal('${goal.id}')" title="Edit">✎</button>
-          <button class="btn icon-btn del" onclick="deleteGoal('${goal.id}')" title="Delete">×</button>
+          <button class="btn icon-btn" onclick="openEditGoal('${goal.id}')" aria-label="Edit goal for ${progress.accountName}">✎</button>
+          <button class="btn icon-btn del" onclick="deleteGoal('${goal.id}')" aria-label="Delete goal for ${progress.accountName}">×</button>
         </div>
       </div>
       <div class="goal-progress-container">
@@ -738,8 +738,8 @@ function renderNetWorth() {
         <span class="nw-breakdown-name">${a.name}</span>
         <span style="display:flex;align-items:center;gap:6px">
           <span class="nw-breakdown-val">${fmt(a.value)}</span>
-          <button class="btn icon-btn" onclick="openEditAsset('${a.id}')" title="Edit">✎</button>
-          <button class="btn icon-btn del" onclick="deleteAsset('${a.id}')" title="Delete">×</button>
+          <button class="btn icon-btn" onclick="openEditAsset('${a.id}')" aria-label="Edit ${a.name}">✎</button>
+          <button class="btn icon-btn del" onclick="deleteAsset('${a.id}')" aria-label="Delete ${a.name}">×</button>
         </span>
       </div>`).join('');
 
@@ -801,7 +801,7 @@ function renderSubscriptions() {
     const li = document.createElement('li');
     li.className = 'sub-item swipeable';
     li.innerHTML = `
-      <div class="swipe-delete-bg">🗑</div>
+      <div class="swipe-delete-bg" aria-hidden="true">🗑</div>
       <div class="swipe-content">
         <span class="sub-name">${sub.name}</span>
         <span class="sub-badge ${budgetType}">${budgetType === 'needs' ? 'Needs' : 'Wants'}</span>
@@ -809,8 +809,8 @@ function renderSubscriptions() {
         <span class="sub-amount">${amount > 0 ? fmt(amount) + suffix : '—'}</span>
         <span class="sub-date">${sub.date}</span>
         <span class="chip ${chipCls}">${chipTxt}</span>
-        <button class="btn icon-btn" onclick="openEditSubscription('${sub.id}')" title="Edit">✎</button>
-        <button class="btn icon-btn del" onclick="deleteSubscription('${sub.id}')" title="Delete">×</button>
+        <button class="btn icon-btn" onclick="openEditSubscription('${sub.id}')" aria-label="Edit ${sub.name}">✎</button>
+        <button class="btn icon-btn del" onclick="deleteSubscription('${sub.id}')" aria-label="Delete ${sub.name}">×</button>
       </div>`;
     ul.appendChild(li);
   });
@@ -841,14 +841,14 @@ function renderWishlist() {
     const li = document.createElement('li');
     li.className = 'wish-item swipeable';
     li.innerHTML = `
-      <div class="swipe-delete-bg">🗑</div>
+      <div class="swipe-delete-bg" aria-hidden="true">🗑</div>
       <div class="swipe-content">
-        <span class="wish-icon">${item.icon || '🛒'}</span>
+        <span class="wish-icon" aria-hidden="true">${item.icon || '🛒'}</span>
         <span class="wish-name">${item.name}</span>
-        ${item.url ? `<a class="wish-link" href="${item.url}" target="_blank" rel="noopener">Link ↗</a>` : ''}
+        ${item.url ? `<a class="wish-link" href="${item.url}" target="_blank" rel="noopener" aria-label="View ${item.name} (opens in new tab)">Link ↗</a>` : ''}
         <div class="wish-actions">
-          <button class="btn icon-btn" onclick="openEditWishlistItem('${item.id}')" title="Edit">✎</button>
-          <button class="btn icon-btn del" onclick="deleteWishlistItem('${item.id}')" title="Delete">×</button>
+          <button class="btn icon-btn" onclick="openEditWishlistItem('${item.id}')" aria-label="Edit ${item.name}">✎</button>
+          <button class="btn icon-btn del" onclick="deleteWishlistItem('${item.id}')" aria-label="Delete ${item.name}">×</button>
         </div>
       </div>`;
     ul.appendChild(li);
@@ -878,8 +878,8 @@ function renderRules() {
         <span class="rule-arrow">→</span>
         <span class="rule-category" style="background:${colour}20;color:${colour}">${r.category}</span>
         <div style="margin-left:auto;display:flex;gap:4px">
-          <button class="btn icon-btn" onclick="openEditRule('${r.id}')" title="Edit">✎</button>
-          <button class="btn icon-btn del" onclick="deleteRule('${r.id}')" title="Delete">×</button>
+          <button class="btn icon-btn" onclick="openEditRule('${r.id}')" aria-label="Edit rule for ${r.pattern}">✎</button>
+          <button class="btn icon-btn del" onclick="deleteRule('${r.id}')" aria-label="Delete rule for ${r.pattern}">×</button>
         </div>
       </div>`;
   }).join('');
@@ -912,8 +912,8 @@ function renderBudgetAlerts() {
           <span class="alert-amounts">${fmt(spent)} / ${fmt(a.threshold)}</span>
           ${triggered ? '<span class="chip red" style="font-size:10px;padding:2px 6px">⚠ Over</span>' : ''}
           <div style="margin-left:auto;display:flex;gap:4px">
-            <button class="btn icon-btn" onclick="openEditAlert('${a.id}')" title="Edit">✎</button>
-            <button class="btn icon-btn del" onclick="deleteAlert('${a.id}')" title="Delete">×</button>
+            <button class="btn icon-btn" onclick="openEditAlert('${a.id}')" aria-label="Edit alert for ${a.category}">✎</button>
+            <button class="btn icon-btn del" onclick="deleteAlert('${a.id}')" aria-label="Delete alert for ${a.category}">×</button>
           </div>
         </div>
         <div class="progress-track" style="margin-top:8px">
@@ -958,8 +958,11 @@ function renderSchedule() {
     const varColor   = overBudget ? 'var(--danger)' : 'var(--accent2)';
     const varLabel   = overBudget ? 'over budget' : 'under budget';
 
-    const card = document.createElement('div');
+    const card = document.createElement('button');
+    card.type      = 'button';
     card.className = 'schedule-summary-card' + (isActive ? ' active' : '');
+    card.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    card.setAttribute('aria-label', atLabel);
     card.onclick   = () => { scheduleViewYear = y; scheduleViewMonth = m; renderSchedule(); };
     card.innerHTML = `
       <div class="ssc-month">${atLabel}</div>
