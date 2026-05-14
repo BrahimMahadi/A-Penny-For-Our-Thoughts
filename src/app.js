@@ -35,6 +35,21 @@ let scheduleViewMonth = _now.getMonth() + 1;  // 1-based
 // ────────────────────────────────────────────────────────────────
 // TABS
 // ────────────────────────────────────────────────────────────────
+/**
+ * Switch between documentation sections (User Guide, Release Notes, etc.)
+ * @param {string} sectionId - The data-doc value of the target section
+ */
+function switchDocsSection(sectionId) {
+  document.querySelectorAll('.docs-nav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.doc === sectionId);
+  });
+  document.querySelectorAll('.docs-section').forEach(sec => {
+    const isTarget = sec.id === 'doc-' + sectionId;
+    sec.classList.toggle('active', isTarget);
+    sec.hidden = !isTarget;
+  });
+}
+
 function switchTab(tab) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => {
