@@ -2,10 +2,10 @@
    Module:   charts.js
    Project:  A Penny For Our Thoughts
    Created:  May 2026
-   Summary:  All Chart.js instance management. Each chart is
-             destroyed and recreated on data change to avoid
-             conflicts. Chart instances are module-level so they
-             can be cleaned up before re-render.
+   Summary:  All Chart.js instance management. Instances are reused
+             across renders via in-place data updates (chart.update()),
+             falling back to full create only when the canvas is
+             detached or the instance is null.
    Functions: renderWantsDonut, renderCcBarChart,
               renderAnalyticsLineChart, renderAnalyticsBarChart,
               renderBudgetVsActualChart, renderNetWorthChart
@@ -15,11 +15,21 @@
 // ────────────────────────────────────────────────────────────────
 // CHART INSTANCES
 // ────────────────────────────────────────────────────────────────
-let wantsChart         = null;
-let ccChart            = null;
-let analyticsLineChart = null;
-let analyticsBarChart  = null;
-let netWorthChart      = null;
+let wantsChart             = null;
+let ccChart                = null;
+let analyticsLineChart     = null;
+let analyticsBarChart      = null;
+let budgetVsActualChart    = null;
+let netWorthChart          = null;
+
+/**
+ * Returns true if the Chart.js instance exists and its canvas is
+ * still mounted in the DOM. If the canvas has been detached (e.g.
+ * after a theme-triggered re-render) we must create a new instance.
+ */
+function _chartValid(instance) {
+  return !!(instance && instance.canvas && instance.canvas.isConnected);
+}
 
 // ────────────────────────────────────────────────────────────────
 // SHARED CHART STYLE CONSTANTS
@@ -43,12 +53,21 @@ const CHART_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-s
 // ────────────────────────────────────────────────────────────────
 function renderWantsDonut(spent, remaining, usedPct) {
   const fillColour = usedPct >= 100 ? '#ff4d6d' : usedPct >= 80 ? '#ffa63d' : '#6c63ff';
-  if (wantsChart) wantsChart.destroy();
+  const chartData  = [Math.min(spent, spent + Math.max(0, remaining)), Math.max(0, remaining)];
+
+  if (_chartValid(wantsChart)) {
+    wantsChart.data.datasets[0].data            = chartData;
+    wantsChart.data.datasets[0].backgroundColor = [fillColour, '#3a4456'];
+    wantsChart.update();
+    return;
+  }
+
+  if (wantsChart) { wantsChart.destroy(); wantsChart = null; }
   wantsChart = new Chart(document.getElementById('wantsDonut'), {
     type: 'doughnut',
     data: {
       datasets: [{
-        data: [Math.min(spent, spent + Math.max(0, remaining)), Math.max(0, remaining)],
+        data: chartData,
         backgroundColor: [fillColour, '#3a4456'],
         borderColor: ['transparent', 'transparent'],
         borderWidth: 0,
@@ -76,26 +95,40 @@ function renderWantsDonut(spent, remaining, usedPct) {
 // CREDIT CARD BAR
 // ────────────────────────────────────────────────────────────────
 function renderCcBarChart(cards) {
-  if (ccChart) ccChart.destroy();
+  const labels    = cards.map(c => c.name.split(' ').slice(0, 2).join(' '));
+  const balances  = cards.map(c => +c.balance);
+  const available = cards.map(c => Math.max(0, +c.limit - +c.balance));
+  const bgColors  = cards.map(c => {
+    const p = (+c.balance / +c.limit) * 100;
+    return p > 50 ? '#ff4d6d' : p > 30 ? '#ffa63d' : '#00d4aa';
+  });
+
+  if (_chartValid(ccChart)) {
+    ccChart.data.labels                        = labels;
+    ccChart.data.datasets[0].data              = balances;
+    ccChart.data.datasets[0].backgroundColor   = bgColors;
+    ccChart.data.datasets[1].data              = available;
+    ccChart.update();
+    return;
+  }
+
+  if (ccChart) { ccChart.destroy(); ccChart = null; }
   ccChart = new Chart(document.getElementById('ccBar'), {
     type: 'bar',
     data: {
-      labels: cards.map(c => c.name.split(' ').slice(0, 2).join(' ')),
+      labels,
       datasets: [
         {
           label: 'Balance',
-          data: cards.map(c => +c.balance),
-          backgroundColor: cards.map(c => {
-            const p = (+c.balance / +c.limit) * 100;
-            return p > 50 ? '#ff4d6d' : p > 30 ? '#ffa63d' : '#00d4aa';
-          }),
+          data: balances,
+          backgroundColor: bgColors,
           borderColor: 'transparent',
           borderRadius: 6,
           borderSkipped: false,
         },
         {
           label: 'Available',
-          data: cards.map(c => Math.max(0, +c.limit - +c.balance)),
+          data: available,
           backgroundColor: '#3a4456',
           borderColor: 'transparent',
           borderRadius: 6,
@@ -136,16 +169,29 @@ function renderCcBarChart(cards) {
 // ANALYTICS — LINE (spending over time)
 // ────────────────────────────────────────────────────────────────
 function renderAnalyticsLineChart(history) {
-  if (analyticsLineChart) { analyticsLineChart.destroy(); analyticsLineChart = null; }
-  if (!history.length) return;
+  if (!history.length) {
+    if (analyticsLineChart) { analyticsLineChart.destroy(); analyticsLineChart = null; }
+    return;
+  }
 
+  const labels = history.map(p => p.label || p.date);
+  const data   = history.map(p => p.total);
+
+  if (_chartValid(analyticsLineChart)) {
+    analyticsLineChart.data.labels            = labels;
+    analyticsLineChart.data.datasets[0].data  = data;
+    analyticsLineChart.update();
+    return;
+  }
+
+  if (analyticsLineChart) { analyticsLineChart.destroy(); analyticsLineChart = null; }
   analyticsLineChart = new Chart(document.getElementById('analyticsLine'), {
     type: 'line',
     data: {
-      labels: history.map(p => p.label || p.date),
+      labels,
       datasets: [{
         label: 'Spending Over Time',
-        data: history.map(p => p.total),
+        data,
         borderColor: '#6c63ff',
         backgroundColor: 'rgba(108,99,255,.1)',
         fill: true,
@@ -191,17 +237,30 @@ function renderAnalyticsLineChart(history) {
 // ANALYTICS — BAR (top spending categories)
 // ────────────────────────────────────────────────────────────────
 function renderAnalyticsBarChart(filteredHistory) {
-  if (analyticsBarChart) { analyticsBarChart.destroy(); analyticsBarChart = null; }
   const topCats = getTopCategories(filteredHistory);
-  if (!topCats.length) return;
+  if (!topCats.length) {
+    if (analyticsBarChart) { analyticsBarChart.destroy(); analyticsBarChart = null; }
+    return;
+  }
 
+  const labels = topCats.map(([name]) => name);
+  const data   = topCats.map(([, amt]) => amt);
+
+  if (_chartValid(analyticsBarChart)) {
+    analyticsBarChart.data.labels           = labels;
+    analyticsBarChart.data.datasets[0].data = data;
+    analyticsBarChart.update();
+    return;
+  }
+
+  if (analyticsBarChart) { analyticsBarChart.destroy(); analyticsBarChart = null; }
   analyticsBarChart = new Chart(document.getElementById('analyticsBar'), {
     type: 'bar',
     data: {
-      labels: topCats.map(([name]) => name),
+      labels,
       datasets: [{
         label: 'Top Categories',
-        data: topCats.map(([, amt]) => amt),
+        data,
         backgroundColor: '#00d4aa',
         borderColor: 'rgba(0, 212, 170, 0.3)',
         borderWidth: 1,
@@ -242,9 +301,18 @@ function renderAnalyticsBarChart(filteredHistory) {
 // BUDGET VS. ACTUAL — BAR
 // ────────────────────────────────────────────────────────────────
 function renderBudgetVsActualChart(budgeted, actuals) {
-  if (window.budgetVsActualChartInstance) window.budgetVsActualChartInstance.destroy();
+  const budgetedData = [budgeted.needs, budgeted.wants, budgeted.savings];
+  const actualsData  = [actuals.needs,  actuals.wants,  actuals.savings];
 
-  window.budgetVsActualChartInstance = new Chart(
+  if (_chartValid(budgetVsActualChart)) {
+    budgetVsActualChart.data.datasets[0].data = budgetedData;
+    budgetVsActualChart.data.datasets[1].data = actualsData;
+    budgetVsActualChart.update();
+    return;
+  }
+
+  if (budgetVsActualChart) { budgetVsActualChart.destroy(); budgetVsActualChart = null; }
+  budgetVsActualChart = new Chart(
     document.getElementById('budgetVsActualChart').getContext('2d'),
     {
       type: 'bar',
@@ -253,7 +321,7 @@ function renderBudgetVsActualChart(budgeted, actuals) {
         datasets: [
           {
             label: 'Budgeted',
-            data: [budgeted.needs, budgeted.wants, budgeted.savings],
+            data: budgetedData,
             backgroundColor: '#6c63ff',
             borderColor: 'rgba(108, 99, 255, 0.3)',
             borderWidth: 1,
@@ -261,7 +329,7 @@ function renderBudgetVsActualChart(budgeted, actuals) {
           },
           {
             label: 'Actual',
-            data: [actuals.needs, actuals.wants, actuals.savings],
+            data: actualsData,
             backgroundColor: '#00d4aa',
             borderColor: 'rgba(0, 212, 170, 0.3)',
             borderWidth: 1,
@@ -305,7 +373,6 @@ function renderBudgetVsActualChart(budgeted, actuals) {
 function renderNetWorthChart(history) {
   const canvas = document.getElementById('netWorthChart');
   if (!canvas) return;
-  if (netWorthChart) { netWorthChart.destroy(); netWorthChart = null; }
 
   const labels    = history.map(h => {
     const [y, m] = h.date.split('-');
@@ -320,7 +387,20 @@ function renderNetWorthChart(history) {
   const positiveColor = 'rgba(0, 212, 170, 0.8)';
   const negativeColor = 'rgba(255, 77, 109, 0.8)';
   const lineColor     = lastValue >= 0 ? positiveColor : negativeColor;
+  const fillColor     = lastValue >= 0 ? 'rgba(0,212,170,0.08)' : 'rgba(255,77,109,0.08)';
 
+  if (_chartValid(netWorthChart)) {
+    netWorthChart.data.labels                        = labels;
+    netWorthChart.data.datasets[0].data              = values;
+    netWorthChart.data.datasets[0].borderColor       = lineColor;
+    netWorthChart.data.datasets[0].backgroundColor   = fillColor;
+    netWorthChart.data.datasets[0].pointBackgroundColor = lineColor;
+    netWorthChart.data.datasets[0].pointRadius       = history.length === 1 ? 6 : 3;
+    netWorthChart.update();
+    return;
+  }
+
+  if (netWorthChart) { netWorthChart.destroy(); netWorthChart = null; }
   netWorthChart = new Chart(canvas, {
     type: 'line',
     data: {
@@ -329,7 +409,7 @@ function renderNetWorthChart(history) {
         label: 'Net Worth',
         data: values,
         borderColor: lineColor,
-        backgroundColor: lastValue >= 0 ? 'rgba(0,212,170,0.08)' : 'rgba(255,77,109,0.08)',
+        backgroundColor: fillColor,
         borderWidth: 2,
         pointRadius: history.length === 1 ? 6 : 3,
         pointBackgroundColor: lineColor,
