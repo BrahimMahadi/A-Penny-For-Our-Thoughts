@@ -1042,5 +1042,6 @@ function renderAll() {
   renderRules();
   renderBudgetAlerts();
   renderWishlist();
-  renderSchedule();
+  // Schedule is expensive — only render when the tab is visible
+  if (document.getElementById('tab-schedule')?.classList.contains('active')) renderSchedule();
 }

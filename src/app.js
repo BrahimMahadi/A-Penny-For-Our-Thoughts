@@ -38,6 +38,31 @@ function switchTab(tab) {
 }
 
 // ────────────────────────────────────────────────────────────────
+// TARGETED RENDER HELPERS
+// ────────────────────────────────────────────────────────────────
+
+/** Re-renders the Schedule only when it is the active tab. */
+function _scheduleIfActive() {
+  if (document.getElementById('tab-schedule')?.classList.contains('active')) renderSchedule();
+}
+
+/**
+ * Re-renders every section whose displayed value is derived from income
+ * (i.e. income, wants envelope, expense card remaining, BvA, savings, goals).
+ * Called after any income-stream or allocation-% mutation.
+ */
+function _renderIncomeDependents() {
+  renderIncome();
+  renderIncomeStreams();
+  renderWants();
+  renderExpenseCards();
+  renderBudgetVsActual();
+  renderSavings();
+  renderGoals();
+  _scheduleIfActive();
+}
+
+// ────────────────────────────────────────────────────────────────
 // SCHEDULE NAVIGATION
 // ────────────────────────────────────────────────────────────────
 function prevScheduleMonth() {
@@ -121,7 +146,7 @@ function openEditAllocation() {
         return;
       }
       state.allocation = { needs: n, wants: w, savings: s };
-      saveToStorage(); renderAll(); closeModal();
+      saveToStorage(); _renderIncomeDependents(); closeModal();
     }
   );
   updateAllocValidation();
@@ -158,7 +183,7 @@ function addIncomeStream() {
   document.getElementById('new-stream-name').value         = '';
   document.getElementById('new-stream-amount').value       = '';
   document.getElementById('new-stream-biweekly').checked   = false;
-  saveToStorage(); renderAll();
+  saveToStorage(); _renderIncomeDependents();
 }
 
 function openEditIncomeStream(id) {
@@ -181,7 +206,7 @@ function openEditIncomeStream(id) {
       const biweekly = document.getElementById('mis-biweekly').checked;
       if (!name || isNaN(amount)) return;
       Object.assign(stream, { name, amount, biweekly });
-      saveToStorage(); renderAll(); closeModal();
+      saveToStorage(); _renderIncomeDependents(); closeModal();
     }
   );
 }
@@ -189,7 +214,7 @@ function openEditIncomeStream(id) {
 function deleteIncomeStream(id) {
   if (!confirm('Remove this income stream?')) return;
   state.incomeStreams = state.incomeStreams.filter(s => s.id !== id);
-  saveToStorage(); renderAll();
+  saveToStorage(); _renderIncomeDependents();
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -206,12 +231,12 @@ function addPurchase() {
   // Clear preview
   const preview = document.getElementById('purchase-cat-preview');
   if (preview) preview.innerHTML = '';
-  saveToStorage(); renderAll();
+  saveToStorage(); renderWants(); renderBudgetVsActual();
 }
 
 function removePurchase(id) {
   state.purchases = state.purchases.filter(p => p.id !== id);
-  saveToStorage(); renderAll();
+  saveToStorage(); renderWants(); renderBudgetVsActual();
 }
 
 /** Manually override the category of a current-period purchase */
@@ -250,7 +275,7 @@ function resetWants() {
     });
   }
   state.purchases = [];
-  saveToStorage(); renderAll();
+  saveToStorage(); renderWants(); renderBudgetVsActual();
   const panel = document.getElementById('analytics-panel');
   if (panel && panel.style.display !== 'none') renderSpendingAnalytics();
 }
@@ -324,14 +349,14 @@ function addExpense(cardId) {
   document.getElementById('new-name-'   + cardId).value   = '';
   document.getElementById('new-amount-' + cardId).value   = '';
   document.getElementById('new-bw-'     + cardId).checked = false;
-  saveToStorage(); renderAll();
+  saveToStorage(); renderExpenseCards(); renderBudgetVsActual(); _scheduleIfActive();
 }
 
 function removeExpense(cardId, itemId) {
   const card = (state.expenseCards || []).find(c => c.id === cardId);
   if (!card) return;
   card.items = card.items.filter(i => i.id !== itemId);
-  saveToStorage(); renderAll();
+  saveToStorage(); renderExpenseCards(); renderBudgetVsActual(); _scheduleIfActive();
 }
 
 function openAddExpenseCard() {
@@ -339,7 +364,7 @@ function openAddExpenseCard() {
     const label = document.getElementById('mec-label').value.trim();
     if (!label) return;
     state.expenseCards.push({ id: genId(), label, items: [] });
-    saveToStorage(); renderAll(); closeModal();
+    saveToStorage(); renderExpenseCards(); renderBudgetVsActual(); _scheduleIfActive(); closeModal();
   });
 }
 
@@ -350,14 +375,14 @@ function openEditExpenseCard(id) {
     const label = document.getElementById('mec-label').value.trim();
     if (!label) return;
     card.label = label;
-    saveToStorage(); renderAll(); closeModal();
+    saveToStorage(); renderExpenseCards(); renderBudgetVsActual(); _scheduleIfActive(); closeModal();
   });
 }
 
 function deleteExpenseCard(id) {
   if (!confirm('Delete this payment card and all its expenses?')) return;
   state.expenseCards = state.expenseCards.filter(c => c.id !== id);
-  saveToStorage(); renderAll();
+  saveToStorage(); renderExpenseCards(); renderBudgetVsActual(); _scheduleIfActive();
 }
 
 function openEditExpenseItem(cardId, itemId) {
@@ -388,7 +413,7 @@ function openEditExpenseItem(cardId, itemId) {
 
     if (!name || isNaN(amount) || amount <= 0) return;
     Object.assign(item, { name, amount, biweekly, dueDay });
-    saveToStorage(); renderAll(); closeModal();
+    saveToStorage(); renderExpenseCards(); renderBudgetVsActual(); _scheduleIfActive(); closeModal();
   });
 }
 
@@ -409,7 +434,7 @@ function openAddLoan() {
       const orig = parseFloat(document.getElementById('ml-orig').value);
       if (!name || isNaN(rem) || isNaN(orig)) return;
       state.loans.push({ id: genId(), name, remaining: rem, original: orig });
-      saveToStorage(); renderLoans(); closeModal();
+      saveToStorage(); renderLoans(); renderNetWorth(); closeModal();
     }
   );
 }
@@ -430,7 +455,7 @@ function openEditLoan(id) {
       const orig = parseFloat(document.getElementById('ml-orig').value);
       if (!name || isNaN(rem) || isNaN(orig)) return;
       Object.assign(loan, { name, remaining: rem, original: orig });
-      saveToStorage(); renderLoans(); closeModal();
+      saveToStorage(); renderLoans(); renderNetWorth(); closeModal();
     }
   );
 }
@@ -438,7 +463,7 @@ function openEditLoan(id) {
 function deleteLoan(id) {
   if (!confirm('Delete this loan?')) return;
   state.loans = state.loans.filter(l => l.id !== id);
-  saveToStorage(); renderLoans();
+  saveToStorage(); renderLoans(); renderNetWorth();
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -458,7 +483,7 @@ function openAddCreditCard() {
       const limit   = parseFloat(document.getElementById('cc-limit').value);
       if (!name || isNaN(balance) || isNaN(limit)) return;
       state.creditCards.push({ id: genId(), name, balance, limit });
-      saveToStorage(); renderCreditCards(); closeModal();
+      saveToStorage(); renderCreditCards(); renderNetWorth(); closeModal();
     }
   );
 }
@@ -479,7 +504,7 @@ function openEditCreditCard(id) {
       const limit   = parseFloat(document.getElementById('cc-limit').value);
       if (!name || isNaN(balance) || isNaN(limit)) return;
       Object.assign(cc, { name, balance, limit });
-      saveToStorage(); renderCreditCards(); closeModal();
+      saveToStorage(); renderCreditCards(); renderNetWorth(); closeModal();
     }
   );
 }
@@ -487,7 +512,7 @@ function openEditCreditCard(id) {
 function deleteCreditCard(id) {
   if (!confirm('Delete this credit card?')) return;
   state.creditCards = state.creditCards.filter(c => c.id !== id);
-  saveToStorage(); renderCreditCards();
+  saveToStorage(); renderCreditCards(); renderNetWorth();
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -500,7 +525,7 @@ function addSavingsAccount() {
   state.savingsAccounts.push({ id: genId(), name, balance: 0, defaultAllocated, monthlyAllocations: {} });
   document.getElementById('new-savings-name').value   = '';
   document.getElementById('new-savings-amount').value = '';
-  saveToStorage(); renderSavings();
+  saveToStorage(); renderSavings(); renderGoals(); renderNetWorth();
 }
 
 function openEditSavingsAccount(id) {
@@ -519,7 +544,7 @@ function openEditSavingsAccount(id) {
       const defaultAllocated = parseFloat(document.getElementById('msa-default-alloc').value);
       if (!name || isNaN(balance) || isNaN(defaultAllocated)) return;
       Object.assign(acct, { name, balance, defaultAllocated });
-      saveToStorage(); renderSavings(); closeModal();
+      saveToStorage(); renderSavings(); renderGoals(); renderNetWorth(); closeModal();
     }
   );
 }
@@ -528,7 +553,7 @@ function deleteSavingsAccount(id) {
   if (!confirm('Remove this savings account?')) return;
   state.savingsAccounts = state.savingsAccounts.filter(a => a.id !== id);
   state.goals           = (state.goals || []).filter(g => g.accountId !== id);
-  saveToStorage(); renderSavings(); renderGoals();
+  saveToStorage(); renderSavings(); renderGoals(); renderNetWorth();
 }
 
 function openAllocateSavingsModal() {
@@ -731,7 +756,7 @@ function openAddSubscription() {
     const { name, amount, frequency, budgetType, category, date } = _readSubModal();
     if (!name || !date) { alert('Please enter a name and renewal date.'); return; }
     state.subscriptions.push({ id: genId(), name, amount, frequency, date, category, budgetType });
-    saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); closeModal();
+    saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); _scheduleIfActive(); closeModal();
   });
 }
 
@@ -742,14 +767,14 @@ function openEditSubscription(id) {
     const { name, amount, frequency, budgetType, category, date } = _readSubModal();
     if (!name || !date) return;
     Object.assign(sub, { name, amount, frequency, date, category, budgetType });
-    saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); closeModal();
+    saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); _scheduleIfActive(); closeModal();
   });
 }
 
 function deleteSubscription(id) {
   if (!confirm('Remove this subscription?')) return;
   state.subscriptions = state.subscriptions.filter(s => s.id !== id);
-  saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards();
+  saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); _scheduleIfActive();
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -770,7 +795,7 @@ function openSetPayStart() {
       const date = document.getElementById('pay-start-date').value;
       if (!date) { alert('Please select a date.'); return; }
       state.payStart = date;
-      saveToStorage(); renderAll(); closeModal();
+      saveToStorage(); renderWants(); renderSubscriptions(); renderExpenseCards(); _scheduleIfActive(); closeModal();
     }
   );
 }
