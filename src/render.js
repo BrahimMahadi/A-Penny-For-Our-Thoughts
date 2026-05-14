@@ -507,7 +507,16 @@ function renderExpenseCards() {
     const activeSubTotal = subData.filter(({ isDue }) => isDue)
       .reduce((s, { sub }) => s + (+sub.amount || 0), 0);
 
-    const cardTotal = (card.items || []).reduce((s, i) => s + monthlyAmount(i), 0) + activeSubTotal;
+    // ── Linked loans: check which have a payment due this calendar month ──
+    const linkedLoans = (state.loans || []).filter(l => l.cardId === card.id && l.paymentAmount > 0 && l.date);
+    const loanData    = linkedLoans.map(loan => {
+      const renewals = getRenewalDatesBetween(loan, startOfMonth, endOfMonth);
+      return { loan, isDue: renewals.length > 0 };
+    });
+    const activeLoanTotal = loanData.filter(({ isDue }) => isDue)
+      .reduce((s, { loan }) => s + (+loan.paymentAmount || 0), 0);
+
+    const cardTotal = (card.items || []).reduce((s, i) => s + monthlyAmount(i), 0) + activeSubTotal + activeLoanTotal;
 
     const div = document.createElement('div');
     div.className = 'card';
@@ -589,6 +598,27 @@ function renderExpenseCards() {
         </div>`;
       ul.appendChild(li);
     });
+
+    // ── Linked loan payment rows (read-only) ──
+    loanData.forEach(({ loan, isDue }) => {
+      const nextDate = isDue ? null : getNextRenewal(loan);
+      const nextStr  = nextDate
+        ? new Date(nextDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : '—';
+      const li = document.createElement('li');
+      li.className = `sub-linked-row loan-linked-row${isDue ? '' : ' sub-inactive'}`;
+      li.setAttribute('aria-label', `${loan.name} loan payment${isDue ? ', due this month' : ', next payment ' + nextStr}`);
+      li.innerHTML = `
+        <div class="swipe-content">
+          <span class="sub-link-icon loan-link-icon" aria-hidden="true">🏦</span>
+          <span class="e-name">${loan.name}</span>
+          <span class="sub-freq-badge">${loan.frequency}</span>
+          ${isDue
+            ? `<span class="e-amount">${fmt(+loan.paymentAmount || 0)}</span>`
+            : `<span class="e-amount sub-next-date">Next: ${nextStr}</span>`}
+        </div>`;
+      ul.appendChild(li);
+    });
   });
 
   const grand         = grandTotal();
@@ -616,12 +646,25 @@ function renderLoans() {
   grid.innerHTML = '';
 
   (state.loans || []).forEach(loan => {
-    const pctUsed = (+loan.remaining / +loan.original) * 100;
-    const colour  = pctUsed > 70 ? '#ff4d6d' : pctUsed > 40 ? '#ffa63d' : '#00d4aa';
+    const pctUsed    = +loan.original > 0 ? (+loan.remaining / +loan.original) * 100 : 0;
+    const colour     = pctUsed > 70 ? '#ff4d6d' : pctUsed > 40 ? '#ffa63d' : '#00d4aa';
+    const linkedCard = loan.cardId ? (state.expenseCards || []).find(c => c.id === loan.cardId) : null;
+    const hasPayment = loan.paymentAmount > 0 && loan.date;
+
+    // Build next payment date string for display
+    let nextPayStr = '';
+    if (hasPayment) {
+      const nextDate = getNextRenewal(loan);
+      nextPayStr = nextDate
+        ? new Date(nextDate + 'T00:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
+        : '—';
+    }
+
     const div = document.createElement('div');
     div.className = 'card loan-card';
     div.innerHTML = `
       <div class="loan-name">${loan.name}</div>
+      ${linkedCard ? `<div class="loan-card-tag">💳 ${linkedCard.label}</div>` : ''}
       <div class="loan-amounts">
         <span>${fmt(loan.remaining)} remaining</span>
         <span>${pct(loan.remaining, loan.original)}%</span>
@@ -630,6 +673,15 @@ function renderLoans() {
         <div class="progress-fill" style="width:${Math.min(100, pctUsed).toFixed(1)}%;background:${colour}"></div>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px">of ${fmt(loan.original)} original</div>
+      ${hasPayment ? `
+        <div class="loan-payment-row">
+          <div class="loan-payment-detail">
+            <span class="loan-payment-label">Payment</span>
+            <span class="loan-payment-amount">${fmt(loan.paymentAmount)}</span>
+            <span class="loan-payment-freq">${loan.frequency}</span>
+          </div>
+          <span class="loan-payment-next">Next: ${nextPayStr}</span>
+        </div>` : ''}
       <div class="loan-actions">
         <button class="btn xs secondary" onclick="openEditLoan('${loan.id}')">Edit</button>
         <button class="btn xs danger"    onclick="deleteLoan('${loan.id}')">Delete</button>

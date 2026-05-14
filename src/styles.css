@@ -727,7 +727,19 @@ textarea:focus-visible {
    LOAN CARDS
 ═══════════════════════════════════════════════════ */
 .loan-card {
-  & .loan-name { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+  & .loan-name { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+
+  /* Payment card association tag */
+  & .loan-card-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent2);
+    margin-bottom: 8px;
+  }
+
   & .loan-amounts {
     display: flex;
     justify-content: space-between;
@@ -735,6 +747,51 @@ textarea:focus-visible {
     color: var(--muted);
     margin-bottom: 4px;
   }
+
+  /* Payment schedule summary row */
+  & .loan-payment-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  & .loan-payment-detail {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  & .loan-payment-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--muted);
+  }
+  & .loan-payment-amount {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  & .loan-payment-freq {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--accent-chip);
+    background: rgba(108, 99, 255, .12);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  & .loan-payment-next {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
   & .loan-actions {
     display: flex;
     gap: 6px;
@@ -742,6 +799,9 @@ textarea:focus-visible {
     justify-content: flex-end;
   }
 }
+
+/* Loan linked rows on expense cards — amber icon to distinguish from subscriptions */
+.loan-linked-row .loan-link-icon { color: var(--warn); }
 
 /* ═══════════════════════════════════════════════════
    CREDIT CARDS

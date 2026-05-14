@@ -89,12 +89,14 @@ function calculateActualNeeds(year, month) {
   const expenseTotal = (state.expenseCards || []).reduce((sum, card) => {
     return sum + (card.items || []).reduce((s, i) => s + monthlyAmount(i), 0);
   }, 0);
-  // Only augment with Needs sub deductions for the current calendar month
+  // Only augment with Needs sub/loan deductions for the current calendar month
   const today = new Date();
   if (year === today.getFullYear() && month === today.getMonth() + 1) {
     const needsSubTotal = getSubsDeductedThisMonth()
       .reduce((sum, sub) => sum + (+sub.amount || 0) * sub.renewalDates.length, 0);
-    return expenseTotal + needsSubTotal;
+    const needsLoanTotal = getLoansDeductedThisMonth()
+      .reduce((sum, l) => sum + (+l.paymentAmount || 0) * l.renewalDates.length, 0);
+    return expenseTotal + needsSubTotal + needsLoanTotal;
   }
   return expenseTotal;
 }
@@ -111,6 +113,9 @@ function calculateActualWants(year, month) {
     // Add Wants subs deducted during the current bi-weekly period
     total += getSubsDeductedThisPeriod()
       .reduce((sum, sub) => sum + (+sub.amount || 0) * sub.renewalDates.length, 0);
+    // Add Wants loan payments due during the current bi-weekly period
+    total += getLoansDeductedThisPeriod()
+      .reduce((sum, l) => sum + (+l.paymentAmount || 0) * l.renewalDates.length, 0);
   }
 
   (state.spendingHistory || []).forEach(period => {
@@ -237,6 +242,24 @@ function getRenewalDatesBetween(sub, startDate, endDate) {
       if (+next === +candidate) break; // safety break against infinite loop
       candidate = next;
     }
+
+  } else if (frequency === 'bi-weekly') {
+    // Every 14 days from baseDate
+    let candidate = new Date(baseDate);
+    // Fast-forward past the bulk of dates before startDate to avoid needless iterations
+    const daysDiff = Math.floor((startDate - baseDate) / 86400000);
+    if (daysDiff > 14) {
+      const steps = Math.floor(daysDiff / 14) - 1;
+      candidate   = new Date(baseDate.getTime() + steps * 14 * 86400000);
+    }
+    while (candidate <= endDate) {
+      if (candidate >= startDate) {
+        results.push(candidate.toISOString().split('T')[0]);
+      }
+      const next = new Date(candidate.getTime() + 14 * 86400000);
+      if (+next === +candidate) break; // safety break against infinite loop
+      candidate = next;
+    }
   }
 
   return results;
@@ -306,6 +329,41 @@ function getSubsDeductedThisMonth() {
     .filter(sub => sub.budgetType === 'needs')
     .map(sub => ({ ...sub, renewalDates: getRenewalDatesBetween(sub, firstOfMonth, today) }))
     .filter(sub => sub.renewalDates.length > 0);
+}
+
+/**
+ * Return loans whose payment falls in the current calendar month AND whose
+ * budgetType is 'needs'. Each returned item is augmented with `renewalDates`.
+ * Only loans with a paymentAmount > 0 and a valid anchor date are included.
+ */
+function getLoansDeductedThisMonth() {
+  const today        = new Date();
+  today.setHours(0, 0, 0, 0);
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  return (state.loans || [])
+    .filter(l => l.budgetType === 'needs' && l.paymentAmount > 0 && l.date)
+    .map(l => ({ ...l, renewalDates: getRenewalDatesBetween(l, firstOfMonth, today) }))
+    .filter(l => l.renewalDates.length > 0);
+}
+
+/**
+ * Return loans whose payment falls in the current bi-weekly period AND whose
+ * budgetType is 'wants'. Each returned item is augmented with `renewalDates`.
+ * Returns [] if payStart is not configured.
+ */
+function getLoansDeductedThisPeriod() {
+  const periodStart = getCurrentPeriodStart();
+  if (!periodStart) return [];
+
+  const start = new Date(periodStart + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return (state.loans || [])
+    .filter(l => l.budgetType === 'wants' && l.paymentAmount > 0 && l.date)
+    .map(l => ({ ...l, renewalDates: getRenewalDatesBetween(l, start, today) }))
+    .filter(l => l.renewalDates.length > 0);
 }
 
 // ────────────────────────────────────────────────────────────────

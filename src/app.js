@@ -708,50 +708,102 @@ function openEditExpenseItem(cardId, itemId) {
 // ────────────────────────────────────────────────────────────────
 // LOANS — CRUD
 // ────────────────────────────────────────────────────────────────
-function openAddLoan() {
-  openModal(
-    'Add Loan',
-    mField('Loan Name', 'ml-name', 'text', '', 'e.g. Car Loan') +
+
+/** Shared frequency options used by both loan and subscription modals */
+const LOAN_FREQ_OPTIONS = [
+  ['monthly',   'Monthly'],
+  ['bi-weekly', 'Bi-Weekly'],
+  ['quarterly', 'Quarterly'],
+  ['bi-yearly', 'Bi-Yearly'],
+  ['annual',    'Annual'],
+];
+
+/** Build the loan modal body HTML, pre-populated when editing an existing loan */
+function _loanModalBody(loan) {
+  const freqOpts = LOAN_FREQ_OPTIONS
+    .map(([v, l]) => `<option value="${v}" ${v === (loan?.frequency || 'monthly') ? 'selected' : ''}>${l}</option>`)
+    .join('');
+
+  const cards    = state.expenseCards || [];
+  const cardOpts = (cards.length
+    ? `<option value="">No card</option>` + cards.map(c =>
+        `<option value="${c.id}" ${c.id === loan?.cardId ? 'selected' : ''}>${c.label}</option>`
+      ).join('')
+    : `<option value="">No cards added yet</option>`);
+
+  return (
+    mField('Loan Name', 'ml-name', 'text', loan?.name ?? '', 'e.g. Car Loan') +
     '<div class="modal-row">' +
-    mField('Remaining Balance ($)', 'ml-rem',  'number', '', '0.00', 'min="0" step="0.01"') +
-    mField('Original Balance ($)',  'ml-orig', 'number', '', '0.00', 'min="0" step="0.01"') +
-    '</div>',
-    () => {
-      const name = document.getElementById('ml-name').value.trim();
-      const rem  = parseFloat(document.getElementById('ml-rem').value);
-      const orig = parseFloat(document.getElementById('ml-orig').value);
-      if (!name || isNaN(rem) || isNaN(orig)) return;
-      state.loans.push({ id: genId(), name, remaining: rem, original: orig });
-      saveToStorage(); renderLoans(); renderNetWorth(); closeModal();
-    }
+    mField('Remaining Balance ($)', 'ml-rem',  'number', loan?.remaining ?? '', '0.00', 'min="0" step="0.01"') +
+    mField('Original Balance ($)',  'ml-orig', 'number', loan?.original  ?? '', '0.00', 'min="0" step="0.01"') +
+    '</div>' +
+    `<div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
+     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:10px">Payment Schedule (optional)</div>` +
+    '<div class="modal-row">' +
+    mField('Payment Amount ($)', 'ml-payment', 'number', loan?.paymentAmount || '', '0.00', 'min="0" step="0.01"') +
+    `<div class="modal-field">
+       <label for="ml-frequency">Frequency</label>
+       <select id="ml-frequency">${freqOpts}</select>
+     </div>` +
+    '</div>' +
+    '<div class="modal-row">' +
+    `<div class="modal-field">
+       <label for="ml-date">Next Payment Date</label>
+       <input type="date" id="ml-date" value="${loan?.date ?? ''}" />
+     </div>` +
+    `<div class="modal-field">
+       <label for="ml-budgettype">Budget Category</label>
+       <select id="ml-budgettype">
+         <option value="needs" ${(loan?.budgetType ?? 'needs') === 'needs' ? 'selected' : ''}>Needs</option>
+         <option value="wants" ${loan?.budgetType === 'wants' ? 'selected' : ''}>Wants</option>
+       </select>
+     </div>` +
+    '</div>' +
+    `<div class="modal-field">
+       <label for="ml-card">Payment Card (optional)</label>
+       <select id="ml-card">${cardOpts}</select>
+     </div>`
   );
+}
+
+/** Read all loan fields from the open modal */
+function _readLoanModal() {
+  return {
+    name:          document.getElementById('ml-name').value.trim(),
+    remaining:     parseFloat(document.getElementById('ml-rem').value),
+    original:      parseFloat(document.getElementById('ml-orig').value),
+    paymentAmount: parseFloat(document.getElementById('ml-payment').value) || 0,
+    frequency:     document.getElementById('ml-frequency').value,
+    date:          document.getElementById('ml-date').value,
+    budgetType:    document.getElementById('ml-budgettype').value,
+    cardId:        document.getElementById('ml-card').value || null,
+  };
+}
+
+function openAddLoan() {
+  openModal('Add Loan', _loanModalBody(null), () => {
+    const { name, remaining, original, paymentAmount, frequency, date, budgetType, cardId } = _readLoanModal();
+    if (!name || isNaN(remaining) || isNaN(original)) return;
+    state.loans.push({ id: genId(), name, remaining, original, paymentAmount, frequency, date, budgetType, cardId });
+    saveToStorage(); renderLoans(); renderNetWorth(); renderExpenseCards(); closeModal();
+  });
 }
 
 function openEditLoan(id) {
   const loan = state.loans.find(l => l.id === id);
   if (!loan) return;
-  openModal(
-    'Edit Loan',
-    mField('Loan Name', 'ml-name', 'text', loan.name, '') +
-    '<div class="modal-row">' +
-    mField('Remaining Balance ($)', 'ml-rem',  'number', loan.remaining, '0.00', 'min="0" step="0.01"') +
-    mField('Original Balance ($)',  'ml-orig', 'number', loan.original,  '0.00', 'min="0" step="0.01"') +
-    '</div>',
-    () => {
-      const name = document.getElementById('ml-name').value.trim();
-      const rem  = parseFloat(document.getElementById('ml-rem').value);
-      const orig = parseFloat(document.getElementById('ml-orig').value);
-      if (!name || isNaN(rem) || isNaN(orig)) return;
-      Object.assign(loan, { name, remaining: rem, original: orig });
-      saveToStorage(); renderLoans(); renderNetWorth(); closeModal();
-    }
-  );
+  openModal('Edit Loan', _loanModalBody(loan), () => {
+    const { name, remaining, original, paymentAmount, frequency, date, budgetType, cardId } = _readLoanModal();
+    if (!name || isNaN(remaining) || isNaN(original)) return;
+    Object.assign(loan, { name, remaining, original, paymentAmount, frequency, date, budgetType, cardId });
+    saveToStorage(); renderLoans(); renderNetWorth(); renderExpenseCards(); closeModal();
+  });
 }
 
 function deleteLoan(id) {
   if (!confirm('Delete this loan?')) return;
   state.loans = state.loans.filter(l => l.id !== id);
-  saveToStorage(); renderLoans(); renderNetWorth();
+  saveToStorage(); renderLoans(); renderNetWorth(); renderExpenseCards();
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -994,6 +1046,7 @@ function _subModalBody(sub) {
   ).join('');
   const freqOpts = [
     ['monthly',   'Monthly'],
+    ['bi-weekly', 'Bi-Weekly'],
     ['quarterly', 'Quarterly'],
     ['bi-yearly', 'Bi-Yearly'],
     ['annual',    'Annual'],
@@ -1415,17 +1468,19 @@ function exportCsv() {
   });
   rows.push('');
 
-  rows.push('SECTION:loans', 'id,name,remaining,original');
-  (state.loans || []).forEach(l => rows.push(`${e(l.id)},${e(l.name)},${l.remaining},${l.original}`));
+  rows.push('SECTION:loans', 'id,name,remaining,original,paymentAmount,frequency,date,budgetType,cardId');
+  (state.loans || []).forEach(l => rows.push(
+    `${e(l.id)},${e(l.name)},${l.remaining},${l.original},${l.paymentAmount || 0},${e(l.frequency || 'monthly')},${e(l.date || '')},${e(l.budgetType || 'needs')},${e(l.cardId || '')}`
+  ));
   rows.push('');
 
   rows.push('SECTION:creditCards', 'id,name,balance,limit');
   (state.creditCards || []).forEach(c => rows.push(`${e(c.id)},${e(c.name)},${c.balance},${c.limit}`));
   rows.push('');
 
-  rows.push('SECTION:subscriptions', 'id,name,amount,frequency,date,category,budgetType');
+  rows.push('SECTION:subscriptions', 'id,name,amount,frequency,date,category,budgetType,cardId');
   (state.subscriptions || []).forEach(s =>
-    rows.push(`${e(s.id)},${e(s.name)},${s.amount ?? 0},${e(s.frequency || 'monthly')},${e(s.date)},${e(s.category || 'Other')},${e(s.budgetType || 'wants')}`)
+    rows.push(`${e(s.id)},${e(s.name)},${s.amount ?? 0},${e(s.frequency || 'monthly')},${e(s.date)},${e(s.category || 'Other')},${e(s.budgetType || 'wants')},${e(s.cardId || '')}`)
   );
   rows.push('');
 
@@ -1584,7 +1639,15 @@ function parseCsv(text) {
 
       case 'loans':
         if (!parsed.loans) parsed.loans = [];
-        parsed.loans.push({ id: vals[0], name: vals[1], remaining: +vals[2], original: +vals[3] });
+        parsed.loans.push({
+          id: vals[0], name: vals[1], remaining: +vals[2], original: +vals[3],
+          // Gracefully handle old 4-column exports that predate payment tracking
+          paymentAmount: +vals[4] || 0,
+          frequency:     vals[5] || 'monthly',
+          date:          vals[6] || '',
+          budgetType:    vals[7] || 'needs',
+          cardId:        vals[8] || null,
+        });
         break;
 
       case 'creditCards':
@@ -1595,18 +1658,19 @@ function parseCsv(text) {
       case 'subscriptions':
         if (!parsed.subscriptions) parsed.subscriptions = [];
         if (vals.length >= 7) {
-          // New format: id,name,amount,frequency,date,category,budgetType
+          // Current format: id,name,amount,frequency,date,category,budgetType[,cardId]
           parsed.subscriptions.push({
             id: vals[0], name: vals[1], amount: +vals[2] || 0,
             frequency: vals[3] || 'monthly', date: vals[4],
             category: vals[5] || 'Other', budgetType: vals[6] || 'wants',
+            cardId: vals[7] || null,
           });
         } else {
           // Old format fallback: id,name,date
           parsed.subscriptions.push({
             id: vals[0], name: vals[1], amount: 0,
             frequency: 'monthly', date: vals[2],
-            category: 'Other', budgetType: 'wants',
+            category: 'Other', budgetType: 'wants', cardId: null,
           });
         }
         break;

@@ -31,9 +31,16 @@ The entry point is index.html. JS and CSS live under src/. All files must stay i
 - `expenseCards` (array): `[{ id, label, items: [{ id, name, amount, biweekly }] }]`
 - `purchases` (array): `[{ id, name, amount }]` — current bi-weekly wants period
 - `spendingHistory` (array): `[{ id, date, label, total, items: [{ id, name, amount }] }]`
-- `loans` (array): `[{ id, name, remaining, original }]`
+- `loans` (array): `[{ id, name, remaining, original, paymentAmount, frequency, date, budgetType, cardId }]`
+  - `paymentAmount`: regular payment amount per period (0 = no schedule configured)
+  - `frequency`: `'monthly'` | `'bi-weekly'` | `'quarterly'` | `'bi-yearly'` | `'annual'`
+  - `date`: YYYY-MM-DD anchor date for the payment schedule ('' = none)
+  - `budgetType`: `'needs'` | `'wants'` — which budget category the payment is deducted from
+  - `cardId`: associated expense card id (null = no card)
 - `creditCards` (array): `[{ id, name, balance, limit }]`
-- `subscriptions` (array): `[{ id, name, date }]` — date is YYYY-MM-DD
+- `subscriptions` (array): `[{ id, name, amount, frequency, date, category, budgetType, cardId }]`
+  - `frequency`: `'monthly'` | `'bi-weekly'` | `'quarterly'` | `'bi-yearly'` | `'annual'`
+  - `cardId`: required — associated expense card id (must select a card to add)
 - `wishlist` (array): `[{ id, icon, name, url }]`
 - `savingsAccounts` (array): `[{ id, name, balance, defaultAllocated, monthlyAllocations: {} }]`
   - `balance`: total current balance in the account
@@ -138,6 +145,10 @@ Open `index.html` in any modern browser. No server or install required.
 
 ### Loans
 - Progress bar per loan, colour-coded by % remaining (red >70%, amber >40%, teal otherwise)
+- **Payment schedule (optional):** Set payment amount, frequency, next payment date, and budget category (Needs/Wants)
+- **Card association (optional):** Link a loan to an expense card — a payment row (🏦) appears on that card each month the payment is due; the card's monthly total includes the payment
+- When a loan payment is due, its amount is deducted from the chosen budget category (Needs or Wants) in the Budget vs. Actual calculations
+- Loan balance is managed manually via Edit — no automatic deduction on payment date
 - Full CRUD: Add, Edit, Delete
 
 ### Credit Card Utilization
@@ -167,6 +178,9 @@ Open `index.html` in any modern browser. No server or install required.
 
 ### Subscription Renewals
 - Sorted by date ascending; day countdown chip (green >60d, amber <60d, red expired)
+- **Frequencies:** Monthly, Bi-Weekly, Quarterly, Bi-Yearly, Annual
+- **Card association (required):** Each subscription must be linked to an expense card; an (↻) row appears on that card every month a renewal falls due
+- **Budget type:** Wants (deducted from bi-weekly envelope) or Needs (deducted from monthly needs budget)
 - Full CRUD: inline add, edit modal, delete
 
 ### Wishlist
@@ -275,13 +289,13 @@ expenses_1,Housing,item_1,Rent,1200,false
 expenses_1,Housing,item_2,Internet,80,false
 
 SECTION:loans
-id,name,remaining,original
+id,name,remaining,original,paymentAmount,frequency,date,budgetType,cardId
 
 SECTION:creditCards
 id,name,balance,limit
 
 SECTION:subscriptions
-id,name,date
+id,name,amount,frequency,date,category,budgetType,cardId
 
 SECTION:wishlist
 id,icon,name,url

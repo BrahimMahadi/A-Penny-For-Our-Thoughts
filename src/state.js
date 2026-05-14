@@ -23,8 +23,8 @@ const DEFAULT_STATE = {
   spendingHistory: [],
 
   loans: [
-    { id: genId(), name: 'Car Loan',     remaining: 0, original: 0 },
-    { id: genId(), name: 'Student Loan', remaining: 0, original: 0 },
+    { id: genId(), name: 'Car Loan',     remaining: 0, original: 0, paymentAmount: 0, frequency: 'monthly', date: '', budgetType: 'needs', cardId: null },
+    { id: genId(), name: 'Student Loan', remaining: 0, original: 0, paymentAmount: 0, frequency: 'monthly', date: '', budgetType: 'needs', cardId: null },
   ],
 
   creditCards: [
@@ -124,6 +124,17 @@ function loadFromStorage() {
       id: genId(), label: labelMap[key] || key, items: items || [],
     }));
     delete state.expenses;
+  }
+
+  // ── Migration: add payment-tracking fields to existing loans ──
+  if (state.loans) {
+    state.loans.forEach(loan => {
+      if (loan.paymentAmount === undefined) loan.paymentAmount = 0;
+      if (!loan.frequency)                  loan.frequency     = 'monthly';
+      if (loan.date         === undefined)  loan.date          = '';
+      if (!loan.budgetType)                 loan.budgetType    = 'needs';
+      if (loan.cardId       === undefined)  loan.cardId        = null;
+    });
   }
 
   // ── Migration: old subscriptions → add amount, frequency, category, budgetType ──
