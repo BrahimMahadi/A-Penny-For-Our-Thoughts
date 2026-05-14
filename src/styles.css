@@ -2241,6 +2241,35 @@ canvas { max-width: 100%; height: auto; }
   /* Schedule */
   .schedule-summary-row { grid-template-columns: 1fr; }
   .schedule-detail-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+
+  /* ── Net Worth — move grid collapse here so phones >380px are covered ── */
+  .nw-stat-tiles { grid-template-columns: 1fr 1fr; }
+  .nw-panels     { grid-template-columns: 1fr; }
+  .nw-stat-value { font-size: 18px; }
+  .nw-breakdown-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  /* ── Subscription items — 2-row layout so content doesn't overflow ── */
+  .sub-item .swipe-content {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+  }
+  /* Name expands to fill row 1 alongside the Needs/Wants badge */
+  .sub-item .sub-name {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Hide non-essential fields — date is covered by the days chip */
+  .sub-item .sub-date,
+  .sub-item .sub-category-tag { display: none; }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -2303,9 +2332,6 @@ canvas { max-width: 100%; height: auto; }
 
   .edit-grid { grid-template-columns: 1fr; gap: 10px; }
 
-  /* Net Worth responsive */
-  .nw-stat-tiles { grid-template-columns: 1fr 1fr; }
-  .nw-panels     { grid-template-columns: 1fr; }
 }
 
 /* ═══════════════════════════════════════════════════
