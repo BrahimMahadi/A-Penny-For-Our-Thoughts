@@ -1195,7 +1195,7 @@ function clearAllData() {
     alert('Clear cancelled. Your data is safe.');
     return;
   }
-  state = deepClone(DEFAULT_STATE);
+  state = deepClone(BLANK_STATE);
   saveToStorage(); renderAll();
   alert('✓ All data has been cleared. Starting fresh!');
 }
