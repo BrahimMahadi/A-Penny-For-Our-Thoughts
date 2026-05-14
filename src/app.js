@@ -24,18 +24,142 @@ let scheduleViewMonth = _now.getMonth() + 1;  // 1-based
 // TABS
 // ────────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  // Hide all pages and deactivate all tab buttons
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
 
   const page    = document.getElementById('tab-' + tab);
   const tabBtn  = document.getElementById('tab-btn-' + tab);
-  if (page)   page.classList.add('active');
-  if (tabBtn) tabBtn.classList.add('active');
+  const bnavBtn = document.getElementById('bnav-btn-' + tab);
+  if (page)    page.classList.add('active');
+  if (tabBtn)  tabBtn.classList.add('active');
+  if (bnavBtn) bnavBtn.classList.add('active');
 
-  // Re-render schedule when navigating to it (data may have changed)
+  // FAB only on dashboard tab
+  const fab = document.getElementById('fab');
+  if (fab) fab.classList.toggle('hidden', tab !== 'dashboard');
+
   if (tab === 'schedule') renderSchedule();
 }
+
+// ────────────────────────────────────────────────────────────────
+// OVERFLOW MENU
+// ────────────────────────────────────────────────────────────────
+function toggleOverflowMenu() {
+  const dd = document.getElementById('overflow-dropdown');
+  if (dd) dd.classList.toggle('open');
+}
+
+// Close overflow menu when clicking outside
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('overflow-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('overflow-dropdown')?.classList.remove('open');
+  }
+});
+
+// ────────────────────────────────────────────────────────────────
+// FAB — QUICK ADD PURCHASE
+// ────────────────────────────────────────────────────────────────
+/**
+ * Scroll to and focus the purchase-name input in the Wants section.
+ * Called by the floating action button on mobile.
+ */
+function quickAddPurchase() {
+  const input = document.getElementById('purchase-name');
+  if (!input) return;
+  input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(() => input.focus(), 350);
+}
+
+// ────────────────────────────────────────────────────────────────
+// KEYBOARD-AWARE SCROLL
+// ────────────────────────────────────────────────────────────────
+// When a form input is focused on mobile and the software keyboard
+// opens, scroll the input into view so it isn't hidden behind the keyboard.
+document.addEventListener('focusin', e => {
+  if (window.innerWidth > 768) return;
+  const tag = e.target.tagName;
+  if (tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'TEXTAREA') return;
+  setTimeout(() => {
+    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 300); // delay for keyboard animation
+});
+
+// ────────────────────────────────────────────────────────────────
+// SWIPE-TO-DELETE (global event delegation)
+// ────────────────────────────────────────────────────────────────
+(function _setupSwipeToDelete() {
+  if (!('ontouchstart' in window)) return;
+
+  let activeItem = null, startX = 0, startY = 0, curDx = 0;
+  const THRESHOLD = 64; // px to commit delete
+
+  function _getContent(item) { return item.querySelector('.swipe-content'); }
+
+  function _resetItem(item) {
+    const c = _getContent(item);
+    if (!c) return;
+    c.style.transition = 'transform 0.25s ease';
+    c.style.transform  = '';
+    item.classList.remove('swipe-open');
+  }
+
+  document.addEventListener('touchstart', e => {
+    // Reset any previously-open swiped items
+    document.querySelectorAll('.swipeable.swipe-open').forEach(_resetItem);
+
+    const item = e.target.closest('.swipeable');
+    if (!item) { activeItem = null; return; }
+    activeItem = item;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    curDx  = 0;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!activeItem) return;
+    curDx = e.touches[0].clientX - startX;
+    const dy = Math.abs(e.touches[0].clientY - startY);
+
+    // If primarily vertical, cancel swipe
+    if (dy > Math.abs(curDx) + 10) { activeItem = null; return; }
+    // Only left swipe
+    if (curDx >= 0) return;
+
+    e.preventDefault();
+    const c = _getContent(activeItem);
+    if (!c) return;
+    c.style.transition = 'none';
+    c.style.transform  = `translateX(${Math.max(curDx, -THRESHOLD)}px)`;
+    activeItem.classList.toggle('swipe-open', curDx < -20);
+  }, { passive: false });
+
+  document.addEventListener('touchend', () => {
+    if (!activeItem) return;
+    const item = activeItem;
+    activeItem = null;
+
+    if (curDx < -THRESHOLD) {
+      // Committed — snap to open position then trigger delete
+      const c = _getContent(item);
+      if (c) {
+        c.style.transition = 'transform 0.15s ease';
+        c.style.transform  = `translateX(-${THRESHOLD}px)`;
+      }
+      item.classList.add('swipe-open');
+      setTimeout(() => {
+        const delBtn = item.querySelector('.icon-btn.del');
+        if (delBtn) delBtn.click();
+        // Reset visual in case delete was cancelled by a confirm dialog
+        setTimeout(() => _resetItem(item), 400);
+      }, 180);
+    } else {
+      _resetItem(item);
+    }
+    curDx = 0;
+  });
+})();
 
 // ────────────────────────────────────────────────────────────────
 // TARGETED RENDER HELPERS

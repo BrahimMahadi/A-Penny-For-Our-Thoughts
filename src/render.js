@@ -252,14 +252,17 @@ function renderPurchaseList() {
       .join('');
 
     const li = document.createElement('li');
-    li.className = 'purchase-item';
+    li.className = 'purchase-item swipeable';
     li.innerHTML = `
-      <span class="name">${p.name}</span>
-      <span class="purchase-cat-badge" style="background:${colour}20;color:${colour}">
-        <select class="cat-inline-select" onchange="setPurchaseCategory('${p.id}',this.value)" style="color:${colour}">${catOpts}</select>
-      </span>
-      <span class="amount">${fmt(p.amount)}</span>
-      <button class="btn icon-btn del" onclick="removePurchase('${p.id}')">×</button>`;
+      <div class="swipe-delete-bg">🗑</div>
+      <div class="swipe-content">
+        <span class="name">${p.name}</span>
+        <span class="purchase-cat-badge" style="background:${colour}20;color:${colour}">
+          <select class="cat-inline-select" onchange="setPurchaseCategory('${p.id}',this.value)" style="color:${colour}">${catOpts}</select>
+        </span>
+        <span class="amount">${fmt(p.amount)}</span>
+        <button class="btn icon-btn del" onclick="removePurchase('${p.id}')">×</button>
+      </div>`;
     ul.appendChild(li);
   });
 }
@@ -479,17 +482,20 @@ function renderExpenseCards() {
     const ul = div.querySelector('#list-' + card.id);
     (card.items || []).forEach(item => {
       const li = document.createElement('li');
-      li.className = 'expense-item';
+      li.className = 'expense-item swipeable';
       const dueBadge = item.dueDay
         ? `<span class="e-due">due ${ordinal(item.dueDay)}</span>`
         : '';
       li.innerHTML = `
-        <span class="e-name">${item.name}</span>
-        ${item.biweekly ? '<span class="e-biweekly">bi-wk ×2</span>' : ''}
-        ${dueBadge}
-        <span class="e-amount">${fmt(monthlyAmount(item))}</span>
-        <button class="btn icon-btn" onclick="openEditExpenseItem('${card.id}','${item.id}')" title="Edit">✎</button>
-        <button class="btn icon-btn del" onclick="removeExpense('${card.id}','${item.id}')" title="Delete">×</button>`;
+        <div class="swipe-delete-bg">🗑</div>
+        <div class="swipe-content">
+          <span class="e-name">${item.name}</span>
+          ${item.biweekly ? '<span class="e-biweekly">bi-wk ×2</span>' : ''}
+          ${dueBadge}
+          <span class="e-amount">${fmt(monthlyAmount(item))}</span>
+          <button class="btn icon-btn" onclick="openEditExpenseItem('${card.id}','${item.id}')" title="Edit">✎</button>
+          <button class="btn icon-btn del" onclick="removeExpense('${card.id}','${item.id}')" title="Delete">×</button>
+        </div>`;
       ul.appendChild(li);
     });
   });
@@ -616,16 +622,19 @@ function renderSavings() {
   accounts.forEach(acct => {
     const monthlyAlloc = getAllocationForMonth(acct, year, month);
     const li = document.createElement('li');
-    li.className = 'savings-acct-item';
+    li.className = 'savings-acct-item swipeable';
     li.innerHTML = `
-      <span class="dot"></span>
-      <span class="acct-name">${acct.name}</span>
-      <div class="acct-details">
-        <span class="acct-balance">Balance: ${fmt(acct.balance || 0)}</span>
-        <span class="acct-monthly">Monthly: ${fmt(monthlyAlloc)}</span>
-      </div>
-      <button class="btn icon-btn" onclick="openEditSavingsAccount('${acct.id}')" title="Edit">✎</button>
-      <button class="btn icon-btn del" onclick="deleteSavingsAccount('${acct.id}')" title="Delete">×</button>`;
+      <div class="swipe-delete-bg">🗑</div>
+      <div class="swipe-content">
+        <span class="dot"></span>
+        <span class="acct-name">${acct.name}</span>
+        <div class="acct-details">
+          <span class="acct-balance">Balance: ${fmt(acct.balance || 0)}</span>
+          <span class="acct-monthly">Monthly: ${fmt(monthlyAlloc)}</span>
+        </div>
+        <button class="btn icon-btn" onclick="openEditSavingsAccount('${acct.id}')" title="Edit">✎</button>
+        <button class="btn icon-btn del" onclick="deleteSavingsAccount('${acct.id}')" title="Delete">×</button>
+      </div>`;
     ul.appendChild(li);
   });
 }
@@ -790,16 +799,19 @@ function renderSubscriptions() {
     const budgetType = sub.budgetType || 'wants';
 
     const li = document.createElement('li');
-    li.className = 'sub-item';
+    li.className = 'sub-item swipeable';
     li.innerHTML = `
-      <span class="sub-name">${sub.name}</span>
-      <span class="sub-badge ${budgetType}">${budgetType === 'needs' ? 'Needs' : 'Wants'}</span>
-      <span class="sub-category-tag">${sub.category || 'Other'}</span>
-      <span class="sub-amount">${amount > 0 ? fmt(amount) + suffix : '—'}</span>
-      <span class="sub-date">${sub.date}</span>
-      <span class="chip ${chipCls}">${chipTxt}</span>
-      <button class="btn icon-btn" onclick="openEditSubscription('${sub.id}')" title="Edit">✎</button>
-      <button class="btn icon-btn del" onclick="deleteSubscription('${sub.id}')" title="Delete">×</button>`;
+      <div class="swipe-delete-bg">🗑</div>
+      <div class="swipe-content">
+        <span class="sub-name">${sub.name}</span>
+        <span class="sub-badge ${budgetType}">${budgetType === 'needs' ? 'Needs' : 'Wants'}</span>
+        <span class="sub-category-tag">${sub.category || 'Other'}</span>
+        <span class="sub-amount">${amount > 0 ? fmt(amount) + suffix : '—'}</span>
+        <span class="sub-date">${sub.date}</span>
+        <span class="chip ${chipCls}">${chipTxt}</span>
+        <button class="btn icon-btn" onclick="openEditSubscription('${sub.id}')" title="Edit">✎</button>
+        <button class="btn icon-btn del" onclick="deleteSubscription('${sub.id}')" title="Delete">×</button>
+      </div>`;
     ul.appendChild(li);
   });
 
@@ -827,14 +839,17 @@ function renderWishlist() {
 
   (state.wishlist || []).forEach(item => {
     const li = document.createElement('li');
-    li.className = 'wish-item';
+    li.className = 'wish-item swipeable';
     li.innerHTML = `
-      <span class="wish-icon">${item.icon || '🛒'}</span>
-      <span class="wish-name">${item.name}</span>
-      ${item.url ? `<a class="wish-link" href="${item.url}" target="_blank" rel="noopener">Link ↗</a>` : ''}
-      <div class="wish-actions">
-        <button class="btn icon-btn" onclick="openEditWishlistItem('${item.id}')" title="Edit">✎</button>
-        <button class="btn icon-btn del" onclick="deleteWishlistItem('${item.id}')" title="Delete">×</button>
+      <div class="swipe-delete-bg">🗑</div>
+      <div class="swipe-content">
+        <span class="wish-icon">${item.icon || '🛒'}</span>
+        <span class="wish-name">${item.name}</span>
+        ${item.url ? `<a class="wish-link" href="${item.url}" target="_blank" rel="noopener">Link ↗</a>` : ''}
+        <div class="wish-actions">
+          <button class="btn icon-btn" onclick="openEditWishlistItem('${item.id}')" title="Edit">✎</button>
+          <button class="btn icon-btn del" onclick="deleteWishlistItem('${item.id}')" title="Delete">×</button>
+        </div>
       </div>`;
     ul.appendChild(li);
   });

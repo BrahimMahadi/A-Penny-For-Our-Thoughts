@@ -1691,7 +1691,6 @@ canvas { max-width: 100%; height: auto; }
 
   .save-bar { padding: 14px 20px; margin: 0 -20px -80px; }
 
-  .modal { max-width: 420px; }
   .modal-field input,
   .modal-field select { font-size: 14px; padding: 9px 12px; }
 
@@ -1772,7 +1771,6 @@ canvas { max-width: 100%; height: auto; }
   .add-item-form .btn { width: 100%; flex: none; max-width: 100%; }
 
   /* Modal fits edge-to-edge */
-  .modal-overlay { padding: 12px; }
   .modal-row     { grid-template-columns: 1fr; }
   .modal-body    { gap: 12px; }
   .modal-field input,
@@ -1863,7 +1861,6 @@ canvas { max-width: 100%; height: auto; }
 
   .wants-chart-wrap { width: 140px; height: 140px; }
 
-  .modal { max-width: calc(100% - 12px); }
   .modal-header { padding: 16px 18px 12px; }
   .modal-body   { padding: 16px; gap: 10px; }
   .modal-footer { padding: 12px 18px; }
@@ -1879,4 +1876,199 @@ canvas { max-width: 100%; height: auto; }
   /* Net Worth responsive */
   .nw-stat-tiles { grid-template-columns: 1fr 1fr; }
   .nw-panels     { grid-template-columns: 1fr; }
+}
+
+/* ═══════════════════════════════════════════════════
+   MOBILE FIRST — Overlay menu, bottom nav, FAB,
+   bottom sheet, swipe-to-delete
+═══════════════════════════════════════════════════ */
+
+/* ── Overflow menu (desktop: hidden, mobile: visible) ── */
+.overflow-wrap {
+  position: relative;
+  display: none;
+}
+
+.overflow-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  min-width: 170px;
+  z-index: 500;
+  overflow: hidden;
+  display: none;
+  animation: menuIn 0.15s ease;
+}
+
+.overflow-dropdown.open { display: block; }
+
+@keyframes menuIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.overflow-item {
+  display: block;
+  width: 100%;
+  padding: 13px 18px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background 0.12s;
+  border-bottom: 1px solid var(--border);
+}
+.overflow-item:last-child { border-bottom: none; }
+.overflow-item:hover      { background: var(--surface3); }
+.overflow-item.danger     { color: var(--danger); }
+
+/* ── Bottom nav (desktop: hidden) ── */
+.bottom-nav { display: none; }
+
+/* ── FAB (desktop: hidden) ── */
+.fab { display: none; }
+
+/* ── Swipe-to-delete base (desktop: transparent wrapper) ── */
+.swipeable { position: relative; overflow: hidden; }
+.swipe-delete-bg {
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--danger);
+  color: #fff;
+  font-size: 18px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.swipeable.swipe-open .swipe-delete-bg { opacity: 1; }
+
+.swipe-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  background: inherit;
+  will-change: transform;
+}
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE — 768px MOBILE ADDITIONS
+═══════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Show overflow menu, hide desktop action btns */
+  .overflow-wrap    { display: block; }
+  .header-action    { display: none !important; }
+
+  /* Hide top tabs — bottom nav replaces them */
+  .tabs { display: none; }
+
+  /* Extra bottom padding for bottom nav */
+  .page { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Bottom nav */
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 200;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    height: 60px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -4px 20px rgba(0,0,0,.2);
+  }
+
+  .bnav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 4px;
+    letter-spacing: 0.02em;
+    transition: color 0.2s;
+    min-width: 64px;
+  }
+  .bnav-btn.active { color: var(--accent); }
+  .bnav-btn svg { transition: stroke 0.2s; }
+
+  /* FAB */
+  .fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    right: 20px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(108,99,255,.55);
+    z-index: 199;
+    transition: transform 0.15s, opacity 0.2s;
+  }
+  .fab:active  { transform: scale(0.91); }
+  .fab.hidden  { opacity: 0; pointer-events: none; }
+
+  /* Bottom sheet modal */
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 92dvh;
+    overflow-y: auto;
+    animation: slideUpSheet 0.3s cubic-bezier(0.32, 0.72, 0, 1) !important;
+  }
+  /* Drag handle */
+  .modal-header::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 4px;
+    background: var(--border-light);
+    border-radius: 2px;
+    margin: 0 auto 14px;
+  }
+
+  /* Bigger icon-btn touch targets */
+  .btn.icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+  }
+}
+
+@keyframes slideUpSheet {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
