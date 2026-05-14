@@ -53,21 +53,48 @@ const CHART_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-s
 // ────────────────────────────────────────────────────────────────
 /**
  * Render (or update in-place) the Wants envelope donut chart.
- * The fill colour transitions green → amber → red as spending approaches
- * or exceeds the envelope budget.
+ * Each spending category is rendered as its own coloured arc using the
+ * shared CATEGORY_COLOURS palette. A neutral "remaining" arc fills
+ * whatever budget is left. Subscriptions deducted this period appear as
+ * a separate indigo arc labelled "Subscriptions".
  *
- * @param {number} spent     - Total amount spent from the envelope this period.
- * @param {number} remaining - Remaining envelope balance (may be negative).
- * @param {number} usedPct   - Percentage of the envelope used (0-100+).
+ * @param {Object<string,number>} categorySpending
+ *   Per-category totals, e.g. { 'Food & Drink': 45, Subscriptions: 20 }.
+ *   Pass an empty object when nothing has been spent.
+ * @param {number} remaining - Remaining balance after all spending (clamped ≥ 0 by caller).
+ * @param {number} usedPct   - Percentage of the envelope used (0-100+), used only to colour the centre text.
  * @returns {void}
  */
-function renderWantsDonut(spent, remaining, usedPct) {
-  const fillColour = usedPct >= 100 ? '#ff4d6d' : usedPct >= 80 ? '#ffa63d' : '#6c63ff';
-  const chartData  = [Math.min(spent, spent + Math.max(0, remaining)), Math.max(0, remaining)];
+function renderWantsDonut(categorySpending, remaining, usedPct) {
+  const SUBS_COLOUR = '#6c63ff'; // accent — matches subscription accent throughout the app
+  const REST_COLOUR = '#3a4456'; // neutral grey for unused envelope
+
+  // Build per-segment arrays from non-zero spending entries
+  const entries = Object.entries(categorySpending).filter(([, v]) => v > 0);
+  const labels  = entries.map(([cat]) => cat);
+  const data    = entries.map(([, v]) => v);
+  const colors  = entries.map(([cat]) =>
+    cat === 'Subscriptions' ? SUBS_COLOUR : (CATEGORY_COLOURS[cat] || '#8b95ad'));
+
+  // Remaining envelope segment (grey) — absent when overspent
+  if (remaining > 0) {
+    labels.push('Remaining');
+    data.push(remaining);
+    colors.push(REST_COLOUR);
+  }
+
+  // Empty-state guard: show a plain grey ring when nothing has been spent/allocated
+  if (data.length === 0) {
+    labels.push('Remaining');
+    data.push(1);
+    colors.push(REST_COLOUR);
+  }
 
   if (_chartValid(wantsChart)) {
-    wantsChart.data.datasets[0].data            = chartData;
-    wantsChart.data.datasets[0].backgroundColor = [fillColour, '#3a4456'];
+    wantsChart.data.labels                         = labels;
+    wantsChart.data.datasets[0].data               = data;
+    wantsChart.data.datasets[0].backgroundColor    = colors;
+    wantsChart.data.datasets[0].borderColor        = Array(data.length).fill('transparent');
     wantsChart.update();
     return;
   }
@@ -76,12 +103,13 @@ function renderWantsDonut(spent, remaining, usedPct) {
   wantsChart = new Chart(document.getElementById('wantsDonut'), {
     type: 'doughnut',
     data: {
+      labels,
       datasets: [{
-        data: chartData,
-        backgroundColor: [fillColour, '#3a4456'],
-        borderColor: ['transparent', 'transparent'],
+        data,
+        backgroundColor: colors,
+        borderColor: Array(data.length).fill('transparent'),
         borderWidth: 0,
-        borderRadius: 4,
+        borderRadius: 2,
       }],
     },
     options: {
@@ -93,7 +121,10 @@ function renderWantsDonut(spent, remaining, usedPct) {
           padding: 10,
           titleFont: { size: 12, weight: '700' },
           bodyFont: { size: 11 },
-          callbacks: { label: ctx => ' ' + fmt(ctx.parsed) },
+          callbacks: {
+            title: ctx => ctx[0].label,
+            label: ctx => ' ' + fmt(ctx.parsed),
+          },
         },
       },
       animation: { duration: 600, easing: 'easeInOutQuart' },

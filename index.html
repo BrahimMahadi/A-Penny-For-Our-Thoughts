@@ -260,9 +260,12 @@
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px">Purchases This Period</div>
         <ul class="purchase-list" id="purchase-list" role="list"></ul>
-        <div class="add-row">
+        <div class="add-row" style="flex-wrap:wrap;gap:6px">
           <input id="purchase-name"   placeholder="Item name"  style="flex:2;min-width:120px" aria-label="Purchase name" />
           <input id="purchase-amount" placeholder="$0.00"      style="max-width:90px" aria-label="Purchase amount" />
+          <select id="purchase-card" aria-label="Payment card (optional)" style="flex:1;min-width:90px;max-width:140px">
+            <option value="">No card</option>
+          </select>
           <button class="btn sm" onclick="addPurchase()">Add</button>
           <button class="btn sm danger" onclick="resetWants()">Reset Period</button>
         </div>

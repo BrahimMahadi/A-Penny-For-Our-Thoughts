@@ -233,7 +233,12 @@ function renderWants() {
   }
 
   renderPurchaseList();
-  renderWantsDonut(spent, remaining, usedPct);
+  populatePurchaseCardSelect();
+
+  // Build per-category spending for the donut; include subscription deductions as a segment
+  const catSpending = getCategorySpending(state.purchases || []);
+  if (subTotal > 0) catSpending['Subscriptions'] = subTotal;
+  renderWantsDonut(catSpending, Math.max(0, remaining), usedPct);
 }
 
 function renderPurchaseList() {
@@ -251,6 +256,14 @@ function renderPurchaseList() {
       .map(c => `<option value="${c}" ${c === cat ? 'selected' : ''}>${c}</option>`)
       .join('');
 
+    // Optional payment card chip
+    const linkedCard = p.cardId
+      ? (state.expenseCards || []).find(c => c.id === p.cardId)
+      : null;
+    const cardChip = linkedCard
+      ? `<span class="purchase-card-chip">💳 ${linkedCard.label}</span>`
+      : '';
+
     const li = document.createElement('li');
     li.className = 'purchase-item swipeable';
     li.innerHTML = `
@@ -260,11 +273,28 @@ function renderPurchaseList() {
         <span class="purchase-cat-badge" style="background:${colour}20;color:${colour}">
           <select class="cat-inline-select" onchange="setPurchaseCategory('${p.id}',this.value)" style="color:${colour}" aria-label="Category for ${p.name}">${catOpts}</select>
         </span>
+        ${cardChip}
         <span class="amount">${fmt(p.amount)}</span>
         <button class="btn icon-btn del" onclick="removePurchase('${p.id}')" aria-label="Delete ${p.name}">×</button>
       </div>`;
     ul.appendChild(li);
   });
+}
+
+/**
+ * Populate the payment card dropdown in the quick-add purchase row.
+ * Called from renderWants() so the list stays in sync when cards change.
+ * Preserves any currently selected value to survive re-renders mid-session.
+ */
+function populatePurchaseCardSelect() {
+  const sel = document.getElementById('purchase-card');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML =
+    '<option value="">No card</option>' +
+    (state.expenseCards || [])
+      .map(c => `<option value="${c.id}"${c.id === current ? ' selected' : ''}>${c.label}</option>`)
+      .join('');
 }
 
 // ────────────────────────────────────────────────────────────────

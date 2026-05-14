@@ -501,9 +501,12 @@ function addPurchase() {
   const amount = parseFloat(document.getElementById('purchase-amount').value);
   if (!name || isNaN(amount) || amount <= 0) return;
   const category = applyRulesToName(name) || 'Other';
-  state.purchases.push({ id: genId(), name, amount, category });
+  const cardSel  = document.getElementById('purchase-card');
+  const cardId   = (cardSel && cardSel.value) ? cardSel.value : null;
+  state.purchases.push({ id: genId(), name, amount, category, cardId });
   document.getElementById('purchase-name').value   = '';
   document.getElementById('purchase-amount').value = '';
+  if (cardSel) cardSel.value = '';
   // Clear preview
   const preview = document.getElementById('purchase-cat-preview');
   if (preview) preview.innerHTML = '';
@@ -1388,8 +1391,8 @@ function exportCsv() {
   });
   rows.push('');
 
-  rows.push('SECTION:purchases', 'id,name,amount,category');
-  (state.purchases || []).forEach(p => rows.push(`${e(p.id)},${e(p.name)},${p.amount},${e(p.category || 'Other')}`));
+  rows.push('SECTION:purchases', 'id,name,amount,category,cardId');
+  (state.purchases || []).forEach(p => rows.push(`${e(p.id)},${e(p.name)},${p.amount},${e(p.category || 'Other')},${e(p.cardId || '')}`));
   rows.push('');
 
   rows.push('SECTION:spendingHistory', 'periodId,periodDate,periodLabel,periodTotal,purchaseId,purchaseName,purchaseAmount,purchaseCategory');
@@ -1559,7 +1562,7 @@ function parseCsv(text) {
 
       case 'purchases':
         if (!parsed.purchases) parsed.purchases = [];
-        parsed.purchases.push({ id: vals[0], name: vals[1], amount: +vals[2], category: vals[3] || 'Other' });
+        parsed.purchases.push({ id: vals[0], name: vals[1], amount: +vals[2], category: vals[3] || 'Other', cardId: vals[4] || null });
         break;
 
       case 'spendingHistory': {
