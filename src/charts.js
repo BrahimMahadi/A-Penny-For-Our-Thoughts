@@ -51,6 +51,16 @@ const CHART_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-s
 // ────────────────────────────────────────────────────────────────
 // WANTS DONUT
 // ────────────────────────────────────────────────────────────────
+/**
+ * Render (or update in-place) the Wants envelope donut chart.
+ * The fill colour transitions green → amber → red as spending approaches
+ * or exceeds the envelope budget.
+ *
+ * @param {number} spent     - Total amount spent from the envelope this period.
+ * @param {number} remaining - Remaining envelope balance (may be negative).
+ * @param {number} usedPct   - Percentage of the envelope used (0-100+).
+ * @returns {void}
+ */
 function renderWantsDonut(spent, remaining, usedPct) {
   const fillColour = usedPct >= 100 ? '#ff4d6d' : usedPct >= 80 ? '#ffa63d' : '#6c63ff';
   const chartData  = [Math.min(spent, spent + Math.max(0, remaining)), Math.max(0, remaining)];
@@ -94,6 +104,14 @@ function renderWantsDonut(spent, remaining, usedPct) {
 // ────────────────────────────────────────────────────────────────
 // CREDIT CARD BAR
 // ────────────────────────────────────────────────────────────────
+/**
+ * Render (or update in-place) the stacked credit card utilisation bar chart.
+ * Each bar shows Balance (coloured by utilisation %) and Available credit (grey).
+ *
+ * @param {Array<{name: string, balance: number, limit: number}>} cards
+ *   Array of credit card objects from state.
+ * @returns {void}
+ */
 function renderCcBarChart(cards) {
   const labels    = cards.map(c => c.name.split(' ').slice(0, 2).join(' '));
   const balances  = cards.map(c => +c.balance);
@@ -168,6 +186,14 @@ function renderCcBarChart(cards) {
 // ────────────────────────────────────────────────────────────────
 // ANALYTICS — LINE (spending over time)
 // ────────────────────────────────────────────────────────────────
+/**
+ * Render (or update in-place) the Analytics spending-over-time line chart.
+ * Destroys the instance and returns early when `history` is empty.
+ *
+ * @param {Array<{label?: string, date: string, total: number}>} history
+ *   Filtered spending history periods from `getFilteredSpendingHistory()`.
+ * @returns {void}
+ */
 function renderAnalyticsLineChart(history) {
   if (!history.length) {
     if (analyticsLineChart) { analyticsLineChart.destroy(); analyticsLineChart = null; }
@@ -236,6 +262,15 @@ function renderAnalyticsLineChart(history) {
 // ────────────────────────────────────────────────────────────────
 // ANALYTICS — BAR (top spending categories)
 // ────────────────────────────────────────────────────────────────
+/**
+ * Render (or update in-place) the Analytics top-categories horizontal bar chart.
+ * Data is derived from `getTopCategories(filteredHistory)`.
+ * Destroys the instance and returns early when there are no categories.
+ *
+ * @param {Array<{items?: Array<{name: string, amount: number, category?: string}>}>} filteredHistory
+ *   Filtered spending history from `getFilteredSpendingHistory()`.
+ * @returns {void}
+ */
 function renderAnalyticsBarChart(filteredHistory) {
   const topCats = getTopCategories(filteredHistory);
   if (!topCats.length) {
@@ -300,6 +335,16 @@ function renderAnalyticsBarChart(filteredHistory) {
 // ────────────────────────────────────────────────────────────────
 // BUDGET VS. ACTUAL — BAR
 // ────────────────────────────────────────────────────────────────
+/**
+ * Render (or update in-place) the Budget vs. Actual grouped bar chart
+ * showing Needs / Wants / Savings budgeted vs. actual spending.
+ *
+ * @param {{ needs: number, wants: number, savings: number }} budgeted
+ *   Budgeted amounts from `getMonthBudgeted()`.
+ * @param {{ needs: number, wants: number, savings: number }} actuals
+ *   Actual amounts from `getMonthActuals()`.
+ * @returns {void}
+ */
 function renderBudgetVsActualChart(budgeted, actuals) {
   const budgetedData = [budgeted.needs, budgeted.wants, budgeted.savings];
   const actualsData  = [actuals.needs,  actuals.wants,  actuals.savings];
@@ -370,6 +415,16 @@ function renderBudgetVsActualChart(budgeted, actuals) {
 // ────────────────────────────────────────────────────────────────
 // NET WORTH — LINE
 // ────────────────────────────────────────────────────────────────
+/**
+ * Render (or update in-place) the Net Worth line chart.
+ * Line and fill colour adapt dynamically to positive (green) or
+ * negative (red) net worth.  A note element (`#nw-chart-note`) is
+ * shown when fewer than 2 data points exist.
+ *
+ * @param {Array<{date: string, netWorth: number}>} history
+ *   Array of monthly snapshots from `state.netWorthHistory`, sorted ascending.
+ * @returns {void}
+ */
 function renderNetWorthChart(history) {
   const canvas = document.getElementById('netWorthChart');
   if (!canvas) return;

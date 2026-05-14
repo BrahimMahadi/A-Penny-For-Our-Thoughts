@@ -6,6 +6,7 @@ Welcome to the project documentation. This folder contains all guides, roadmaps,
 
 | Document | Purpose |
 |----------|---------|
+| **[USER_GUIDE.md](./USER_GUIDE.md)** | 📖 Complete feature reference for end-users |
 | **[ROADMAP.md](./ROADMAP.md)** | 📋 2-3 month development roadmap with 4 phases, priorities, and timeline |
 | **[ARCHITECTURE.md](./ARCHITECTURE.md)** | 🏗️ Current code structure, state management, and module organization |
 | **[PHASE_TRACKING.md](./PHASE_TRACKING.md)** | ✅ Progress tracking for each development phase |
@@ -27,25 +28,39 @@ Welcome to the project documentation. This folder contains all guides, roadmaps,
 
 ## Current Phase
 
-**Phase 0: Design & Visual Polish** (Weeks 1-3)
-- Goal: Establish Bloomberg-style professional aesthetic
-- Status: Starting week 1
-- Key Tasks: Design audit, micro-interactions, typography system
+**V1 Complete** — All planned phases shipped:
+- ✅ Phase 0: Design & Visual Polish (Bloomberg-style aesthetic)
+- ✅ Phase 1: Budget vs. Actual, Savings Goals, Net Worth, Analytics
+- ✅ Phase 2: Recurring Calendar, Subscription Manager, Net Worth Tracker
+- ✅ Phase 3: Transaction Rules Engine (TRE), Performance Optimisation, Testing & Documentation
 
 ## Key Files in Project Root
 
-- `dashboard.html` — App shell and all HTML markup
-- `app.js` — All application logic (1,829 lines)
-- `styles.css` — Styling and responsive design (1,157 lines)
+- `index.html` — App shell and all HTML markup
+- `src/app.js` — Application entry point, CRUD handlers, CSV I/O
+- `src/render.js` — All DOM render functions
+- `src/analytics.js` — Financial calculations and TRE logic
+- `src/charts.js` — Chart.js instance management
+- `src/state.js` — State object, persistence, theme management
+- `src/utils.js` — Pure helper functions (fmt, pct, csvEscape, etc.)
+- `src/styles.css` — Styling and responsive design
 - `CLAUDE.md` — AI assistant project guidelines
 - `Coding_Principles.md` — Development standards and best practices
 
+## Running Tests
+
+Unit tests live in `tests/`. Open `tests/index.html` in a browser, or run:
+
+```bash
+npm test   # serves tests/index.html on port 3001
+```
+
 ## How to Contribute
 
-This is a solo project by Brahim. Documentation is updated as development progresses. See [PHASE_TRACKING.md](./PHASE_TRACKING.md) for current work items.
+This is a solo project by Brahim. Documentation is updated as development progresses.
 
 ---
 
-**Last Updated**: May 12, 2026
-**Current Phase**: Phase 0 (Design & Visual Polish)
-**Timeline**: Weeks 1-12 at 20+ hrs/week
+**Last Updated**: May 2026
+**Status**: V1 Complete
+**Tech Stack**: Vanilla HTML/CSS/JS · Chart.js 4.4.1 · localStorage
