@@ -2023,7 +2023,7 @@ canvas { max-width: 100%; height: auto; }
     scrollbar-width: none;
     &::-webkit-scrollbar { display: none; }
   }
-  .docs-nav-btn   { white-space: nowrap; flex-shrink: 0; font-size: 12px; padding: 8px 12px; }
+  .docs-nav-btn   { white-space: nowrap; flex-shrink: 0; width: auto; font-size: 12px; padding: 8px 12px; }
   .docs-content   { padding-top: 8px; }
 }
 
