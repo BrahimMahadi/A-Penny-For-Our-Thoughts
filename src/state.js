@@ -237,4 +237,8 @@ function applyTheme(theme) {
     btn.textContent = theme === 'dark' ? '🌙' : '☀️';
     btn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
   }
+  // Destroy chart instances so they're recreated with the new theme's colours.
+  if (typeof resetAllCharts === 'function') resetAllCharts();
+  // Re-render everything so inline colour styles also pick up the new CSS vars.
+  if (typeof renderAll === 'function') renderAll();
 }

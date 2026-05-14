@@ -333,7 +333,7 @@ function renderBudgetVarianceCards(budgeted, actuals) {
 
   categories.forEach(cat => {
     const variance    = calculateVariance(budgeted[cat.key], actuals[cat.key], cat.key);
-    const statusColor = variance.status === 'on-track' ? '#00d4aa' : variance.status === 'caution' ? '#ffa63d' : '#ff4d6d';
+    const statusColor = variance.status === 'on-track' ? cssVar('--accent2') : variance.status === 'caution' ? cssVar('--warn') : cssVar('--danger');
     const statusLabel = variance.status === 'on-track' ? 'On Track' : variance.status === 'caution' ? 'Caution' : 'Over';
 
     const card = document.createElement('div');
@@ -360,7 +360,7 @@ function renderVarianceSummary(budgeted, actuals, income) {
 
   const rows = ['needs', 'wants', 'savings'].map(key => {
     const variance = calculateVariance(budgeted[key], actuals[key], key);
-    const varColor = variance.status === 'on-track' ? '#00d4aa' : variance.status === 'caution' ? '#ffa63d' : '#ff4d6d';
+    const varColor = variance.status === 'on-track' ? cssVar('--accent2') : variance.status === 'caution' ? cssVar('--warn') : cssVar('--danger');
     const label    = key.charAt(0).toUpperCase() + key.slice(1);
     return `
       <tr style="border-bottom:1px solid var(--border-light)">
@@ -647,7 +647,7 @@ function renderLoans() {
 
   (state.loans || []).forEach(loan => {
     const pctUsed    = +loan.original > 0 ? (+loan.remaining / +loan.original) * 100 : 0;
-    const colour     = pctUsed > 70 ? '#ff4d6d' : pctUsed > 40 ? '#ffa63d' : '#00d4aa';
+    const colour     = pctUsed > 70 ? cssVar('--danger') : pctUsed > 40 ? cssVar('--warn') : cssVar('--accent2');
     const linkedCard = loan.cardId ? (state.expenseCards || []).find(c => c.id === loan.cardId) : null;
     const hasPayment = loan.paymentAmount > 0 && loan.date;
 
@@ -704,7 +704,7 @@ function renderCreditCards() {
     totalBal += +cc.balance;
     totalLim += +cc.limit;
     const usePct  = (+cc.balance / +cc.limit) * 100;
-    const colour  = usePct > 50 ? '#ff4d6d' : usePct > 30 ? '#ffa63d' : '#00d4aa';
+    const colour  = usePct > 50 ? cssVar('--danger') : usePct > 30 ? cssVar('--warn') : cssVar('--accent2');
     const chipCls = usePct > 30 ? 'red' : 'green';
 
     const div = document.createElement('div');

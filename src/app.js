@@ -409,7 +409,7 @@ function openEditAllocation() {
     mField('Needs %',   'alloc-needs',   'number', a.needs,   '50', 'min="0" max="100" step="1" oninput="updateAllocValidation()"') +
     mField('Wants %',   'alloc-wants',   'number', a.wants,   '30', 'min="0" max="100" step="1" oninput="updateAllocValidation()"') +
     mField('Savings %', 'alloc-savings', 'number', a.savings, '20', 'min="0" max="100" step="1" oninput="updateAllocValidation()"') +
-    `<div id="alloc-validation" style="margin-top:12px;padding:8px;border-radius:4px;font-size:13px;font-weight:600;background:#3a4456;color:#8b95ad">
+    `<div id="alloc-validation" style="margin-top:12px;padding:8px;border-radius:4px;font-size:13px;font-weight:600;background:var(--surface2);color:var(--muted)">
       Total: <span id="alloc-total">100</span>%
     </div>`,
     () => {
@@ -436,7 +436,7 @@ function updateAllocValidation() {
 
   document.getElementById('alloc-total').textContent = total;
   const display = document.getElementById('alloc-validation');
-  display.style.color      = isValid ? '#00d4aa' : total > 100 ? '#ff4d6d' : '#ffa63d';
+  display.style.color      = isValid ? cssVar('--accent2') : total > 100 ? cssVar('--danger') : cssVar('--warn');
   display.style.fontWeight = isValid ? '600' : '700';
 }
 

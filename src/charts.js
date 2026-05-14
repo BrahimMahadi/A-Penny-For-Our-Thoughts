@@ -32,21 +32,57 @@ function _chartValid(instance) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// SHARED CHART STYLE CONSTANTS
+// SHARED CHART STYLE HELPERS
 // ────────────────────────────────────────────────────────────────
-const CHART_TOOLTIP = {
-  backgroundColor: 'rgba(26, 35, 50, 0.95)',
-  titleColor: '#e8eaf0',
-  bodyColor: '#e8eaf0',
-  borderColor: '#3a4456',
-  borderWidth: 1,
-  padding: 12,
-  titleFont: { size: 13, weight: '700' },
-  bodyFont: { size: 12 },
-};
-const CHART_TICK_COLOR = '#8b95ad';
-const CHART_GRID_COLOR = '#3a4456';
 const CHART_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+
+/**
+ * Read all theme-aware chart style tokens from the current CSS variables.
+ * Called at the start of each chart render function so that colours always
+ * reflect the active theme (dark or light) at render time.
+ *
+ * @returns {{ tooltip: object, tickColor: string, gridColor: string,
+ *             accent: string, accent2: string, surface: string,
+ *             surface2: string, danger: string, warn: string }} Style tokens.
+ */
+function getChartStyles() {
+  const g = n => cssVar(n);
+  return {
+    tooltip: {
+      backgroundColor: g('--chart-tooltip-bg'),
+      titleColor:      g('--chart-tooltip-text'),
+      bodyColor:       g('--chart-tooltip-text'),
+      borderColor:     g('--chart-tooltip-border'),
+      borderWidth: 1,
+      padding: 12,
+      titleFont: { size: 13, weight: '700' },
+      bodyFont:  { size: 12 },
+    },
+    tickColor:  g('--chart-tick'),
+    gridColor:  g('--chart-grid'),
+    fontFamily: CHART_FONT_FAMILY,
+    accent:     g('--accent'),
+    accent2:    g('--accent2'),
+    surface:    g('--surface'),
+    surface2:   g('--surface2'),
+    danger:     g('--danger'),
+    warn:       g('--warn'),
+  };
+}
+
+/**
+ * Destroy all Chart.js instances and reset their references to null.
+ * Called by applyTheme() before renderAll() so that charts are
+ * recreated with the new theme's colours instead of being updated
+ * in-place with stale dataset colours.
+ *
+ * @returns {void}
+ */
+function resetAllCharts() {
+  [wantsChart, ccChart, analyticsLineChart, analyticsBarChart, budgetVsActualChart, netWorthChart]
+    .forEach(c => { if (c) c.destroy(); });
+  wantsChart = ccChart = analyticsLineChart = analyticsBarChart = budgetVsActualChart = netWorthChart = null;
+}
 
 // ────────────────────────────────────────────────────────────────
 // WANTS DONUT
@@ -66,8 +102,9 @@ const CHART_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-s
  * @returns {void}
  */
 function renderWantsDonut(categorySpending, remaining, usedPct) {
-  const SUBS_COLOUR = '#6c63ff'; // accent — matches subscription accent throughout the app
-  const REST_COLOUR = '#3a4456'; // neutral grey for unused envelope
+  const S = getChartStyles();
+  const SUBS_COLOUR = S.accent;    // subscriptions arc matches primary accent
+  const REST_COLOUR = S.surface2;  // unused envelope — neutral surface tint
 
   // Build per-segment arrays from non-zero spending entries
   const entries = Object.entries(categorySpending).filter(([, v]) => v > 0);
@@ -117,7 +154,7 @@ function renderWantsDonut(categorySpending, remaining, usedPct) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          ...CHART_TOOLTIP,
+          ...S.tooltip,
           padding: 10,
           titleFont: { size: 12, weight: '700' },
           bodyFont: { size: 11 },
@@ -144,12 +181,13 @@ function renderWantsDonut(categorySpending, remaining, usedPct) {
  * @returns {void}
  */
 function renderCcBarChart(cards) {
+  const S = getChartStyles();
   const labels    = cards.map(c => c.name.split(' ').slice(0, 2).join(' '));
   const balances  = cards.map(c => +c.balance);
   const available = cards.map(c => Math.max(0, +c.limit - +c.balance));
   const bgColors  = cards.map(c => {
     const p = (+c.balance / +c.limit) * 100;
-    return p > 50 ? '#ff4d6d' : p > 30 ? '#ffa63d' : '#00d4aa';
+    return p > 50 ? S.danger : p > 30 ? S.warn : S.accent2;
   });
 
   if (_chartValid(ccChart)) {
@@ -178,7 +216,7 @@ function renderCcBarChart(cards) {
         {
           label: 'Available',
           data: available,
-          backgroundColor: '#3a4456',
+          backgroundColor: S.surface2,
           borderColor: 'transparent',
           borderRadius: 6,
           borderSkipped: false,
@@ -191,23 +229,23 @@ function renderCcBarChart(cards) {
       plugins: {
         legend: {
           labels: {
-            color: CHART_TICK_COLOR,
+            color: S.tickColor,
             font: { size: 12, weight: '600', family: CHART_FONT_FAMILY },
             padding: 14,
             usePointStyle: true,
             pointStyle: 'rect',
           },
         },
-        tooltip: { ...CHART_TOOLTIP, callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmt(ctx.parsed.y) } },
+        tooltip: { ...S.tooltip, callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmt(ctx.parsed.y) } },
       },
       scales: {
         x: {
-          ticks: { color: CHART_TICK_COLOR, font: { size: 11, family: CHART_FONT_FAMILY } },
-          grid: { color: CHART_GRID_COLOR, drawBorder: false },
+          ticks: { color: S.tickColor, font: { size: 11, family: CHART_FONT_FAMILY } },
+          grid: { color: S.gridColor, drawBorder: false },
         },
         y: {
-          ticks: { color: CHART_TICK_COLOR, font: { size: 11, family: CHART_FONT_FAMILY }, callback: v => '$' + v.toLocaleString() },
-          grid: { color: CHART_GRID_COLOR, drawBorder: false },
+          ticks: { color: S.tickColor, font: { size: 11, family: CHART_FONT_FAMILY }, callback: v => '$' + v.toLocaleString() },
+          grid: { color: S.gridColor, drawBorder: false },
         },
       },
     },
@@ -241,6 +279,7 @@ function renderAnalyticsLineChart(history) {
     return;
   }
 
+  const S = getChartStyles();
   if (analyticsLineChart) { analyticsLineChart.destroy(); analyticsLineChart = null; }
   analyticsLineChart = new Chart(document.getElementById('analyticsLine'), {
     type: 'line',
@@ -249,12 +288,12 @@ function renderAnalyticsLineChart(history) {
       datasets: [{
         label: 'Spending Over Time',
         data,
-        borderColor: '#6c63ff',
-        backgroundColor: 'rgba(108,99,255,.1)',
+        borderColor: S.accent,
+        backgroundColor: hexToRgba(S.accent, 0.1),
         fill: true,
         tension: 0.4,
-        pointBackgroundColor: '#6c63ff',
-        pointBorderColor: '#1a2332',
+        pointBackgroundColor: S.accent,
+        pointBorderColor: S.surface,
         pointBorderWidth: 2,
         pointRadius: 5,
         pointHoverRadius: 7,
@@ -267,23 +306,23 @@ function renderAnalyticsLineChart(history) {
         legend: {
           display: true,
           labels: {
-            color: CHART_TICK_COLOR,
+            color: S.tickColor,
             font: { size: 12, weight: '600', family: CHART_FONT_FAMILY },
             padding: 16,
             usePointStyle: true,
             pointStyle: 'circle',
           },
         },
-        tooltip: { ...CHART_TOOLTIP, callbacks: { label: ctx => ' Spent: ' + fmt(ctx.parsed.y) } },
+        tooltip: { ...S.tooltip, callbacks: { label: ctx => ' Spent: ' + fmt(ctx.parsed.y) } },
       },
       scales: {
         x: {
-          ticks: { color: CHART_TICK_COLOR, font: { size: 11, family: CHART_FONT_FAMILY }, maxRotation: 45 },
-          grid: { color: CHART_GRID_COLOR, drawBorder: false },
+          ticks: { color: S.tickColor, font: { size: 11, family: CHART_FONT_FAMILY }, maxRotation: 45 },
+          grid: { color: S.gridColor, drawBorder: false },
         },
         y: {
-          ticks: { color: CHART_TICK_COLOR, font: { size: 11, family: CHART_FONT_FAMILY }, callback: v => '$' + v.toLocaleString() },
-          grid: { color: CHART_GRID_COLOR, drawBorder: false },
+          ticks: { color: S.tickColor, font: { size: 11, family: CHART_FONT_FAMILY }, callback: v => '$' + v.toLocaleString() },
+          grid: { color: S.gridColor, drawBorder: false },
         },
       },
     },
@@ -319,6 +358,7 @@ function renderAnalyticsBarChart(filteredHistory) {
     return;
   }
 
+  const S = getChartStyles();
   if (analyticsBarChart) { analyticsBarChart.destroy(); analyticsBarChart = null; }
   analyticsBarChart = new Chart(document.getElementById('analyticsBar'), {
     type: 'bar',
@@ -327,8 +367,8 @@ function renderAnalyticsBarChart(filteredHistory) {
       datasets: [{
         label: 'Top Categories',
         data,
-        backgroundColor: '#00d4aa',
-        borderColor: 'rgba(0, 212, 170, 0.3)',
+        backgroundColor: S.accent2,
+        borderColor: hexToRgba(S.accent2, 0.3),
         borderWidth: 1,
         borderRadius: 6,
       }],
@@ -340,23 +380,23 @@ function renderAnalyticsBarChart(filteredHistory) {
         legend: {
           display: true,
           labels: {
-            color: CHART_TICK_COLOR,
+            color: S.tickColor,
             font: { size: 12, weight: '600', family: CHART_FONT_FAMILY },
             padding: 16,
             usePointStyle: true,
             pointStyle: 'rect',
           },
         },
-        tooltip: { ...CHART_TOOLTIP, callbacks: { label: ctx => ' Total: ' + fmt(ctx.parsed.x) } },
+        tooltip: { ...S.tooltip, callbacks: { label: ctx => ' Total: ' + fmt(ctx.parsed.x) } },
       },
       scales: {
         x: {
-          ticks: { color: CHART_TICK_COLOR, font: { size: 11, family: CHART_FONT_FAMILY }, callback: v => '$' + v.toLocaleString() },
-          grid: { color: CHART_GRID_COLOR, drawBorder: false },
+          ticks: { color: S.tickColor, font: { size: 11, family: CHART_FONT_FAMILY }, callback: v => '$' + v.toLocaleString() },
+          grid: { color: S.gridColor, drawBorder: false },
         },
         y: {
-          ticks: { color: CHART_TICK_COLOR, font: { size: 11, family: CHART_FONT_FAMILY } },
-          grid: { color: CHART_GRID_COLOR, drawBorder: false },
+          ticks: { color: S.tickColor, font: { size: 11, family: CHART_FONT_FAMILY } },
+          grid: { color: S.gridColor, drawBorder: false },
         },
       },
     },
@@ -387,6 +427,7 @@ function renderBudgetVsActualChart(budgeted, actuals) {
     return;
   }
 
+  const S = getChartStyles();
   if (budgetVsActualChart) { budgetVsActualChart.destroy(); budgetVsActualChart = null; }
   budgetVsActualChart = new Chart(
     document.getElementById('budgetVsActualChart').getContext('2d'),
@@ -398,16 +439,16 @@ function renderBudgetVsActualChart(budgeted, actuals) {
           {
             label: 'Budgeted',
             data: budgetedData,
-            backgroundColor: '#6c63ff',
-            borderColor: 'rgba(108, 99, 255, 0.3)',
+            backgroundColor: S.accent,
+            borderColor: hexToRgba(S.accent, 0.3),
             borderWidth: 1,
             borderRadius: 6,
           },
           {
             label: 'Actual',
             data: actualsData,
-            backgroundColor: '#00d4aa',
-            borderColor: 'rgba(0, 212, 170, 0.3)',
+            backgroundColor: S.accent2,
+            borderColor: hexToRgba(S.accent2, 0.3),
             borderWidth: 1,
             borderRadius: 6,
           },
@@ -419,22 +460,22 @@ function renderBudgetVsActualChart(budgeted, actuals) {
         plugins: {
           legend: {
             labels: {
-              color: CHART_TICK_COLOR,
+              color: S.tickColor,
               font: { size: 12, weight: '600' },
               usePointStyle: true,
               pointStyle: 'rect',
             },
           },
-          tooltip: { ...CHART_TOOLTIP, callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmt(ctx.parsed.y) } },
+          tooltip: { ...S.tooltip, callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmt(ctx.parsed.y) } },
         },
         scales: {
           y: {
             beginAtZero: true,
-            ticks: { callback: v => fmt(v), color: CHART_TICK_COLOR, font: { size: 11 } },
-            grid: { color: CHART_GRID_COLOR, drawBorder: false },
+            ticks: { callback: v => fmt(v), color: S.tickColor, font: { size: 11 } },
+            grid: { color: S.gridColor, drawBorder: false },
           },
           x: {
-            ticks: { color: CHART_TICK_COLOR, font: { size: 11 } },
+            ticks: { color: S.tickColor, font: { size: 11 } },
             grid: { display: false },
           },
         },
@@ -470,10 +511,11 @@ function renderNetWorthChart(history) {
   const noteEl = document.getElementById('nw-chart-note');
   if (noteEl) noteEl.style.display = history.length < 2 ? 'block' : 'none';
 
-  const positiveColor = 'rgba(0, 212, 170, 0.8)';
-  const negativeColor = 'rgba(255, 77, 109, 0.8)';
+  const S = getChartStyles();
+  const positiveColor = hexToRgba(S.accent2, 0.8);
+  const negativeColor = hexToRgba(S.danger,  0.8);
   const lineColor     = lastValue >= 0 ? positiveColor : negativeColor;
-  const fillColor     = lastValue >= 0 ? 'rgba(0,212,170,0.08)' : 'rgba(255,77,109,0.08)';
+  const fillColor     = lastValue >= 0 ? hexToRgba(S.accent2, 0.08) : hexToRgba(S.danger, 0.08);
 
   if (_chartValid(netWorthChart)) {
     netWorthChart.data.labels                        = labels;
@@ -512,11 +554,11 @@ function renderNetWorthChart(history) {
       },
       scales: {
         x: {
-          grid: { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: 'var(--muted)', font: { size: 11 } },
+          grid: { color: S.gridColor },
+          ticks: { color: S.tickColor, font: { size: 11 } },
         },
         y: {
-          grid: { color: 'rgba(255,255,255,0.05)' },
+          grid: { color: S.gridColor },
           ticks: { color: 'var(--muted)', font: { size: 11 }, callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v) },
         },
       },

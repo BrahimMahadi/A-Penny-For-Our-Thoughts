@@ -9,31 +9,31 @@
              layout, components, mobile breakpoints
 ═══════════════════════════════════════════════════ */
 
-/* ── Dark theme (default) — Bloomberg Professional Style ── */
+/* ── Dark theme (default) — Botanical ── */
 :root {
   /* Typography System — All Sans-Serif */
   --font-body:       -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', system-ui, sans-serif;
   --font-mono:       'Courier New', monospace;
 
-  /* Color Palette — Refined & Professional */
-  --bg:           #0a0e1a;
-  --surface:      #1a2332;
-  --surface2:     #252f3f;
-  --surface3:     #2f3a4f;
-  --accent:       #6c63ff;
-  --accent2:      #00d4aa;
+  /* Color Palette — Botanical Dark */
+  --bg:           #040d08;
+  --surface:      #0a1810;
+  --surface2:     #0f2018;
+  --surface3:     #152a1e;
+  --accent:       #4ade80;
+  --accent2:      #a3e635;
   --danger:       #ff4d6d;
   --warn:         #ffa63d;
-  --text:         #e8eaf0;
-  --text-secondary: #d4dae8;
-  --muted:        #9199b0;   /* lightened: ≥4.5:1 on --surface2 */
-  --border:       #3a4456;
-  --border-light: #474f60;
+  --text:         #dcfce7;
+  --text-secondary: #bbf0cc;
+  --muted:        #5a7a63;
+  --border:       #1a3526;
+  --border-light: #244530;
 
   /* Contrast-safe tokens — WCAG AA */
-  --accent-btn:  #5957e8;   /* button bg  → white text 5.1:1  */
-  --accent-text: #8880ff;   /* text on dark surfaces → 4.7:1  */
-  --accent-chip: #9b96ff;   /* chip text on tinted bg → 5.5:1  */
+  --accent-btn:  #16a34a;   /* button bg  → white text ~4.7:1  */
+  --accent-text: #4ade80;   /* text on dark surfaces */
+  --accent-chip: #4ade80;   /* chip text on tinted bg */
   --danger-btn:  #b8202e;   /* danger bg  → white text 4.6:1  */
 
   /* Spacing System */
@@ -47,29 +47,47 @@
   /* Effects */
   --radius:       8px;
   --radius-sm:    6px;
-  --card-shadow:  0 4px 24px rgba(0,0,0,.35);
-  --card-shadow-sm: 0 2px 8px rgba(0,0,0,.25);
+  --card-shadow:  0 4px 24px rgba(0,0,0,.5);
+  --card-shadow-sm: 0 2px 8px rgba(0,0,0,.35);
   --transition:   background .25s, color .25s, border-color .25s, box-shadow .25s;
   --transition-fast: .15s;
+
+  /* Chart-specific tokens (read via cssVar() in JS) */
+  --chart-tooltip-bg:     rgba(10,24,16,0.95);
+  --chart-tooltip-text:   #dcfce7;
+  --chart-tooltip-border: #1a3526;
+  --chart-tick:           #5a7a63;
+  --chart-grid:           #1a3526;
 }
 
-/* ── Light theme — Bloomberg Professional Style ── */
+/* ── Light theme — Botanical ── */
 [data-theme="light"] {
-  --bg:           #f8f9fc;
+  --bg:           #f0faf3;
   --surface:      #ffffff;
-  --surface2:     #f2f4fa;
-  --surface3:     #e8eaf2;
-  --text:         #1a1f3a;
-  --text-secondary: #2d3548;
-  --muted:        #6b7485;
-  --border:       #dce0ef;
-  --border-light: #e8ecf7;
-  --card-shadow:  0 2px 12px rgba(0,0,0,.08);
-  --card-shadow-sm: 0 1px 4px rgba(0,0,0,.06);
-  --accent-btn:  #4b43e0;
-  --accent-text: #5b52e8;
-  --accent-chip: #4b43e0;   /* chip text on tinted bg → 5.5:1 on light */
-  --danger-btn:  #991926;
+  --surface2:     #e3f5e8;
+  --surface3:     #d4edda;
+  --accent:       #16a34a;
+  --accent2:      #65a30d;
+  --danger:       #dc2626;
+  --warn:         #d97706;
+  --text:         #0f2415;
+  --text-secondary: #1a3d22;
+  --muted:        #5a7a63;
+  --border:       #c8e6d0;
+  --border-light: #d4edda;
+  --card-shadow:  0 2px 12px rgba(22,163,74,.09);
+  --card-shadow-sm: 0 1px 4px rgba(22,163,74,.06);
+  --accent-btn:  #16a34a;
+  --accent-text: #15803d;
+  --accent-chip: #15803d;
+  --danger-btn:  #b91c1c;
+
+  /* Chart-specific tokens */
+  --chart-tooltip-bg:     rgba(255,255,255,0.97);
+  --chart-tooltip-text:   #0f2415;
+  --chart-tooltip-border: #c8e6d0;
+  --chart-tick:           #5a7a63;
+  --chart-grid:           #c8e6d0;
 }
 
 /* ── Screen-reader-only utility ── */
@@ -364,7 +382,7 @@ header {
   flex-shrink: 0;
   font-family: var(--font-body);
 
-  &:hover { color: var(--accent); background: rgba(108,99,255,.1); }
+  &:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 }
 
 .info-tip {
@@ -497,7 +515,7 @@ input, select, textarea {
   &:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.45);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
   }
 }
 
@@ -514,7 +532,7 @@ input {
   &:invalid       { border-color: var(--danger); }
   &:invalid:focus { box-shadow: 0 0 0 3px rgba(255, 77, 109, 0.35); }
   &:valid         { border-color: var(--accent2); }
-  &:valid:focus   { box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.35); }
+  &:valid:focus   { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 35%, transparent); }
 }
 
 /* Visible focus ring for all interactive elements (keyboard nav) */
@@ -539,10 +557,10 @@ textarea:focus-visible {
   border-radius: 20px;
   padding: 3px 10px;
 
-  &.green  { background: rgba(0,212,170,.15);  color: var(--accent2); }
-  &.red    { background: rgba(255,77,109,.15);  color: var(--danger); }
-  &.warn   { background: rgba(255,166,61,.15);  color: var(--warn); }
-  &.purple { background: rgba(108,99,255,.15);  color: var(--accent-chip); }
+  &.green  { background: color-mix(in srgb, var(--accent2) 15%, transparent);  color: var(--accent2); }
+  &.red    { background: color-mix(in srgb, var(--danger)  15%, transparent);  color: var(--danger); }
+  &.warn   { background: color-mix(in srgb, var(--warn)    15%, transparent);  color: var(--warn); }
+  &.purple { background: color-mix(in srgb, var(--accent)  15%, transparent);  color: var(--accent-chip); }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -686,7 +704,7 @@ textarea:focus-visible {
     flex-shrink: 0;
     font-size: 10px;
     color: var(--accent-chip);
-    background: rgba(108,99,255,.15);
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
     border-radius: 4px;
     padding: 2px 6px;
     white-space: nowrap;
@@ -698,7 +716,7 @@ textarea:focus-visible {
     font-size: 10px;
     font-weight: 700;
     color: var(--accent-chip);
-    background: rgba(108,99,255,.15);
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
     border-radius: 4px;
     padding: 2px 8px;
     white-space: nowrap;
@@ -782,7 +800,7 @@ textarea:focus-visible {
     text-transform: uppercase;
     letter-spacing: .4px;
     color: var(--accent-chip);
-    background: rgba(108, 99, 255, .12);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
     padding: 1px 5px;
     border-radius: 3px;
   }
@@ -914,17 +932,17 @@ textarea:focus-visible {
   transition: var(--transition);
 
   /* Status border colours */
-  &.goal-status-on-track  { border-left-color: #00d4aa; }
+  &.goal-status-on-track  { border-left-color: var(--accent2); }
   &.goal-status-caution   {
-    border-left-color: #ffa63d;
-    & .progress-bar { background: linear-gradient(90deg, #ffa63d 0%, #ffa63d 100%); }
+    border-left-color: var(--warn);
+    & .progress-bar { background: var(--warn); }
   }
   &.goal-status-off-track {
-    border-left-color: #ff4d6d;
-    & .progress-bar { background: linear-gradient(90deg, #ff4d6d 0%, #ff4d6d 100%); }
+    border-left-color: var(--danger);
+    & .progress-bar { background: var(--danger); }
   }
-  &.goal-status-complete  { border-left-color: #00d4aa; opacity: 0.7; }
-  &.goal-status-missed    { border-left-color: #ff4d6d; opacity: 0.7; }
+  &.goal-status-complete  { border-left-color: var(--accent2); opacity: 0.7; }
+  &.goal-status-missed    { border-left-color: var(--danger); opacity: 0.7; }
 
   & .goal-header {
     display: flex;
@@ -964,7 +982,7 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
   height: 24px;
-  background: linear-gradient(90deg, #00d4aa 0%, #00d4aa 100%);
+  background: var(--accent2);
   border-radius: 6px;
   color: #000;
   font-weight: 700;
@@ -995,11 +1013,11 @@ textarea:focus-visible {
   font-weight: 600;
   text-align: center;
 
-  &.status-on-track { background: rgba(0, 212, 170, 0.2); color: #00d4aa; }
-  &.status-caution  { background: rgba(255, 166, 61,  0.2); color: #ffa63d; }
-  &.status-off-track { background: rgba(255, 77, 109, 0.2); color: #ff4d6d; }
-  &.status-complete { background: rgba(0, 212, 170, 0.2); color: #00d4aa; }
-  &.status-missed   { background: rgba(255, 77, 109, 0.2); color: #ff4d6d; }
+  &.status-on-track  { background: color-mix(in srgb, var(--accent2) 20%, transparent); color: var(--accent2); }
+  &.status-caution   { background: color-mix(in srgb, var(--warn)    20%, transparent); color: var(--warn); }
+  &.status-off-track { background: color-mix(in srgb, var(--danger)  20%, transparent); color: var(--danger); }
+  &.status-complete  { background: color-mix(in srgb, var(--accent2) 20%, transparent); color: var(--accent2); }
+  &.status-missed    { background: color-mix(in srgb, var(--danger)  20%, transparent); color: var(--danger); }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -1037,8 +1055,8 @@ textarea:focus-visible {
   letter-spacing: 0.4px;
   white-space: nowrap;
 
-  &.wants { background: rgba(0,212,170,.15);  color: var(--accent2); }
-  &.needs { background: rgba(108,99,255,.15); color: var(--accent);  }
+  &.wants { background: color-mix(in srgb, var(--accent2) 15%, transparent); color: var(--accent2); }
+  &.needs { background: color-mix(in srgb, var(--accent)  15%, transparent); color: var(--accent);  }
 }
 
 /* Category tag on sub items */
@@ -1057,7 +1075,7 @@ textarea:focus-visible {
   align-items: center;
   border-radius: 6px;
   padding: 6px 10px;
-  background: rgba(108, 99, 255, .08);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   border-left: 2px solid var(--accent-chip);
   gap: 6px;
 
@@ -1073,7 +1091,7 @@ textarea:focus-visible {
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: var(--accent-chip);
-  background: rgba(108, 99, 255, .12);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   padding: 1px 5px;
   border-radius: 3px;
   white-space: nowrap;
@@ -1184,7 +1202,7 @@ textarea:focus-visible {
   border-radius: 4px;
   font-size: 10px;
   font-weight: 600;
-  background: rgba(0, 212, 170, .12);
+  background: color-mix(in srgb, var(--accent2) 12%, transparent);
   color: var(--accent2);
   white-space: nowrap;
   flex-shrink: 0;
@@ -1486,7 +1504,7 @@ textarea:focus-visible {
   margin-top: 8px;
   display: inline-block;
 
-  &.ok  { color: var(--accent2); background: rgba(0,212,170,.1); }
+  &.ok  { color: var(--accent2); background: color-mix(in srgb, var(--accent2) 10%, transparent); }
   &.err { color: var(--danger);  background: rgba(255,77,109,.1); }
 }
 
@@ -1739,8 +1757,8 @@ textarea:focus-visible {
   flex-shrink: 0;
 
   &.card-label  { background: var(--surface3); color: var(--muted); }
-  &.biweekly    { background: rgba(108,99,255,.15); color: var(--accent); }
-  &.sub         { background: rgba(0,212,170,.12);  color: var(--accent2); }
+  &.biweekly    { background: color-mix(in srgb, var(--accent)  15%, transparent); color: var(--accent); }
+  &.sub         { background: color-mix(in srgb, var(--accent2) 12%, transparent); color: var(--accent2); }
 }
 
 .schedule-total-row {
@@ -1760,7 +1778,7 @@ textarea:focus-visible {
   flex-shrink: 0;
   font-size: 10px;
   color: var(--accent2);
-  background: rgba(0,212,170,.12);
+  background: color-mix(in srgb, var(--accent2) 12%, transparent);
   border-radius: 4px;
   padding: 2px 6px;
   white-space: nowrap;
@@ -2197,7 +2215,7 @@ canvas { max-width: 100%; height: auto; }
 
     &:last-child  { border-bottom: none; }
     &:hover       { background: var(--surface3); color: var(--text); }
-    &.active      { color: var(--text); font-weight: 700; background: rgba(108,99,255,.1); }
+    &.active      { color: var(--text); font-weight: 700; background: color-mix(in srgb, var(--accent) 10%, transparent); }
   }
 }
 
@@ -2630,7 +2648,7 @@ canvas { max-width: 100%; height: auto; }
     color: #fff;
     border: none;
     cursor: pointer;
-    box-shadow: 0 4px 20px rgba(108,99,255,.55);
+    box-shadow: 0 4px 20px color-mix(in srgb, var(--accent) 55%, transparent);
     z-index: 199;
     transition: transform 0.15s, opacity 0.2s;
   }
