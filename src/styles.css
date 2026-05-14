@@ -90,6 +90,9 @@
 *::before,
 *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Prevent horizontal scrollbar from any layout overflow */
+html, body { overflow-x: clip; }
+
 /* Apply smooth transitions globally for theme switching */
 body,
 .card,
@@ -263,6 +266,9 @@ header {
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
 .grid-5 { grid-template-columns: repeat(5, 1fr); }
+/* Prevent grid tracks from stretching beyond their 1fr allocation
+   (CSS default is minmax(auto, 1fr) which lets content inflate tracks) */
+.grid > * { min-width: 0; }
 
 /* KPI Metrics Bar — Prominent Display */
 #income-stat-cards {
@@ -2137,6 +2143,29 @@ canvas { max-width: 100%; height: auto; }
 
   /* Schedule */
   .schedule-summary-row { grid-template-columns: repeat(2, 1fr); }
+
+  /* Net worth: 4-col is too cramped at ≤768px → collapse to 2-col */
+  .nw-stat-tiles { grid-template-columns: 1fr 1fr; }
+  .nw-stat-tile > * { min-width: 0; }
+}
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE — 640px (small laptops / large phones)
+═══════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  /* Expense card columns are too content-heavy for 2-col below 640px
+     (the add-expense input row can't fit; collapse to single column) */
+  .grid-3 { grid-template-columns: 1fr; }
+
+  /* Net worth panels stack vertically; breakdown names truncate */
+  .nw-panels     { grid-template-columns: 1fr; }
+  .nw-stat-value { font-size: 18px; }
+  .nw-breakdown-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -2241,17 +2270,6 @@ canvas { max-width: 100%; height: auto; }
   /* Schedule */
   .schedule-summary-row { grid-template-columns: 1fr; }
   .schedule-detail-header { flex-direction: column; align-items: flex-start; gap: 10px; }
-
-  /* ── Net Worth — move grid collapse here so phones >380px are covered ── */
-  .nw-stat-tiles { grid-template-columns: 1fr 1fr; }
-  .nw-panels     { grid-template-columns: 1fr; }
-  .nw-stat-value { font-size: 18px; }
-  .nw-breakdown-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-  }
 
   /* ── Subscription items — 2-row layout so content doesn't overflow ── */
   .sub-item .swipe-content {
