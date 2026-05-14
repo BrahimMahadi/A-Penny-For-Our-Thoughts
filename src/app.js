@@ -15,6 +15,18 @@
 // ────────────────────────────────────────────────────────────────
 let analyticsFilters = { startDate: '', endDate: '', search: '' };
 
+/**
+ * Announce a message to screen readers via the aria-live region.
+ * The empty-then-set pattern ensures re-announcing the same message.
+ * @param {string} msg
+ */
+function srAnnounce(msg) {
+  const el = document.getElementById('sr-announcer');
+  if (!el) return;
+  el.textContent = '';
+  requestAnimationFrame(() => { el.textContent = msg; });
+}
+
 // Schedule view — defaults to current month on load
 const _now = new Date();
 let scheduleViewYear  = _now.getFullYear();
@@ -25,14 +37,17 @@ let scheduleViewMonth = _now.getMonth() + 1;  // 1-based
 // ────────────────────────────────────────────────────────────────
 function switchTab(tab) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
   document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
 
   const page    = document.getElementById('tab-' + tab);
   const tabBtn  = document.getElementById('tab-btn-' + tab);
   const bnavBtn = document.getElementById('bnav-btn-' + tab);
   if (page)    page.classList.add('active');
-  if (tabBtn)  tabBtn.classList.add('active');
+  if (tabBtn)  { tabBtn.classList.add('active'); tabBtn.setAttribute('aria-selected', 'true'); }
   if (bnavBtn) bnavBtn.classList.add('active');
 
   // FAB only on dashboard tab
@@ -46,16 +61,32 @@ function switchTab(tab) {
 // OVERFLOW MENU
 // ────────────────────────────────────────────────────────────────
 function toggleOverflowMenu() {
-  const dd = document.getElementById('overflow-dropdown');
-  if (dd) dd.classList.toggle('open');
+  const dd  = document.getElementById('overflow-dropdown');
+  const btn = document.getElementById('overflow-btn');
+  if (!dd) return;
+  const isOpen = dd.classList.toggle('open');
+  if (btn) btn.setAttribute('aria-expanded', String(isOpen));
 }
 
 // Close overflow menu when clicking outside
 document.addEventListener('click', e => {
   const wrap = document.getElementById('overflow-wrap');
   if (wrap && !wrap.contains(e.target)) {
-    document.getElementById('overflow-dropdown')?.classList.remove('open');
+    const dd = document.getElementById('overflow-dropdown');
+    if (dd?.classList.contains('open')) {
+      dd.classList.remove('open');
+      document.getElementById('overflow-btn')?.setAttribute('aria-expanded', 'false');
+    }
   }
+});
+
+// Escape key: close modal or overflow menu
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const overlay = document.getElementById('modal-overlay');
+  if (overlay && overlay.classList.contains('active')) { closeModal(); return; }
+  const dd = document.getElementById('overflow-dropdown');
+  if (dd && dd.classList.contains('open')) toggleOverflowMenu();
 });
 
 // ────────────────────────────────────────────────────────────────
@@ -230,11 +261,40 @@ document.addEventListener('click', () => {
  * @param {Function} onSave   - Callback bound to the Save button's `onclick`.
  * @returns {void}
  */
+let _modalOpener = null;
+
 function openModal(title, bodyHTML, onSave) {
+  _modalOpener = document.activeElement;
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML    = bodyHTML;
   document.getElementById('modal-save-btn').onclick  = onSave;
   document.getElementById('modal-overlay').classList.add('active');
+
+  // Move focus into modal on next frame (after innerHTML is painted)
+  const modal = document.getElementById('modal');
+  requestAnimationFrame(() => {
+    const first = modal.querySelector('input:not([disabled]), select:not([disabled]), textarea:not([disabled])');
+    (first || modal.querySelector('.modal-close'))?.focus();
+  });
+
+  // Attach focus trap
+  modal.addEventListener('keydown', _trapFocus, true);
+}
+
+/** Keep Tab/Shift+Tab focus inside the open modal. */
+function _trapFocus(e) {
+  if (e.key !== 'Tab') return;
+  const modal = document.getElementById('modal');
+  const focusable = Array.from(modal.querySelectorAll(
+    'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null);
+  if (!focusable.length) return;
+  const first = focusable[0], last = focusable[focusable.length - 1];
+  if (e.shiftKey) {
+    if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+  } else {
+    if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+  }
 }
 
 /**
@@ -244,6 +304,12 @@ function openModal(title, bodyHTML, onSave) {
  */
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('active');
+  document.getElementById('modal')?.removeEventListener('keydown', _trapFocus, true);
+  // Return focus to the element that triggered the modal
+  if (_modalOpener && typeof _modalOpener.focus === 'function') {
+    requestAnimationFrame(() => { _modalOpener?.focus(); });
+    _modalOpener = null;
+  }
 }
 
 /**
@@ -272,7 +338,7 @@ function handleOverlayClick(e) {
 function mField(label, id, type, value, placeholder, extraAttrs) {
   return `
     <div class="modal-field">
-      <label>${label}</label>
+      <label for="${id}">${label}</label>
       <input type="${type}" id="${id}"
              value="${value !== undefined ? value : ''}"
              placeholder="${placeholder || ''}"
@@ -298,7 +364,7 @@ function openEditAllocation() {
       const w = parseFloat(document.getElementById('alloc-wants').value)   || 0;
       const s = parseFloat(document.getElementById('alloc-savings').value) || 0;
       if (Math.round(n + w + s) !== 100) {
-        alert(`Budget allocation must sum to 100%. Currently: ${n + w + s}%`);
+        srAnnounce(`Budget allocation must sum to 100%. Currently: ${n + w + s}%`);
         return;
       }
       state.allocation = { needs: n, wants: w, savings: s };
@@ -340,6 +406,7 @@ function addIncomeStream() {
   document.getElementById('new-stream-amount').value       = '';
   document.getElementById('new-stream-biweekly').checked   = false;
   saveToStorage(); _renderIncomeDependents();
+  srAnnounce(`Income stream "${name}" added`);
 }
 
 function openEditIncomeStream(id) {
@@ -388,6 +455,7 @@ function addPurchase() {
   const preview = document.getElementById('purchase-cat-preview');
   if (preview) preview.innerHTML = '';
   saveToStorage(); renderWants(); renderBudgetVsActual();
+  srAnnounce(`Purchase added: ${name} ${fmt(amount)}`);
 }
 
 function removePurchase(id) {
@@ -682,6 +750,7 @@ function addSavingsAccount() {
   document.getElementById('new-savings-name').value   = '';
   document.getElementById('new-savings-amount').value = '';
   saveToStorage(); renderSavings(); renderGoals(); renderNetWorth();
+  srAnnounce(`Savings account "${name}" added`);
 }
 
 function openEditSavingsAccount(id) {
@@ -762,7 +831,7 @@ function openAllocateSavingsModal() {
         updates[acct.id] = value;
       });
       if (totalAllocated > budget) {
-        alert(`❌ Total allocation ($${totalAllocated.toFixed(2)}) exceeds budget ($${budget.toFixed(2)})`);
+        srAnnounce(`Total allocation ($${totalAllocated.toFixed(2)}) exceeds savings budget ($${budget.toFixed(2)})`);
         return;
       }
       accounts.forEach(acct => {
@@ -775,7 +844,7 @@ function openAllocateSavingsModal() {
         }
       });
       saveToStorage(); renderSavings(); renderBudgetVsActual(); closeModal();
-      alert('✓ Allocation updated for ' + monthName);
+      srAnnounce('Allocation updated for ' + monthName);
     }
   );
 
@@ -799,7 +868,7 @@ function openAllocateSavingsModal() {
 // ────────────────────────────────────────────────────────────────
 function openAddGoal() {
   const accounts = state.savingsAccounts || [];
-  if (!accounts.length) { alert('Please add a savings account first'); return; }
+  if (!accounts.length) { srAnnounce('Please add a savings account first'); return; }
 
   const dropdown = '<select id="goal-account-id" required><option value="">Select Account</option>' +
     accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('') + '</select>';
@@ -813,7 +882,7 @@ function openAddGoal() {
       const accountId    = document.getElementById('goal-account-id').value;
       const targetAmount = parseFloat(document.getElementById('goal-target-amount').value);
       const targetDate   = document.getElementById('goal-target-date').value;
-      if (!accountId || isNaN(targetAmount) || !targetDate) { alert('Please fill in all fields'); return; }
+      if (!accountId || isNaN(targetAmount) || !targetDate) { srAnnounce('Please fill in all fields'); return; }
       state.goals.push({ id: genId(), accountId, targetAmount, targetDate });
       saveToStorage(); renderGoals(); closeModal();
     }
@@ -837,7 +906,7 @@ function openEditGoal(id) {
       const accountId    = document.getElementById('goal-account-id').value;
       const targetAmount = parseFloat(document.getElementById('goal-target-amount').value);
       const targetDate   = document.getElementById('goal-target-date').value;
-      if (!accountId || isNaN(targetAmount) || !targetDate) { alert('Please fill in all fields'); return; }
+      if (!accountId || isNaN(targetAmount) || !targetDate) { srAnnounce('Please fill in all fields'); return; }
       Object.assign(goal, { accountId, targetAmount, targetDate });
       saveToStorage(); renderGoals(); closeModal();
     }
@@ -910,7 +979,7 @@ function _readSubModal() {
 function openAddSubscription() {
   openModal('Add Subscription', _subModalBody(null), () => {
     const { name, amount, frequency, budgetType, category, date } = _readSubModal();
-    if (!name || !date) { alert('Please enter a name and renewal date.'); return; }
+    if (!name || !date) { srAnnounce('Please enter a name and renewal date.'); return; }
     state.subscriptions.push({ id: genId(), name, amount, frequency, date, category, budgetType });
     saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); _scheduleIfActive(); closeModal();
   });
@@ -949,7 +1018,7 @@ function openSetPayStart() {
      </div>`,
     () => {
       const date = document.getElementById('pay-start-date').value;
-      if (!date) { alert('Please select a date.'); return; }
+      if (!date) { srAnnounce('Please select a date.'); return; }
       state.payStart = date;
       saveToStorage(); renderWants(); renderSubscriptions(); renderExpenseCards(); _scheduleIfActive(); closeModal();
     }
@@ -998,7 +1067,7 @@ function _readRuleModal() {
 function openAddRule() {
   openModal('Add Spending Rule', _ruleModalBody(null), () => {
     const { pattern, matchType, category } = _readRuleModal();
-    if (!pattern) { alert('Please enter a keyword or pattern.'); return; }
+    if (!pattern) { srAnnounce('Please enter a keyword or pattern.'); return; }
     if (!state.rules) state.rules = [];
     state.rules.push({ id: genId(), pattern, matchType, category });
     saveToStorage(); renderRules(); closeModal();
@@ -1045,10 +1114,10 @@ function openAddAlert() {
     () => {
       const category  = document.getElementById('alert-category').value;
       const threshold = parseFloat(document.getElementById('alert-threshold').value);
-      if (isNaN(threshold) || threshold <= 0) { alert('Please enter a valid threshold amount.'); return; }
+      if (isNaN(threshold) || threshold <= 0) { srAnnounce('Please enter a valid threshold amount.'); return; }
       if (!state.budgetAlerts) state.budgetAlerts = [];
       if (state.budgetAlerts.some(a => a.category === category)) {
-        alert(`An alert for "${category}" already exists. Edit the existing one instead.`);
+        srAnnounce(`An alert for "${category}" already exists. Edit the existing one instead.`);
         return;
       }
       state.budgetAlerts.push({ id: genId(), category, threshold });
@@ -1073,7 +1142,7 @@ function openEditAlert(id) {
       if (isNaN(threshold) || threshold <= 0) return;
       // Check for duplicate (allow same category if it's the same alert being edited)
       const duplicate = (state.budgetAlerts || []).find(a => a.category === category && a.id !== id);
-      if (duplicate) { alert(`An alert for "${category}" already exists.`); return; }
+      if (duplicate) { srAnnounce(`An alert for "${category}" already exists.`); return; }
       Object.assign(alertItem, { category, threshold });
       saveToStorage(); renderBudgetAlerts(); renderWants(); closeModal();
     }
@@ -1099,6 +1168,7 @@ function addWishlistItem() {
   document.getElementById('new-wish-name').value = '';
   document.getElementById('new-wish-url').value  = '';
   saveToStorage(); renderWishlist();
+  srAnnounce(`Wishlist item "${name}" added`);
 }
 
 function openEditWishlistItem(id) {
@@ -1139,7 +1209,7 @@ function openAddAsset(category) {
     () => {
       const name  = document.getElementById('asset-name').value.trim();
       const value = parseFloat(document.getElementById('asset-value').value) || 0;
-      if (!name) { alert('Please enter a name.'); return; }
+      if (!name) { srAnnounce('Please enter a name.'); return; }
       state.assets.push({ id: genId(), name, category, value });
       saveToStorage(); renderNetWorth(); closeModal();
     }
@@ -1157,7 +1227,7 @@ function openEditAsset(id) {
     () => {
       const name  = document.getElementById('asset-name').value.trim();
       const value = parseFloat(document.getElementById('asset-value').value) || 0;
-      if (!name) { alert('Please enter a name.'); return; }
+      if (!name) { srAnnounce('Please enter a name.'); return; }
       Object.assign(asset, { name, value });
       saveToStorage(); renderNetWorth(); closeModal();
     }
@@ -1303,7 +1373,7 @@ function importCsv(event) {
       state = newState;
       saveToStorage(); renderAll(); switchTab('dashboard');
     } catch (err) {
-      alert('Failed to import CSV: ' + err.message);
+      srAnnounce('Failed to import CSV: ' + err.message);
     } finally {
       event.target.value = '';
     }
@@ -1316,12 +1386,12 @@ function clearAllData() {
   if (!confirm('⚠️  WARNING: This will delete ALL your data and reset to a blank dashboard.\n\nThis action cannot be undone. Are you sure you want to continue?')) return;
   if (!confirm('This will permanently delete all your data.\n\nClick OK and type "CLEAR" in the prompt below to confirm.')) return;
   if (prompt('Type CLEAR to confirm deletion of all data:') !== 'CLEAR') {
-    alert('Clear cancelled. Your data is safe.');
+    srAnnounce('Clear cancelled. Your data is safe.');
     return;
   }
   state = deepClone(BLANK_STATE);
   saveToStorage(); renderAll();
-  alert('✓ All data has been cleared. Starting fresh!');
+  srAnnounce('All data has been cleared. Starting fresh!');
 }
 
 /**

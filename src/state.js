@@ -219,5 +219,8 @@ function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem(THEME_KEY, theme);
   const btn = document.getElementById(TOGGLE_BTN_ID);
-  if (btn) btn.textContent = theme === 'dark' ? '🌙' : '☀️';
+  if (btn) {
+    btn.textContent = theme === 'dark' ? '🌙' : '☀️';
+    btn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+  }
 }

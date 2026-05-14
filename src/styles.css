@@ -26,9 +26,15 @@
   --warn:         #ffa63d;
   --text:         #e8eaf0;
   --text-secondary: #d4dae8;
-  --muted:        #8b95ad;
+  --muted:        #9199b0;   /* lightened: ≥4.5:1 on --surface2 */
   --border:       #3a4456;
   --border-light: #474f60;
+
+  /* Contrast-safe tokens — WCAG AA */
+  --accent-btn:  #5957e8;   /* button bg  → white text 5.1:1  */
+  --accent-text: #8880ff;   /* text on dark surfaces → 4.7:1  */
+  --accent-chip: #9b96ff;   /* chip text on tinted bg → 5.5:1  */
+  --danger-btn:  #b8202e;   /* danger bg  → white text 4.6:1  */
 
   /* Spacing System */
   --space-xs:     4px;
@@ -60,6 +66,23 @@
   --border-light: #e8ecf7;
   --card-shadow:  0 2px 12px rgba(0,0,0,.08);
   --card-shadow-sm: 0 1px 4px rgba(0,0,0,.06);
+  --accent-btn:  #4b43e0;
+  --accent-text: #5b52e8;
+  --accent-chip: #4b43e0;   /* chip text on tinted bg → 5.5:1 on light */
+  --danger-btn:  #991926;
+}
+
+/* ── Screen-reader-only utility ── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ── Global reset ── */
@@ -189,7 +212,7 @@ header {
   flex-shrink: 0;
   transition: color .2s, border-color .2s;
 
-  &.active              { color: var(--accent); border-color: var(--accent); }
+  &.active              { color: var(--accent-text); border-color: var(--accent); }
   &:hover:not(.active)  { color: var(--text); }
 }
 
@@ -286,7 +309,7 @@ header {
   /* Status Color Cards */
   &.accent {
     border-color: var(--accent);
-    & .card-title { color: var(--accent); }
+    & .card-title { color: var(--accent-text); }
   }
 
   &.danger {
@@ -400,7 +423,7 @@ header {
    BUTTONS
 ═══════════════════════════════════════════════════ */
 .btn {
-  background: var(--accent);
+  background: var(--accent-btn);
   color: #ffffff;
   border: none;
   border-radius: var(--radius-sm);
@@ -419,7 +442,7 @@ header {
   &.sm { padding: 7px 14px; font-size: 12px; border-radius: 6px; }
   &.xs { padding: 5px 10px; font-size: 11px; border-radius: 5px; }
 
-  &.danger { background: var(--danger); }
+  &.danger { background: var(--danger-btn); }
   &.warn   { background: var(--warn); color: #000000; }
 
   &.secondary {
@@ -468,7 +491,7 @@ input, select, textarea {
   &:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: inset 0 0 0 3px rgba(108, 99, 255, 0.08);
+    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.45);
   }
 }
 
@@ -483,9 +506,21 @@ input {
   }
 
   &:invalid       { border-color: var(--danger); }
-  &:invalid:focus { box-shadow: inset 0 0 0 3px rgba(255, 77, 109, 0.08); }
+  &:invalid:focus { box-shadow: 0 0 0 3px rgba(255, 77, 109, 0.35); }
   &:valid         { border-color: var(--accent2); }
-  &:valid:focus   { box-shadow: inset 0 0 0 3px rgba(0, 212, 170, 0.08); }
+  &:valid:focus   { box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.35); }
+}
+
+/* Visible focus ring for all interactive elements (keyboard nav) */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Suppress outline on inputs/selects — they get the box-shadow ring instead */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
 }
 
 /* ═══════════════════════════════════════════════════
@@ -501,7 +536,7 @@ input {
   &.green  { background: rgba(0,212,170,.15);  color: var(--accent2); }
   &.red    { background: rgba(255,77,109,.15);  color: var(--danger); }
   &.warn   { background: rgba(255,166,61,.15);  color: var(--warn); }
-  &.purple { background: rgba(108,99,255,.15);  color: var(--accent); }
+  &.purple { background: rgba(108,99,255,.15);  color: var(--accent-chip); }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -915,8 +950,8 @@ input {
 
 /* Category tag on sub items */
 .sub-category-tag {
-  font-size: 10px;
-  color: var(--muted);
+  font-size: 11px;
+  color: var(--text-secondary);
   background: var(--surface3);
   padding: 2px 6px;
   border-radius: 3px;
@@ -2008,7 +2043,7 @@ canvas { max-width: 100%; height: auto; }
     transition: color 0.2s;
     min-width: 64px;
   }
-  .bnav-btn.active { color: var(--accent); }
+  .bnav-btn.active { color: var(--accent-text); }
   .bnav-btn svg { transition: stroke 0.2s; }
 
   /* FAB */
