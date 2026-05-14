@@ -243,6 +243,21 @@ function getRenewalDatesBetween(sub, startDate, endDate) {
 }
 
 /**
+ * Return the next renewal date (YYYY-MM-DD) for a subscription on or after today.
+ * Looks up to 2 years ahead. Returns null if none found (e.g. base date is far future).
+ *
+ * @param {object} sub - Subscription object with `date` and `frequency` fields.
+ * @returns {string|null}
+ */
+function getNextRenewal(sub) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const lookAhead = new Date(today.getFullYear() + 2, today.getMonth(), today.getDate());
+  const dates = getRenewalDatesBetween(sub, today, lookAhead);
+  return dates[0] || null;
+}
+
+/**
  * Calculate the current bi-weekly period start from state.payStart.
  * Returns YYYY-MM-DD string, or null if payStart is not configured.
  */

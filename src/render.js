@@ -452,7 +452,23 @@ function renderExpenseCards() {
     : 'no payment cards added';
 
   cards.forEach(card => {
-    const cardTotal = (card.items || []).reduce((s, i) => s + monthlyAmount(i), 0);
+    // ── Linked subscriptions: check which are due this calendar month ──
+    const now          = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth   = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    startOfMonth.setHours(0, 0, 0, 0);
+    endOfMonth.setHours(0, 0, 0, 0);
+
+    const linkedSubs = (state.subscriptions || []).filter(s => s.cardId === card.id);
+    const subData    = linkedSubs.map(sub => {
+      const renewals = getRenewalDatesBetween(sub, startOfMonth, endOfMonth);
+      return { sub, isDue: renewals.length > 0 };
+    });
+    const activeSubTotal = subData.filter(({ isDue }) => isDue)
+      .reduce((s, { sub }) => s + (+sub.amount || 0), 0);
+
+    const cardTotal = (card.items || []).reduce((s, i) => s + monthlyAmount(i), 0) + activeSubTotal;
+
     const div = document.createElement('div');
     div.className = 'card';
     div.id        = 'ecard-' + card.id;
@@ -480,6 +496,8 @@ function renderExpenseCards() {
     grid.appendChild(div);
 
     const ul = div.querySelector('#list-' + card.id);
+
+    // ── Regular expense items ──
     (card.items || []).forEach(item => {
       const li = document.createElement('li');
       li.className = 'expense-item swipeable';
@@ -495,6 +513,27 @@ function renderExpenseCards() {
           <span class="e-amount">${fmt(monthlyAmount(item))}</span>
           <button class="btn icon-btn" onclick="openEditExpenseItem('${card.id}','${item.id}')" aria-label="Edit ${item.name}">✎</button>
           <button class="btn icon-btn del" onclick="removeExpense('${card.id}','${item.id}')" aria-label="Delete ${item.name}">×</button>
+        </div>`;
+      ul.appendChild(li);
+    });
+
+    // ── Linked subscription rows (read-only) ──
+    subData.forEach(({ sub, isDue }) => {
+      const nextDate = isDue ? null : getNextRenewal(sub);
+      const nextStr  = nextDate
+        ? new Date(nextDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : '—';
+      const li = document.createElement('li');
+      li.className = `sub-linked-row${isDue ? '' : ' sub-inactive'}`;
+      li.setAttribute('aria-label', `${sub.name} subscription${isDue ? ', due this month' : ', next renewal ' + nextStr}`);
+      li.innerHTML = `
+        <div class="swipe-content">
+          <span class="sub-link-icon" aria-hidden="true">↻</span>
+          <span class="e-name">${sub.name}</span>
+          <span class="sub-freq-badge">${sub.frequency}</span>
+          ${isDue
+            ? `<span class="e-amount">${fmt(+sub.amount || 0)}</span>`
+            : `<span class="e-amount sub-next-date">Next: ${nextStr}</span>`}
         </div>`;
       ul.appendChild(li);
     });
@@ -797,6 +836,9 @@ function renderSubscriptions() {
     const amount     = +sub.amount || 0;
     const suffix     = freqLabel[sub.frequency || 'monthly'] || '/mo';
     const budgetType = sub.budgetType || 'wants';
+    const cardLabel  = sub.cardId
+      ? ((state.expenseCards || []).find(c => c.id === sub.cardId)?.label ?? '?')
+      : null;
 
     const li = document.createElement('li');
     li.className = 'sub-item swipeable';
@@ -806,6 +848,9 @@ function renderSubscriptions() {
         <span class="sub-name">${sub.name}</span>
         <span class="sub-badge ${budgetType}">${budgetType === 'needs' ? 'Needs' : 'Wants'}</span>
         <span class="sub-category-tag">${sub.category || 'Other'}</span>
+        ${cardLabel
+          ? `<span class="chip purple sub-card-chip" title="Charged to ${cardLabel}">💳 ${cardLabel}</span>`
+          : `<span class="chip warn sub-card-chip" title="No payment card linked">⚠ No card</span>`}
         <span class="sub-amount">${amount > 0 ? fmt(amount) + suffix : '—'}</span>
         <span class="sub-date">${sub.date}</span>
         <span class="chip ${chipCls}">${chipTxt}</span>

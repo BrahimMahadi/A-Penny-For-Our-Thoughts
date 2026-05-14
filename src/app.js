@@ -937,29 +937,46 @@ function _subModalBody(sub) {
     `<option value="${v}" ${v === (sub?.frequency || 'monthly') ? 'selected' : ''}>${l}</option>`
   ).join('');
 
+  const cards = state.expenseCards || [];
+  const cardOpts = cards.length
+    ? `<option value="" disabled ${!sub?.cardId ? 'selected' : ''}>Select a card…</option>` +
+      cards.map(c =>
+        `<option value="${c.id}" ${c.id === sub?.cardId ? 'selected' : ''}>${c.label}</option>`
+      ).join('')
+    : `<option value="" disabled selected>No cards added yet</option>`;
+
   return (
-    mField('Service Name', 'ms-name',   'text',   sub?.name        ?? '',     'e.g. Spotify, Netflix') +
-    mField('Cost ($)',     'ms-amount', 'number', sub?.amount      ?? '',     '0.00', 'min="0" step="0.01"') +
+    mField('Service Name', 'ms-name', 'text', sub?.name ?? '', 'e.g. Spotify, Netflix', 'oninput="checkSubDuplicate()"') +
+    mField('Cost ($)', 'ms-amount', 'number', sub?.amount ?? '', '0.00', 'min="0" step="0.01"') +
     `<div class="modal-row">
       <div class="modal-field">
-        <label>Frequency</label>
-        <select id="ms-frequency">${freqOpts}</select>
+        <label for="ms-card">Payment Card <span class="modal-required">*</span></label>
+        <select id="ms-card" onchange="checkSubDuplicate()" ${!cards.length ? 'disabled' : ''}>
+          ${cardOpts}
+        </select>
       </div>
       <div class="modal-field">
-        <label>Budget Type</label>
+        <label for="ms-budgettype">Budget Type</label>
         <select id="ms-budgettype">
           <option value="wants" ${(sub?.budgetType ?? 'wants') === 'wants' ? 'selected' : ''}>Wants</option>
           <option value="needs" ${sub?.budgetType === 'needs' ? 'selected' : ''}>Needs</option>
         </select>
       </div>
     </div>
+    <div id="ms-dup-warn" class="modal-warn" aria-live="polite"></div>
     <div class="modal-row">
       <div class="modal-field">
-        <label>Category</label>
-        <select id="ms-category">${catOpts}</select>
+        <label for="ms-frequency">Frequency</label>
+        <select id="ms-frequency">${freqOpts}</select>
       </div>
       <div class="modal-field">
-        <label>Next Renewal Date</label>
+        <label for="ms-category">Category</label>
+        <select id="ms-category">${catOpts}</select>
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label for="ms-date">Next Renewal Date</label>
         <input type="date" id="ms-date" value="${sub?.date ?? ''}" />
       </div>
     </div>`
@@ -974,14 +991,16 @@ function _readSubModal() {
     budgetType: document.getElementById('ms-budgettype').value,
     category:   document.getElementById('ms-category').value,
     date:       document.getElementById('ms-date').value,
+    cardId:     document.getElementById('ms-card').value || null,
   };
 }
 
 function openAddSubscription() {
   openModal('Add Subscription', _subModalBody(null), () => {
-    const { name, amount, frequency, budgetType, category, date } = _readSubModal();
+    const { name, amount, frequency, budgetType, category, date, cardId } = _readSubModal();
     if (!name || !date) { srAnnounce('Please enter a name and renewal date.'); return; }
-    state.subscriptions.push({ id: genId(), name, amount, frequency, date, category, budgetType });
+    if (!cardId) { srAnnounce('Please select a payment card.'); return; }
+    state.subscriptions.push({ id: genId(), name, amount, frequency, date, category, budgetType, cardId });
     saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); _scheduleIfActive(); closeModal();
   });
 }
@@ -990,9 +1009,10 @@ function openEditSubscription(id) {
   const sub = (state.subscriptions || []).find(s => s.id === id);
   if (!sub) return;
   openModal('Edit Subscription', _subModalBody(sub), () => {
-    const { name, amount, frequency, budgetType, category, date } = _readSubModal();
+    const { name, amount, frequency, budgetType, category, date, cardId } = _readSubModal();
     if (!name || !date) return;
-    Object.assign(sub, { name, amount, frequency, date, category, budgetType });
+    if (!cardId) { srAnnounce('Please select a payment card.'); return; }
+    Object.assign(sub, { name, amount, frequency, date, category, budgetType, cardId });
     saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); _scheduleIfActive(); closeModal();
   });
 }
@@ -1001,6 +1021,37 @@ function deleteSubscription(id) {
   if (!confirm('Remove this subscription?')) return;
   state.subscriptions = state.subscriptions.filter(s => s.id !== id);
   saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); _scheduleIfActive();
+}
+
+/**
+ * Called oninput/onchange in the subscription modal.
+ * Warns if the subscription name closely matches an item already on the selected card.
+ */
+function checkSubDuplicate() {
+  const warn    = document.getElementById('ms-dup-warn');
+  const cardSel = document.getElementById('ms-card');
+  const nameEl  = document.getElementById('ms-name');
+  if (!warn || !cardSel || !nameEl) return;
+
+  const cardId = cardSel.value;
+  const name   = nameEl.value.trim().toLowerCase();
+  if (!cardId || !name) { warn.textContent = ''; warn.hidden = true; return; }
+
+  const card  = (state.expenseCards || []).find(c => c.id === cardId);
+  if (!card)  { warn.textContent = ''; warn.hidden = true; return; }
+
+  const match = (card.items || []).find(item => {
+    const itemName = (item.name || '').toLowerCase();
+    return itemName.includes(name) || name.includes(itemName);
+  });
+
+  if (match) {
+    warn.textContent = `⚠ "${match.name}" already exists on this card — linking may cause double-counting.`;
+    warn.hidden = false;
+  } else {
+    warn.textContent = '';
+    warn.hidden = true;
+  }
 }
 
 // ────────────────────────────────────────────────────────────────

@@ -33,7 +33,7 @@ const DEFAULT_STATE = {
   ],
 
   subscriptions: [
-    { id: genId(), name: 'Netflix', amount: 0, frequency: 'monthly', date: '2026-06-01', category: 'Entertainment', budgetType: 'wants' },
+    { id: genId(), name: 'Netflix', amount: 0, frequency: 'monthly', date: '2026-06-01', category: 'Entertainment', budgetType: 'wants', cardId: null },
   ],
 
   wishlist: [
@@ -133,6 +133,7 @@ function loadFromStorage() {
       if (!sub.frequency)              sub.frequency  = 'monthly';
       if (!sub.category)               sub.category   = 'Other';
       if (!sub.budgetType)             sub.budgetType = 'wants';
+      if (sub.cardId    === undefined) sub.cardId     = null;
     });
   }
 

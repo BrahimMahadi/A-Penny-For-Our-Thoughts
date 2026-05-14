@@ -958,6 +958,43 @@ textarea:focus-visible {
   white-space: nowrap;
 }
 
+/* ── Subscription rows embedded in expense cards ── */
+.sub-linked-row {
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: rgba(108, 99, 255, .08);
+  border-left: 2px solid var(--accent-chip);
+  gap: 6px;
+
+  & .sub-link-icon { color: var(--accent-chip); font-size: 12px; flex-shrink: 0; }
+  & .e-name        { flex: 1; font-size: 12px; font-style: italic; color: var(--text-secondary); }
+  & .e-amount      { font-size: 12px; font-weight: 600; min-width: 64px; text-align: right; }
+  & .sub-next-date { font-size: 11px; color: var(--muted); font-weight: 400; min-width: 80px; text-align: right; }
+}
+
+.sub-freq-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--accent-chip);
+  background: rgba(108, 99, 255, .12);
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.sub-linked-row.sub-inactive {
+  opacity: 0.55;
+  border-left-color: var(--border);
+  & .sub-link-icon { color: var(--muted); }
+}
+
+/* Card chip inside subscription list */
+.sub-card-chip { font-size: 10px; }
+
 /* ── Payday anchor line in Wants card ── */
 .payday-anchor-line {
   display: flex;
@@ -1242,6 +1279,24 @@ textarea:focus-visible {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
+  }
+
+  & .modal-warn {
+    font-size: 12px;
+    color: #b8800a;
+    background: rgba(255, 165, 0, .12);
+    border: 1px solid rgba(255, 165, 0, .3);
+    border-radius: 6px;
+    padding: 8px 12px;
+    line-height: 1.5;
+
+    &:empty, &[hidden] { display: none; }
+  }
+
+  & .modal-required {
+    color: var(--danger);
+    font-size: 11px;
+    margin-left: 2px;
   }
 }
 
