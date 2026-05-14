@@ -230,6 +230,9 @@
       </div>
     </div>
 
+    <!-- Budget alert chips (hidden when no alerts are triggered) -->
+    <div class="wants-alert-chips" id="wants-alert-chips" style="display:none"></div>
+
     <!-- Payday anchor line -->
     <div class="payday-anchor-line" id="payday-anchor-line"></div>
 
@@ -251,8 +254,12 @@
           <button class="btn sm" onclick="addPurchase()">Add</button>
           <button class="btn sm danger" onclick="resetWants()">Reset Period</button>
         </div>
+        <!-- Live rule match preview shown as user types a purchase name -->
+        <div id="purchase-cat-preview" style="min-height:18px;margin-top:4px"></div>
         <!-- Subscription deductions breakdown (shown when payStart configured + subs due) -->
         <div id="wants-sub-breakdown" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div>
+        <!-- Category spending breakdown (shown when purchases exist) -->
+        <div id="purchase-cat-breakdown" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div>
       </div>
     </div>
 
@@ -519,6 +526,36 @@
     <button class="btn sm secondary" onclick="openAddSubscription()" style="margin-top:12px">+ Add Subscription</button>
   </div>
 
+
+  <!-- ── Spending Rules & Budget Alerts ── -->
+  <div class="section-title">Spending Rules &amp; Budget Alerts</div>
+  <div class="grid grid-2" style="margin-bottom:16px">
+
+    <!-- Spending Rules -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <div class="card-title">Auto-Category Rules</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Match purchase names → assign category automatically</div>
+        </div>
+        <button class="btn sm secondary" onclick="openAddRule()">+ Add Rule</button>
+      </div>
+      <div id="rules-list"></div>
+    </div>
+
+    <!-- Budget Alerts -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <div class="card-title">Budget Alerts</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Get a warning chip when spending in a category exceeds a threshold</div>
+        </div>
+        <button class="btn sm secondary" onclick="openAddAlert()">+ Add Alert</button>
+      </div>
+      <div id="budget-alerts-list"></div>
+    </div>
+
+  </div>
 
   <!-- ── Wishlist ── -->
   <div class="section-title">Upcoming Wants / Wishlist</div>

@@ -199,15 +199,38 @@ function addPurchase() {
   const name   = document.getElementById('purchase-name').value.trim();
   const amount = parseFloat(document.getElementById('purchase-amount').value);
   if (!name || isNaN(amount) || amount <= 0) return;
-  state.purchases.push({ id: genId(), name, amount });
+  const category = applyRulesToName(name) || 'Other';
+  state.purchases.push({ id: genId(), name, amount, category });
   document.getElementById('purchase-name').value   = '';
   document.getElementById('purchase-amount').value = '';
+  // Clear preview
+  const preview = document.getElementById('purchase-cat-preview');
+  if (preview) preview.innerHTML = '';
   saveToStorage(); renderAll();
 }
 
 function removePurchase(id) {
   state.purchases = state.purchases.filter(p => p.id !== id);
   saveToStorage(); renderAll();
+}
+
+/** Manually override the category of a current-period purchase */
+function setPurchaseCategory(id, category) {
+  const p = (state.purchases || []).find(p => p.id === id);
+  if (!p) return;
+  p.category = category;
+  saveToStorage(); renderPurchaseList(); renderWants();
+}
+
+/** Re-apply all rules to current-period purchases (non-destructive: only sets if a rule matches) */
+function reapplyRulesToPurchases() {
+  let changed = 0;
+  (state.purchases || []).forEach(p => {
+    const matched = applyRulesToName(p.name);
+    if (matched && p.category !== matched) { p.category = matched; changed++; }
+  });
+  if (changed) { saveToStorage(); renderPurchaseList(); renderWants(); }
+  return changed;
 }
 
 /**
@@ -753,6 +776,136 @@ function openSetPayStart() {
 }
 
 // ────────────────────────────────────────────────────────────────
+// TRANSACTION RULES — CRUD
+// ────────────────────────────────────────────────────────────────
+function _ruleCatOpts(selected) {
+  return WANT_CATEGORIES
+    .map(c => `<option value="${c}" ${c === selected ? 'selected' : ''}>${c}</option>`)
+    .join('');
+}
+
+function _ruleModalBody(rule) {
+  const matchOpts = [
+    ['contains',   'Contains (default)'],
+    ['startsWith', 'Starts With'],
+    ['exact',      'Exact Match'],
+  ].map(([v, l]) => `<option value="${v}" ${v === (rule?.matchType || 'contains') ? 'selected' : ''}>${l}</option>`).join('');
+
+  return (
+    mField('Keyword / Pattern', 'rule-pattern', 'text', rule?.pattern ?? '', 'e.g. tim hortons, netflix') +
+    `<div class="modal-row">
+      <div class="modal-field">
+        <label>Match Type</label>
+        <select id="rule-matchtype">${matchOpts}</select>
+      </div>
+      <div class="modal-field">
+        <label>Category</label>
+        <select id="rule-category">${_ruleCatOpts(rule?.category ?? 'Other')}</select>
+      </div>
+    </div>`
+  );
+}
+
+function _readRuleModal() {
+  return {
+    pattern:   document.getElementById('rule-pattern').value.trim().toLowerCase(),
+    matchType: document.getElementById('rule-matchtype').value,
+    category:  document.getElementById('rule-category').value,
+  };
+}
+
+function openAddRule() {
+  openModal('Add Spending Rule', _ruleModalBody(null), () => {
+    const { pattern, matchType, category } = _readRuleModal();
+    if (!pattern) { alert('Please enter a keyword or pattern.'); return; }
+    if (!state.rules) state.rules = [];
+    state.rules.push({ id: genId(), pattern, matchType, category });
+    saveToStorage(); renderRules(); closeModal();
+    // Offer retroactive apply to current period
+    if ((state.purchases || []).length > 0) {
+      const changed = reapplyRulesToPurchases();
+      // reapplyRulesToPurchases already re-renders if anything changed
+    }
+  });
+}
+
+function openEditRule(id) {
+  const rule = (state.rules || []).find(r => r.id === id);
+  if (!rule) return;
+  openModal('Edit Rule', _ruleModalBody(rule), () => {
+    const { pattern, matchType, category } = _readRuleModal();
+    if (!pattern) return;
+    Object.assign(rule, { pattern, matchType, category });
+    saveToStorage(); renderRules(); closeModal();
+    reapplyRulesToPurchases();
+  });
+}
+
+function deleteRule(id) {
+  if (!confirm('Delete this rule?')) return;
+  state.rules = (state.rules || []).filter(r => r.id !== id);
+  saveToStorage(); renderRules();
+}
+
+// ────────────────────────────────────────────────────────────────
+// BUDGET ALERTS — CRUD
+// ────────────────────────────────────────────────────────────────
+function openAddAlert() {
+  openModal(
+    'Add Budget Alert',
+    `<div class="modal-field">
+      <label>Category</label>
+      <select id="alert-category">${_ruleCatOpts('Food & Drink')}</select>
+    </div>` +
+    mField('Threshold ($)', 'alert-threshold', 'number', '', '0.00', 'min="0.01" step="0.01"') +
+    `<div style="font-size:12px;color:var(--muted);margin-top:12px;padding:10px;background:var(--surface);border-radius:6px;border-left:3px solid var(--warn)">
+      ⚠ A warning chip appears in the Wants card when spending in this category exceeds the threshold during the current bi-weekly period.
+    </div>`,
+    () => {
+      const category  = document.getElementById('alert-category').value;
+      const threshold = parseFloat(document.getElementById('alert-threshold').value);
+      if (isNaN(threshold) || threshold <= 0) { alert('Please enter a valid threshold amount.'); return; }
+      if (!state.budgetAlerts) state.budgetAlerts = [];
+      if (state.budgetAlerts.some(a => a.category === category)) {
+        alert(`An alert for "${category}" already exists. Edit the existing one instead.`);
+        return;
+      }
+      state.budgetAlerts.push({ id: genId(), category, threshold });
+      saveToStorage(); renderBudgetAlerts(); renderWants(); closeModal();
+    }
+  );
+}
+
+function openEditAlert(id) {
+  const alertItem = (state.budgetAlerts || []).find(a => a.id === id);
+  if (!alertItem) return;
+  openModal(
+    'Edit Budget Alert',
+    `<div class="modal-field">
+      <label>Category</label>
+      <select id="alert-category">${_ruleCatOpts(alertItem.category)}</select>
+    </div>` +
+    mField('Threshold ($)', 'alert-threshold', 'number', alertItem.threshold, '0.00', 'min="0.01" step="0.01"'),
+    () => {
+      const category  = document.getElementById('alert-category').value;
+      const threshold = parseFloat(document.getElementById('alert-threshold').value);
+      if (isNaN(threshold) || threshold <= 0) return;
+      // Check for duplicate (allow same category if it's the same alert being edited)
+      const duplicate = (state.budgetAlerts || []).find(a => a.category === category && a.id !== id);
+      if (duplicate) { alert(`An alert for "${category}" already exists.`); return; }
+      Object.assign(alertItem, { category, threshold });
+      saveToStorage(); renderBudgetAlerts(); renderWants(); closeModal();
+    }
+  );
+}
+
+function deleteAlert(id) {
+  if (!confirm('Delete this alert?')) return;
+  state.budgetAlerts = (state.budgetAlerts || []).filter(a => a.id !== id);
+  saveToStorage(); renderBudgetAlerts(); renderWants();
+}
+
+// ────────────────────────────────────────────────────────────────
 // WISHLIST — CRUD
 // ────────────────────────────────────────────────────────────────
 function addWishlistItem() {
@@ -868,17 +1021,17 @@ function exportCsv() {
   });
   rows.push('');
 
-  rows.push('SECTION:purchases', 'id,name,amount');
-  (state.purchases || []).forEach(p => rows.push(`${e(p.id)},${e(p.name)},${p.amount}`));
+  rows.push('SECTION:purchases', 'id,name,amount,category');
+  (state.purchases || []).forEach(p => rows.push(`${e(p.id)},${e(p.name)},${p.amount},${e(p.category || 'Other')}`));
   rows.push('');
 
-  rows.push('SECTION:spendingHistory', 'periodId,periodDate,periodLabel,periodTotal,purchaseId,purchaseName,purchaseAmount');
+  rows.push('SECTION:spendingHistory', 'periodId,periodDate,periodLabel,periodTotal,purchaseId,purchaseName,purchaseAmount,purchaseCategory');
   (state.spendingHistory || []).forEach(period => {
     if (!(period.items || []).length) {
-      rows.push(`${e(period.id)},${e(period.date)},${e(period.label)},${period.total},,,`);
+      rows.push(`${e(period.id)},${e(period.date)},${e(period.label)},${period.total},,,,`);
     } else {
       period.items.forEach(p =>
-        rows.push(`${e(period.id)},${e(period.date)},${e(period.label)},${period.total},${e(p.id)},${e(p.name)},${p.amount}`)
+        rows.push(`${e(period.id)},${e(period.date)},${e(period.label)},${period.total},${e(p.id)},${e(p.name)},${p.amount},${e(p.category || 'Other')}`)
       );
     }
   });
@@ -920,6 +1073,14 @@ function exportCsv() {
   (state.netWorthHistory || []).forEach(h =>
     rows.push(`${e(h.id)},${h.date},${h.netWorth},${h.totalAssets},${h.totalLiabilities}`)
   );
+  rows.push('');
+
+  rows.push('SECTION:rules', 'id,pattern,matchType,category');
+  (state.rules || []).forEach(r => rows.push(`${e(r.id)},${e(r.pattern)},${e(r.matchType)},${e(r.category)}`));
+  rows.push('');
+
+  rows.push('SECTION:budgetAlerts', 'id,category,threshold');
+  (state.budgetAlerts || []).forEach(a => rows.push(`${e(a.id)},${e(a.category)},${a.threshold}`));
   rows.push('');
 
   const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -1009,15 +1170,15 @@ function parseCsv(text) {
 
       case 'purchases':
         if (!parsed.purchases) parsed.purchases = [];
-        parsed.purchases.push({ id: vals[0], name: vals[1], amount: +vals[2] });
+        parsed.purchases.push({ id: vals[0], name: vals[1], amount: +vals[2], category: vals[3] || 'Other' });
         break;
 
       case 'spendingHistory': {
         if (!parsed.spendingHistory) parsed.spendingHistory = [];
-        const [pId, pDate, pLabel, pTotal, purchId, purchName, purchAmt] = vals;
+        const [pId, pDate, pLabel, pTotal, purchId, purchName, purchAmt, purchCat] = vals;
         let period = parsed.spendingHistory.find(p => p.id === pId);
         if (!period) { period = { id: pId, date: pDate, label: pLabel, total: +pTotal, items: [] }; parsed.spendingHistory.push(period); }
-        if (purchId && purchName) period.items.push({ id: purchId, name: purchName, amount: +purchAmt });
+        if (purchId && purchName) period.items.push({ id: purchId, name: purchName, amount: +purchAmt, category: purchCat || 'Other' });
         break;
       }
 
@@ -1078,6 +1239,16 @@ function parseCsv(text) {
         if (!parsed.netWorthHistory) parsed.netWorthHistory = [];
         parsed.netWorthHistory.push({ id: vals[0], date: vals[1], netWorth: +vals[2], totalAssets: +vals[3], totalLiabilities: +vals[4] });
         break;
+
+      case 'rules':
+        if (!parsed.rules) parsed.rules = [];
+        parsed.rules.push({ id: vals[0], pattern: vals[1], matchType: vals[2], category: vals[3] });
+        break;
+
+      case 'budgetAlerts':
+        if (!parsed.budgetAlerts) parsed.budgetAlerts = [];
+        parsed.budgetAlerts.push({ id: vals[0], category: vals[1], threshold: +vals[2] });
+        break;
     }
   }
 
@@ -1096,6 +1267,8 @@ function parseCsv(text) {
   if (!parsed.assets)            parsed.assets             = [];
   if (!parsed.netWorthHistory)   parsed.netWorthHistory    = [];
   if (parsed.payStart === undefined) parsed.payStart       = null;
+  if (!parsed.rules)             parsed.rules              = [];
+  if (!parsed.budgetAlerts)      parsed.budgetAlerts       = [];
 
   return parsed;
 }
@@ -1108,6 +1281,19 @@ document.getElementById('purchase-name').addEventListener('keydown', e => {
 });
 document.getElementById('purchase-amount').addEventListener('keydown', e => {
   if (e.key === 'Enter') addPurchase();
+});
+
+// Live category preview — shows matched rule as user types the purchase name
+document.getElementById('purchase-name').addEventListener('input', function () {
+  const matched = applyRulesToName(this.value);
+  const preview = document.getElementById('purchase-cat-preview');
+  if (!preview) return;
+  if (matched && this.value.trim()) {
+    const colour = CATEGORY_COLOURS[matched] || '#8b95ad';
+    preview.innerHTML = `<span style="color:${colour};font-size:11px;font-weight:700;padding:2px 0">→ ${matched}</span>`;
+  } else {
+    preview.innerHTML = '';
+  }
 });
 
 // ────────────────────────────────────────────────────────────────

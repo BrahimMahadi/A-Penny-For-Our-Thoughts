@@ -18,6 +18,32 @@
 ═══════════════════════════════════════════════════════════════ */
 
 // ────────────────────────────────────────────────────────────────
+// TRANSACTION RULES ENGINE — CONSTANTS
+// ────────────────────────────────────────────────────────────────
+
+/** Fixed category list used by the TRE and UI dropdowns */
+const WANT_CATEGORIES = [
+  'Food & Drink',
+  'Groceries',
+  'Entertainment',
+  'Shopping',
+  'Health & Fitness',
+  'Transportation',
+  'Other',
+];
+
+/** Per-category display colour (hex) */
+const CATEGORY_COLOURS = {
+  'Food & Drink':    '#ff8c42',
+  'Groceries':       '#00d4aa',
+  'Entertainment':   '#a78bfa',
+  'Shopping':        '#60a5fa',
+  'Health & Fitness':'#34d399',
+  'Transportation':  '#fbbf24',
+  'Other':           '#8b95ad',
+};
+
+// ────────────────────────────────────────────────────────────────
 // INCOME & BUDGET
 // ────────────────────────────────────────────────────────────────
 
@@ -504,13 +530,63 @@ function getFilteredSpendingHistory() {
 }
 
 /**
- * Aggregate spending by purchase name across filtered history.
+ * Aggregate spending by category across filtered history.
+ * Falls back to purchase name for items without a category.
  * Returns top 10 sorted by total descending.
  */
 function getTopCategories(filteredHistory) {
   const catMap = {};
   (filteredHistory || []).forEach(period => {
-    (period.items || []).forEach(p => { catMap[p.name] = (catMap[p.name] || 0) + +p.amount; });
+    (period.items || []).forEach(p => {
+      const key = p.category || p.name;
+      catMap[key] = (catMap[key] || 0) + +p.amount;
+    });
   });
   return Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+}
+
+// ────────────────────────────────────────────────────────────────
+// TRANSACTION RULES ENGINE — LOGIC
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Match a purchase name against the rules list.
+ * Returns the category of the first matching rule, or null if none match.
+ */
+function applyRulesToName(name) {
+  const lower = (name || '').toLowerCase().trim();
+  for (const rule of (state.rules || [])) {
+    const pattern = (rule.pattern || '').toLowerCase();
+    if (!pattern) continue;
+    let match = false;
+    if      (rule.matchType === 'exact')      match = lower === pattern;
+    else if (rule.matchType === 'startsWith') match = lower.startsWith(pattern);
+    else                                      match = lower.includes(pattern); // 'contains' (default)
+    if (match) return rule.category;
+  }
+  return null;
+}
+
+/**
+ * Aggregate spending by category for a set of purchases.
+ * Returns a plain object: { 'Food & Drink': 45.50, ... }
+ */
+function getCategorySpending(purchases) {
+  const map = {};
+  (purchases || []).forEach(p => {
+    const cat = p.category || 'Other';
+    map[cat] = (map[cat] || 0) + +p.amount;
+  });
+  return map;
+}
+
+/**
+ * Return all budget alerts that have been exceeded in the current period.
+ * Each returned item is the alert object augmented with `spent`.
+ */
+function getTriggeredAlerts() {
+  const spending = getCategorySpending(state.purchases || []);
+  return (state.budgetAlerts || [])
+    .map(alert => ({ ...alert, spent: spending[alert.category] || 0 }))
+    .filter(a => a.spent > a.threshold);
 }
