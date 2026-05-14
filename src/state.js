@@ -23,38 +23,26 @@ const DEFAULT_STATE = {
   spendingHistory: [],
 
   loans: [
-    { id: genId(), name: 'Car Loan',      remaining: 15172,  original: 23083   },
-    { id: genId(), name: 'Student Loans', remaining: 9641,   original: 11338   },
-    { id: genId(), name: 'Phone Loan',    remaining: 919.44, original: 1298.07 },
+    { id: genId(), name: 'Car Loan',     remaining: 0, original: 0 },
+    { id: genId(), name: 'Student Loan', remaining: 0, original: 0 },
   ],
 
   creditCards: [
-    { id: genId(), name: 'TD Small CC (9602)',    balance: 828.94, limit: 1000 },
-    { id: genId(), name: 'TD Big CC (1252)',       balance: 817.60, limit: 2500 },
-    { id: genId(), name: 'WealthSimple CC (1083)', balance: 231,   limit: 2000 },
+    { id: genId(), name: 'Visa',       balance: 0, limit: 1000 },
+    { id: genId(), name: 'Mastercard', balance: 0, limit: 1000 },
   ],
 
   subscriptions: [
-    { id: genId(), name: 'Usenet Provider', amount: 13.99, frequency: 'monthly',  date: '2026-09-13', category: 'Utilities',    budgetType: 'wants' },
-    { id: genId(), name: 'Real Debrid',     amount: 4.99,  frequency: 'monthly',  date: '2026-09-22', category: 'Entertainment', budgetType: 'wants' },
-    { id: genId(), name: 'IPVanish',        amount: 89.99, frequency: 'annual',   date: '2027-04-17', category: 'Productivity',  budgetType: 'wants' },
+    { id: genId(), name: 'Netflix', amount: 0, frequency: 'monthly', date: '2026-06-01', category: 'Entertainment', budgetType: 'wants' },
   ],
 
   wishlist: [
-    { id: genId(), icon: '💻', name: 'MacBook Pro 14" M5 Pro — Space Black, Nano-texture', url: 'https://www.apple.com/ca/shop/buy-mac/macbook-pro' },
-    { id: genId(), icon: '🪑', name: 'Herman Miller Embody Gaming Chair', url: 'https://store.hermanmiller.com/gaming-chairs/embody-gaming-chair/100206608.html' },
-    { id: genId(), icon: '🔊', name: 'Sennheiser AMBEO Soundbar + Subwoofer', url: 'https://www.amazon.ca/dp/B0B9CBWD95' },
-    { id: genId(), icon: '🎬', name: 'Valencia Home Theatre Seating', url: 'https://ca.valenciatheaterseating.com/collections/home-theater-seating' },
-    { id: genId(), icon: '📺', name: 'LG TV Extended Warranty', url: 'https://www.lgcanadaparts.com/extendedwarranties' },
+    { id: genId(), icon: '🎯', name: 'My first wishlist item', url: '' },
   ],
 
   savingsAccounts: [
-    { id: genId(), name: 'CC Payments',   balance: 500,   defaultAllocated: 135,   monthlyAllocations: {} },
-    { id: genId(), name: 'Crypto',        balance: 2000,  defaultAllocated: 135,   monthlyAllocations: {} },
-    { id: genId(), name: 'FHSA',          balance: 5000,  defaultAllocated: 135,   monthlyAllocations: {} },
-    { id: genId(), name: 'TFSA',          balance: 25000, defaultAllocated: 135,   monthlyAllocations: {} },
-    { id: genId(), name: 'USD Savings',   balance: 3000,  defaultAllocated: 67.50, monthlyAllocations: {} },
-    { id: genId(), name: 'Life with B&S', balance: 1200,  defaultAllocated: 67.50, monthlyAllocations: {} },
+    { id: genId(), name: 'Emergency Fund', balance: 0, defaultAllocated: 0, monthlyAllocations: {} },
+    { id: genId(), name: 'Investments',    balance: 0, defaultAllocated: 0, monthlyAllocations: {} },
   ],
 
   goals:          [],
