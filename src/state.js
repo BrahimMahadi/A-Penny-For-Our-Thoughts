@@ -67,6 +67,32 @@ const DEFAULT_STATE = {
   budgetAlerts: [], // [{ id, category, threshold }]
 };
 
+/**
+ * Truly empty state used by clearAllData().
+ * Same shape as DEFAULT_STATE but every collection is an empty array
+ * and numeric fields are zeroed. Keeps the 50/30/20 allocation as a
+ * sensible starting point so the dashboard is usable immediately.
+ */
+const BLANK_STATE = {
+  allocation:        { needs: 50, wants: 30, savings: 20 },
+  budgetDisplayMode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
+  incomeStreams:    [],
+  expenseCards:     [],
+  purchases:        [],
+  spendingHistory:  [],
+  loans:            [],
+  creditCards:      [],
+  subscriptions:    [],
+  wishlist:         [],
+  savingsAccounts:  [],
+  goals:            [],
+  assets:           [],
+  netWorthHistory:  [],
+  payStart:         null,
+  rules:            [],
+  budgetAlerts:     [],
+};
+
 // ────────────────────────────────────────────────────────────────
 // MODULE-LEVEL STATE
 // ────────────────────────────────────────────────────────────────
