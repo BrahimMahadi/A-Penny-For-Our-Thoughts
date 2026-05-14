@@ -931,6 +931,7 @@ function _subModalBody(sub) {
   const freqOpts = [
     ['monthly',   'Monthly'],
     ['quarterly', 'Quarterly'],
+    ['bi-yearly', 'Bi-Yearly'],
     ['annual',    'Annual'],
   ].map(([v, l]) =>
     `<option value="${v}" ${v === (sub?.frequency || 'monthly') ? 'selected' : ''}>${l}</option>`

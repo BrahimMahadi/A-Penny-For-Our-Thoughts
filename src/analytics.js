@@ -218,6 +218,25 @@ function getRenewalDatesBetween(sub, startDate, endDate) {
       if (+next === +candidate) break; // safety break against infinite loop
       candidate = next;
     }
+
+  } else if (frequency === 'bi-yearly') {
+    // Every 6 months from baseDate
+    let candidate = new Date(baseDate);
+    // Fast-forward to vicinity of startDate to avoid needless iterations
+    const monthsDiff = (startDate.getFullYear() - baseDate.getFullYear()) * 12
+                     + (startDate.getMonth() - baseDate.getMonth());
+    if (monthsDiff > 6) {
+      const steps = Math.floor(monthsDiff / 6) - 1;
+      candidate   = new Date(baseDate.getFullYear(), baseDate.getMonth() + steps * 6, baseDate.getDate());
+    }
+    while (candidate <= endDate) {
+      if (candidate >= startDate) {
+        results.push(candidate.toISOString().split('T')[0]);
+      }
+      const next = new Date(candidate.getFullYear(), candidate.getMonth() + 6, candidate.getDate());
+      if (+next === +candidate) break; // safety break against infinite loop
+      candidate = next;
+    }
   }
 
   return results;

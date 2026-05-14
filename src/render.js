@@ -788,7 +788,7 @@ function renderSubscriptions() {
   const ul     = document.getElementById('sub-list');
   ul.innerHTML = '';
 
-  const freqLabel = { monthly: '/mo', quarterly: '/qtr', annual: '/yr' };
+  const freqLabel = { monthly: '/mo', quarterly: '/qtr', 'bi-yearly': '/6mo', annual: '/yr' };
 
   [...(state.subscriptions || [])].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(sub => {
     const days       = daysUntil(sub.date);
@@ -816,7 +816,7 @@ function renderSubscriptions() {
   });
 
   // ── Totals by budget type ─────────────────────────────────────
-  const moRate = { monthly: 1, quarterly: 1 / 3, annual: 1 / 12 };
+  const moRate = { monthly: 1, quarterly: 1 / 3, 'bi-yearly': 1 / 6, annual: 1 / 12 };
   const wantsMo = (state.subscriptions || [])
     .filter(s => (s.budgetType || 'wants') !== 'needs')
     .reduce((sum, s) => sum + (+s.amount || 0) * (moRate[s.frequency || 'monthly'] ?? 1), 0);
