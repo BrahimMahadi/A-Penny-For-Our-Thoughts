@@ -618,7 +618,27 @@
 <div id="tab-docs" class="page" role="tabpanel" aria-labelledby="tab-btn-docs">
   <div class="docs-layout">
 
-    <!-- ── Sidebar nav ── -->
+    <!-- ── Mobile dropdown (≤768px only) ── -->
+    <div class="docs-mobile-dropdown" id="docs-mobile-dropdown">
+      <button class="docs-dropdown-trigger" id="docs-dropdown-trigger"
+              onclick="toggleDocsDropdown()"
+              aria-haspopup="true" aria-expanded="false"
+              aria-label="Select documentation section">
+        <span id="docs-dropdown-label">📖 User Guide</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14" aria-hidden="true" id="docs-dropdown-chevron">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <div class="docs-dropdown-list" id="docs-dropdown-list" hidden role="menu">
+        <button role="menuitem" onclick="switchDocsSection('user-guide')"    data-doc="user-guide">📖 User Guide</button>
+        <button role="menuitem" onclick="switchDocsSection('release-notes')" data-doc="release-notes">🚀 Release Notes</button>
+        <button role="menuitem" onclick="switchDocsSection('faq')"           data-doc="faq">❓ FAQ</button>
+        <button role="menuitem" onclick="switchDocsSection('privacy')"       data-doc="privacy">🔒 Privacy &amp; Data</button>
+        <button role="menuitem" onclick="switchDocsSection('csv-reference')" data-doc="csv-reference">📋 CSV Reference</button>
+      </div>
+    </div>
+
+    <!-- ── Sidebar nav (>768px only) ── -->
     <nav class="docs-sidebar" aria-label="Documentation sections">
       <button class="docs-nav-btn active" onclick="switchDocsSection('user-guide')"    data-doc="user-guide">📖 User Guide</button>
       <button class="docs-nav-btn"        onclick="switchDocsSection('release-notes')" data-doc="release-notes">🚀 Release Notes</button>

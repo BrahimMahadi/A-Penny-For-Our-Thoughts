@@ -36,18 +36,50 @@ let scheduleViewMonth = _now.getMonth() + 1;  // 1-based
 // TABS
 // ────────────────────────────────────────────────────────────────
 /**
- * Switch between documentation sections (User Guide, Release Notes, etc.)
+ * Switch between documentation sections (User Guide, Release Notes, etc.).
+ * Updates the sidebar nav, the mobile dropdown label, and shows/hides sections.
  * @param {string} sectionId - The data-doc value of the target section
  */
 function switchDocsSection(sectionId) {
+  // Sidebar buttons
   document.querySelectorAll('.docs-nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.doc === sectionId);
   });
+  // Sections
   document.querySelectorAll('.docs-section').forEach(sec => {
     const isTarget = sec.id === 'doc-' + sectionId;
     sec.classList.toggle('active', isTarget);
     sec.hidden = !isTarget;
   });
+  // Mobile dropdown — update label and close
+  const menuItem = document.querySelector(`#docs-dropdown-list [data-doc="${sectionId}"]`);
+  const label    = document.getElementById('docs-dropdown-label');
+  if (menuItem && label) label.textContent = menuItem.textContent;
+  _closeDocsDropdown();
+}
+
+/**
+ * Toggle the mobile docs section dropdown open/closed.
+ */
+function toggleDocsDropdown() {
+  const list    = document.getElementById('docs-dropdown-list');
+  const trigger = document.getElementById('docs-dropdown-trigger');
+  const chevron = document.getElementById('docs-dropdown-chevron');
+  if (!list) return;
+  const opening = list.hidden;
+  list.hidden   = !opening;
+  trigger?.setAttribute('aria-expanded', opening ? 'true' : 'false');
+  if (chevron) chevron.style.transform = opening ? 'rotate(180deg)' : '';
+}
+
+function _closeDocsDropdown() {
+  const list    = document.getElementById('docs-dropdown-list');
+  const trigger = document.getElementById('docs-dropdown-trigger');
+  const chevron = document.getElementById('docs-dropdown-chevron');
+  if (!list || list.hidden) return;
+  list.hidden = true;
+  trigger?.setAttribute('aria-expanded', 'false');
+  if (chevron) chevron.style.transform = '';
 }
 
 function switchTab(tab) {
@@ -85,6 +117,7 @@ function toggleOverflowMenu() {
 
 // Close overflow menu when clicking outside
 document.addEventListener('click', e => {
+  // Close overflow menu on outside click
   const wrap = document.getElementById('overflow-wrap');
   if (wrap && !wrap.contains(e.target)) {
     const dd = document.getElementById('overflow-dropdown');
@@ -92,6 +125,11 @@ document.addEventListener('click', e => {
       dd.classList.remove('open');
       document.getElementById('overflow-btn')?.setAttribute('aria-expanded', 'false');
     }
+  }
+  // Close docs dropdown on outside click
+  const docsDropdown = document.getElementById('docs-mobile-dropdown');
+  if (docsDropdown && !docsDropdown.contains(e.target)) {
+    _closeDocsDropdown();
   }
 });
 
