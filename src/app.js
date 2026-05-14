@@ -97,6 +97,15 @@ document.addEventListener('click', () => {
 // ────────────────────────────────────────────────────────────────
 // MODAL SYSTEM
 // ────────────────────────────────────────────────────────────────
+/**
+ * Open the shared modal overlay and populate it with a title, body HTML,
+ * and a save callback.
+ *
+ * @param {string}   title    - Text rendered in the modal header.
+ * @param {string}   bodyHTML - Inner HTML injected into `#modal-body`.
+ * @param {Function} onSave   - Callback bound to the Save button's `onclick`.
+ * @returns {void}
+ */
 function openModal(title, bodyHTML, onSave) {
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML    = bodyHTML;
@@ -104,15 +113,38 @@ function openModal(title, bodyHTML, onSave) {
   document.getElementById('modal-overlay').classList.add('active');
 }
 
+/**
+ * Close the shared modal overlay by removing the `active` class.
+ *
+ * @returns {void}
+ */
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('active');
 }
 
+/**
+ * Close the modal when the user clicks the dark overlay backdrop
+ * (but not when clicking the modal card itself).
+ *
+ * @param {MouseEvent} e
+ * @returns {void}
+ */
 function handleOverlayClick(e) {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
 }
 
-/** Build a labelled modal input field as an HTML string */
+/**
+ * Build a labelled modal form field as an HTML string.
+ * Produces a `<div class="modal-field">` containing a `<label>` and `<input>`.
+ *
+ * @param {string}  label      - Human-readable label text.
+ * @param {string}  id         - The `id` attribute on the `<input>`.
+ * @param {string}  type       - Input type (e.g. `'text'`, `'number'`, `'date'`).
+ * @param {*}       value      - Pre-filled input value (coerced to string).
+ * @param {string}  [placeholder=''] - Placeholder text.
+ * @param {string}  [extraAttrs='']  - Additional HTML attribute string (e.g. `'min="0" max="100"'`).
+ * @returns {string} HTML string for the field.
+ */
 function mField(label, id, type, value, placeholder, extraAttrs) {
   return `
     <div class="modal-field">
@@ -1018,7 +1050,18 @@ function deleteAsset(id) {
 // CSV EXPORT / IMPORT
 // ────────────────────────────────────────────────────────────────
 
-/** Export the entire state as a structured multi-section CSV file. */
+/**
+ * Serialise the entire application state to a structured, multi-section CSV
+ * file and trigger a browser download.
+ *
+ * The file format uses `SECTION:<name>` header rows to delimit each data
+ * section (e.g. `SECTION:allocation`, `SECTION:incomeStreams`), making it
+ * both human-readable and machine-parseable by `parseCsv()`.
+ *
+ * The downloaded file is named `penny-<YYYY-MM-DD>.csv`.
+ *
+ * @returns {void}
+ */
 function exportCsv() {
   const rows  = [];
   const e     = csvEscape;
@@ -1115,7 +1158,16 @@ function exportCsv() {
   URL.revokeObjectURL(url);
 }
 
-/** Read a CSV file and restore state from it. */
+/**
+ * Handle a CSV file selection and import the data it contains.
+ * Reads the file asynchronously, parses it via `parseCsv()`, prompts the user
+ * for confirmation, then replaces the current state and persists it.
+ *
+ * Attached to the hidden `<input type="file" accept=".csv">` element.
+ *
+ * @param {Event} event - The `change` event from the file input.
+ * @returns {void}
+ */
 function importCsv(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -1148,7 +1200,20 @@ function clearAllData() {
   alert('✓ All data has been cleared. Starting fresh!');
 }
 
-/** Parse a multi-section CSV string into a valid state object. */
+/**
+ * Parse a multi-section CSV string (as produced by `exportCsv()`) into a
+ * complete application state object ready to be stored in localStorage.
+ *
+ * Each `SECTION:<name>` line resets the current section.  The line
+ * immediately after each section header is treated as a column-header row
+ * and is not persisted.  Subsequent rows are parsed with `parseCSVRow()`.
+ *
+ * Throws if the input cannot be parsed into a minimal valid state.
+ *
+ * @param {string} text - Raw CSV file contents.
+ * @returns {Object} Parsed state object (not yet saved to storage).
+ * @throws {Error} If parsing fails critically.
+ */
 function parseCsv(text) {
   const parsed = {};
   let currentSection = null;

@@ -75,6 +75,20 @@ let state = {};
 // ────────────────────────────────────────────────────────────────
 // PERSISTENCE
 // ────────────────────────────────────────────────────────────────
+/**
+ * Load application state from localStorage, applying any schema migrations
+ * needed to bring old state up to the current shape, and ensuring all
+ * forward-compatibility keys are present.  Falls back to DEFAULT_STATE if
+ * nothing is stored or the stored JSON is corrupt.
+ *
+ * Also calls `recordNetWorthSnapshot()` so that every page load captures
+ * the current month's net worth if it hasn't been recorded yet.
+ *
+ * Side effect: mutates the module-level `state` variable and calls
+ * `recordNetWorthSnapshot()` (which may call `state.netWorthHistory.push`).
+ *
+ * @returns {void}
+ */
 function loadFromStorage() {
   const saved = localStorage.getItem('penny_state_v2');
   try {
@@ -142,6 +156,12 @@ function loadFromStorage() {
   recordNetWorthSnapshot();
 }
 
+/**
+ * Persist the current `state` object to localStorage under the `penny_state_v2` key.
+ * Must be called after every mutation that should survive a page reload.
+ *
+ * @returns {void}
+ */
 function saveToStorage() {
   localStorage.setItem('penny_state_v2', JSON.stringify(state));
 }
@@ -152,16 +172,35 @@ function saveToStorage() {
 const THEME_KEY     = 'penny_theme';
 const TOGGLE_BTN_ID = 'theme-toggle';
 
+/**
+ * Read the persisted theme preference from localStorage and apply it.
+ * Defaults to `'dark'` when no preference has been saved.
+ *
+ * @returns {void}
+ */
 function initTheme() {
   const saved = localStorage.getItem(THEME_KEY) || 'dark';
   applyTheme(saved);
 }
 
+/**
+ * Toggle between `'dark'` and `'light'` theme and persist the choice.
+ *
+ * @returns {void}
+ */
 function toggleTheme() {
   const current = document.documentElement.getAttribute('data-theme') || 'dark';
   applyTheme(current === 'dark' ? 'light' : 'dark');
 }
 
+/**
+ * Apply the specified theme by updating the `data-theme` attribute on
+ * `<html>`, saving the preference to localStorage, and updating the
+ * theme-toggle button emoji.
+ *
+ * @param {'dark'|'light'} theme - Theme name to activate.
+ * @returns {void}
+ */
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem(THEME_KEY, theme);

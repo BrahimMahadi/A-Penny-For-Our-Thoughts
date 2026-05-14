@@ -1027,6 +1027,18 @@ function ordinal(n) {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
+/**
+ * Re-render every dashboard section from current state.
+ * This is the "nuclear option" — used only for full resets such as CSV
+ * import, clearAllData, and the initial page load.  For incremental
+ * mutations, prefer the targeted render calls in app.js CRUD handlers.
+ *
+ * The Schedule tab is intentionally excluded from the default pass: it
+ * is expensive to compute and is only rendered when the Schedule tab is
+ * currently active.
+ *
+ * @returns {void}
+ */
 function renderAll() {
   renderIncome();
   renderIncomeStreams();
