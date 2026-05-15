@@ -309,7 +309,7 @@ function renderPurchaseList() {
       </div>
       <div class="p-card-right">
         <span class="amount">${fmt(p.amount)}</span>
-        <button class="p-del-btn" onclick="removePurchase('${p.id}')" aria-label="Delete ${p.name}">🗑</button>
+        <button class="btn xs danger" onclick="removePurchase('${p.id}')" aria-label="Delete ${p.name}">Delete</button>
       </div>`;
     ul.appendChild(li);
   });
