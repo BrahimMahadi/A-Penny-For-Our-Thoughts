@@ -631,19 +631,83 @@ textarea:focus-visible {
   & .sm  { font-size: 11px; color: var(--muted); }
 }
 
-.purchase-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.purchase-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
 
 .purchase-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: var(--surface2);
-  border-radius: 8px;
-  padding: 8px 12px;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
   font-size: 13px;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 7%, transparent);
 
-  & .name   { flex: 1; }
-  & .amount { font-weight: 700; color: var(--accent2); }
+  & .p-card-left {
+    flex: 1;
+    min-width: 0;
+  }
+
+  & .p-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 6px;
+  }
+
+  & .p-chips {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  & .p-card-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  & .amount {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--accent2);
+    white-space: nowrap;
+  }
+
+  & .p-del-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: var(--danger);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    color: #fff;
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--danger) 30%, transparent);
+    transition: opacity 0.15s, transform 0.1s;
+    flex-shrink: 0;
+
+    &:hover  { opacity: 0.85; }
+    &:active { transform: scale(0.93); }
+  }
+
+  /* Override the global 380px touch-target rule inside purchase chips */
+  & .cat-inline-select,
+  & .card-inline-select {
+    min-height: unset;
+    height: auto;
+    padding: 0;
+  }
 }
 
 .add-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
@@ -2378,11 +2442,14 @@ canvas { max-width: 100%; height: auto; }
   .add-item-form select,
   .add-item-form .btn { width: 100%; flex: none; max-width: 100%; }
 
-  /* Modal fits edge-to-edge */
-  .modal-row     { grid-template-columns: 1fr; }
+  /* Modal fits edge-to-edge — modal-row keeps 2-up columns on mobile */
+  .modal-row     { gap: 10px; }
   .modal-body    { gap: 12px; }
   .modal-field input,
   .modal-field select { font-size: 16px; padding: 10px 12px; min-height: 44px; }
+  /* Don't stretch checkboxes/radios to the touch-target height */
+  .modal-field input[type="checkbox"],
+  .modal-field input[type="radio"] { min-height: unset; height: 18px; width: 18px; padding: 0; }
 
   /* Savings stats wrap */
   .savings-totals      { gap: 12px; }
@@ -2410,7 +2477,6 @@ canvas { max-width: 100%; height: auto; }
 
   /* List items better spacing */
   .expense-item      { padding: 10px 12px; }
-  .purchase-item     { padding: 10px 12px; }
   .savings-acct-item { padding: 12px 14px; }
   .sub-item          { padding: 12px 14px; }
   .wish-item         { padding: 12px 14px; }
@@ -2479,7 +2545,6 @@ canvas { max-width: 100%; height: auto; }
   .savings-stat .s-label { font-size: 9px; }
 
   .expense-item      { padding: 9px 10px; font-size: 12px; }
-  .purchase-item     { padding: 9px 10px; font-size: 12px; }
   .savings-acct-item { padding: 10px 12px; font-size: 12px; }
   .sub-item          { padding: 10px 12px; font-size: 12px; }
   .wish-item         { padding: 10px 12px; font-size: 12px; }

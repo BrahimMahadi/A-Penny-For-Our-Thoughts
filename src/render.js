@@ -246,7 +246,7 @@ function renderPurchaseList() {
   ul.innerHTML = '';
 
   if (!(state.purchases || []).length) {
-    ul.innerHTML = '<li style="color:var(--muted);font-size:12px;padding:4px 0">No purchases yet this period.</li>';
+    ul.innerHTML = '<li style="color:var(--muted);font-size:12px;padding:8px 0">No purchases yet this period.</li>';
     return;
   }
   const cards    = state.expenseCards || [];
@@ -267,7 +267,7 @@ function renderPurchaseList() {
         .join('');
       cardChip = `
         <span class="purchase-card-chip${p.cardId ? '' : ' no-card'}">
-          💳 <select class="card-inline-select" onchange="setPurchaseCard('${p.id}',this.value)" aria-label="Payment card for ${p.name}">
+          ≡ <select class="card-inline-select" onchange="setPurchaseCard('${p.id}',this.value)" aria-label="Payment card for ${p.name}">
             <option value="">No card</option>
             ${cardOpts}
           </select>
@@ -275,17 +275,20 @@ function renderPurchaseList() {
     }
 
     const li = document.createElement('li');
-    li.className = 'purchase-item swipeable';
+    li.className = 'purchase-item';
     li.innerHTML = `
-      <div class="swipe-delete-bg" aria-hidden="true">🗑</div>
-      <div class="swipe-content">
-        <span class="name">${p.name}</span>
-        <span class="purchase-cat-badge" style="background:${colour}20;color:${colour}">
-          <select class="cat-inline-select" onchange="setPurchaseCategory('${p.id}',this.value)" style="color:${colour}" aria-label="Category for ${p.name}">${catOpts}</select>
-        </span>
-        ${cardChip}
+      <div class="p-card-left">
+        <div class="p-name">${p.name}</div>
+        <div class="p-chips">
+          <span class="purchase-cat-badge" style="background:${colour}20;color:${colour}">
+            <select class="cat-inline-select" onchange="setPurchaseCategory('${p.id}',this.value)" style="color:${colour}" aria-label="Category for ${p.name}">${catOpts}</select>
+          </span>
+          ${cardChip}
+        </div>
+      </div>
+      <div class="p-card-right">
         <span class="amount">${fmt(p.amount)}</span>
-        <button class="btn icon-btn del" onclick="removePurchase('${p.id}')" aria-label="Delete ${p.name}">×</button>
+        <button class="p-del-btn" onclick="removePurchase('${p.id}')" aria-label="Delete ${p.name}">🗑</button>
       </div>`;
     ul.appendChild(li);
   });

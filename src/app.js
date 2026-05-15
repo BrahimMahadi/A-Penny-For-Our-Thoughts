@@ -406,8 +406,10 @@ function openEditAllocation() {
   const a = state.allocation || { needs: 50, wants: 30, savings: 20 };
   openModal(
     'Edit Budget Allocation',
+    `<div class="modal-row">` +
     mField('Needs %',   'alloc-needs',   'number', a.needs,   '50', 'min="0" max="100" step="1" oninput="updateAllocValidation()"') +
     mField('Wants %',   'alloc-wants',   'number', a.wants,   '30', 'min="0" max="100" step="1" oninput="updateAllocValidation()"') +
+    `</div>` +
     mField('Savings %', 'alloc-savings', 'number', a.savings, '20', 'min="0" max="100" step="1" oninput="updateAllocValidation()"') +
     `<div id="alloc-validation" style="margin-top:12px;padding:8px;border-radius:4px;font-size:13px;font-weight:600;background:var(--surface2);color:var(--muted)">
       Total: <span id="alloc-total">100</span>%
@@ -467,11 +469,13 @@ function openEditIncomeStream(id) {
   if (!stream) return;
   openModal(
     'Edit Income Stream',
+    `<div class="modal-row">` +
     mField('Stream Name', 'mis-name',   'text',   stream.name,   '') +
     mField('Amount ($)',  'mis-amount', 'number', stream.amount, '0.00', 'min="0" step="0.01"') +
+    `</div>` +
     `<div class="modal-field">
       <label>Frequency</label>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;font-weight:600;color:var(--text)">
         <input type="checkbox" id="mis-biweekly" ${stream.biweekly ? 'checked' : ''} />
         Bi-weekly (paid every 2 weeks)
       </label>
@@ -596,8 +600,10 @@ function openEditHistoryPurchase(periodId, purchaseId) {
   if (!purchase) return;
   openModal(
     'Edit Purchase',
+    `<div class="modal-row">` +
     mField('Item Name',  'mhp-name',   'text',   purchase.name,   '') +
-    mField('Amount ($)', 'mhp-amount', 'number', purchase.amount, '0.00', 'min="0" step="0.01"'),
+    mField('Amount ($)', 'mhp-amount', 'number', purchase.amount, '0.00', 'min="0" step="0.01"') +
+    `</div>`,
     () => {
       const name   = document.getElementById('mhp-name').value.trim();
       const amount = parseFloat(document.getElementById('mhp-amount').value);
@@ -992,8 +998,10 @@ function openAddGoal() {
   openModal(
     'Add Savings Goal',
     dropdown +
-    mField('Target Amount ($)',   'goal-target-amount', 'number', '', '0.00', 'min="0" step="0.01" required') +
-    mField('Target Date (YYYY-MM)', 'goal-target-date', 'month',  '', ''),
+    `<div class="modal-row">` +
+    mField('Target Amount ($)', 'goal-target-amount', 'number', '', '0.00', 'min="0" step="0.01" required') +
+    mField('Target Date',       'goal-target-date',   'month',  '', '') +
+    `</div>`,
     () => {
       const accountId    = document.getElementById('goal-account-id').value;
       const targetAmount = parseFloat(document.getElementById('goal-target-amount').value);
@@ -1016,8 +1024,10 @@ function openEditGoal(id) {
   openModal(
     'Edit Savings Goal',
     dropdown +
-    mField('Target Amount ($)',   'goal-target-amount', 'number', goal.targetAmount, '0.00', 'min="0" step="0.01"') +
-    mField('Target Date (YYYY-MM)', 'goal-target-date', 'month',  goal.targetDate,   ''),
+    `<div class="modal-row">` +
+    mField('Target Amount ($)', 'goal-target-amount', 'number', goal.targetAmount, '0.00', 'min="0" step="0.01"') +
+    mField('Target Date',       'goal-target-date',   'month',  goal.targetDate,   '') +
+    `</div>`,
     () => {
       const accountId    = document.getElementById('goal-account-id').value;
       const targetAmount = parseFloat(document.getElementById('goal-target-amount').value);
@@ -1063,8 +1073,10 @@ function _subModalBody(sub) {
     : `<option value="" disabled selected>No cards added yet</option>`;
 
   return (
-    mField('Service Name', 'ms-name', 'text', sub?.name ?? '', 'e.g. Spotify, Netflix', 'oninput="checkSubDuplicate()"') +
+    `<div class="modal-row">` +
+    mField('Service Name', 'ms-name', 'text', sub?.name ?? '', 'e.g. Spotify', 'oninput="checkSubDuplicate()"') +
     mField('Cost ($)', 'ms-amount', 'number', sub?.amount ?? '', '0.00', 'min="0" step="0.01"') +
+    `</div>` +
     `<div class="modal-row">
       <div class="modal-field">
         <label for="ms-card">Payment Card <span class="modal-required">*</span></label>
@@ -1272,11 +1284,13 @@ function deleteRule(id) {
 function openAddAlert() {
   openModal(
     'Add Budget Alert',
-    `<div class="modal-field">
-      <label>Category</label>
-      <select id="alert-category">${_ruleCatOpts('Food & Drink')}</select>
-    </div>` +
+    `<div class="modal-row">
+      <div class="modal-field">
+        <label>Category</label>
+        <select id="alert-category">${_ruleCatOpts('Food & Drink')}</select>
+      </div>` +
     mField('Threshold ($)', 'alert-threshold', 'number', '', '0.00', 'min="0.01" step="0.01"') +
+    `</div>` +
     `<div style="font-size:12px;color:var(--muted);margin-top:12px;padding:10px;background:var(--surface);border-radius:6px;border-left:3px solid var(--warn)">
       ⚠ A warning chip appears in the Wants card when spending in this category exceeds the threshold during the current bi-weekly period.
     </div>`,
@@ -1300,11 +1314,13 @@ function openEditAlert(id) {
   if (!alertItem) return;
   openModal(
     'Edit Budget Alert',
-    `<div class="modal-field">
-      <label>Category</label>
-      <select id="alert-category">${_ruleCatOpts(alertItem.category)}</select>
-    </div>` +
-    mField('Threshold ($)', 'alert-threshold', 'number', alertItem.threshold, '0.00', 'min="0.01" step="0.01"'),
+    `<div class="modal-row">
+      <div class="modal-field">
+        <label>Category</label>
+        <select id="alert-category">${_ruleCatOpts(alertItem.category)}</select>
+      </div>` +
+    mField('Threshold ($)', 'alert-threshold', 'number', alertItem.threshold, '0.00', 'min="0.01" step="0.01"') +
+    `</div>`,
     () => {
       const category  = document.getElementById('alert-category').value;
       const threshold = parseFloat(document.getElementById('alert-threshold').value);
@@ -1345,9 +1361,11 @@ function openEditWishlistItem(id) {
   if (!item) return;
   openModal(
     'Edit Wishlist Item',
-    mField('Icon / Emoji',   'mw-icon', 'text', item.icon || '', '🛒') +
-    mField('Item Name',      'mw-name', 'text', item.name, '') +
-    mField('URL (optional)', 'mw-url',  'text', item.url  || '', 'https://...'),
+    `<div class="modal-row">` +
+    mField('Icon / Emoji', 'mw-icon', 'text', item.icon || '', '🛒') +
+    mField('Item Name',    'mw-name', 'text', item.name, '') +
+    `</div>` +
+    mField('URL (optional)', 'mw-url', 'text', item.url || '', 'https://...'),
     () => {
       const icon = document.getElementById('mw-icon').value.trim() || '🛒';
       const name = document.getElementById('mw-name').value.trim();
@@ -1373,8 +1391,10 @@ function openAddAsset(category) {
   const placeholders = { investment: 'RRSP', vehicle: '2022 Honda Civic', real_estate: 'Primary Residence', other: 'Collectibles' };
   openModal(
     `Add ${cat.icon} ${cat.label.slice(0, -1)}`,
+    `<div class="modal-row">` +
     mField('Name', 'asset-name', 'text', '', `e.g. ${placeholders[category] || ''}`) +
-    mField('Current Value ($)', 'asset-value', 'number', '', '0', 'min="0" step="0.01"'),
+    mField('Current Value ($)', 'asset-value', 'number', '', '0', 'min="0" step="0.01"') +
+    `</div>`,
     () => {
       const name  = document.getElementById('asset-name').value.trim();
       const value = parseFloat(document.getElementById('asset-value').value) || 0;
@@ -1391,8 +1411,10 @@ function openEditAsset(id) {
   const cat = ASSET_CATEGORIES.find(c => c.key === asset.category);
   openModal(
     `Edit ${cat?.icon ?? ''} ${asset.name}`,
+    `<div class="modal-row">` +
     mField('Name', 'asset-name', 'text', asset.name, '') +
-    mField('Current Value ($)', 'asset-value', 'number', asset.value, '0', 'min="0" step="0.01"'),
+    mField('Current Value ($)', 'asset-value', 'number', asset.value, '0', 'min="0" step="0.01"') +
+    `</div>`,
     () => {
       const name  = document.getElementById('asset-name').value.trim();
       const value = parseFloat(document.getElementById('asset-value').value) || 0;
