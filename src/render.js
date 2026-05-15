@@ -495,7 +495,7 @@ function renderAnalyticsHistory(filteredHistory) {
               <span class="period-purchase-name">${p.name}</span>
               <span class="period-purchase-amt">${fmt(p.amount)}</span>
               <button class="btn xs secondary" onclick="openEditHistoryPurchase('${period.id}','${p.id}')">Edit</button>
-              <button class="btn xs danger"    onclick="deleteHistoryPurchase('${period.id}','${p.id}')">×</button>
+              <button class="btn xs danger"    onclick="deleteHistoryPurchase('${period.id}','${p.id}')">Delete</button>
             </div>`).join('')
         }
       </div>
