@@ -233,7 +233,7 @@ document.addEventListener('focusin', e => {
       }
       item.classList.add('swipe-open');
       setTimeout(() => {
-        const delBtn = item.querySelector('.icon-btn.del');
+        const delBtn = item.querySelector('.btn.danger');
         if (delBtn) delBtn.click();
         // Reset visual in case delete was cancelled by a confirm dialog
         setTimeout(() => _resetItem(item), 400);

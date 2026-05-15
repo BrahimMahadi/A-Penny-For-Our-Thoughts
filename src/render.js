@@ -120,8 +120,10 @@ function renderIncomeStreams() {
       ${stream.biweekly ? '<span class="chip purple" style="font-size:10px;padding:2px 7px">bi-wk</span>' : ''}
       <span class="stream-raw">${fmt(stream.amount)}${stream.biweekly ? '/pay' : '/mo'}</span>
       <span class="stream-monthly">${fmt(monthly)}/mo</span>
-      <button class="btn icon-btn" onclick="openEditIncomeStream('${stream.id}')" aria-label="Edit ${stream.name}">✎</button>
-      <button class="btn icon-btn del" onclick="deleteIncomeStream('${stream.id}')" aria-label="Delete ${stream.name}">×</button>`;
+      <div style="display:flex;gap:6px;margin-left:auto">
+        <button class="btn sm secondary" onclick="openEditIncomeStream('${stream.id}')" aria-label="Edit ${stream.name}">Edit</button>
+        <button class="btn sm danger" onclick="deleteIncomeStream('${stream.id}')" aria-label="Delete ${stream.name}">Delete</button>
+      </div>`;
     ul.appendChild(li);
   });
 }
@@ -548,9 +550,9 @@ function renderExpenseCards() {
     div.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div class="card-title">${card.label}</div>
-        <div style="display:flex;gap:4px">
-          <button class="btn icon-btn" onclick="openEditExpenseCard('${card.id}')" aria-label="Rename ${card.label} card">✎</button>
-          <button class="btn icon-btn del" onclick="deleteExpenseCard('${card.id}')" aria-label="Delete ${card.label} card">×</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn sm secondary" onclick="openEditExpenseCard('${card.id}')" aria-label="Rename ${card.label} card">Edit</button>
+          <button class="btn sm danger" onclick="deleteExpenseCard('${card.id}')" aria-label="Delete ${card.label} card">Delete</button>
         </div>
       </div>
       <ul class="expense-list" id="list-${card.id}"></ul>
@@ -609,8 +611,8 @@ function renderExpenseCards() {
           <div class="e-row">
             ${badge}
             <span class="e-row-spacer"></span>
-            <button class="btn icon-btn" onclick="openEditExpenseItem('${card.id}','${item.id}')" aria-label="Edit ${item.name}">✎</button>
-            <button class="btn icon-btn del" onclick="removeExpense('${card.id}','${item.id}')" aria-label="Delete ${item.name}">×</button>
+            <button class="btn xs secondary" onclick="openEditExpenseItem('${card.id}','${item.id}')" aria-label="Edit ${item.name}">Edit</button>
+            <button class="btn xs danger" onclick="removeExpense('${card.id}','${item.id}')" aria-label="Delete ${item.name}">Delete</button>
           </div>
         </div>`;
       ul.appendChild(li);
@@ -755,8 +757,8 @@ function renderCreditCards() {
             ${fmt(cc.balance)} / ${fmt(cc.limit)}
             <span class="chip ${chipCls}">${usePct.toFixed(0)}%</span>
           </span>
-          <button class="btn icon-btn" onclick="openEditCreditCard('${cc.id}')" aria-label="Edit ${cc.name}">✎</button>
-          <button class="btn icon-btn del" onclick="deleteCreditCard('${cc.id}')" aria-label="Delete ${cc.name}">×</button>
+          <button class="btn sm secondary" onclick="openEditCreditCard('${cc.id}')" aria-label="Edit ${cc.name}">Edit</button>
+          <button class="btn sm danger" onclick="deleteCreditCard('${cc.id}')" aria-label="Delete ${cc.name}">Delete</button>
         </div>
       </div>
       <div class="cc-bar-track">
@@ -813,8 +815,10 @@ function renderSavings() {
           <span class="acct-balance">Balance: ${fmt(acct.balance || 0)}</span>
           <span class="acct-monthly">Monthly: ${fmt(monthlyAlloc)}</span>
         </div>
-        <button class="btn icon-btn" onclick="openEditSavingsAccount('${acct.id}')" aria-label="Edit ${acct.name}">✎</button>
-        <button class="btn icon-btn del" onclick="deleteSavingsAccount('${acct.id}')" aria-label="Delete ${acct.name}">×</button>
+        <div style="display:flex;gap:6px;margin-left:auto">
+          <button class="btn sm secondary" onclick="openEditSavingsAccount('${acct.id}')" aria-label="Edit ${acct.name}">Edit</button>
+          <button class="btn sm danger" onclick="deleteSavingsAccount('${acct.id}')" aria-label="Delete ${acct.name}">Delete</button>
+        </div>
       </div>`;
     ul.appendChild(li);
   });
@@ -844,9 +848,9 @@ function renderGoals() {
       <div class="goal-header">
         <span class="goal-account-name">${progress.accountName}</span>
         <span class="goal-target">${fmt(progress.targetAmount)} by ${progress.targetDate}</span>
-        <div style="margin-left:auto;display:flex;gap:8px">
-          <button class="btn icon-btn" onclick="openEditGoal('${goal.id}')" aria-label="Edit goal for ${progress.accountName}">✎</button>
-          <button class="btn icon-btn del" onclick="deleteGoal('${goal.id}')" aria-label="Delete goal for ${progress.accountName}">×</button>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button class="btn sm secondary" onclick="openEditGoal('${goal.id}')" aria-label="Edit goal for ${progress.accountName}">Edit</button>
+          <button class="btn sm danger" onclick="deleteGoal('${goal.id}')" aria-label="Delete goal for ${progress.accountName}">Delete</button>
         </div>
       </div>
       <div class="goal-progress-container">
@@ -919,8 +923,8 @@ function renderNetWorth() {
         <span class="nw-breakdown-name">${a.name}</span>
         <span style="display:flex;align-items:center;gap:6px">
           <span class="nw-breakdown-val">${fmt(a.value)}</span>
-          <button class="btn icon-btn" onclick="openEditAsset('${a.id}')" aria-label="Edit ${a.name}">✎</button>
-          <button class="btn icon-btn del" onclick="deleteAsset('${a.id}')" aria-label="Delete ${a.name}">×</button>
+          <button class="btn xs secondary" onclick="openEditAsset('${a.id}')" aria-label="Edit ${a.name}">Edit</button>
+          <button class="btn xs danger" onclick="deleteAsset('${a.id}')" aria-label="Delete ${a.name}">Delete</button>
         </span>
       </div>`).join('');
 
@@ -1008,9 +1012,9 @@ function renderSubscriptions() {
         </div>
         <div class="sub-row-3">
           <span class="sub-date">Renews ${displayDate}</span>
-          <div style="display:flex;gap:6px">
-            <button class="btn icon-btn" onclick="openEditSubscription('${sub.id}')" aria-label="Edit ${sub.name}">✎</button>
-            <button class="btn icon-btn del" onclick="deleteSubscription('${sub.id}')" aria-label="Delete ${sub.name}">×</button>
+          <div style="display:flex;gap:6px;margin-left:auto">
+            <button class="btn xs secondary" onclick="openEditSubscription('${sub.id}')" aria-label="Edit ${sub.name}">Edit</button>
+            <button class="btn xs danger" onclick="deleteSubscription('${sub.id}')" aria-label="Delete ${sub.name}">Delete</button>
           </div>
         </div>
       </div>`;
@@ -1049,8 +1053,8 @@ function renderWishlist() {
         <span class="wish-name">${item.name}</span>
         ${item.url ? `<a class="wish-link" href="${item.url}" target="_blank" rel="noopener" aria-label="View ${item.name} (opens in new tab)">Link ↗</a>` : ''}
         <div class="wish-actions">
-          <button class="btn icon-btn" onclick="openEditWishlistItem('${item.id}')" aria-label="Edit ${item.name}">✎</button>
-          <button class="btn icon-btn del" onclick="deleteWishlistItem('${item.id}')" aria-label="Delete ${item.name}">×</button>
+          <button class="btn xs secondary" onclick="openEditWishlistItem('${item.id}')" aria-label="Edit ${item.name}">Edit</button>
+          <button class="btn xs danger" onclick="deleteWishlistItem('${item.id}')" aria-label="Delete ${item.name}">Delete</button>
         </div>
       </div>`;
     ul.appendChild(li);
@@ -1079,9 +1083,9 @@ function renderRules() {
         <span class="rule-matchtype">${matchLabels[r.matchType] || r.matchType}</span>
         <span class="rule-arrow">→</span>
         <span class="rule-category" style="background:${colour}20;color:${colour}">${r.category}</span>
-        <div style="margin-left:auto;display:flex;gap:4px">
-          <button class="btn icon-btn" onclick="openEditRule('${r.id}')" aria-label="Edit rule for ${r.pattern}">✎</button>
-          <button class="btn icon-btn del" onclick="deleteRule('${r.id}')" aria-label="Delete rule for ${r.pattern}">×</button>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button class="btn xs secondary" onclick="openEditRule('${r.id}')" aria-label="Edit rule for ${r.pattern}">Edit</button>
+          <button class="btn xs danger" onclick="deleteRule('${r.id}')" aria-label="Delete rule for ${r.pattern}">Delete</button>
         </div>
       </div>`;
   }).join('');
@@ -1113,9 +1117,9 @@ function renderBudgetAlerts() {
           <span class="alert-category" style="background:${catColour}20;color:${catColour}">${a.category}</span>
           <span class="alert-amounts">${fmt(spent)} / ${fmt(a.threshold)}</span>
           ${triggered ? '<span class="chip red" style="font-size:10px;padding:2px 6px">⚠ Over</span>' : ''}
-          <div style="margin-left:auto;display:flex;gap:4px">
-            <button class="btn icon-btn" onclick="openEditAlert('${a.id}')" aria-label="Edit alert for ${a.category}">✎</button>
-            <button class="btn icon-btn del" onclick="deleteAlert('${a.id}')" aria-label="Delete alert for ${a.category}">×</button>
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <button class="btn xs secondary" onclick="openEditAlert('${a.id}')" aria-label="Edit alert for ${a.category}">Edit</button>
+            <button class="btn xs danger" onclick="deleteAlert('${a.id}')" aria-label="Delete alert for ${a.category}">Delete</button>
           </div>
         </div>
         <div class="progress-track" style="margin-top:8px">
