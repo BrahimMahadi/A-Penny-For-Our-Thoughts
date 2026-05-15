@@ -508,13 +508,16 @@ function addPurchase() {
   const name   = document.getElementById('purchase-name').value.trim();
   const amount = parseFloat(document.getElementById('purchase-amount').value);
   if (!name || isNaN(amount) || amount <= 0) return;
-  const category = applyRulesToName(name) || 'Other';
-  const cardSel  = document.getElementById('purchase-card');
-  const cardId   = (cardSel && cardSel.value) ? cardSel.value : null;
-  state.purchases.push({ id: genId(), name, amount, category, cardId });
+  const category   = applyRulesToName(name) || 'Other';
+  const cardSel    = document.getElementById('purchase-card');
+  const cardId     = (cardSel && cardSel.value) ? cardSel.value : null;
+  const budgetSel  = document.getElementById('purchase-budget-type');
+  const budgetType = (budgetSel && budgetSel.value) ? budgetSel.value : 'wants';
+  state.purchases.push({ id: genId(), name, amount, category, cardId, budgetType });
   document.getElementById('purchase-name').value   = '';
   document.getElementById('purchase-amount').value = '';
-  if (cardSel) cardSel.value = '';
+  if (cardSel)   cardSel.value   = '';
+  if (budgetSel) budgetSel.value = 'wants';
   // Clear preview
   const preview = document.getElementById('purchase-cat-preview');
   if (preview) preview.innerHTML = '';
@@ -543,6 +546,14 @@ function setPurchaseCard(id, cardId) {
   saveToStorage(); renderPurchaseList();
 }
 
+/** Toggle a purchase between Wants and Needs budget types */
+function setPurchaseBudgetType(id, type) {
+  const p = (state.purchases || []).find(p => p.id === id);
+  if (!p) return;
+  p.budgetType = (type === 'needs') ? 'needs' : 'wants';
+  saveToStorage(); renderPurchaseList(); renderWants(); renderBudgetVsActual();
+}
+
 /** Re-apply all rules to current-period purchases (non-destructive: only sets if a rule matches) */
 function reapplyRulesToPurchases() {
   let changed = 0;
@@ -561,7 +572,11 @@ function reapplyRulesToPurchases() {
 function resetWants() {
   if (!confirm('Reset all purchases for this bi-weekly period?')) return;
   if ((state.purchases || []).length > 0) {
-    const total = state.purchases.reduce((s, p) => s + +p.amount, 0);
+    // Archive only Wants-tagged purchases in the period total so historical
+    // Wants actuals stay accurate (Needs purchases are accounted for in expenses)
+    const total = state.purchases
+      .filter(p => (p.budgetType || 'wants') !== 'needs')
+      .reduce((s, p) => s + +p.amount, 0);
     state.spendingHistory.push({
       id:    genId(),
       date:  new Date().toISOString().split('T')[0],
@@ -1483,8 +1498,8 @@ function exportCsv() {
   });
   rows.push('');
 
-  rows.push('SECTION:purchases', 'id,name,amount,category,cardId');
-  (state.purchases || []).forEach(p => rows.push(`${e(p.id)},${e(p.name)},${p.amount},${e(p.category || 'Other')},${e(p.cardId || '')}`));
+  rows.push('SECTION:purchases', 'id,name,amount,category,cardId,budgetType');
+  (state.purchases || []).forEach(p => rows.push(`${e(p.id)},${e(p.name)},${p.amount},${e(p.category || 'Other')},${e(p.cardId || '')},${e(p.budgetType || 'wants')}`));
   rows.push('');
 
   rows.push('SECTION:spendingHistory', 'periodId,periodDate,periodLabel,periodTotal,purchaseId,purchaseName,purchaseAmount,purchaseCategory');
@@ -1656,7 +1671,7 @@ function parseCsv(text) {
 
       case 'purchases':
         if (!parsed.purchases) parsed.purchases = [];
-        parsed.purchases.push({ id: vals[0], name: vals[1], amount: +vals[2], category: vals[3] || 'Other', cardId: vals[4] || null });
+        parsed.purchases.push({ id: vals[0], name: vals[1], amount: +vals[2], category: vals[3] || 'Other', cardId: vals[4] || null, budgetType: vals[5] || 'wants' });
         break;
 
       case 'spendingHistory': {

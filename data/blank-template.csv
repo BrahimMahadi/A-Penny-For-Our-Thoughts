@@ -11,7 +11,7 @@ id,name,amount,biweekly
 SECTION:expenseCards
 cardId,cardLabel,itemId,itemName,itemAmount,itemBiweekly
 SECTION:purchases
-id,name,amount
+id,name,amount,category,cardId,budgetType
 SECTION:spendingHistory
 id,date,label,total,items
 SECTION:loans

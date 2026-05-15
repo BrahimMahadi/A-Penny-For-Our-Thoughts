@@ -449,36 +449,49 @@ header {
 .btn {
   background: var(--accent-btn);
   color: #ffffff;
-  border: none;
+  border: 1.5px solid transparent;
   border-radius: var(--radius-sm);
   padding: 10px 18px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   font-family: var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
   cursor: pointer;
   white-space: nowrap;
-  transition: opacity .15s, background .15s, transform .15s;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-btn) 40%, transparent);
+  transition: opacity .15s, background .15s, transform .15s, box-shadow .15s;
   user-select: none;
 
-  &:hover  { opacity: 0.9; transform: translateY(-1px); }
-  &:active { transform: translateY(0); }
+  &:hover  { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-btn) 50%, transparent); }
+  &:active { transform: translateY(0); box-shadow: 0 1px 4px color-mix(in srgb, var(--accent-btn) 30%, transparent); }
 
-  &.sm { padding: 7px 14px; font-size: 12px; border-radius: 6px; }
-  &.xs { padding: 5px 10px; font-size: 11px; border-radius: 5px; }
+  &.sm { padding: 7px 14px; font-size: 11px; border-radius: 6px; }
+  &.xs { padding: 5px 10px; font-size: 10px; border-radius: 5px; }
 
-  &.danger { background: var(--danger-btn); }
-  &.warn   { background: var(--warn); color: #000000; }
+  /* Tinted outlined danger — draws the eye without aggression */
+  &.danger {
+    background: color-mix(in srgb, var(--danger-btn) 15%, transparent);
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger-btn) 45%, transparent);
+    box-shadow: none;
+
+    &:hover { background: color-mix(in srgb, var(--danger-btn) 22%, transparent); box-shadow: none; }
+  }
+
+  &.warn   { background: var(--warn); color: #000000; box-shadow: 0 2px 8px color-mix(in srgb, var(--warn) 35%, transparent); }
 
   &.secondary {
     background: var(--surface2);
     color: var(--text);
     border: 1.5px solid var(--border);
+    box-shadow: none;
     transition: border-color .15s, background .15s;
 
-    &:hover { border-color: var(--border-light); background: var(--surface3); }
+    &:hover { border-color: var(--border-light); background: var(--surface3); box-shadow: none; }
   }
 
-  /* Icon Button */
+  /* Icon Button — no uppercase, no tracking, no shadow */
   &.icon-btn {
     background: none;
     border: none;
@@ -488,9 +501,13 @@ header {
     padding: 6px 8px;
     line-height: 1;
     border-radius: 4px;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+    box-shadow: none;
     transition: color .15s, background .15s;
 
-    &:hover      { color: var(--text); background: var(--surface2); }
+    &:hover      { color: var(--text); background: var(--surface2); box-shadow: none; }
     &.del:hover  { color: var(--danger); }
   }
 }
@@ -703,7 +720,8 @@ textarea:focus-visible {
 
   /* Override the global 380px touch-target rule inside purchase chips */
   & .cat-inline-select,
-  & .card-inline-select {
+  & .card-inline-select,
+  & .budget-type-inline-select {
     min-height: unset;
     height: auto;
     padding: 0;
@@ -1332,6 +1350,45 @@ textarea:focus-visible {
   color: inherit;
 }
 
+/* Budget type chip on purchase items (Wants / Needs toggle) */
+.purchase-budget-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  white-space: nowrap;
+
+  /* Wants — subtle, default state */
+  &.wants {
+    background: color-mix(in srgb, var(--muted) 12%, transparent);
+    color: var(--muted);
+  }
+
+  /* Needs — amber highlight to indicate it counts against Needs budget */
+  &.needs {
+    background: color-mix(in srgb, var(--warn) 18%, transparent);
+    color: var(--warn);
+  }
+}
+
+/* Inline budget-type dropdown inside the chip */
+.budget-type-inline-select {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  max-width: 50px;
+  color: inherit;
+}
+
 /* Spending Rules list */
 .rule-item {
   display: flex;
@@ -1466,18 +1523,31 @@ textarea:focus-visible {
 .add-form-submit {
   flex: 1;
   height: 44px;
-  background: var(--accent);
+  background: var(--accent-btn);
   color: #fff;
-  border: none;
+  border: 1.5px solid transparent;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
+  font-family: var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
   cursor: pointer;
-  transition: opacity .15s;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-btn) 40%, transparent);
+  transition: opacity .15s, box-shadow .15s, transform .15s;
 
-  &:hover  { opacity: .88; }
-  &:active { opacity: .75; }
-  &.danger { background: var(--danger); }
+  &:hover  { opacity: .9; transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-btn) 50%, transparent); }
+  &:active { opacity: .75; transform: translateY(0); }
+
+  /* Tinted outlined danger — consistent with .btn.danger */
+  &.danger {
+    background: color-mix(in srgb, var(--danger-btn) 15%, transparent);
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger-btn) 45%, transparent);
+    box-shadow: none;
+
+    &:hover { background: color-mix(in srgb, var(--danger-btn) 22%, transparent); box-shadow: none; }
+  }
 }
 
 /* ═══════════════════════════════════════════════════

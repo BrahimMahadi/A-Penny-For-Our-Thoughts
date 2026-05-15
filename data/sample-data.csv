@@ -20,11 +20,11 @@ expenses_2,Groceries,item_4,Weekly Shopping,150,false
 expenses_3,Transportation,item_5,Car Insurance,120,false
 expenses_3,Transportation,item_6,Gas,200,false
 SECTION:purchases
-id,name,amount
-purchase_1,Coffee,5.50
-purchase_2,Lunch,12.75
-purchase_3,Streaming Service,15.99
-purchase_4,Online Game,29.99
+id,name,amount,category,cardId,budgetType
+purchase_1,Coffee,5.50,Dining Out,,wants
+purchase_2,Lunch,12.75,Dining Out,,wants
+purchase_3,Streaming Service,15.99,Entertainment,,wants
+purchase_4,Online Game,29.99,Entertainment,,wants
 SECTION:spendingHistory
 id,date,label,total,items
 history_1,2026-05-01,May 1-14 Period,487.23,"[{""name"":""Dining Out"",""amount"":120},{""name"":""Entertainment"",""amount"":85},{""name"":""Shopping"",""amount"":156},{""name"":""Subscriptions"",""amount"":50},{""name"":""Other"",""amount"":76.23}]"

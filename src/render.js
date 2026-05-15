@@ -133,8 +133,8 @@ function renderWants() {
   const inc     = getTotalMonthlyIncome();
   const biWants = inc * getAlloc().wants / 2;
 
-  // Manual purchases + Wants subscription deductions this period
-  const purchases    = (state.purchases || []).reduce((s, p) => s + +p.amount, 0);
+  // Wants-only purchases (needs-tagged purchases deduct from Needs budget instead)
+  const purchases    = (state.purchases || []).filter(p => (p.budgetType || 'wants') !== 'needs').reduce((s, p) => s + +p.amount, 0);
   const deductedSubs = getSubsDeductedThisPeriod();
   const subTotal     = deductedSubs.reduce((s, sub) => s + (+sub.amount || 0) * sub.renewalDates.length, 0);
   const spent        = purchases + subTotal;
@@ -173,8 +173,9 @@ function renderWants() {
     if (!periodStart) {
       anchorEl.innerHTML = `
         <span style="color:var(--muted);font-size:12px">No payday configured —</span>
-        <button class="btn xs secondary" onclick="openSetPayStart()" style="font-size:11px">Set Payday</button>
-        <span style="color:var(--muted);font-size:12px">to enable subscription deductions</span>`;
+        <button class="btn xs secondary" onclick="openSetPayStart()">Set Payday</button>
+        <span style="color:var(--muted);font-size:12px">to enable subscription deductions</span>
+        <button class="btn xs danger" onclick="resetWants()" style="margin-left:auto">↺ Reset</button>`;
     } else {
       const start  = new Date(periodStart + 'T00:00:00');
       const end    = new Date(start);
@@ -189,7 +190,8 @@ function renderWants() {
         <span style="font-size:12px;color:var(--muted)">
           Period: <strong style="color:var(--text)">${sLabel} – ${eLabel}</strong>${subInfo}
         </span>
-        <button class="btn xs secondary" onclick="openSetPayStart()" style="font-size:11px">✎ Payday</button>`;
+        <button class="btn xs secondary" onclick="openSetPayStart()">✎ Payday</button>
+        <button class="btn xs danger" onclick="resetWants()">↺ Reset</button>`;
     }
   }
 
@@ -236,7 +238,9 @@ function renderWants() {
   populatePurchaseCardSelect();
 
   // Build per-category spending for the donut; include subscription deductions as a segment
-  const catSpending = getCategorySpending(state.purchases || []);
+  // Only Wants-tagged purchases go into the donut (Needs purchases count against the Needs budget)
+  const wantsPurchases = (state.purchases || []).filter(p => (p.budgetType || 'wants') !== 'needs');
+  const catSpending = getCategorySpending(wantsPurchases);
   if (subTotal > 0) catSpending['Subscriptions'] = subTotal;
   renderWantsDonut(catSpending, Math.max(0, remaining), usedPct);
 }
@@ -274,6 +278,22 @@ function renderPurchaseList() {
         </span>`;
     }
 
+    // Budget type chip — amber/tinted when Needs, hidden when default Wants
+    const budgetType = p.budgetType || 'wants';
+    const budgetChip = budgetType === 'needs'
+      ? `<span class="purchase-budget-chip needs">
+           <select class="budget-type-inline-select" onchange="setPurchaseBudgetType('${p.id}',this.value)" aria-label="Budget type for ${p.name}">
+             <option value="wants">Wants</option>
+             <option value="needs" selected>Needs</option>
+           </select>
+         </span>`
+      : `<span class="purchase-budget-chip wants">
+           <select class="budget-type-inline-select" onchange="setPurchaseBudgetType('${p.id}',this.value)" aria-label="Budget type for ${p.name}">
+             <option value="wants" selected>Wants</option>
+             <option value="needs">Needs</option>
+           </select>
+         </span>`;
+
     const li = document.createElement('li');
     li.className = 'purchase-item';
     li.innerHTML = `
@@ -283,6 +303,7 @@ function renderPurchaseList() {
           <span class="purchase-cat-badge" style="background:${colour}20;color:${colour}">
             <select class="cat-inline-select" onchange="setPurchaseCategory('${p.id}',this.value)" style="color:${colour}" aria-label="Category for ${p.name}">${catOpts}</select>
           </span>
+          ${budgetChip}
           ${cardChip}
         </div>
       </div>

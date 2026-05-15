@@ -166,8 +166,11 @@ function loadFromStorage() {
   if (!state.incomeStreams)     state.incomeStreams      = [];
   if (!state.expenseCards)      state.expenseCards       = [];
   if (!state.purchases)         state.purchases          = [];
-  // ── Migration: add cardId to existing purchases that pre-date the card-tag feature ──
-  state.purchases.forEach(p => { if (p.cardId === undefined) p.cardId = null; });
+  // ── Migration: add cardId + budgetType to existing purchases ──
+  state.purchases.forEach(p => {
+    if (p.cardId    === undefined) p.cardId    = null;
+    if (p.budgetType === undefined) p.budgetType = 'wants';
+  });
   if (!state.spendingHistory)   state.spendingHistory    = [];
   if (!state.loans)             state.loans              = [];
   if (!state.creditCards)       state.creditCards        = [];

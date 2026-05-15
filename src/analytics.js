@@ -96,7 +96,11 @@ function calculateActualNeeds(year, month) {
       .reduce((sum, sub) => sum + (+sub.amount || 0) * sub.renewalDates.length, 0);
     const needsLoanTotal = getLoansDeductedThisMonth()
       .reduce((sum, l) => sum + (+l.paymentAmount || 0) * l.renewalDates.length, 0);
-    return expenseTotal + needsSubTotal + needsLoanTotal;
+    // Purchases explicitly tagged as Needs count against the Needs budget
+    const needsPurchaseTotal = (state.purchases || [])
+      .filter(p => p.budgetType === 'needs')
+      .reduce((sum, p) => sum + (+p.amount || 0), 0);
+    return expenseTotal + needsSubTotal + needsLoanTotal + needsPurchaseTotal;
   }
   return expenseTotal;
 }
@@ -109,7 +113,10 @@ function calculateActualWants(year, month) {
   const today = new Date();
   const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   if (monthStr === currentMonth) {
-    total += (state.purchases || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+    // Only Wants-tagged purchases count toward the Wants actual (Needs-tagged go to calculateActualNeeds)
+    total += (state.purchases || [])
+      .filter(p => (p.budgetType || 'wants') !== 'needs')
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
     // Add Wants subs deducted during the current bi-weekly period
     total += getSubsDeductedThisPeriod()
       .reduce((sum, sub) => sum + (+sub.amount || 0) * sub.renewalDates.length, 0);
