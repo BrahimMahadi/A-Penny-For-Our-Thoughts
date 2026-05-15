@@ -130,7 +130,7 @@ textarea,
 .period-history-item,
 .period-purchase-row,
 .analytics-stat-card,
-.add-item-form,
+.add-form-stacked,
 .edit-section,
 .save-bar {
   transition: var(--transition);
@@ -710,7 +710,6 @@ textarea:focus-visible {
   }
 }
 
-.add-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 
 /* ═══════════════════════════════════════════════════
    EXPENSE CARDS
@@ -1090,22 +1089,62 @@ textarea:focus-visible {
 .sub-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
 
 .sub-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   background: var(--surface2);
-  border-radius: 8px;
-  padding: 10px 14px;
-  flex-wrap: wrap;
+  border-radius: 10px;
 
-  & .sub-name { flex: 1; font-weight: 600; font-size: 13px; min-width: 100px; }
-  & .sub-date { font-size: 11px; color: var(--muted); }
-  & .sub-amount {
-    font-size: 12px;
+  & .swipe-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 12px 14px;
+  }
+
+  & .sub-row-1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  & .sub-name {
+    font-size: 15px;
     font-weight: 700;
     color: var(--text);
-    min-width: 64px;
-    text-align: right;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  & .sub-row-2 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  & .sub-amount {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--accent2);
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  & .sub-row-3 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+  }
+
+  & .sub-date {
+    font-size: 11px;
+    color: var(--muted);
   }
 }
 
@@ -1372,22 +1411,142 @@ textarea:focus-visible {
 }
 
 /* ═══════════════════════════════════════════════════
-   ADD ITEM FORMS
+   STACKED ADD FORMS
 ═══════════════════════════════════════════════════ */
-.add-item-form {
+.add-form-stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--surface2);
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+}
+
+.add-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  & .add-form-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  & input[type="text"],
+  & input[type="number"],
+  & input[type="url"],
+  & select {
+    height: 44px;
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 0 12px;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+    transition: border-color .15s;
+
+    &:focus {
+      border-color: var(--accent);
+      outline: none;
+    }
+  }
+}
+
+.add-form-actions {
   display: flex;
   gap: 8px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-  align-items: center;
-  padding: 12px;
-  background: var(--surface2);
-  border-radius: 8px;
-  border: 1px dashed var(--border);
+}
 
-  & input,
-  & select          { flex: 1; min-width: 120px; }
-  & input[type="number"] { max-width: 110px; flex: 0 0 110px; }
+.add-form-submit {
+  flex: 1;
+  height: 44px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity .15s;
+
+  &:hover  { opacity: .88; }
+  &:active { opacity: .75; }
+  &.danger { background: var(--danger); }
+}
+
+/* ═══════════════════════════════════════════════════
+   TOGGLE SWITCH
+═══════════════════════════════════════════════════ */
+label.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+
+  & .toggle-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  & .toggle-label-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  & .toggle-sublabel {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+}
+
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  flex-shrink: 0;
+
+  & input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+    min-height: unset;
+  }
+  & .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 13px;
+    transition: background .2s;
+  }
+  & input:checked + .toggle-track { background: var(--accent); }
+  & .toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    pointer-events: none;
+  }
+  & input:checked + .toggle-track + .toggle-thumb { transform: translateX(18px); }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -2431,17 +2590,6 @@ canvas { max-width: 100%; height: auto; }
     & .btn   { grid-column: 2; grid-row: 1; }
   }
 
-  /* Add row buttons go full-width stacking */
-  .add-row { flex-direction: column; }
-  .add-row input,
-  .add-row .btn { width: 100%; }
-
-  /* Add item forms stack */
-  .add-item-form { flex-direction: column; gap: 10px; }
-  .add-item-form input,
-  .add-item-form select,
-  .add-item-form .btn { width: 100%; flex: none; max-width: 100%; }
-
   /* Modal fits edge-to-edge — modal-row keeps 2-up columns on mobile */
   .modal-row     { gap: 10px; }
   .modal-body    { gap: 12px; }
@@ -2478,30 +2626,12 @@ canvas { max-width: 100%; height: auto; }
   /* List items better spacing */
   .expense-item      { padding: 10px 12px; }
   .savings-acct-item { padding: 12px 14px; }
-  .sub-item          { padding: 12px 14px; }
   .wish-item         { padding: 12px 14px; }
 
   /* Schedule */
   .schedule-summary-row { grid-template-columns: 1fr; }
   .schedule-detail-header { flex-direction: column; align-items: flex-start; gap: 10px; }
 
-  /* ── Subscription items — 2-row layout so content doesn't overflow ── */
-  .sub-item .swipe-content {
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 8px;
-  }
-  /* Name expands to fill row 1 alongside the Needs/Wants badge */
-  .sub-item .sub-name {
-    flex: 1;
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  /* Hide non-essential fields — date is covered by the days chip */
-  .sub-item .sub-date,
-  .sub-item .sub-category-tag { display: none; }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -2546,7 +2676,6 @@ canvas { max-width: 100%; height: auto; }
 
   .expense-item      { padding: 9px 10px; font-size: 12px; }
   .savings-acct-item { padding: 10px 12px; font-size: 12px; }
-  .sub-item          { padding: 10px 12px; font-size: 12px; }
   .wish-item         { padding: 10px 12px; font-size: 12px; }
 
   .wants-chart-wrap { width: 140px; height: 140px; }
@@ -2556,8 +2685,6 @@ canvas { max-width: 100%; height: auto; }
   .modal-footer { padding: 12px 18px; }
   .modal-field input,
   .modal-field select { font-size: 16px; min-height: 44px; }
-
-  .add-item-form { gap: 8px; padding: 10px; }
 
   .save-bar { padding: 11px 12px; margin: 0 -12px -80px; }
 

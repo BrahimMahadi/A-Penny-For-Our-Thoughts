@@ -537,13 +537,27 @@ function renderExpenseCards() {
         <span style="font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--muted)">TOTAL</span>
         <span style="font-weight:700" id="total-${card.id}">${fmt(cardTotal)}</span>
       </div>
-      <div class="add-row" style="margin-top:8px">
-        <input id="new-name-${card.id}"   placeholder="Expense name" style="flex:2;min-width:80px" />
-        <input id="new-amount-${card.id}" type="number" placeholder="$0.00" min="0" step="0.01" style="max-width:80px" />
-        <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--muted);white-space:nowrap;cursor:pointer">
-          <input type="checkbox" id="new-bw-${card.id}" /> Bi-wk
+      <div class="add-form-stacked" style="margin-top:8px">
+        <div class="add-form-field">
+          <span class="add-form-label">Expense Name</span>
+          <input id="new-name-${card.id}" type="text" placeholder="e.g. Rent" />
+        </div>
+        <div class="add-form-field">
+          <span class="add-form-label">Amount</span>
+          <input id="new-amount-${card.id}" type="number" placeholder="$0.00" min="0" step="0.01" />
+        </div>
+        <label class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-label-text">Bi-weekly pay</span>
+            <span class="toggle-sublabel">Amount per paycheque (×2 monthly)</span>
+          </div>
+          <div class="toggle-switch">
+            <input type="checkbox" id="new-bw-${card.id}" />
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </div>
         </label>
-        <button class="btn sm" onclick="addExpense('${card.id}')">Add</button>
+        <button class="add-form-submit" onclick="addExpense('${card.id}')">Add Expense</button>
       </div>`;
     grid.appendChild(div);
 
@@ -947,22 +961,37 @@ function renderSubscriptions() {
       ? ((state.expenseCards || []).find(c => c.id === sub.cardId)?.label ?? '?')
       : null;
 
+    // Format the renewal date as "Jun 2, 2026"
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const [sy, sm, sd] = sub.date ? sub.date.split('-') : ['','',''];
+    const displayDate = sub.date
+      ? `${MONTHS[+sm - 1]} ${+sd}, ${sy}`
+      : '—';
+
     const li = document.createElement('li');
     li.className = 'sub-item swipeable';
+    li.setAttribute('aria-label', `${sub.name} subscription${days === 0 ? ', due today' : days < 0 ? ', expired' : `, renews in ${days} days`}`);
     li.innerHTML = `
       <div class="swipe-delete-bg" aria-hidden="true">🗑</div>
       <div class="swipe-content">
-        <span class="sub-name">${sub.name}</span>
-        <span class="sub-badge ${budgetType}">${budgetType === 'needs' ? 'Needs' : 'Wants'}</span>
-        <span class="sub-category-tag">${sub.category || 'Other'}</span>
-        ${cardLabel
-          ? `<span class="chip purple sub-card-chip" title="Charged to ${cardLabel}">💳 ${cardLabel}</span>`
-          : `<span class="chip warn sub-card-chip" title="No payment card linked">⚠ No card</span>`}
-        <span class="sub-amount">${amount > 0 ? fmt(amount) + suffix : '—'}</span>
-        <span class="sub-date">${sub.date}</span>
-        <span class="chip ${chipCls}">${chipTxt}</span>
-        <button class="btn icon-btn" onclick="openEditSubscription('${sub.id}')" aria-label="Edit ${sub.name}">✎</button>
-        <button class="btn icon-btn del" onclick="deleteSubscription('${sub.id}')" aria-label="Delete ${sub.name}">×</button>
+        <div class="sub-row-1">
+          <span class="sub-name">${sub.name}</span>
+          <span class="chip ${chipCls}">${chipTxt}</span>
+        </div>
+        <div class="sub-row-2">
+          <span class="sub-badge ${budgetType}">${budgetType === 'needs' ? 'Needs' : 'Wants'}</span>
+          ${cardLabel
+            ? `<span class="chip purple sub-card-chip" title="Charged to ${cardLabel}">💳 ${cardLabel}</span>`
+            : `<span class="chip warn sub-card-chip" title="No payment card linked">⚠ No card</span>`}
+          <span class="sub-amount">${amount > 0 ? fmt(amount) + suffix : '—'}</span>
+        </div>
+        <div class="sub-row-3">
+          <span class="sub-date">Renews ${displayDate}</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn icon-btn" onclick="openEditSubscription('${sub.id}')" aria-label="Edit ${sub.name}">✎</button>
+            <button class="btn icon-btn del" onclick="deleteSubscription('${sub.id}')" aria-label="Delete ${sub.name}">×</button>
+          </div>
+        </div>
       </div>`;
     ul.appendChild(li);
   });

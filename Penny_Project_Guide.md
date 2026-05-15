@@ -95,6 +95,25 @@ Open `index.html` in any modern browser. No server or install required.
 
 ---
 
+## UI Patterns
+
+### Stacked Add Forms (`.add-form-stacked`)
+All inline add-forms (Income Streams, Purchases, Savings Accounts, Wishlist, Expense Cards) use a consistent stacked layout:
+- `.add-form-stacked` — vertical flex container with dashed border and `var(--surface2)` background
+- `.add-form-field` — wraps a `.add-form-label` (uppercase 11px) + a `44px` tall full-width input or select
+- `.add-form-actions` — flex row for multiple buttons (e.g. Add + Reset)
+- `.add-form-submit` — full-width 44px green button; add `.danger` class for red variant
+
+### Toggle Switch (`.toggle-row` / `.toggle-switch`)
+Replaces all bi-weekly checkboxes throughout the app. Pure CSS — no JS required:
+- `<label class="toggle-row">` — clickable row with label text on left, switch on right
+- `.toggle-info` contains `.toggle-label-text` (primary) and `.toggle-sublabel` (secondary hint)
+- `.toggle-switch` contains a hidden `<input type="checkbox">`, `.toggle-track`, and `.toggle-thumb`
+- CSS uses `input:checked + .toggle-track` and `input:checked + .toggle-track + .toggle-thumb` for state
+- Used in: Income stream add form, Expense card add form, Edit Income Stream modal, Edit Expense Item modal
+
+---
+
 ## CSS Variables
 
 | Variable | Value | Use |
@@ -122,7 +141,7 @@ Open `index.html` in any modern browser. No server or install required.
 - Budget vs. Actual summary panel — compares budgeted vs. actual spending for Needs, Wants, and Savings (On Track / Over indicator per category)
 
 ### Income Streams (CRUD)
-- Add multiple income streams — each has a name, amount, and a bi-weekly checkbox
+- Add multiple income streams — each has a name, amount, and a bi-weekly toggle switch
 - Bi-weekly streams: monthly value = amount × 26 / 12
 - Total Monthly Income = sum of all streams' monthly values
 
@@ -135,7 +154,7 @@ Open `index.html` in any modern browser. No server or install required.
 
 ### Monthly Expenses (Needs)
 - Fully dynamic payment cards — user adds/renames/deletes cards
-- Each card has items with name, amount, bi-weekly toggle
+- Each card has items with name, amount, bi-weekly toggle switch
 - Summary: grand total and Needs budget remaining
 
 ### Budget vs. Actual
@@ -178,6 +197,7 @@ Open `index.html` in any modern browser. No server or install required.
 
 ### Subscription Renewals
 - Sorted by date ascending; day countdown chip (green >60d, amber <60d, red expired)
+- **Card layout (3-row):** Row 1 — full name + urgency chip; Row 2 — budget badge + card chip + amount; Row 3 — formatted renewal date + edit/delete buttons
 - **Frequencies:** Monthly, Bi-Weekly, Quarterly, Bi-Yearly, Annual
 - **Card association (required):** Each subscription must be linked to an expense card; an (↻) row appears on that card every month a renewal falls due
 - **Budget type:** Wants (deducted from bi-weekly envelope) or Needs (deducted from monthly needs budget)

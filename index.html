@@ -209,13 +209,27 @@
       <div>💰</div>
       <div>No income streams yet — add one below</div>
     </div>
-    <div class="add-item-form" style="margin-top:12px">
-      <input id="new-stream-name"   placeholder="Stream name (e.g. Government)" style="flex:2" aria-label="Stream name" />
-      <input id="new-stream-amount" type="number" placeholder="$0.00" min="0" step="0.01" style="max-width:110px" aria-label="Amount" />
-      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);white-space:nowrap;cursor:pointer">
-        <input type="checkbox" id="new-stream-biweekly" /> Bi-weekly
+    <div class="add-form-stacked">
+      <div class="add-form-field">
+        <span class="add-form-label">Stream Name</span>
+        <input id="new-stream-name" type="text" placeholder="e.g. Government" aria-label="Stream name" />
+      </div>
+      <div class="add-form-field">
+        <span class="add-form-label">Amount</span>
+        <input id="new-stream-amount" type="number" placeholder="$0.00" min="0" step="0.01" aria-label="Amount" />
+      </div>
+      <label class="toggle-row">
+        <div class="toggle-info">
+          <span class="toggle-label-text">Bi-weekly pay</span>
+          <span class="toggle-sublabel">Amount per paycheque (×2 for monthly)</span>
+        </div>
+        <div class="toggle-switch">
+          <input type="checkbox" id="new-stream-biweekly" />
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </div>
       </label>
-      <button class="btn sm" onclick="addIncomeStream()">Add</button>
+      <button class="add-form-submit" onclick="addIncomeStream()">Add Income Stream</button>
     </div>
   </div>
 
@@ -260,14 +274,25 @@
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px">Purchases This Period</div>
         <ul class="purchase-list" id="purchase-list" role="list"></ul>
-        <div class="add-row" style="flex-wrap:wrap;gap:6px">
-          <input id="purchase-name"   placeholder="Item name"  style="flex:2;min-width:120px" aria-label="Purchase name" />
-          <input id="purchase-amount" placeholder="$0.00"      style="max-width:90px" aria-label="Purchase amount" />
-          <select id="purchase-card" aria-label="Payment card (optional)" style="flex:1;min-width:90px;max-width:140px">
-            <option value="">No card</option>
-          </select>
-          <button class="btn sm" onclick="addPurchase()">Add</button>
-          <button class="btn sm danger" onclick="resetWants()">Reset Period</button>
+        <div class="add-form-stacked">
+          <div class="add-form-field">
+            <span class="add-form-label">Item Name</span>
+            <input id="purchase-name" type="text" placeholder="e.g. Coffee" aria-label="Purchase name" />
+          </div>
+          <div class="add-form-field">
+            <span class="add-form-label">Amount</span>
+            <input id="purchase-amount" type="number" placeholder="$0.00" min="0" step="0.01" aria-label="Purchase amount" />
+          </div>
+          <div class="add-form-field">
+            <span class="add-form-label">Payment Card</span>
+            <select id="purchase-card" aria-label="Payment card (optional)">
+              <option value="">No card</option>
+            </select>
+          </div>
+          <div class="add-form-actions">
+            <button class="add-form-submit" onclick="addPurchase()">Add Purchase</button>
+            <button class="add-form-submit danger" onclick="resetWants()">Reset Period</button>
+          </div>
         </div>
         <!-- Live rule match preview shown as user types a purchase name -->
         <div id="purchase-cat-preview" style="min-height:18px;margin-top:4px"></div>
@@ -422,10 +447,16 @@
       </div>
     </div>
     <ul class="savings-accounts-list" id="savings-accounts-list" role="list"></ul>
-    <div class="add-item-form" style="margin-top:12px">
-      <input id="new-savings-name"   placeholder="Account name" style="flex:2" aria-label="Account name" />
-      <input id="new-savings-amount" type="number" placeholder="$0.00" min="0" step="0.01" aria-label="Initial balance" />
-      <button class="btn sm" onclick="addSavingsAccount()">Add Account</button>
+    <div class="add-form-stacked" style="margin-top:12px">
+      <div class="add-form-field">
+        <span class="add-form-label">Account Name</span>
+        <input id="new-savings-name" type="text" placeholder="e.g. Emergency Fund" aria-label="Account name" />
+      </div>
+      <div class="add-form-field">
+        <span class="add-form-label">Initial Balance</span>
+        <input id="new-savings-amount" type="number" placeholder="$0.00" min="0" step="0.01" aria-label="Initial balance" />
+      </div>
+      <button class="add-form-submit" onclick="addSavingsAccount()">Add Account</button>
     </div>
     <button class="btn" onclick="openAllocateSavingsModal()" style="width: 100%; margin-top: 12px;">💰 Allocate Savings Budget</button>
   </div>
@@ -576,11 +607,20 @@
   <h2 class="section-title">Upcoming Wants / Wishlist</h2>
   <div class="card">
     <ul class="wishlist" id="wishlist" role="list"></ul>
-    <div class="add-item-form" style="margin-top:12px">
-      <input id="new-wish-icon" placeholder="🛒" style="max-width:56px;text-align:center" aria-label="Icon emoji" />
-      <input id="new-wish-name" placeholder="Item name" style="flex:2" aria-label="Item name" />
-      <input id="new-wish-url"  placeholder="URL (optional)" style="flex:2" aria-label="Item URL" autocomplete="url" />
-      <button class="btn sm" onclick="addWishlistItem()">Add</button>
+    <div class="add-form-stacked" style="margin-top:12px">
+      <div class="add-form-field">
+        <span class="add-form-label">Icon</span>
+        <input id="new-wish-icon" type="text" placeholder="🛒" aria-label="Icon emoji" />
+      </div>
+      <div class="add-form-field">
+        <span class="add-form-label">Item Name</span>
+        <input id="new-wish-name" type="text" placeholder="Item name" aria-label="Item name" />
+      </div>
+      <div class="add-form-field">
+        <span class="add-form-label">URL (optional)</span>
+        <input id="new-wish-url" type="url" placeholder="https://..." aria-label="Item URL" autocomplete="url" />
+      </div>
+      <button class="add-form-submit" onclick="addWishlistItem()">Add to Wishlist</button>
     </div>
   </div>
 

@@ -473,13 +473,17 @@ function openEditIncomeStream(id) {
     mField('Stream Name', 'mis-name',   'text',   stream.name,   '') +
     mField('Amount ($)',  'mis-amount', 'number', stream.amount, '0.00', 'min="0" step="0.01"') +
     `</div>` +
-    `<div class="modal-field">
-      <label>Frequency</label>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;font-weight:600;color:var(--text)">
+    `<label class="toggle-row">
+      <div class="toggle-info">
+        <span class="toggle-label-text">Bi-weekly pay</span>
+        <span class="toggle-sublabel">Amount per paycheque (×2 for monthly)</span>
+      </div>
+      <div class="toggle-switch">
         <input type="checkbox" id="mis-biweekly" ${stream.biweekly ? 'checked' : ''} />
-        Bi-weekly (paid every 2 weeks)
-      </label>
-    </div>`,
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </div>
+    </label>`,
     () => {
       const name     = document.getElementById('mis-name').value.trim();
       const amount   = parseFloat(document.getElementById('mis-amount').value);
@@ -691,12 +695,17 @@ function openEditExpenseItem(cardId, itemId) {
       mField('Amount ($)', 'mei-amount', 'number', item.amount, '0.00', 'min="0" step="0.01"') +
       mField('Due Day (optional)', 'mei-dueday', 'number', item.dueDay ?? '', '1–31', 'min="1" max="31" step="1"') +
     `</div>` +
-    `<div class="modal-field">
-      <label style="flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px;font-weight:600;color:var(--text)">
+    `<label class="toggle-row">
+      <div class="toggle-info">
+        <span class="toggle-label-text">Bi-weekly pay</span>
+        <span class="toggle-sublabel">Amount per paycheque (×2 for monthly)</span>
+      </div>
+      <div class="toggle-switch">
         <input type="checkbox" id="mei-biweekly" ${item.biweekly ? 'checked' : ''} />
-        Bi-weekly pay (amount is per paycheque — ×2 for monthly)
-      </label>
-    </div>`;
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </div>
+    </label>`;
 
   openModal('Edit Expense Item', body, () => {
     const name     = document.getElementById('mei-name').value.trim();
