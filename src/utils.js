@@ -5,7 +5,7 @@
    Summary:  Pure helper functions with no side effects or
              dependencies on other modules. Safe to load first.
    Functions: genId, fmt, pct, daysUntil, monthlyAmount,
-              deepClone, csvEscape, parseCSVRow
+              deepClone, csvEscape, parseCSVRow, showToast
 ═══════════════════════════════════════════════════════════════ */
 
 /**
@@ -155,4 +155,31 @@ function parseCSVRow(row) {
   }
   fields.push(cur);
   return fields;
+}
+
+/**
+ * Display a self-dismissing toast notification at the bottom-right of the screen.
+ * Appends a toast element to #toast-container, animates it in, then removes it
+ * after 2.5 s via an exit animation.  Safe to call before the DOM is ready —
+ * silently no-ops if the container is absent.
+ *
+ * @param {string} message          - Text to display in the toast.
+ * @param {'success'|'danger'|'info'} [type='success'] - Visual variant.
+ * @returns {void}
+ */
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.setAttribute('role', 'status');
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  // Begin exit animation after 2.5 s, then remove from DOM once it finishes
+  setTimeout(() => {
+    toast.classList.add('toast--out');
+    toast.addEventListener('animationend', () => toast.remove(), { once: true });
+  }, 2500);
 }
