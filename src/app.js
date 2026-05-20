@@ -424,6 +424,7 @@ function openEditAllocation() {
       }
       state.allocation = { needs: n, wants: w, savings: s };
       saveToStorage(); _renderIncomeDependents(); closeModal();
+      showToast('Budget allocation updated');
     }
   );
   updateAllocValidation();
@@ -462,6 +463,7 @@ function addIncomeStream() {
   document.getElementById('new-stream-biweekly').checked   = false;
   saveToStorage(); _renderIncomeDependents();
   srAnnounce(`Income stream "${name}" added`);
+  showToast(`"${name}" income stream added`);
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -484,6 +486,7 @@ function openEditFundsRemaining() {
       saveToStorage();
       renderIncome();
       closeModal();
+      showToast('Balance updated');
     }
   );
   // Pre-select the input so the user can type right away
@@ -517,6 +520,7 @@ function openEditIncomeStream(id) {
       if (!name || isNaN(amount)) return;
       Object.assign(stream, { name, amount, biweekly });
       saveToStorage(); _renderIncomeDependents(); closeModal();
+      showToast('Income stream updated');
     }
   );
 }
@@ -525,6 +529,7 @@ function deleteIncomeStream(id) {
   if (!confirm('Remove this income stream?')) return;
   state.incomeStreams = state.incomeStreams.filter(s => s.id !== id);
   saveToStorage(); _renderIncomeDependents();
+  showToast('Income stream removed', 'danger');
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -549,11 +554,13 @@ function addPurchase() {
   if (preview) preview.innerHTML = '';
   saveToStorage(); renderWants(); renderBudgetVsActual();
   srAnnounce(`Purchase added: ${name} ${fmt(amount)}`);
+  showToast(`${name} added`);
 }
 
 function removePurchase(id) {
   state.purchases = state.purchases.filter(p => p.id !== id);
   saveToStorage(); renderWants(); renderBudgetVsActual();
+  showToast('Purchase removed', 'danger');
 }
 
 /** Manually override the category of a current-period purchase */
@@ -613,6 +620,7 @@ function resetWants() {
   }
   state.purchases = [];
   saveToStorage(); renderWants(); renderBudgetVsActual();
+  showToast('Period archived & reset', 'info');
   const panel = document.getElementById('analytics-panel');
   if (panel && panel.style.display !== 'none') renderSpendingAnalytics();
 }
@@ -656,6 +664,7 @@ function openEditHistoryPurchase(periodId, purchaseId) {
       Object.assign(purchase, { name, amount });
       period.total = period.items.reduce((s, p) => s + +p.amount, 0);
       saveToStorage(); renderAnalyticsHistory(); closeModal();
+      showToast('Purchase updated');
     }
   );
 }
@@ -666,12 +675,14 @@ function deleteHistoryPurchase(periodId, purchaseId) {
   period.items = period.items.filter(p => p.id !== purchaseId);
   period.total = period.items.reduce((s, p) => s + +p.amount, 0);
   saveToStorage(); renderSpendingAnalytics();
+  showToast('Purchase removed from history', 'danger');
 }
 
 function deleteHistoryPeriod(periodId) {
   if (!confirm('Delete this entire spending period from history?')) return;
   state.spendingHistory = state.spendingHistory.filter(p => p.id !== periodId);
   saveToStorage(); renderSpendingAnalytics();
+  showToast('Spending period deleted', 'danger');
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -689,6 +700,7 @@ function addExpense(cardId) {
   document.getElementById('new-amount-' + cardId).value   = '';
   document.getElementById('new-bw-'     + cardId).checked = false;
   saveToStorage(); renderExpenseCards(); renderBudgetVsActual(); _scheduleIfActive();
+  showToast(`"${name}" added`);
 }
 
 function removeExpense(cardId, itemId) {
@@ -696,6 +708,7 @@ function removeExpense(cardId, itemId) {
   if (!card) return;
   card.items = card.items.filter(i => i.id !== itemId);
   saveToStorage(); renderExpenseCards(); renderBudgetVsActual(); _scheduleIfActive();
+  showToast('Expense removed', 'danger');
 }
 
 function openAddExpenseCard() {
@@ -704,6 +717,7 @@ function openAddExpenseCard() {
     if (!label) return;
     state.expenseCards.push({ id: genId(), label, items: [] });
     saveToStorage(); renderExpenseCards(); renderBudgetVsActual(); _scheduleIfActive(); closeModal();
+    showToast(`"${label}" card added`);
   });
 }
 
@@ -715,6 +729,7 @@ function openEditExpenseCard(id) {
     if (!label) return;
     card.label = label;
     saveToStorage(); renderExpenseCards(); renderBudgetVsActual(); _scheduleIfActive(); closeModal();
+    showToast('Card renamed');
   });
 }
 
@@ -722,6 +737,7 @@ function deleteExpenseCard(id) {
   if (!confirm('Delete this payment card and all its expenses?')) return;
   state.expenseCards = state.expenseCards.filter(c => c.id !== id);
   saveToStorage(); renderExpenseCards(); renderBudgetVsActual(); _scheduleIfActive();
+  showToast('Payment card deleted', 'danger');
 }
 
 function openEditExpenseItem(cardId, itemId) {
@@ -758,6 +774,7 @@ function openEditExpenseItem(cardId, itemId) {
     if (!name || isNaN(amount) || amount <= 0) return;
     Object.assign(item, { name, amount, biweekly, dueDay });
     saveToStorage(); renderExpenseCards(); renderBudgetVsActual(); _scheduleIfActive(); closeModal();
+    showToast('Expense updated');
   });
 }
 
@@ -842,6 +859,7 @@ function openAddLoan() {
     if (!name || isNaN(remaining) || isNaN(original)) return;
     state.loans.push({ id: genId(), name, remaining, original, paymentAmount, frequency, date, budgetType, cardId });
     saveToStorage(); renderLoans(); renderNetWorth(); renderExpenseCards(); closeModal();
+    showToast(`"${name}" loan added`);
   });
 }
 
@@ -853,6 +871,7 @@ function openEditLoan(id) {
     if (!name || isNaN(remaining) || isNaN(original)) return;
     Object.assign(loan, { name, remaining, original, paymentAmount, frequency, date, budgetType, cardId });
     saveToStorage(); renderLoans(); renderNetWorth(); renderExpenseCards(); closeModal();
+    showToast('Loan updated');
   });
 }
 
@@ -860,6 +879,7 @@ function deleteLoan(id) {
   if (!confirm('Delete this loan?')) return;
   state.loans = state.loans.filter(l => l.id !== id);
   saveToStorage(); renderLoans(); renderNetWorth(); renderExpenseCards();
+  showToast('Loan deleted', 'danger');
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -880,6 +900,7 @@ function openAddCreditCard() {
       if (!name || isNaN(balance) || isNaN(limit)) return;
       state.creditCards.push({ id: genId(), name, balance, limit });
       saveToStorage(); renderCreditCards(); renderNetWorth(); closeModal();
+      showToast(`"${name}" added`);
     }
   );
 }
@@ -901,6 +922,7 @@ function openEditCreditCard(id) {
       if (!name || isNaN(balance) || isNaN(limit)) return;
       Object.assign(cc, { name, balance, limit });
       saveToStorage(); renderCreditCards(); renderNetWorth(); closeModal();
+      showToast('Credit card updated');
     }
   );
 }
@@ -909,6 +931,7 @@ function deleteCreditCard(id) {
   if (!confirm('Delete this credit card?')) return;
   state.creditCards = state.creditCards.filter(c => c.id !== id);
   saveToStorage(); renderCreditCards(); renderNetWorth();
+  showToast('Credit card deleted', 'danger');
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -923,6 +946,7 @@ function addSavingsAccount() {
   document.getElementById('new-savings-amount').value = '';
   saveToStorage(); renderSavings(); renderGoals(); renderNetWorth();
   srAnnounce(`Savings account "${name}" added`);
+  showToast(`"${name}" account added`);
 }
 
 function openEditSavingsAccount(id) {
@@ -942,6 +966,7 @@ function openEditSavingsAccount(id) {
       if (!name || isNaN(balance) || isNaN(defaultAllocated)) return;
       Object.assign(acct, { name, balance, defaultAllocated });
       saveToStorage(); renderSavings(); renderGoals(); renderNetWorth(); closeModal();
+      showToast('Account updated');
     }
   );
 }
@@ -951,6 +976,7 @@ function deleteSavingsAccount(id) {
   state.savingsAccounts = state.savingsAccounts.filter(a => a.id !== id);
   state.goals           = (state.goals || []).filter(g => g.accountId !== id);
   saveToStorage(); renderSavings(); renderGoals(); renderNetWorth();
+  showToast('Account deleted', 'danger');
 }
 
 function openAllocateSavingsModal() {
@@ -1017,6 +1043,7 @@ function openAllocateSavingsModal() {
       });
       saveToStorage(); renderSavings(); renderBudgetVsActual(); closeModal();
       srAnnounce('Allocation updated for ' + monthName);
+      showToast('Allocations saved');
     }
   );
 
@@ -1059,6 +1086,7 @@ function openAddGoal() {
       if (!accountId || isNaN(targetAmount) || !targetDate) { srAnnounce('Please fill in all fields'); return; }
       state.goals.push({ id: genId(), accountId, targetAmount, targetDate });
       saveToStorage(); renderGoals(); closeModal();
+      showToast('Savings goal added');
     }
   );
 }
@@ -1085,6 +1113,7 @@ function openEditGoal(id) {
       if (!accountId || isNaN(targetAmount) || !targetDate) { srAnnounce('Please fill in all fields'); return; }
       Object.assign(goal, { accountId, targetAmount, targetDate });
       saveToStorage(); renderGoals(); closeModal();
+      showToast('Savings goal updated');
     }
   );
 }
@@ -1093,6 +1122,7 @@ function deleteGoal(id) {
   if (!confirm('Delete this savings goal?')) return;
   state.goals = (state.goals || []).filter(g => g.id !== id);
   saveToStorage(); renderGoals();
+  showToast('Goal deleted', 'danger');
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -1181,6 +1211,7 @@ function openAddSubscription() {
     if (!cardId) { srAnnounce('Please select a payment card.'); return; }
     state.subscriptions.push({ id: genId(), name, amount, frequency, date, category, budgetType, cardId });
     saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); _scheduleIfActive(); closeModal();
+    showToast(`"${name}" subscription added`);
   });
 }
 
@@ -1193,6 +1224,7 @@ function openEditSubscription(id) {
     if (!cardId) { srAnnounce('Please select a payment card.'); return; }
     Object.assign(sub, { name, amount, frequency, date, category, budgetType, cardId });
     saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); _scheduleIfActive(); closeModal();
+    showToast('Subscription updated');
   });
 }
 
@@ -1200,6 +1232,7 @@ function deleteSubscription(id) {
   if (!confirm('Remove this subscription?')) return;
   state.subscriptions = state.subscriptions.filter(s => s.id !== id);
   saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); _scheduleIfActive();
+  showToast('Subscription removed', 'danger');
 }
 
 /**
@@ -1252,6 +1285,7 @@ function openSetPayStart() {
       if (!date) { srAnnounce('Please select a date.'); return; }
       state.payStart = date;
       saveToStorage(); renderWants(); renderSubscriptions(); renderExpenseCards(); _scheduleIfActive(); closeModal();
+      showToast('Payday anchor saved');
     }
   );
 }
@@ -1302,6 +1336,7 @@ function openAddRule() {
     if (!state.rules) state.rules = [];
     state.rules.push({ id: genId(), pattern, matchType, category });
     saveToStorage(); renderRules(); closeModal();
+    showToast(`Rule for "${pattern}" added`);
     // Offer retroactive apply to current period
     if ((state.purchases || []).length > 0) {
       const changed = reapplyRulesToPurchases();
@@ -1318,6 +1353,7 @@ function openEditRule(id) {
     if (!pattern) return;
     Object.assign(rule, { pattern, matchType, category });
     saveToStorage(); renderRules(); closeModal();
+    showToast('Rule updated');
     reapplyRulesToPurchases();
   });
 }
@@ -1326,6 +1362,7 @@ function deleteRule(id) {
   if (!confirm('Delete this rule?')) return;
   state.rules = (state.rules || []).filter(r => r.id !== id);
   saveToStorage(); renderRules();
+  showToast('Rule deleted', 'danger');
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -1355,6 +1392,7 @@ function openAddAlert() {
       }
       state.budgetAlerts.push({ id: genId(), category, threshold });
       saveToStorage(); renderBudgetAlerts(); renderWants(); closeModal();
+      showToast(`Alert for "${category}" added`);
     }
   );
 }
@@ -1380,6 +1418,7 @@ function openEditAlert(id) {
       if (duplicate) { srAnnounce(`An alert for "${category}" already exists.`); return; }
       Object.assign(alertItem, { category, threshold });
       saveToStorage(); renderBudgetAlerts(); renderWants(); closeModal();
+      showToast('Alert updated');
     }
   );
 }
@@ -1388,6 +1427,7 @@ function deleteAlert(id) {
   if (!confirm('Delete this alert?')) return;
   state.budgetAlerts = (state.budgetAlerts || []).filter(a => a.id !== id);
   saveToStorage(); renderBudgetAlerts(); renderWants();
+  showToast('Alert deleted', 'danger');
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -1404,6 +1444,7 @@ function addWishlistItem() {
   document.getElementById('new-wish-url').value  = '';
   saveToStorage(); renderWishlist();
   srAnnounce(`Wishlist item "${name}" added`);
+  showToast(`"${name}" added to wishlist`);
 }
 
 function openEditWishlistItem(id) {
@@ -1423,6 +1464,7 @@ function openEditWishlistItem(id) {
       if (!name) return;
       Object.assign(item, { icon, name, url });
       saveToStorage(); renderWishlist(); closeModal();
+      showToast('Wishlist item updated');
     }
   );
 }
@@ -1431,6 +1473,7 @@ function deleteWishlistItem(id) {
   if (!confirm('Remove this item from the wishlist?')) return;
   state.wishlist = state.wishlist.filter(w => w.id !== id);
   saveToStorage(); renderWishlist();
+  showToast('Item removed from wishlist', 'danger');
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -1451,6 +1494,7 @@ function openAddAsset(category) {
       if (!name) { srAnnounce('Please enter a name.'); return; }
       state.assets.push({ id: genId(), name, category, value });
       saveToStorage(); renderNetWorth(); closeModal();
+      showToast(`"${name}" added`);
     }
   );
 }
@@ -1471,6 +1515,7 @@ function openEditAsset(id) {
       if (!name) { srAnnounce('Please enter a name.'); return; }
       Object.assign(asset, { name, value });
       saveToStorage(); renderNetWorth(); closeModal();
+      showToast('Asset updated');
     }
   );
 }
@@ -1479,6 +1524,7 @@ function deleteAsset(id) {
   if (!confirm('Remove this asset?')) return;
   state.assets = state.assets.filter(a => a.id !== id);
   saveToStorage(); renderNetWorth();
+  showToast('Asset removed', 'danger');
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -1593,6 +1639,7 @@ function exportCsv() {
   const link = Object.assign(document.createElement('a'), { href: url, download: `penny-export-${today}.csv` });
   link.click();
   URL.revokeObjectURL(url);
+  showToast('Export downloaded', 'info');
 }
 
 /**
@@ -1615,6 +1662,7 @@ function importCsv(event) {
       if (!confirm('Import this CSV? This will replace all current data.')) { event.target.value = ''; return; }
       state = newState;
       saveToStorage(); renderAll(); switchTab('dashboard');
+      showToast('CSV imported successfully', 'info');
     } catch (err) {
       srAnnounce('Failed to import CSV: ' + err.message);
     } finally {
@@ -1635,6 +1683,7 @@ function clearAllData() {
   state = deepClone(BLANK_STATE);
   saveToStorage(); renderAll();
   srAnnounce('All data has been cleared. Starting fresh!');
+  showToast('All data cleared', 'danger');
 }
 
 /**
