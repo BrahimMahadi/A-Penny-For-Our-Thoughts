@@ -10,7 +10,7 @@
 You are continuing development of "A Penny For Our Thoughts" — a personal budget tracking web dashboard for a user named Brahim.
 
 **Project location:** /Users/brahim/Documents/Claude/Projects/A Penny For Our Thoughts/
-The entry point is index.html. JS and CSS live under src/. All files must stay in the same repo.
+The entry point is index.html. All JS lives under src/. All files must stay in the same repo.
 
 **Tech stack:** Vanilla HTML/CSS/JavaScript, single-page application, no build tools or frameworks. Chart.js 4.4.1 loaded from Cloudflare CDN. All data persisted in localStorage under the key `penny_state_v2`.
 
@@ -18,19 +18,25 @@ The entry point is index.html. JS and CSS live under src/. All files must stay i
 
 **Income:** Multiple income streams — each has { id, name, amount, biweekly }. Monthly income = sum of all streams (biweekly ones × 26 / 12). The dashboard shows this total in the "Total Monthly Income" stat card.
 
-**Theme:** Light/dark theme toggle in header (🌙/☀️ button). User preference persisted in localStorage under key `penny_theme`.
+**Theme:** Botanical dark/light theme (deep greens + lime accents). Toggle in header (🌙/☀️). User preference persisted in localStorage under key `penny_theme`.
 
 **Mobile Responsiveness:** Fully responsive with breakpoints at 1024px, 768px, 540px, 380px.
 
 **Architecture:** The app is entirely driven by a single `state` object loaded from localStorage. Every render function reads from `state`. Saving always calls `saveToStorage()` then the relevant `render*()` function(s). IDs are stable random strings from `genId()`.
+
+**Module load order:** utils.js → state.js → analytics.js → charts.js → render.js → app.js
 
 **State schema (penny_state_v2):**
 - `allocation` (object): `{ needs: 50, wants: 30, savings: 20 }` — percentages, must sum to 100
 - `budgetDisplayMode` (object): `{ needs: 'monthly', wants: 'monthly', savings: 'monthly' }`
 - `incomeStreams` (array): `[{ id, name, amount, biweekly }]`
 - `expenseCards` (array): `[{ id, label, items: [{ id, name, amount, biweekly }] }]`
-- `purchases` (array): `[{ id, name, amount }]` — current bi-weekly wants period
-- `spendingHistory` (array): `[{ id, date, label, total, items: [{ id, name, amount }] }]`
+- `purchases` (array): `[{ id, name, amount, category, cardId, budgetType }]`
+  - `category`: WANT_CATEGORIES string (e.g. 'Food & Drink', 'Other')
+  - `cardId`: associated expense card id (null = no card)
+  - `budgetType`: `'wants'` (default) | `'needs'` — controls which budget category the purchase deducts from
+- `spendingHistory` (array): `[{ id, date, label, total, items: [...purchases] }]`
+  - `total` contains only the Wants-tagged purchases (Needs-tagged are excluded)
 - `loans` (array): `[{ id, name, remaining, original, paymentAmount, frequency, date, budgetType, cardId }]`
   - `paymentAmount`: regular payment amount per period (0 = no schedule configured)
   - `frequency`: `'monthly'` | `'bi-weekly'` | `'quarterly'` | `'bi-yearly'` | `'annual'`
@@ -41,6 +47,7 @@ The entry point is index.html. JS and CSS live under src/. All files must stay i
 - `subscriptions` (array): `[{ id, name, amount, frequency, date, category, budgetType, cardId }]`
   - `frequency`: `'monthly'` | `'bi-weekly'` | `'quarterly'` | `'bi-yearly'` | `'annual'`
   - `cardId`: required — associated expense card id (must select a card to add)
+  - `budgetType`: `'wants'` | `'needs'`
 - `wishlist` (array): `[{ id, icon, name, url }]`
 - `savingsAccounts` (array): `[{ id, name, balance, defaultAllocated, monthlyAllocations: {} }]`
   - `balance`: total current balance in the account
@@ -49,9 +56,12 @@ The entry point is index.html. JS and CSS live under src/. All files must stay i
 - `goals` (array): `[{ id, accountId, targetAmount, targetDate }]`
   - `accountId`: references a savings account id
   - `targetDate`: YYYY-MM format (e.g. "2027-12")
+- `payStart` (string): YYYY-MM-DD anchor date for the bi-weekly wants period
+- `rules` (array): `[{ id, pattern, matchType, category }]` — auto-categorise purchases
+- `budgetAlerts` (array): `[{ id, category, threshold }]`
 
 **Key utility functions:**
-- `getAllocationForMonth(account, year, month)` — returns the effective allocation for a given month (override or default)
+- `getAllocationForMonth(account, year, month)` — returns effective allocation for a given month
 - `getGoalProgress(goal)` — returns `{ accountName, currentAmount, targetAmount, progressPercent, monthsRemaining, monthlySavingsNeeded, status, isOnTrack }`
 - `calculateMonthsBetween(startYYYY-MM, endYYYY-MM)` — returns integer month difference
 - `getTotalMonthlyIncome()`, `getAlloc()`, `fmt(n)`, `genId()`
@@ -61,6 +71,8 @@ The entry point is index.html. JS and CSS live under src/. All files must stay i
 - Old `state.expenses` keyed object → expenseCards array
 - Old `savingsAccounts[].allocated` → `defaultAllocated` (balance defaults to 0)
 - Missing `state.goals` → initialized to []
+- Missing `purchase.cardId` → null
+- Missing `purchase.budgetType` → 'wants'
 
 **Coding conventions:**
 - Senior JavaScript developer, clean ES2023 code
@@ -77,8 +89,13 @@ The entry point is index.html. JS and CSS live under src/. All files must stay i
 A Penny For Our Thoughts/
 ├── index.html                  ← HTML shell, layout, modals, all markup
 ├── src/
-│   ├── app.js                  ← All JS: state, rendering, CRUD, persistence (~2,400 lines)
-│   └── styles.css              ← All styling and CSS variables
+│   ├── app.js                  ← Entry point: CRUD operations, UI interactions, CSV, modal builders
+│   ├── render.js               ← All DOM render functions (renderAll, renderWants, etc.)
+│   ├── state.js                ← State initialisation, DEFAULT_STATE, loadFromStorage, saveToStorage
+│   ├── analytics.js            ← Pure calculations: actuals, budget vs actual, goal progress
+│   ├── charts.js               ← Chart.js instance management (donut, bar, line)
+│   ├── utils.js                ← Helpers: fmt(), genId(), deepClone(), ordinal(), etc.
+│   └── styles.css              ← All styling and CSS variables (dark + light Botanical theme)
 ├── data/
 │   ├── blank-template.csv      ← Empty import template for users
 │   └── sample-data.csv         ← Fully populated example for testing
@@ -97,46 +114,85 @@ Open `index.html` in any modern browser. No server or install required.
 
 ## UI Patterns
 
+### Button System
+
+All buttons throughout the app use a unified `.btn` system with **uppercase text and letter-spacing**:
+
+| Class | Use | Style |
+|---|---|---|
+| `.btn` | Primary action | Green fill + accent shadow |
+| `.btn.secondary` | Neutral / edit action | Outlined, surface background |
+| `.btn.danger` | Destructive / delete | Tinted red background + red outlined border |
+| `.btn.warn` | Warning action | Amber fill |
+| `.btn.sm` | Standard height rows (loans, savings, income) | `7px 14px` padding, 11px text |
+| `.btn.xs` | Compact rows (expense items, subscriptions, chips) | `5px 10px` padding, 10px text |
+| `.btn.icon-btn` | Symbol-only buttons (no text) | No uppercase, no shadow |
+
+**Edit/Delete pattern:** Every list item uses `<button class="btn [sm|xs] secondary">Edit</button>` and `<button class="btn [sm|xs] danger">Delete</button>` in a `<div style="display:flex;gap:6px">` wrapper. Use `sm` for standalone row items and `xs` for compact/nested rows.
+
+**Add-form submit:** Uses `.add-form-submit` (same uppercase style, 44px height, full-width). Add `.danger` class for destructive variants.
+
 ### Stacked Add Forms (`.add-form-stacked`)
-All inline add-forms (Income Streams, Purchases, Savings Accounts, Wishlist, Expense Cards) use a consistent stacked layout:
+All inline add-forms (Income Streams, Purchases, Savings, Wishlist, Expense Cards) use a consistent stacked layout:
 - `.add-form-stacked` — vertical flex container with dashed border and `var(--surface2)` background
-- `.add-form-field` — wraps a `.add-form-label` (uppercase 11px) + a `44px` tall full-width input or select
-- `.add-form-actions` — flex row for multiple buttons (e.g. Add + Reset)
-- `.add-form-submit` — full-width 44px green button; add `.danger` class for red variant
+- `.add-form-field` — wraps a `.add-form-label` (uppercase 11px) + a 44px tall full-width input or select
+- `.add-form-submit` — full-width 44px primary button; add `.danger` class for destructive variants
 
 ### Toggle Switch (`.toggle-row` / `.toggle-switch`)
-Replaces all bi-weekly checkboxes throughout the app. Pure CSS — no JS required:
+Replaces all bi-weekly checkboxes. Pure CSS — no JS required:
 - `<label class="toggle-row">` — clickable row with label text on left, switch on right
 - `.toggle-info` contains `.toggle-label-text` (primary) and `.toggle-sublabel` (secondary hint)
 - `.toggle-switch` contains a hidden `<input type="checkbox">`, `.toggle-track`, and `.toggle-thumb`
 - CSS uses `input:checked + .toggle-track` and `input:checked + .toggle-track + .toggle-thumb` for state
 - Used in: Income stream add form, Expense card add form, Edit Income Stream modal, Edit Expense Item modal
 
+### Purchase Budget Type Chips
+Each purchase item shows an inline budget-type chip next to the category chip:
+- `.purchase-budget-chip.wants` — muted grey, default state (discretionary)
+- `.purchase-budget-chip.needs` — amber highlight (counts against Needs budget, not Wants envelope)
+- Chip wraps a `.budget-type-inline-select` dropdown to toggle type inline
+
+### Payday Anchor Line
+The wants tracker header row (`#payday-anchor-line`) renders inline period info + action buttons:
+- Period dates, subscription deduction info
+- `✎ PAYDAY` button (`.btn.xs.secondary`) — opens payday modal
+- `↺ RESET` button (`.btn.xs.danger`) — resets the bi-weekly period
+
 ---
 
-## CSS Variables
+## CSS Variables (Botanical Theme)
 
-| Variable | Value | Use |
+| Variable | Dark value | Use |
 |---|---|---|
-| `--bg` | `#0f1117` | Page background |
-| `--surface` | `#1a1d27` | Card backgrounds |
-| `--surface2` | `#22263a` | Input backgrounds, list items |
-| `--accent` | `#6c63ff` | Primary purple — active states, buttons |
-| `--accent2` | `#00d4aa` | Teal — positive values, savings |
-| `--danger` | `#ff4d6d` | Red — over budget, delete |
-| `--warn` | `#ffa63d` | Amber — warnings, savings target |
-| `--text` | `#e8eaf0` | Primary text |
-| `--muted` | `#7b8199` | Secondary text, labels |
-| `--border` | `#2e3148` | Card/input borders |
-| `--radius` | `12px` | Border radius for cards |
+| `--bg` | `#040d08` | Page background |
+| `--surface` | `#0a1810` | Card backgrounds |
+| `--surface2` | `#0f2018` | Input backgrounds, list items |
+| `--surface3` | `#152a1e` | Hover states |
+| `--accent` | `#4ade80` | Lime green — highlights, active states |
+| `--accent2` | `#a3e635` | Yellow-green — amounts, values |
+| `--accent-btn` | `#16a34a` | Button background (WCAG AA contrast) |
+| `--danger` | `#ff4d6d` | Red text/borders — over budget, delete chips |
+| `--danger-btn` | `#b8202e` | Danger button background (WCAG AA contrast) |
+| `--warn` | `#ffa63d` | Amber — warnings, caution states |
+| `--text` | `#dcfce7` | Primary text |
+| `--muted` | `#5a7a63` | Secondary text, labels |
+| `--border` | `#1a3526` | Card/input borders |
+| `--radius` | `8px` | Border radius for cards |
+
+Light theme overrides all colour tokens while keeping the same variable names.
 
 ---
 
 ## Dashboard Sections
 
 ### Income Overview
-- Four stat cards: Total Monthly Income, Needs Budget, Wants Budget, Savings Budget
-- Each budget card has a toggle (Monthly / Bi-weekly)
+- **Five stat cards** (left → right): Funds Remaining, Total Monthly Income, Needs Budget, Wants Budget, Savings Budget
+- **Funds Remaining** — manually-entered available balance (e.g. chequing account). Stored in `state.fundsRemaining` (number) + `state.fundsRemainingUpdated` (ISO date). ✎ Edit button opens a modal to update the value; sub-label shows "updated [date]".
+- Each budget card (Needs / Wants / Savings) has a **Monthly ↔ Bi-Weekly toggle** in the card title row alongside the ℹ info button. Uses `.kpi-title-controls` flex group.
+- Dollar amounts use **fluid `clamp()` font sizes** calibrated to actual measured card widths (150 px usable @ 1100 px, 179 px @ 1600 px) — content never clips through card borders at any viewport.
+  - Income value: `clamp(22px, calc(2.6vw - 7px), 34px)`
+  - Funds Remaining value: `clamp(18px, calc(2vw - 4px), 28px)`
+  - Budget values (`.kpi-val`): `clamp(16px, calc(1.8vw - 3px), 26px)`
 - Budget allocation bar showing visual split of Needs / Wants / Savings
 - Budget vs. Actual summary panel — compares budgeted vs. actual spending for Needs, Wants, and Savings (On Track / Over indicator per category)
 
@@ -147,9 +203,10 @@ Replaces all bi-weekly checkboxes throughout the app. Pure CSS — no JS require
 
 ### Wants Tracker
 - Bi-weekly envelope = (monthly wants budget) / 2
-- Donut chart showing spent vs. remaining (amber at 80%, red at 100%)
-- Purchase list with add/delete per item and full period reset
-- **Reset Period:** Archives current purchases to `spendingHistory` before clearing
+- Donut chart showing spent vs. remaining by category (amber at 80%, red at 100%)
+- Purchase list: each item shows category chip, budget type chip (Wants/Needs), card chip, amount, and Delete button
+- **Budget type tagging:** Purchases tagged Needs are deducted from the Needs budget, not the Wants envelope. The donut chart and spent total only include Wants-tagged purchases.
+- **Reset Period:** Archives current period (Wants-tagged total only) to `spendingHistory` before clearing. Lives in payday anchor line next to ✎ Payday button.
 - Analytics dashboard (collapsible): date range + name filters, line chart, category bar chart, period history
 
 ### Monthly Expenses (Needs)
@@ -160,13 +217,14 @@ Replaces all bi-weekly checkboxes throughout the app. Pure CSS — no JS require
 ### Budget vs. Actual
 - Side-by-side comparison of budgeted vs. actual for Needs, Wants, Savings
 - Status chips: On Track (green) / Over (red)
+- Actual Needs includes: expense card items + Needs-tagged subscriptions/loans this month + Needs-tagged purchases
+- Actual Wants includes: Wants-tagged purchases this period + Wants-tagged subscriptions/loans this period
 - Savings actual = total monthly income allocated to savings accounts this month
 
 ### Loans
 - Progress bar per loan, colour-coded by % remaining (red >70%, amber >40%, teal otherwise)
 - **Payment schedule (optional):** Set payment amount, frequency, next payment date, and budget category (Needs/Wants)
-- **Card association (optional):** Link a loan to an expense card — a payment row (🏦) appears on that card each month the payment is due; the card's monthly total includes the payment
-- When a loan payment is due, its amount is deducted from the chosen budget category (Needs or Wants) in the Budget vs. Actual calculations
+- **Card association (optional):** Link a loan to an expense card — a payment row (🏦) appears on that card every month the payment is due
 - Loan balance is managed manually via Edit — no automatic deduction on payment date
 - Full CRUD: Add, Edit, Delete
 
@@ -197,15 +255,15 @@ Replaces all bi-weekly checkboxes throughout the app. Pure CSS — no JS require
 
 ### Subscription Renewals
 - Sorted by date ascending; day countdown chip (green >60d, amber <60d, red expired)
-- **Card layout (3-row):** Row 1 — full name + urgency chip; Row 2 — budget badge + card chip + amount; Row 3 — formatted renewal date + edit/delete buttons
+- **Card layout (3-row):** Row 1 — full name + urgency chip; Row 2 — budget badge + card chip + amount; Row 3 — formatted renewal date + Edit/Delete buttons
 - **Frequencies:** Monthly, Bi-Weekly, Quarterly, Bi-Yearly, Annual
-- **Card association (required):** Each subscription must be linked to an expense card; an (↻) row appears on that card every month a renewal falls due
+- **Card association (required):** Each subscription must be linked to an expense card
 - **Budget type:** Wants (deducted from bi-weekly envelope) or Needs (deducted from monthly needs budget)
 - Full CRUD: inline add, edit modal, delete
 
 ### Wishlist
 - Item cards with emoji icon, name, optional clickable URL
-- Full CRUD: inline add, edit modal, delete
+- Full CRUD: inline add (stacked form), edit modal, delete
 
 ---
 
@@ -216,51 +274,71 @@ Replaces all bi-weekly checkboxes throughout the app. Pure CSS — no JS require
   allocation: { needs: 50, wants: 30, savings: 20 },
   budgetDisplayMode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
 
+  fundsRemaining: 1842.15,          // user-set available balance
+  fundsRemainingUpdated: "2026-05-14", // ISO date of last manual update
+
   incomeStreams: [
-    { id: "inc_1", name: "Full-Time Salary", amount: 2500, biweekly: false },
-    { id: "inc_2", name: "Freelance Work", amount: 600, biweekly: true }
+    { id: "inc_1", name: "Government", amount: 3200, biweekly: true },
+    { id: "inc_2", name: "Side Consulting", amount: 800, biweekly: false }
   ],
 
   expenseCards: [
     {
       id: "expenses_1",
-      label: "Housing",
+      label: "🏠 Housing",
       items: [
-        { id: "item_1", name: "Rent", amount: 1200, biweekly: false }
+        { id: "item_1", name: "Rent", amount: 1900, biweekly: false }
       ]
     }
   ],
 
-  purchases: [{ id: "p_1", name: "Coffee", amount: 5.50 }],
+  purchases: [
+    { id: "p_1", name: "Coffee", amount: 5.50, category: "Food & Drink", cardId: null, budgetType: "wants" },
+    { id: "p_2", name: "Groceries", amount: 87.40, category: "Shopping", cardId: "expenses_1", budgetType: "needs" }
+  ],
 
   spendingHistory: [
     {
       id: "h_1",
       date: "2026-05-01",
       label: "May 1-14 Period",
-      total: 487.23,
-      items: [{ id: "i_1", name: "Dining Out", amount: 120 }]
+      total: 487.23,                       // Wants-tagged purchases only
+      items: [{ id: "i_1", name: "Dining Out", amount: 120, budgetType: "wants" }]
     }
   ],
 
-  loans: [{ id: "loan_1", name: "Car Loan", remaining: 15172, original: 23083 }],
-  creditCards: [{ id: "cc_1", name: "TD Small CC (9602)", balance: 828.94, limit: 1000 }],
-  subscriptions: [{ id: "sub_1", name: "Netflix", date: "2026-09-13" }],
-  wishlist: [{ id: "wish_1", icon: "💻", name: "MacBook Pro", url: "https://..." }],
+  loans: [
+    { id: "loan_1", name: "Car Loan", remaining: 15172, original: 23083,
+      paymentAmount: 650, frequency: "monthly", date: "2026-06-01",
+      budgetType: "needs", cardId: null }
+  ],
+
+  creditCards: [{ id: "cc_1", name: "Visa Infinite", balance: 1200, limit: 5000 }],
+
+  subscriptions: [
+    { id: "sub_1", name: "Netflix", amount: 17.99, frequency: "monthly",
+      date: "2026-05-22", category: "Entertainment", budgetType: "wants", cardId: "expenses_1" }
+  ],
+
+  wishlist: [{ id: "wish_1", icon: "⌨️", name: "Mechanical Keyboard", url: "https://..." }],
 
   savingsAccounts: [
     {
       id: "sa_1",
       name: "TFSA",
-      balance: 25000,
-      defaultAllocated: 135,
-      monthlyAllocations: { "2026-06": 200 }
+      balance: 31000,
+      defaultAllocated: 500,
+      monthlyAllocations: { "2026-06": 600 }
     }
   ],
 
   goals: [
     { id: "goal_1", accountId: "sa_1", targetAmount: 50000, targetDate: "2027-12" }
-  ]
+  ],
+
+  rules: [{ id: "r_1", pattern: "coffee", matchType: "contains", category: "Food & Drink" }],
+  budgetAlerts: [{ id: "a_1", category: "Dining Out", threshold: 100 }],
+  payStart: "2026-05-15"
 }
 ```
 
@@ -280,6 +358,18 @@ CC utilization %      = balance / limit × 100
 Effective allocation  = monthlyAllocations[YYYY-MM] ?? defaultAllocated
 Goal progress %       = (account.balance / goal.targetAmount) × 100
 Monthly needed        = (targetAmount - balance) / monthsRemaining
+
+Actual Needs (current month) =
+  Σ expenseCard items (monthly)
+  + Needs subscriptions renewed this calendar month
+  + Needs loan payments due this calendar month
+  + Needs-tagged purchases (current period)
+
+Actual Wants (current month) =
+  Wants-tagged purchases (current period)
+  + Wants subscriptions deducted this bi-weekly period
+  + Wants loan payments due this bi-weekly period
+  + Σ spendingHistory[].total for periods in this calendar month
 ```
 
 ---
@@ -301,12 +391,16 @@ needs,wants,savings
 
 SECTION:incomeStreams
 id,name,amount,biweekly
-income_1,Full-Time Salary,2500,false
+income_1,Government,3200,true
 
 SECTION:expenseCards
 cardId,cardLabel,itemId,itemName,itemAmount,itemBiweekly
-expenses_1,Housing,item_1,Rent,1200,false
-expenses_1,Housing,item_2,Internet,80,false
+expenses_1,Housing,item_1,Rent,1900,false
+
+SECTION:purchases
+id,name,amount,category,cardId,budgetType
+p_1,Coffee,5.50,Food & Drink,,wants
+p_2,Groceries,87.40,Shopping,expenses_1,needs
 
 SECTION:loans
 id,name,remaining,original,paymentAmount,frequency,date,budgetType,cardId
@@ -322,7 +416,7 @@ id,icon,name,url
 
 SECTION:savingsAccounts
 id,name,balance,defaultAllocated,monthlyAllocations
-sa_1,TFSA,25000,135,"{""2026-06"":200}"
+sa_1,TFSA,31000,500,"{""2026-06"":600}"
 
 SECTION:goals
 id,accountId,targetAmount,targetDate
@@ -370,22 +464,33 @@ closeModal()
 | Subscriptions (CRUD) | MVP | ✅ Done |
 | Wishlist (CRUD) | MVP | ✅ Done |
 | CSV import/export | MVP | ✅ Done |
-| Light/dark theme | MVP | ✅ Done |
+| Light/dark theme (Botanical) | MVP | ✅ Done |
 | Spending analytics dashboard | MVP | ✅ Done |
 | Budget vs. Actual panel | Phase 1 | ✅ Done |
 | Savings accounts (balance + allocation) | Phase 1 | ✅ Done |
 | Monthly allocation overrides | Phase 1 | ✅ Done |
 | Savings Goal Tracker | Phase 1 | ✅ Done |
+| Code modularisation (6-module split) | Phase 1 | ✅ Done |
+| Mobile UX: stacked add forms + toggle switches | Phase 1 | ✅ Done |
+| Mobile UX: subscription 3-row card layout | Phase 1 | ✅ Done |
+| Unified button system (uppercase, shadow, tinted danger) | Phase 1 | ✅ Done |
+| Purchase budget type tagging (Wants / Needs) | Phase 1 | ✅ Done |
+| Reset Period relocated to payday anchor line | Phase 1 | ✅ Done |
+| Consistent Edit/Delete labeled buttons across all sections | Phase 1 | ✅ Done |
+| Net Worth Tracker (assets − liabilities, MoM trend chart) | Phase 2A | ✅ Done |
+| Expense Schedule tab (3-month recurring bill forecast) | Phase 2B | ✅ Done |
+| Funds Remaining card (manual available-balance tracker) | Phase 2 | ✅ Done |
+| Fluid card typography — clamp() prevents border clipping | Phase 2 | ✅ Done |
+| Toggle buttons moved to card-title row (.kpi-title-controls) | Phase 2 | ✅ Done |
 
 ## Possible Next Features
 
 - Net worth tracker (assets − liabilities, monthly trend)
 - Recurring expense calendar / 6-month forecast
 - Month-over-month spending comparison charts
-- Subscription budget integration (deduct from Wants)
 - Income variability tracking (bonuses, side gigs)
-- Code modularization (split app.js into state/render/utils modules)
+- Transaction rules engine (auto-categorise by keyword)
 
 ---
 
-*Last updated: May 12, 2026 — Phase 1 complete: Budget vs. Actual, Savings Accounts Enhancement, Savings Goal Tracker*
+*Last updated: May 20, 2026 — Phase 2 additions: Funds Remaining card, fluid clamp() typography preventing border clipping, toggle buttons relocated to card-title row*
