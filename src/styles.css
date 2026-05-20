@@ -294,35 +294,68 @@ header {
    (CSS default is minmax(auto, 1fr) which lets content inflate tracks) */
 .grid > * { min-width: 0; }
 
-/* KPI Metrics Bar — Prominent Display */
+/* KPI Metrics Bar — Prominent Display
+   ─────────────────────────────────────────────────────────────────
+   Font sizes use clamp() so values scale down before they can clip.
+   Flex strategy for value+button rows: the value-block uses
+   flex: 1 0 auto (grow freely, never shrink below content width).
+   When value+button+gap exceeds the card width the button wraps to
+   the next line — avoiding both overflow AND truncation.
+   ───────────────────────────────────────────────────────────────── */
 #income-stat-cards {
   margin-top: 12px;
   padding-bottom: 8px;
 
-  /* Total Monthly Income card — big prominent value */
+  /* Reclaim width at narrow viewports by scaling down card padding */
+  & .card {
+    padding: clamp(14px, 1.8vw, 24px);
+  }
+
+  /* Total Monthly Income — fluid: 22px @ 1025px → 34px @ 1600px
+     Formula derived from actual measured usable card widths:
+       @ 1100px → 150px usable  @ 1600px → 179px usable
+     A 9-char value like "$3,551.64" at 34px ≈ 162px < 179px ✓   */
   & .card.accent {
     grid-column: span 1;
     border-width: 2px;
 
     & .card-value {
-      font-size: 44px;
+      font-size: clamp(22px, calc(2.6vw - 7px), 34px);
       font-weight: 900;
       color: var(--accent);
       margin-bottom: 8px;
     }
   }
 
-  /* Funds Remaining card — slightly elevated value size */
+  /* Funds Remaining — fluid: 18px @ 1025px → 28px @ 1600px */
   & .card.funds {
     border-width: 2px;
 
     & .card-value {
-      font-size: 32px;
+      font-size: clamp(18px, calc(2vw - 4px), 28px);
       font-weight: 900;
       color: var(--funds-accent);
       margin-bottom: 8px;
     }
   }
+
+  /* Fluid font size for Needs / Wants / Savings dollar amounts:
+     16px @ 1025px (5-col tightest) → 26px @ 1600px              */
+  & .kpi-val {
+    font-size: clamp(16px, calc(1.8vw - 3px), 26px);
+    font-weight: 800;
+    white-space: nowrap;
+    margin-bottom: 4px;
+  }
+}
+
+/* Toggle button + info icon grouped in card-title (Needs/Wants/Savings) */
+.kpi-title-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;  /* never squeeze the controls group */
 }
 
 /* ═══════════════════════════════════════════════════

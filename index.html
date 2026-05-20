@@ -85,86 +85,80 @@
     <div class="card">
       <div class="card-title">
         Needs Budget
-        <div class="info-wrap">
-          <button class="info-btn" onclick="toggleInfoTip(event,'tip-needs')" title="How is this calculated?">ℹ</button>
-          <div class="info-tip" id="tip-needs">
-            <div class="tip-title">What are Needs?</div>
-            Fixed, essential expenses you must pay every month — rent, utilities, groceries, transportation, and insurance. Every expense card you create counts toward this budget.
-            <div class="tip-formula">
-              Total Income × Needs %<br>
-              e.g. $3,900 × 50% = $1,950 / mo
+        <div class="kpi-title-controls">
+          <button class="btn xs secondary" onclick="toggleBudgetMode('needs')">
+            <span id="needs-toggle-label">Monthly</span>
+          </button>
+          <div class="info-wrap">
+            <button class="info-btn" onclick="toggleInfoTip(event,'tip-needs')" title="How is this calculated?">ℹ</button>
+            <div class="info-tip" id="tip-needs">
+              <div class="tip-title">What are Needs?</div>
+              Fixed, essential expenses you must pay every month — rent, utilities, groceries, transportation, and insurance. Every expense card you create counts toward this budget.
+              <div class="tip-formula">
+                Total Income × Needs %<br>
+                e.g. $3,900 × 50% = $1,950 / mo
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-        <div>
-          <div style="font-size:26px;font-weight:800" id="disp-needs">—</div>
-          <div class="card-sub" id="disp-needs-pct-label">— of income</div>
-        </div>
-        <button class="btn xs secondary" onclick="toggleBudgetMode('needs')">
-          <span id="needs-toggle-label">Monthly</span>
-        </button>
-      </div>
+      <div class="kpi-val" id="disp-needs">—</div>
+      <div class="card-sub" id="disp-needs-pct-label">— of income</div>
     </div>
 
     <div class="card">
       <div class="card-title">
         Wants Budget
-        <div class="info-wrap">
-          <button class="info-btn" onclick="toggleInfoTip(event,'tip-wants')" title="How is this calculated?">ℹ</button>
-          <div class="info-tip" id="tip-wants">
-            <div class="tip-title">What are Wants?</div>
-            Discretionary spending on things you enjoy but don't strictly need — dining out, entertainment, subscriptions, and shopping. Tracked via the bi-weekly Wants Envelope, which resets every two weeks.
-            <div class="tip-formula">
-              Total Income × Wants %<br>
-              e.g. $3,900 × 30% = $1,170 / mo<br>
-              → $585 per bi-weekly envelope
+        <div class="kpi-title-controls">
+          <button class="btn xs secondary" onclick="toggleBudgetMode('wants')">
+            <span id="wants-toggle-label">Monthly</span>
+          </button>
+          <div class="info-wrap">
+            <button class="info-btn" onclick="toggleInfoTip(event,'tip-wants')" title="How is this calculated?">ℹ</button>
+            <div class="info-tip" id="tip-wants">
+              <div class="tip-title">What are Wants?</div>
+              Discretionary spending on things you enjoy but don't strictly need — dining out, entertainment, subscriptions, and shopping. Tracked via the bi-weekly Wants Envelope, which resets every two weeks.
+              <div class="tip-formula">
+                Total Income × Wants %<br>
+                e.g. $3,900 × 30% = $1,170 / mo<br>
+                → $585 per bi-weekly envelope
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-        <div>
-          <div style="font-size:26px;font-weight:800" id="disp-wants">—</div>
-          <div class="card-sub">
-            <span id="disp-wants-pct-label">— of income</span> ·
-            <span id="disp-biwants" style="color:var(--accent2)">—</span> bi-wk
-          </div>
-        </div>
-        <button class="btn xs secondary" onclick="toggleBudgetMode('wants')">
-          <span id="wants-toggle-label">Monthly</span>
-        </button>
+      <div class="kpi-val" id="disp-wants">—</div>
+      <div class="card-sub">
+        <span id="disp-wants-pct-label">— of income</span> ·
+        <span id="disp-biwants" style="color:var(--accent2)">—</span> bi-wk
       </div>
     </div>
 
     <div class="card warn">
       <div class="card-title">
         Savings Budget
-        <div class="info-wrap">
-          <button class="info-btn" onclick="toggleInfoTip(event,'tip-savings')" title="How is this calculated?">ℹ</button>
-          <div class="info-tip" id="tip-savings">
-            <div class="tip-title">What is Savings?</div>
-            Money set aside each month for future goals, emergencies, and investments. Distribute this amount across your savings accounts — any unallocated remainder is shown as a warning.
-            <div class="tip-formula">
-              Total Income × Savings %<br>
-              e.g. $3,900 × 20% = $780 / mo<br>
-              → $390 per bi-weekly period
+        <div class="kpi-title-controls">
+          <button class="btn xs secondary" onclick="toggleBudgetMode('savings')">
+            <span id="savings-toggle-label">Monthly</span>
+          </button>
+          <div class="info-wrap">
+            <button class="info-btn" onclick="toggleInfoTip(event,'tip-savings')" title="How is this calculated?">ℹ</button>
+            <div class="info-tip" id="tip-savings">
+              <div class="tip-title">What is Savings?</div>
+              Money set aside each month for future goals, emergencies, and investments. Distribute this amount across your savings accounts — any unallocated remainder is shown as a warning.
+              <div class="tip-formula">
+                Total Income × Savings %<br>
+                e.g. $3,900 × 20% = $780 / mo<br>
+                → $390 per bi-weekly period
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-        <div>
-          <div style="font-size:26px;font-weight:800" id="disp-savings-income">—</div>
-          <div class="card-sub">
-            <span id="disp-savings-pct-label">— of income</span> ·
-            <span id="disp-savings-biweekly" style="color:var(--warn)">—</span> bi-wk
-          </div>
-        </div>
-        <button class="btn xs secondary" onclick="toggleBudgetMode('savings')">
-          <span id="savings-toggle-label">Monthly</span>
-        </button>
+      <div class="kpi-val" id="disp-savings-income">—</div>
+      <div class="card-sub">
+        <span id="disp-savings-pct-label">— of income</span> ·
+        <span id="disp-savings-biweekly" style="color:var(--warn)">—</span> bi-wk
       </div>
     </div>
   </div>
