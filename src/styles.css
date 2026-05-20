@@ -52,6 +52,9 @@
   --transition:   background .25s, color .25s, border-color .25s, box-shadow .25s;
   --transition-fast: .15s;
 
+  /* Funds Remaining card accent */
+  --funds-accent: #22d3ee;  /* cyan-400 — harmonises with botanical greens in dark mode */
+
   /* Chart-specific tokens (read via cssVar() in JS) */
   --chart-tooltip-bg:     rgba(10,24,16,0.95);
   --chart-tooltip-text:   #dcfce7;
@@ -81,6 +84,9 @@
   --accent-text: #15803d;
   --accent-chip: #15803d;
   --danger-btn:  #b91c1c;
+
+  /* Funds Remaining card accent */
+  --funds-accent: #0369a1;  /* sky-700 — readable blue on light botanical background */
 
   /* Chart-specific tokens */
   --chart-tooltip-bg:     rgba(255,255,255,0.97);
@@ -293,7 +299,8 @@ header {
   margin-top: 12px;
   padding-bottom: 8px;
 
-  & .card:first-child {
+  /* Total Monthly Income card — big prominent value */
+  & .card.accent {
     grid-column: span 1;
     border-width: 2px;
 
@@ -301,6 +308,18 @@ header {
       font-size: 44px;
       font-weight: 900;
       color: var(--accent);
+      margin-bottom: 8px;
+    }
+  }
+
+  /* Funds Remaining card — slightly elevated value size */
+  & .card.funds {
+    border-width: 2px;
+
+    & .card-value {
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--funds-accent);
       margin-bottom: 8px;
     }
   }
@@ -344,6 +363,12 @@ header {
   &.warn {
     border-color: var(--warn);
     & .card-title { color: var(--warn); }
+  }
+
+  &.funds {
+    border-color: var(--funds-accent);
+    background: color-mix(in srgb, var(--funds-accent) 6%, var(--surface));
+    & .card-title { color: var(--funds-accent); }
   }
 }
 

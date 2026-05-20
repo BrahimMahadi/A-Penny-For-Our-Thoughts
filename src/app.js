@@ -464,6 +464,32 @@ function addIncomeStream() {
   srAnnounce(`Income stream "${name}" added`);
 }
 
+// ────────────────────────────────────────────────────────────────
+// FUNDS REMAINING
+// ────────────────────────────────────────────────────────────────
+/**
+ * Open a modal so the user can manually set their current available balance.
+ * Stores the amount in state.fundsRemaining and today's date in
+ * state.fundsRemainingUpdated so the card can show "updated May 14".
+ */
+function openEditFundsRemaining() {
+  openModal(
+    'Update Funds Remaining',
+    mField('Available Balance ($)', 'fr-amount', 'number',
+           state.fundsRemaining ?? 0, '0.00', 'min="0" step="0.01"'),
+    () => {
+      const val = parseFloat(document.getElementById('fr-amount').value) || 0;
+      state.fundsRemaining        = val;
+      state.fundsRemainingUpdated = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      saveToStorage();
+      renderIncome();
+      closeModal();
+    }
+  );
+  // Pre-select the input so the user can type right away
+  setTimeout(() => document.getElementById('fr-amount')?.select(), 50);
+}
+
 function openEditIncomeStream(id) {
   const stream = (state.incomeStreams || []).find(s => s.id === id);
   if (!stream) return;

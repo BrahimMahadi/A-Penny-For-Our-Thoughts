@@ -53,6 +53,9 @@ const DEFAULT_STATE = {
 
   rules:        [], // [{ id, pattern, matchType: 'contains'|'startsWith'|'exact', category }]
   budgetAlerts: [], // [{ id, category, threshold }]
+
+  fundsRemaining:        0,   // user-set available balance (e.g. chequing account)
+  fundsRemainingUpdated: '',  // ISO date 'YYYY-MM-DD' of last manual update
 };
 
 /**
@@ -79,6 +82,8 @@ const BLANK_STATE = {
   payStart:         null,
   rules:            [],
   budgetAlerts:     [],
+  fundsRemaining:        0,
+  fundsRemainingUpdated: '',
 };
 
 // ────────────────────────────────────────────────────────────────
@@ -183,6 +188,8 @@ function loadFromStorage() {
   if (state.payStart    === undefined) state.payStart    = null;
   if (!state.rules)                    state.rules        = [];
   if (!state.budgetAlerts)             state.budgetAlerts = [];
+  if (state.fundsRemaining        === undefined) state.fundsRemaining        = 0;
+  if (state.fundsRemainingUpdated === undefined) state.fundsRemainingUpdated = '';
 
   recordNetWorthSnapshot();
 }

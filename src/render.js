@@ -36,6 +36,17 @@ function renderIncome() {
   const inc   = getTotalMonthlyIncome();
   const alloc = getAlloc();
 
+  // ── Funds Remaining ──
+  const frEl   = document.getElementById('disp-funds-remaining');
+  const frUpEl = document.getElementById('disp-funds-remaining-updated');
+  if (frEl)   frEl.textContent   = fmt(state.fundsRemaining || 0);
+  if (frUpEl) {
+    frUpEl.textContent = state.fundsRemainingUpdated
+      ? 'updated ' + new Date(state.fundsRemainingUpdated + 'T12:00:00')
+          .toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
+      : 'tap Edit to set your balance';
+  }
+
   const needs   = inc * alloc.needs;
   const wants   = inc * alloc.wants;
   const savings = inc * alloc.savings;

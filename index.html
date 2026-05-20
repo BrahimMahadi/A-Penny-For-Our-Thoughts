@@ -63,8 +63,19 @@
   <!-- ── Income Overview ── -->
   <h2 class="section-title">Income Overview</h2>
 
-  <!-- Stat cards: 4 derived values -->
-  <div class="grid grid-4" id="income-stat-cards">
+  <!-- Stat cards: 5 derived values -->
+  <div class="grid grid-5" id="income-stat-cards">
+
+    <!-- Funds Remaining — manually set available balance -->
+    <div class="card funds">
+      <div class="card-title">
+        Funds Remaining
+        <button class="btn xs secondary" style="margin-left:auto" onclick="openEditFundsRemaining()">✎ Edit</button>
+      </div>
+      <div class="card-value" id="disp-funds-remaining">—</div>
+      <div class="card-sub" id="disp-funds-remaining-updated">tap Edit to set your balance</div>
+    </div>
+
     <div class="card accent">
       <div class="card-title">Total Monthly Income</div>
       <div class="card-value" id="disp-income">—</div>
