@@ -630,6 +630,115 @@ label.toggle-row {
   color: var(--muted);
 }
 
+/* ── Schedule: list/calendar view toggle ── */
+.schedule-view-toggle {
+  display: flex;
+  background: var(--surface2);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.sched-toggle-btn {
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 9px;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1;
+
+  &.active {
+    background: var(--surface3);
+    color: var(--text);
+  }
+  &:hover:not(.active) { color: var(--text); }
+}
+
+/* ── Calendar grid ── */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  margin-top: 12px;
+}
+
+.cal-header-cell {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  text-align: center;
+  padding: 4px 0 6px;
+}
+
+.cal-cell {
+  min-height: 72px;
+  background: var(--surface2);
+  border-radius: 6px;
+  padding: 5px 5px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+  transition: background 0.12s;
+
+  &.cal-blank {
+    background: transparent;
+  }
+
+  &.cal-today {
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface2));
+    outline: 1.5px solid color-mix(in srgb, var(--accent) 50%, transparent);
+    outline-offset: -1px;
+  }
+
+  &.cal-heavy {
+    background: color-mix(in srgb, var(--warn) 10%, var(--surface2));
+  }
+
+  &.cal-today.cal-heavy {
+    background: color-mix(in srgb, var(--accent) 14%, color-mix(in srgb, var(--warn) 12%, var(--surface2)));
+  }
+}
+
+.cal-day-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  line-height: 1;
+  margin-bottom: 2px;
+
+  .cal-today & { color: var(--accent); }
+}
+
+.cal-badge {
+  font-size: 9px;
+  font-weight: 600;
+  border-radius: 3px;
+  padding: 1px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  line-height: 1.4;
+
+  &.expense      { background: color-mix(in srgb, var(--accent-text) 15%, transparent); color: var(--accent-text); }
+  &.sub          { background: color-mix(in srgb, var(--accent2) 15%, transparent);     color: var(--accent2); }
+  &.more         { background: var(--surface3); color: var(--muted); }
+}
+
+.cal-day-total {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-top: auto;
+  line-height: 1;
+}
+
 /* Due-day badge on expense items */
 .e-due {
   flex-shrink: 0;
