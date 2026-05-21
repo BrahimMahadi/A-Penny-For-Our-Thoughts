@@ -23,6 +23,7 @@
 @import "tailwindcss";
 @source "./render.js";
 @source "./app.js";
+@source "../index.html";
 
 /* ── Tailwind theme bridge ───────────────────────────
    @theme inline registers our botanical CSS variables
@@ -50,6 +51,7 @@
   --color-border:         var(--border);
   --color-border-light:   var(--border-light);
   --color-funds:          var(--funds-accent);
+  --color-accent-text:    var(--accent-text);
 
   /* Spacing — mirrors our --space-* tokens */
   --spacing-xs:    4px;

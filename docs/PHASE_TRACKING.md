@@ -174,19 +174,28 @@ Real-time tracking of development progress. Updated as work completes.
 - ✅ `package.json` updated with `dev`/`build`/`preview` scripts
 - ✅ Tested: all 19 window functions OK, zero console errors, all sections render
 
-### Story 2: Tailwind + PostCSS Config 🔲
-- [ ] Install `tailwindcss`, `@tailwindcss/vite` (Vite plugin)
-- [ ] Create `tailwind.config.js` with content paths + botanical CSS variable mapping
-- [ ] Add `@import "tailwindcss"` to styles.css
-- [ ] Verify build still works (no purge false-positives)
+### Story 2: Tailwind + PostCSS Config ✅
+- ✅ Installed `tailwindcss@^4.3.0`, `@tailwindcss/vite@^4.3.0`
+- ✅ `@import "tailwindcss"` + `@theme inline { }` block in `src/styles.css`
+- ✅ 14 botanical CSS variables bridged as Tailwind colour tokens (e.g. `text-accent2`, `bg-surface`)
+- ✅ `@source` directives added for `render.js`, `app.js`, `index.html`
+- ✅ Verified: Tailwind utilities reference `var(--surface)` etc. directly — dark/light theme switching works at utility level
 
-### Story 3: CSS File Split 🔲
-- [ ] Extract each major section into its own CSS file (`theme.css`, `layout.css`, `components.css`, etc.)
-- [ ] Import all from `styles.css` (kept as barrel)
+### Story 3: CSS File Split ✅
+- ✅ 3484-line `src/styles.css` split into 8 focused modules in `src/css/`
+- ✅ `tokens.css` · `layout.css` · `forms.css` · `features.css` · `ui.css` · `docs.css` · `responsive.css` · `extras.css`
+- ✅ Cascade order enforced via JS imports in `src/main.js`
+- ✅ `src/styles.css` is now Tailwind entry point only (~70 lines)
+- ✅ Verified: 9 stylesheets loaded, zero console errors, all tabs render correctly
 
-### Story 4: Tailwind Utility Migration 🔲
-- [ ] Replace hand-written utilities with Tailwind classes in HTML
-- [ ] Keep semantic `@layer components` classes that are used in JS template strings
+### Story 4: Tailwind Utility Migration ✅
+- ✅ Removed custom `.grid`, `.grid-N` utility classes — replaced with `grid grid-cols-N gap-5` in HTML
+- ✅ Removed `.sr-only` from `tokens.css` — using Tailwind's built-in `sr-only` (scanned via `@source "../index.html"`)
+- ✅ Added `--color-accent-text` to `@theme inline` for the `text-accent-text` utility
+- ✅ ~60 inline `style=""` attributes replaced with Tailwind utility classes (`text-accent2`, `text-muted`, `flex`, `gap-*`, `mb-*`, etc.)
+- ✅ Intentional inline styles preserved: JS-toggled `display:none`, CSS-override margins on `.section-title`, analytics input sizing
+- ✅ Fixed pre-existing bug: `cssVar` not imported in `render.js` → added to import from `utils.js`
+- ✅ Verified: theme toggle round-trip passes, all Tailwind tokens resolve, zero console errors
 
 ### Story 5: Build Pipeline & Measurement 🔲
 - [ ] `vite build` → verify bundle sizes
@@ -203,7 +212,7 @@ Real-time tracking of development progress. Updated as work completes.
 | Phase 1 — Analytics & Goal Tracking | ✅ Complete | 100% |
 | Sprint 3 — Polish & UX Refinement | ✅ Complete | 100% |
 | Phase 2 — Advanced Features | 🟡 In Progress | 25% (2A done) |
-| Infra — Vite + Tailwind Migration | 🟡 In Progress | 20% (Story 1 done) |
+| Infra — Vite + Tailwind Migration | 🟡 In Progress | 80% (Stories 1-4 done) |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
 | **Overall** | **In Progress** | **~73%** |
 
@@ -229,5 +238,5 @@ Real-time tracking of development progress. Updated as work completes.
 ---
 
 **Last Updated**: May 2026  
-**Current Phase**: Vite + Tailwind migration in progress on `feat/vite-setup`. Story 1 (ES module conversion) complete. Story 2 (Tailwind + PostCSS) is next.  
+**Current Phase**: Vite + Tailwind migration in progress on `feat/vite-setup`. Stories 1–4 complete. Story 5 (build pipeline + bundle measurement) is next.  
 **Next Branch**: TBD based on Sprint 4 planning

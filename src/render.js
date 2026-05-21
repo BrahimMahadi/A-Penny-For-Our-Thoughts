@@ -18,7 +18,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 import { state }                              from './state.js';
-import { fmt, pct, daysUntil, monthlyAmount } from './utils.js';
+import { fmt, pct, daysUntil, monthlyAmount, cssVar } from './utils.js';
 import {
   getTotalMonthlyIncome, getAlloc, grandTotal,
   getSubsDeductedThisPeriod, getSubsDeductedThisMonth,

@@ -131,15 +131,10 @@ header {
 
 /* ═══════════════════════════════════════════════════
    GRID & LAYOUT
+   Note: grid utilities (.grid, grid-cols-N, gap-N) now use Tailwind.
+   Only the min-width guard is kept here — it targets Tailwind's .grid
+   class (same selector) and prevents content from inflating grid tracks.
 ═══════════════════════════════════════════════════ */
-.grid {
-  display: grid;
-  gap: 20px;
-}
-.grid-2 { grid-template-columns: repeat(2, 1fr); }
-.grid-3 { grid-template-columns: repeat(3, 1fr); }
-.grid-4 { grid-template-columns: repeat(4, 1fr); }
-.grid-5 { grid-template-columns: repeat(5, 1fr); }
 /* Prevent grid tracks from stretching beyond their 1fr allocation
    (CSS default is minmax(auto, 1fr) which lets content inflate tracks) */
 .grid > * { min-width: 0; }
