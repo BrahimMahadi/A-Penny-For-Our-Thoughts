@@ -24,7 +24,7 @@ import {
   renderCreditCards, renderSavings, renderGoals, renderNetWorth,
   renderSubscriptions, renderWishlist, renderRules, renderBudgetAlerts,
   renderBudgetVsActual, renderSpendingAnalytics, renderSchedule,
-  renderDate,
+  renderDate, renderAnalyticsHistory,
 } from './render.js';
 import { uiState } from './uistate.js';
 

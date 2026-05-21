@@ -142,6 +142,48 @@ a Tailwind utility won't override it — keep the inline style or add `!importan
 
 ---
 
+## BUG-008 — Comprehensive sweep: `getRenewalDatesBetween` and `renderAnalyticsHistory` missing imports
+
+**Date:** May 2026
+**Branch:** `main` (post-Phase 2D)
+**Severity:** High (Recurring Calendar crashed; analytics history modal would crash on save)
+
+### Symptom
+After fixing BUG-007, the GitHub Pages deployment threw a new error:
+```
+ReferenceError: getRenewalDatesBetween is not defined
+  at Array.map (<anonymous>) — render.js inside renderSchedule
+```
+The Recurring Expense Calendar failed to render the day-by-day badge map.
+
+### Root Cause
+Same pattern as BUG-004 / BUG-005 / BUG-007 — bare identifiers surviving the
+pre-Vite single-file era.
+
+Instead of patching one-by-one, ran a comprehensive sweep across all source
+files (`/tmp/check_imports.sh`). It enumerated all exports across every
+module and cross-checked each consumer file for uses that lacked both a
+local declaration AND an import. After filtering JSDoc comment mentions,
+**two real bugs** remained:
+
+1. `render.js` lines 652, 661 — used `getRenewalDatesBetween()` (defined in
+   `analytics.js`) but didn't import it.
+2. `app.js` line 795 — modal save handler called `renderAnalyticsHistory()`
+   (defined in `render.js`) but didn't import it. Latent — only fires when
+   the analytics history modal save runs.
+
+### Fix
+- Added `getRenewalDatesBetween` to the analytics.js import in `src/render.js`.
+- Added `renderAnalyticsHistory` to the render.js import in `src/app.js`.
+
+### Prevention
+**Rule:** Wire up ESLint with `no-undef` enforced as the first task of the
+Vue 3 migration. Three rounds of this pattern (BUG-004, -005, -007) and a
+fourth caught only via manual sweep is unsustainable. The script at
+`/tmp/check_imports.sh` is a stopgap; a proper linter is the real fix.
+
+---
+
 ## BUG-007 — `CATEGORY_COLOURS is not defined` inside `renderWantsDonut`
 
 **Date:** May 2026
