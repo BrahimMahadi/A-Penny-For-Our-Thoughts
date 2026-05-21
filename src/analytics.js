@@ -17,12 +17,15 @@
    Depends on: utils.js, state.js
 ═══════════════════════════════════════════════════════════════ */
 
+import { state, saveToStorage } from './state.js';
+import { genId, fmt, monthlyAmount, daysUntil, deepClone, cssVar } from './utils.js';
+
 // ────────────────────────────────────────────────────────────────
 // TRANSACTION RULES ENGINE — CONSTANTS
 // ────────────────────────────────────────────────────────────────
 
 /** Fixed category list used by the TRE and UI dropdowns */
-const WANT_CATEGORIES = [
+export const WANT_CATEGORIES = [
   'Food & Drink',
   'Groceries',
   'Entertainment',
@@ -33,7 +36,7 @@ const WANT_CATEGORIES = [
 ];
 
 /** Per-category display colour (hex) */
-const CATEGORY_COLOURS = {
+export const CATEGORY_COLOURS = {
   'Food & Drink':    '#ff8c42',
   'Groceries':       '#00d4aa',
   'Entertainment':   '#a78bfa',
@@ -48,21 +51,21 @@ const CATEGORY_COLOURS = {
 // ────────────────────────────────────────────────────────────────
 
 /** Sum all monthly income across all income streams */
-function getTotalMonthlyIncome() {
+export function getTotalMonthlyIncome() {
   return (state.incomeStreams || []).reduce((sum, s) => {
     return sum + (s.biweekly ? s.amount * 2 : +s.amount);
   }, 0);
 }
 
 /** Sum monthly amounts across all dynamic expense cards */
-function grandTotal() {
+export function grandTotal() {
   return (state.expenseCards || []).reduce((sum, card) => {
     return sum + (card.items || []).reduce((s, i) => s + monthlyAmount(i), 0);
   }, 0);
 }
 
 /** Return allocation ratios as decimals */
-function getAlloc() {
+export function getAlloc() {
   const a = state.allocation || { needs: 50, wants: 30, savings: 20 };
   return {
     needs:   (a.needs   || 0) / 100,
@@ -76,7 +79,7 @@ function getAlloc() {
 // ────────────────────────────────────────────────────────────────
 
 /** Calculate actual spending for a given month */
-function getMonthActuals(year, month) {
+export function getMonthActuals(year, month) {
   return {
     needs:   calculateActualNeeds(year, month),
     wants:   calculateActualWants(year, month),
@@ -85,7 +88,7 @@ function getMonthActuals(year, month) {
 }
 
 /** Sum all actual needs (fixed expenses + Needs subs renewed this month) for a month */
-function calculateActualNeeds(year, month) {
+export function calculateActualNeeds(year, month) {
   const expenseTotal = (state.expenseCards || []).reduce((sum, card) => {
     return sum + (card.items || []).reduce((s, i) => s + monthlyAmount(i), 0);
   }, 0);
@@ -106,7 +109,7 @@ function calculateActualNeeds(year, month) {
 }
 
 /** Sum all actual wants (purchases + Wants subs this period + spending history) for a month */
-function calculateActualWants(year, month) {
+export function calculateActualWants(year, month) {
   const monthStr = `${year}-${String(month).padStart(2, '0')}`;
   let total = 0;
 
@@ -135,7 +138,7 @@ function calculateActualWants(year, month) {
 }
 
 /** Calculate actual savings as Income - Needs - Wants */
-function calculateActualSavings(year, month) {
+export function calculateActualSavings(year, month) {
   const income = getTotalMonthlyIncome();
   const needs  = calculateActualNeeds(year, month);
   const wants  = calculateActualWants(year, month);
@@ -143,7 +146,7 @@ function calculateActualSavings(year, month) {
 }
 
 /** Get budgeted amounts for a month based on allocation percentages */
-function getMonthBudgeted(year, month) {
+export function getMonthBudgeted(year, month) {
   const income = getTotalMonthlyIncome();
   const alloc  = getAlloc();
   return {
@@ -154,7 +157,7 @@ function getMonthBudgeted(year, month) {
 }
 
 /** Calculate variance data for a category */
-function calculateVariance(budgeted, actual, category) {
+export function calculateVariance(budgeted, actual, category) {
   const dollar  = budgeted - actual;
   const percent = budgeted > 0 ? (actual / budgeted) * 100 : 0;
   let status = 'on-track';
@@ -168,7 +171,7 @@ function calculateVariance(budgeted, actual, category) {
 // ────────────────────────────────────────────────────────────────
 
 /** Get the effective allocation for a given month, respecting overrides */
-function getAllocationForMonth(account, year, month) {
+export function getAllocationForMonth(account, year, month) {
   const monthKey = `${year}-${String(month).padStart(2, '0')}`;
   return account.monthlyAllocations && account.monthlyAllocations[monthKey] !== undefined
     ? account.monthlyAllocations[monthKey]
@@ -184,7 +187,7 @@ function getAllocationForMonth(account, year, month) {
  * Both params are Date objects with time set to local midnight.
  * Returns array of YYYY-MM-DD strings.
  */
-function getRenewalDatesBetween(sub, startDate, endDate) {
+export function getRenewalDatesBetween(sub, startDate, endDate) {
   const baseDate  = new Date(sub.date.substring(0, 10) + 'T00:00:00');
   const frequency = sub.frequency || 'monthly';
   const results   = [];
@@ -279,7 +282,7 @@ function getRenewalDatesBetween(sub, startDate, endDate) {
  * @param {object} sub - Subscription object with `date` and `frequency` fields.
  * @returns {string|null}
  */
-function getNextRenewal(sub) {
+export function getNextRenewal(sub) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const lookAhead = new Date(today.getFullYear() + 2, today.getMonth(), today.getDate());
@@ -291,7 +294,7 @@ function getNextRenewal(sub) {
  * Calculate the current bi-weekly period start from state.payStart.
  * Returns YYYY-MM-DD string, or null if payStart is not configured.
  */
-function getCurrentPeriodStart() {
+export function getCurrentPeriodStart() {
   if (!state.payStart) return null;
   const payStart = new Date(state.payStart + 'T00:00:00');
   const today    = new Date();
@@ -309,7 +312,7 @@ function getCurrentPeriodStart() {
  * Each returned item is augmented with a `renewalDates` string array.
  * Returns [] if payStart is not configured.
  */
-function getSubsDeductedThisPeriod() {
+export function getSubsDeductedThisPeriod() {
   const periodStart = getCurrentPeriodStart();
   if (!periodStart) return [];
 
@@ -327,7 +330,7 @@ function getSubsDeductedThisPeriod() {
  * Get all Needs subscriptions that renewed so far this calendar month.
  * Each returned item is augmented with a `renewalDates` string array.
  */
-function getSubsDeductedThisMonth() {
+export function getSubsDeductedThisMonth() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -343,7 +346,7 @@ function getSubsDeductedThisMonth() {
  * budgetType is 'needs'. Each returned item is augmented with `renewalDates`.
  * Only loans with a paymentAmount > 0 and a valid anchor date are included.
  */
-function getLoansDeductedThisMonth() {
+export function getLoansDeductedThisMonth() {
   const today        = new Date();
   today.setHours(0, 0, 0, 0);
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -359,7 +362,7 @@ function getLoansDeductedThisMonth() {
  * budgetType is 'wants'. Each returned item is augmented with `renewalDates`.
  * Returns [] if payStart is not configured.
  */
-function getLoansDeductedThisPeriod() {
+export function getLoansDeductedThisPeriod() {
   const periodStart = getCurrentPeriodStart();
   if (!periodStart) return [];
 
@@ -378,14 +381,14 @@ function getLoansDeductedThisPeriod() {
 // ────────────────────────────────────────────────────────────────
 
 /** Calculate months between two YYYY-MM date strings */
-function calculateMonthsBetween(startDate, endDate) {
+export function calculateMonthsBetween(startDate, endDate) {
   const [startYear, startMonth] = startDate.split('-').map(Number);
   const [endYear,   endMonth]   = endDate.split('-').map(Number);
   return (endYear - startYear) * 12 + (endMonth - startMonth);
 }
 
 /** Get full progress data for a single goal */
-function getGoalProgress(goal) {
+export function getGoalProgress(goal) {
   const account = (state.savingsAccounts || []).find(a => a.id === goal.accountId);
   if (!account) return null;
 
@@ -433,7 +436,7 @@ function getGoalProgress(goal) {
 // NET WORTH
 // ────────────────────────────────────────────────────────────────
 
-const ASSET_CATEGORIES = [
+export const ASSET_CATEGORIES = [
   { key: 'investment', label: 'Investments', icon: '💰' },
   { key: 'real_estate', label: 'Real Estate', icon: '🏠' },
   { key: 'vehicle',    label: 'Vehicles',    icon: '🚗' },
@@ -441,7 +444,7 @@ const ASSET_CATEGORIES = [
 ];
 
 /** Compute a full net worth snapshot from current state */
-function getNetWorthData() {
+export function getNetWorthData() {
   const liquidAssets   = (state.savingsAccounts || []).reduce((s, a) => s + (a.balance || 0), 0);
   const manualAssets   = (state.assets          || []).reduce((s, a) => s + (a.value   || 0), 0);
   const totalAssets    = liquidAssets + manualAssets;
@@ -469,7 +472,7 @@ function getNetWorthData() {
 }
 
 /** Record a net worth snapshot for the current month if one doesn't exist yet */
-function recordNetWorthSnapshot() {
+export function recordNetWorthSnapshot() {
   if (!state.netWorthHistory) state.netWorthHistory = [];
   const today    = new Date();
   const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -495,7 +498,7 @@ function recordNetWorthSnapshot() {
  * @param {number} year
  * @param {number} month - 1-based (1 = Jan)
  */
-function daysInMonth(year, month) {
+export function daysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
 
@@ -514,7 +517,7 @@ function daysInMonth(year, month) {
  * @param {number} month - 1-based
  * @returns {{ dated: Array, undated: Array, total: number, budgeted: number, variance: number }}
  */
-function getMonthForecast(year, month) {
+export function getMonthForecast(year, month) {
   const items = [];
   const maxDay = daysInMonth(year, month);
 
@@ -607,7 +610,7 @@ function getMonthForecast(year, month) {
  * Filter spending history by date range and purchase name.
  * Returns filtered history periods with only matching purchases.
  */
-function getFilteredSpendingHistory() {
+export function getFilteredSpendingHistory() {
   let history = state.spendingHistory || [];
 
   if (analyticsFilters.startDate || analyticsFilters.endDate) {
@@ -633,7 +636,7 @@ function getFilteredSpendingHistory() {
  * Falls back to purchase name for items without a category.
  * Returns top 10 sorted by total descending.
  */
-function getTopCategories(filteredHistory) {
+export function getTopCategories(filteredHistory) {
   const catMap = {};
   (filteredHistory || []).forEach(period => {
     (period.items || []).forEach(p => {
@@ -652,7 +655,7 @@ function getTopCategories(filteredHistory) {
  * Match a purchase name against the rules list.
  * Returns the category of the first matching rule, or null if none match.
  */
-function applyRulesToName(name) {
+export function applyRulesToName(name) {
   const lower = (name || '').toLowerCase().trim();
   for (const rule of (state.rules || [])) {
     const pattern = (rule.pattern || '').toLowerCase();
@@ -670,7 +673,7 @@ function applyRulesToName(name) {
  * Aggregate spending by category for a set of purchases.
  * Returns a plain object: { 'Food & Drink': 45.50, ... }
  */
-function getCategorySpending(purchases) {
+export function getCategorySpending(purchases) {
   const map = {};
   (purchases || []).forEach(p => {
     const cat = p.category || 'Other';
@@ -683,7 +686,7 @@ function getCategorySpending(purchases) {
  * Return all budget alerts that have been exceeded in the current period.
  * Each returned item is the alert object augmented with `spent`.
  */
-function getTriggeredAlerts() {
+export function getTriggeredAlerts() {
   const spending = getCategorySpending(state.purchases || []);
   return (state.budgetAlerts || [])
     .map(alert => ({ ...alert, spent: spending[alert.category] || 0 }))

@@ -9,32 +9,34 @@
    Functions: renderWantsDonut, renderCcBarChart,
               renderAnalyticsLineChart, renderAnalyticsBarChart,
               renderBudgetVsActualChart, renderNetWorthChart
-   Depends on: utils.js (fmt), Chart.js (CDN global)
+   Depends on: utils.js (fmt, cssVar, hexToRgba), Chart.js (CDN global)
 ═══════════════════════════════════════════════════════════════ */
+
+import { fmt, cssVar, hexToRgba } from './utils.js';
 
 // ────────────────────────────────────────────────────────────────
 // CHART INSTANCES
 // ────────────────────────────────────────────────────────────────
-let wantsChart             = null;
-let ccChart                = null;
-let analyticsLineChart     = null;
-let analyticsBarChart      = null;
-let budgetVsActualChart    = null;
-let netWorthChart          = null;
+export let wantsChart             = null;
+export let ccChart                = null;
+export let analyticsLineChart     = null;
+export let analyticsBarChart      = null;
+export let budgetVsActualChart    = null;
+export let netWorthChart          = null;
 
 /**
  * Returns true if the Chart.js instance exists and its canvas is
  * still mounted in the DOM. If the canvas has been detached (e.g.
  * after a theme-triggered re-render) we must create a new instance.
  */
-function _chartValid(instance) {
+export function _chartValid(instance) {
   return !!(instance && instance.canvas && instance.canvas.isConnected);
 }
 
 // ────────────────────────────────────────────────────────────────
 // SHARED CHART STYLE HELPERS
 // ────────────────────────────────────────────────────────────────
-const CHART_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+export const CHART_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 /**
  * Read all theme-aware chart style tokens from the current CSS variables.
@@ -45,7 +47,7 @@ const CHART_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-s
  *             accent: string, accent2: string, surface: string,
  *             surface2: string, danger: string, warn: string }} Style tokens.
  */
-function getChartStyles() {
+export function getChartStyles() {
   const g = n => cssVar(n);
   return {
     tooltip: {
@@ -78,7 +80,7 @@ function getChartStyles() {
  *
  * @returns {void}
  */
-function resetAllCharts() {
+export function resetAllCharts() {
   [wantsChart, ccChart, analyticsLineChart, analyticsBarChart, budgetVsActualChart, netWorthChart]
     .forEach(c => { if (c) c.destroy(); });
   wantsChart = ccChart = analyticsLineChart = analyticsBarChart = budgetVsActualChart = netWorthChart = null;
@@ -101,7 +103,7 @@ function resetAllCharts() {
  * @param {number} usedPct   - Percentage of the envelope used (0-100+), used only to colour the centre text.
  * @returns {void}
  */
-function renderWantsDonut(categorySpending, remaining, usedPct) {
+export function renderWantsDonut(categorySpending, remaining, usedPct) {
   const S = getChartStyles();
   const SUBS_COLOUR = S.accent;    // subscriptions arc matches primary accent
   const REST_COLOUR = S.surface2;  // unused envelope — neutral surface tint
@@ -180,7 +182,7 @@ function renderWantsDonut(categorySpending, remaining, usedPct) {
  *   Array of credit card objects from state.
  * @returns {void}
  */
-function renderCcBarChart(cards) {
+export function renderCcBarChart(cards) {
   const S = getChartStyles();
   const labels    = cards.map(c => c.name.split(' ').slice(0, 2).join(' '));
   const balances  = cards.map(c => +c.balance);
@@ -263,7 +265,7 @@ function renderCcBarChart(cards) {
  *   Filtered spending history periods from `getFilteredSpendingHistory()`.
  * @returns {void}
  */
-function renderAnalyticsLineChart(history) {
+export function renderAnalyticsLineChart(history) {
   if (!history.length) {
     if (analyticsLineChart) { analyticsLineChart.destroy(); analyticsLineChart = null; }
     return;
@@ -341,7 +343,7 @@ function renderAnalyticsLineChart(history) {
  *   Filtered spending history from `getFilteredSpendingHistory()`.
  * @returns {void}
  */
-function renderAnalyticsBarChart(filteredHistory) {
+export function renderAnalyticsBarChart(filteredHistory) {
   const topCats = getTopCategories(filteredHistory);
   if (!topCats.length) {
     if (analyticsBarChart) { analyticsBarChart.destroy(); analyticsBarChart = null; }
@@ -416,7 +418,7 @@ function renderAnalyticsBarChart(filteredHistory) {
  *   Actual amounts from `getMonthActuals()`.
  * @returns {void}
  */
-function renderBudgetVsActualChart(budgeted, actuals) {
+export function renderBudgetVsActualChart(budgeted, actuals) {
   const budgetedData = [budgeted.needs, budgeted.wants, budgeted.savings];
   const actualsData  = [actuals.needs,  actuals.wants,  actuals.savings];
 
@@ -497,7 +499,7 @@ function renderBudgetVsActualChart(budgeted, actuals) {
  *   Array of monthly snapshots from `state.netWorthHistory`, sorted ascending.
  * @returns {void}
  */
-function renderNetWorthChart(history) {
+export function renderNetWorthChart(history) {
   const canvas = document.getElementById('netWorthChart');
   if (!canvas) return;
 

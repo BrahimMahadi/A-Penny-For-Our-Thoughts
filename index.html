@@ -14,7 +14,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>A Penny For Our Thoughts 💸</title>
-  <link rel="stylesheet" href="src/styles.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
@@ -29,12 +28,12 @@
      HEADER
 ══════════════════════════════════════ -->
 <header>
-  <span aria-hidden="true" style="font-size:22px">💸</span>
+  <span aria-hidden="true" class="text-[22px]">💸</span>
   <h1>A Penny For Our Thoughts</h1>
   <div class="header-right">
     <span class="header-date" id="header-date"></span>
     <button class="btn sm secondary header-action" onclick="exportCsv()" title="Export all data to CSV">⬇ Export</button>
-    <label class="btn sm secondary header-action" title="Import data from CSV" style="cursor:pointer;margin:0">
+    <label class="btn sm secondary header-action cursor-pointer m-0" title="Import data from CSV">
       ⬆ Import
       <input type="file" id="csv-import-input" accept=".csv" onchange="importCsv(event)" style="display:none" />
     </label>
@@ -68,13 +67,13 @@
   <h2 class="section-title">Income Overview</h2>
 
   <!-- Stat cards: 5 derived values -->
-  <div class="grid grid-5" id="income-stat-cards">
+  <div class="grid grid-cols-5 gap-5" id="income-stat-cards">
 
     <!-- Funds Remaining — manually set available balance -->
     <div class="card funds">
       <div class="card-title">
         Funds Remaining
-        <button class="btn xs secondary" style="margin-left:auto" onclick="openEditFundsRemaining()">✎ Edit</button>
+        <button class="btn xs secondary ml-auto" onclick="openEditFundsRemaining()">✎ Edit</button>
       </div>
       <div class="card-value" id="disp-funds-remaining">—</div>
       <div class="card-sub" id="disp-funds-remaining-updated">tap Edit to set your balance</div>
@@ -134,7 +133,7 @@
       <div class="kpi-val" id="disp-wants">—</div>
       <div class="card-sub">
         <span id="disp-wants-pct-label">— of income</span> ·
-        <span id="disp-biwants" style="color:var(--accent2)">—</span> bi-wk
+        <span id="disp-biwants" class="text-accent2">—</span> bi-wk
       </div>
     </div>
 
@@ -162,20 +161,20 @@
       <div class="kpi-val" id="disp-savings-income">—</div>
       <div class="card-sub">
         <span id="disp-savings-pct-label">— of income</span> ·
-        <span id="disp-savings-biweekly" style="color:var(--warn)">—</span> bi-wk
+        <span id="disp-savings-biweekly" class="text-warn">—</span> bi-wk
       </div>
     </div>
   </div>
 
   <!-- Budget Allocation Bar -->
-  <div class="card" style="margin-top:16px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
-      <span style="font-size:13px;font-weight:600">Budget Allocation</span>
-      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-        <div style="display:flex;gap:16px;font-size:12px;flex-wrap:wrap">
-          <span style="color:var(--accent-text)"><span aria-hidden="true">■</span> Needs <span id="bar-needs-pct">50</span>%</span>
-          <span style="color:var(--accent2)"><span aria-hidden="true">■</span> Wants <span id="bar-wants-pct">30</span>%</span>
-          <span style="color:var(--warn)"><span aria-hidden="true">■</span> Savings <span id="bar-savings-pct">20</span>%</span>
+  <div class="card mt-4">
+    <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
+      <span class="text-[13px] font-semibold">Budget Allocation</span>
+      <div class="flex gap-3 items-center flex-wrap">
+        <div class="flex gap-4 text-xs flex-wrap">
+          <span class="text-accent-text"><span aria-hidden="true">■</span> Needs <span id="bar-needs-pct">50</span>%</span>
+          <span class="text-accent2"><span aria-hidden="true">■</span> Wants <span id="bar-wants-pct">30</span>%</span>
+          <span class="text-warn"><span aria-hidden="true">■</span> Savings <span id="bar-savings-pct">20</span>%</span>
         </div>
         <button class="btn xs secondary" onclick="openEditAllocation()">✎ Edit</button>
       </div>
@@ -185,7 +184,7 @@
       <div class="split-seg" id="seg-wants"   style="background:#00d4aa"></div>
       <div class="split-seg" id="seg-savings" style="background:#ffa63d"></div>
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:6px;flex-wrap:wrap;gap:4px">
+    <div class="flex justify-between text-xs text-muted mt-1.5 flex-wrap gap-1">
       <span id="bar-needs">—</span>
       <span id="bar-wants">—</span>
       <span id="bar-savings">—</span>
@@ -196,21 +195,21 @@
   <h2 class="section-title" style="margin-top:24px">Budget vs. Actual</h2>
   <div class="card">
     <!-- Summary cards: Budgeted, Actual, Variance for each category -->
-    <div class="grid grid-3" id="budget-variance-cards" style="gap:12px;margin-bottom:20px"></div>
+    <div class="grid grid-cols-3 gap-3 mb-5" id="budget-variance-cards"></div>
 
     <!-- Chart: Budget vs Actual side-by-side -->
-    <div style="margin-top:20px;margin-bottom:20px">
-      <canvas id="budgetVsActualChart" style="max-height:300px"></canvas>
+    <div class="my-5">
+      <canvas id="budgetVsActualChart" class="max-h-[300px]"></canvas>
     </div>
 
     <!-- Variance summary table -->
-    <div id="budget-variance-summary" style="margin-top:20px"></div>
+    <div id="budget-variance-summary" class="mt-5"></div>
   </div>
 
   <!-- Income Streams (CRUD) -->
-  <div class="card" style="margin-top:16px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <span style="font-size:13px;font-weight:700">Income Streams</span>
+  <div class="card mt-4">
+    <div class="flex justify-between items-center mb-3">
+      <span class="text-[13px] font-bold">Income Streams</span>
       <span class="chip purple" id="income-stream-count">0 streams</span>
     </div>
     <ul class="income-stream-list" id="income-stream-list" role="list"></ul>
@@ -248,21 +247,21 @@
   <h2 class="section-title">Wants Tracker</h2>
   <div class="card">
     <!-- Current period header -->
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div class="flex justify-between items-start mb-4 flex-wrap gap-[10px]">
       <div>
         <div class="card-title">Remaining</div>
-        <div style="font-size:28px;font-weight:800;color:var(--accent2)" id="disp-wants-remaining-amt">—</div>
-        <div style="font-size:12px;color:var(--muted)" id="disp-wants-remaining-label">remaining</div>
+        <div class="text-[28px] font-extrabold text-accent2" id="disp-wants-remaining-amt">—</div>
+        <div class="text-xs text-muted" id="disp-wants-remaining-label">remaining</div>
       </div>
       <div>
         <div class="card-title">Bi-Weekly Envelope</div>
-        <div style="font-size:28px;font-weight:800" id="disp-biwants2">—</div>
-        <div id="wants-status-chip" style="margin-top:6px"></div>
+        <div class="text-[28px] font-extrabold" id="disp-biwants2">—</div>
+        <div id="wants-status-chip" class="mt-1.5"></div>
       </div>
-      <div style="text-align:right">
+      <div class="text-right">
         <div class="card-title">Spent</div>
-        <div style="font-size:28px;font-weight:800;color:var(--danger)" id="disp-wants-spent">—</div>
-        <div style="font-size:12px;color:var(--muted)">of bi-wk envelope</div>
+        <div class="text-[28px] font-extrabold text-danger" id="disp-wants-spent">—</div>
+        <div class="text-xs text-muted">of bi-wk envelope</div>
       </div>
     </div>
 
@@ -281,8 +280,8 @@
           <div class="sm">used</div>
         </div>
       </div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px">Purchases This Period</div>
+      <div class="flex-1 min-w-0">
+        <div class="text-xs font-bold uppercase tracking-[.8px] text-muted mb-2">Purchases This Period</div>
         <ul class="purchase-list" id="purchase-list" role="list"></ul>
         <div class="add-form-stacked">
           <div class="add-form-field">
@@ -309,35 +308,35 @@
           <button class="add-form-submit" onclick="addPurchase()">Add Purchase</button>
         </div>
         <!-- Live rule match preview shown as user types a purchase name -->
-        <div id="purchase-cat-preview" style="min-height:18px;margin-top:4px"></div>
+        <div id="purchase-cat-preview" class="min-h-[18px] mt-1"></div>
         <!-- Subscription deductions breakdown (shown when payStart configured + subs due) -->
-        <div id="wants-sub-breakdown" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div>
+        <div id="wants-sub-breakdown" style="display:none" class="mt-3 pt-3 border-t border-border"></div>
         <!-- Category spending breakdown (shown when purchases exist) -->
-        <div id="purchase-cat-breakdown" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div>
+        <div id="purchase-cat-breakdown" style="display:none" class="mt-3 pt-3 border-t border-border"></div>
       </div>
     </div>
 
     <!-- Analytics toggle -->
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
-      <button class="btn sm secondary" id="analytics-toggle-btn" onclick="toggleAnalyticsPanel()" style="width:100%">
+    <div class="mt-5 pt-4 border-t border-border">
+      <button class="btn sm secondary w-full" id="analytics-toggle-btn" onclick="toggleAnalyticsPanel()">
         📊 Show Spending Analytics
       </button>
       <!-- Analytics panel (hidden by default) -->
-      <div id="analytics-panel" style="display:none;margin-top:16px">
+      <div id="analytics-panel" style="display:none" class="mt-4">
 
         <!-- Filters -->
-        <div class="analytics-filters" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">From Date</label>
-            <input type="date" id="analytics-filter-start" onchange="updateAnalyticsFilters()" style="padding:6px 8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:6px;font-size:12px" />
+        <div class="analytics-filters flex gap-3 mb-4 flex-wrap items-end">
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] font-bold uppercase tracking-[.6px] text-muted">From Date</label>
+            <input type="date" id="analytics-filter-start" onchange="updateAnalyticsFilters()" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px" />
           </div>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">To Date</label>
-            <input type="date" id="analytics-filter-end" onchange="updateAnalyticsFilters()" style="padding:6px 8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:6px;font-size:12px" />
+          <div class="flex flex-col gap-1">
+            <label class="text-[11px] font-bold uppercase tracking-[.6px] text-muted">To Date</label>
+            <input type="date" id="analytics-filter-end" onchange="updateAnalyticsFilters()" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px" />
           </div>
-          <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:160px">
-            <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">Search Purchases</label>
-            <input type="text" id="analytics-filter-search" placeholder="Filter by item name..." oninput="updateAnalyticsFilters()" style="padding:6px 8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:6px;font-size:12px" />
+          <div class="flex flex-col gap-1 flex-1 min-w-[160px]">
+            <label class="text-[11px] font-bold uppercase tracking-[.6px] text-muted">Search Purchases</label>
+            <input type="text" id="analytics-filter-search" placeholder="Filter by item name..." oninput="updateAnalyticsFilters()" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px" />
           </div>
           <button class="btn xs secondary" onclick="resetAnalyticsFilters()" title="Clear all filters">↺ Reset</button>
         </div>
@@ -346,7 +345,7 @@
         <div class="analytics-stats-row" id="analytics-stats"></div>
 
         <!-- Charts -->
-        <div class="grid grid-2" style="margin:16px 0">
+        <div class="grid grid-cols-2 gap-5 my-4">
           <div class="analytics-chart-box">
             <div class="analytics-chart-title">Spending Per Period</div>
             <canvas id="analyticsLine"></canvas>
@@ -358,7 +357,7 @@
         </div>
 
         <!-- Period history -->
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px">
+        <div class="text-xs font-bold uppercase tracking-[.8px] text-muted mb-2">
           Period History
         </div>
         <div id="analytics-history"></div>
@@ -372,58 +371,58 @@
   <h2 class="section-title">Monthly Expenses</h2>
 
   <!-- Summary row -->
-  <div class="grid grid-2" style="margin-bottom:16px">
+  <div class="grid grid-cols-2 gap-5 mb-4">
     <div class="card">
       <div class="card-title">Total Monthly Expenses</div>
-      <div style="font-size:28px;font-weight:800" id="disp-grand-total">—</div>
-      <div style="font-size:12px;color:var(--muted)" id="disp-card-count">across all payment cards</div>
+      <div class="text-[28px] font-extrabold" id="disp-grand-total">—</div>
+      <div class="text-xs text-muted" id="disp-card-count">across all payment cards</div>
     </div>
     <div class="card" id="needs-status-card">
       <div class="card-title">Needs Budget Remaining</div>
-      <div style="font-size:28px;font-weight:800" id="disp-needs-remaining">—</div>
-      <div style="font-size:12px;color:var(--muted)" id="disp-needs-used-pct">—</div>
+      <div class="text-[28px] font-extrabold" id="disp-needs-remaining">—</div>
+      <div class="text-xs text-muted" id="disp-needs-used-pct">—</div>
     </div>
   </div>
 
   <!-- Dynamic payment cards grid -->
-  <div class="grid grid-3" id="expense-cards-grid"></div>
+  <div class="grid grid-cols-3 gap-5" id="expense-cards-grid"></div>
 
   <!-- Empty state + add button -->
-  <div id="expense-empty-state" class="empty-state card" style="display:none;margin-top:0">
+  <div id="expense-empty-state" class="empty-state card mt-0" style="display:none">
     <div class="empty-state-icon" aria-hidden="true">💳</div>
     <div class="empty-state-title">No payment cards yet</div>
     <div class="empty-state-hint">Create a card to group your fixed monthly expenses by account.</div>
   </div>
-  <div style="margin-top:12px">
+  <div class="mt-3">
     <button class="btn sm secondary" onclick="openAddExpenseCard()">+ Add Payment Card</button>
   </div>
 
 
   <!-- ── Loans ── -->
   <h2 class="section-title">Loans</h2>
-  <div id="loans-grid" class="grid grid-3"></div>
-  <div style="margin-top:12px">
+  <div id="loans-grid" class="grid grid-cols-3 gap-5"></div>
+  <div class="mt-3">
     <button class="btn sm secondary" onclick="openAddLoan()">+ Add Loan</button>
   </div>
 
 
   <!-- ── Credit Card Utilization ── -->
   <h2 class="section-title">Credit Card Utilization</h2>
-  <div class="grid grid-2">
+  <div class="grid grid-cols-2 gap-5">
     <div class="card">
       <div id="cc-bars-container"></div>
-      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-          <span style="font-size:13px;font-weight:700">Total Utilization</span>
+      <div class="mt-4 pt-4 border-t border-border">
+        <div class="flex justify-between items-center flex-wrap gap-1.5">
+          <span class="text-[13px] font-bold">Total Utilization</span>
           <span id="cc-total-chip"></span>
         </div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px">
+        <div class="text-xs text-muted mt-1">
           <span id="cc-total-balance">—</span> of <span id="cc-total-limit">—</span>
           · Target: stay below $1,650
         </div>
       </div>
-      <div style="margin-top:12px">
-        <button class="btn sm secondary" onclick="openAddCreditCard()" style="width:100%">+ Add Card</button>
+      <div class="mt-3">
+        <button class="btn sm secondary w-full" onclick="openAddCreditCard()">+ Add Card</button>
       </div>
     </div>
     <div class="card">
@@ -439,11 +438,11 @@
       <div class="savings-totals">
         <div class="savings-stat">
           <div class="s-label">Monthly Target</div>
-          <div class="s-value" id="disp-savings" style="color:var(--warn)">—</div>
+          <div class="s-value text-warn" id="disp-savings">—</div>
         </div>
         <div class="savings-stat">
           <div class="s-label">Total Allocated</div>
-          <div class="s-value" id="disp-savings-allocated" style="color:var(--accent2)">—</div>
+          <div class="s-value text-accent2" id="disp-savings-allocated">—</div>
         </div>
         <div class="savings-stat">
           <div class="s-label">Unallocated</div>
@@ -451,7 +450,7 @@
         </div>
       </div>
     </div>
-    <div style="margin-bottom:12px">
+    <div class="mb-3">
       <div class="progress-label">
         <span>Allocation progress</span>
         <span id="savings-alloc-pct">—</span>
@@ -461,7 +460,7 @@
       </div>
     </div>
     <ul class="savings-accounts-list" id="savings-accounts-list" role="list"></ul>
-    <div class="add-form-stacked" style="margin-top:12px">
+    <div class="add-form-stacked">
       <div class="add-form-field">
         <span class="add-form-label">Account Name</span>
         <input id="new-savings-name" type="text" placeholder="e.g. Emergency Fund" aria-label="Account name" />
@@ -472,14 +471,14 @@
       </div>
       <button class="add-form-submit" onclick="addSavingsAccount()">Add Account</button>
     </div>
-    <button class="btn" onclick="openAllocateSavingsModal()" style="width: 100%; margin-top: 12px;">💰 Allocate Savings Budget</button>
+    <button class="btn w-full mt-3" onclick="openAllocateSavingsModal()">💰 Allocate Savings Budget</button>
   </div>
 
   <!-- ── Savings Goals ── -->
   <h2 class="section-title">Savings Goals</h2>
   <div class="card">
     <div class="goals-list" id="goals-list"></div>
-    <button class="btn" onclick="openAddGoal()" style="margin-top: 12px;">+ Add Goal</button>
+    <button class="btn mt-3" onclick="openAddGoal()">+ Add Goal</button>
   </div>
 
   <!-- ── Net Worth ── -->
@@ -507,12 +506,12 @@
     </div>
 
     <!-- Trend chart -->
-    <div class="card" style="margin-bottom:12px">
-      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Net Worth Trend</div>
-      <div style="position:relative;height:180px">
+    <div class="card mb-3">
+      <div class="text-xs font-bold text-muted uppercase tracking-[0.5px] mb-3">Net Worth Trend</div>
+      <div class="relative h-[180px]">
         <canvas id="netWorthChart"></canvas>
       </div>
-      <div id="nw-chart-note" style="display:none;font-size:12px;color:var(--muted);margin-top:8px;text-align:center">
+      <div id="nw-chart-note" style="display:none" class="text-xs text-muted mt-2 text-center">
         📈 Only one month of data so far — your trend will appear as you return each month.
       </div>
     </div>
@@ -530,7 +529,7 @@
         <!-- Liquid savings (auto) -->
         <div class="nw-category-section">
           <div class="nw-category-header">
-            <span>🏦 Savings Accounts <span style="font-size:11px;color:var(--muted)">(auto)</span></span>
+            <span>🏦 Savings Accounts <span class="text-[11px] text-muted">(auto)</span></span>
             <span class="nw-category-total" id="nw-savings-total">—</span>
           </div>
           <div id="nw-savings-rows"></div>
@@ -575,28 +574,28 @@
   <h2 class="section-title">Subscription Renewals</h2>
   <div class="card">
     <!-- Totals header -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <div style="display:flex;gap:20px;font-size:12px;color:var(--muted)">
-        <span>Wants: <strong id="sub-wants-monthly" style="color:var(--accent2)">—</strong></span>
-        <span>Needs: <strong id="sub-needs-monthly" style="color:var(--accent-text)">—</strong></span>
+    <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+      <div class="flex gap-5 text-xs text-muted">
+        <span>Wants: <strong id="sub-wants-monthly" class="text-accent2">—</strong></span>
+        <span>Needs: <strong id="sub-needs-monthly" class="text-accent-text">—</strong></span>
       </div>
-      <span style="font-size:11px;color:var(--muted)">monthly equiv.</span>
+      <span class="text-[11px] text-muted">monthly equiv.</span>
     </div>
     <ul class="sub-list" id="sub-list" role="list"></ul>
-    <button class="btn sm secondary" onclick="openAddSubscription()" style="margin-top:12px">+ Add Subscription</button>
+    <button class="btn sm secondary mt-3" onclick="openAddSubscription()">+ Add Subscription</button>
   </div>
 
 
   <!-- ── Spending Rules & Budget Alerts ── -->
   <h2 class="section-title">Spending Rules &amp; Budget Alerts</h2>
-  <div class="grid grid-2" style="margin-bottom:16px">
+  <div class="grid grid-cols-2 gap-5 mb-4">
 
     <!-- Spending Rules -->
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="flex justify-between items-center mb-3">
         <div>
           <div class="card-title">Auto-Category Rules</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">Match purchase names → assign category automatically</div>
+          <div class="text-[11px] text-muted mt-0.5">Match purchase names → assign category automatically</div>
         </div>
         <button class="btn sm secondary" onclick="openAddRule()">+ Add Rule</button>
       </div>
@@ -605,10 +604,10 @@
 
     <!-- Budget Alerts -->
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="flex justify-between items-center mb-3">
         <div>
           <div class="card-title">Budget Alerts</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">Get a warning chip when spending in a category exceeds a threshold</div>
+          <div class="text-[11px] text-muted mt-0.5">Get a warning chip when spending in a category exceeds a threshold</div>
         </div>
         <button class="btn sm secondary" onclick="openAddAlert()">+ Add Alert</button>
       </div>
@@ -621,7 +620,7 @@
   <h2 class="section-title">Upcoming Wants / Wishlist</h2>
   <div class="card">
     <ul class="wishlist" id="wishlist" role="list"></ul>
-    <div class="add-form-stacked" style="margin-top:12px">
+    <div class="add-form-stacked">
       <div class="add-form-field">
         <span class="add-form-label">Icon</span>
         <input id="new-wish-icon" type="text" placeholder="🛒" aria-label="Icon emoji" />
@@ -652,15 +651,15 @@
   <div id="schedule-summary" class="schedule-summary-row"></div>
 
   <!-- Active-month bill list -->
-  <div class="card" style="margin-top:16px">
+  <div class="card mt-4">
     <div id="schedule-detail"></div>
   </div>
 
   <!-- Tip: how to add due dates -->
-  <div class="card" style="margin-top:12px;padding:14px 18px;display:flex;align-items:center;gap:12px">
-    <span style="font-size:20px">💡</span>
-    <span style="font-size:12px;color:var(--muted);line-height:1.5">
-      <strong style="color:var(--text)">Tip:</strong>
+  <div class="card mt-3 flex items-center gap-3" style="padding:14px 18px">
+    <span class="text-xl">💡</span>
+    <span class="text-xs text-muted leading-normal">
+      <strong class="text-text">Tip:</strong>
       Add due dates to your expense items to see them sorted by date.
       Edit any expense item and enter an optional <em>Due Day</em> (1–31).
       Subscriptions use their renewal date automatically.
@@ -762,7 +761,7 @@
           <li>Add items with a name and monthly amount. Enable <strong>Bi-wk</strong> for expenses charged every two weeks — the app doubles the amount for monthly comparison.</li>
           <li>Set an optional <strong>Due Day</strong> (1–31) so items appear in the <a href="#" onclick="switchDocsSection('user-guide');switchTab('schedule');return false;">Expense Schedule</a>.</li>
           <li>The card's <strong>TOTAL</strong> includes any linked subscription charges due this month.</li>
-          <li>Subscriptions appear as read-only <span style="font-family:monospace">↻</span> rows — edit them from the Subscriptions section.</li>
+          <li>Subscriptions appear as read-only <span class="font-mono">↻</span> rows — edit them from the Subscriptions section.</li>
         </ul>
 
         <h3 id="ug-subscriptions" class="docs-h3">🔄 Subscriptions</h3>
@@ -1315,11 +1314,6 @@
   </div>
 </div>
 
-<script src="src/utils.js"></script>
-<script src="src/state.js"></script>
-<script src="src/analytics.js"></script>
-<script src="src/charts.js"></script>
-<script src="src/render.js"></script>
-<script src="src/app.js"></script>
+<script type="module" src="/src/main.js"></script>
 </body>
 </html>

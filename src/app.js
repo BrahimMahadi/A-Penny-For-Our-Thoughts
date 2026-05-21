@@ -7,30 +7,44 @@
              system, tab switching, analytics filters), and
              CSV import/export. Calls render functions after every
              state mutation.
-   Depends on: utils.js, state.js, analytics.js, charts.js, render.js
+   Depends on: utils.js, state.js, analytics.js, charts.js, render.js, uistate.js
 ═══════════════════════════════════════════════════════════════ */
+
+import { state, setState, saveToStorage, DEFAULT_STATE, BLANK_STATE } from './state.js';
+import { genId, fmt, deepClone, showToast, cssVar, csvEscape, parseCSVRow, pct, monthlyAmount } from './utils.js';
+import {
+  getTotalMonthlyIncome, getAlloc, WANT_CATEGORIES,
+  CATEGORY_COLOURS, ASSET_CATEGORIES,
+  getAllocationForMonth, applyRulesToName,
+  recordNetWorthSnapshot,
+} from './analytics.js';
+import {
+  renderAll, renderIncome, renderIncomeStreams, renderWants,
+  renderPurchaseList, renderExpenseCards, renderLoans,
+  renderCreditCards, renderSavings, renderGoals, renderNetWorth,
+  renderSubscriptions, renderWishlist, renderRules, renderBudgetAlerts,
+  renderBudgetVsActual, renderSpendingAnalytics, renderSchedule,
+  renderDate,
+} from './render.js';
+import { uiState } from './uistate.js';
 
 // ────────────────────────────────────────────────────────────────
 // UI STATE
 // ────────────────────────────────────────────────────────────────
-let analyticsFilters = { startDate: '', endDate: '', search: '' };
 
 /**
  * Announce a message to screen readers via the aria-live region.
  * The empty-then-set pattern ensures re-announcing the same message.
  * @param {string} msg
  */
-function srAnnounce(msg) {
+export function srAnnounce(msg) {
   const el = document.getElementById('sr-announcer');
   if (!el) return;
   el.textContent = '';
   requestAnimationFrame(() => { el.textContent = msg; });
 }
 
-// Schedule view — defaults to current month on load
-const _now = new Date();
-let scheduleViewYear  = _now.getFullYear();
-let scheduleViewMonth = _now.getMonth() + 1;  // 1-based
+
 
 // ────────────────────────────────────────────────────────────────
 // TABS
@@ -40,7 +54,7 @@ let scheduleViewMonth = _now.getMonth() + 1;  // 1-based
  * Updates the sidebar nav, the mobile dropdown label, and shows/hides sections.
  * @param {string} sectionId - The data-doc value of the target section
  */
-function switchDocsSection(sectionId) {
+export function switchDocsSection(sectionId) {
   // Sidebar buttons
   document.querySelectorAll('.docs-nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.doc === sectionId);
@@ -61,7 +75,7 @@ function switchDocsSection(sectionId) {
 /**
  * Toggle the mobile docs section dropdown open/closed.
  */
-function toggleDocsDropdown() {
+export function toggleDocsDropdown() {
   const list    = document.getElementById('docs-dropdown-list');
   const trigger = document.getElementById('docs-dropdown-trigger');
   const chevron = document.getElementById('docs-dropdown-chevron');
@@ -72,7 +86,7 @@ function toggleDocsDropdown() {
   if (chevron) chevron.style.transform = opening ? 'rotate(180deg)' : '';
 }
 
-function _closeDocsDropdown() {
+export function _closeDocsDropdown() {
   const list    = document.getElementById('docs-dropdown-list');
   const trigger = document.getElementById('docs-dropdown-trigger');
   const chevron = document.getElementById('docs-dropdown-chevron');
@@ -82,7 +96,7 @@ function _closeDocsDropdown() {
   if (chevron) chevron.style.transform = '';
 }
 
-function switchTab(tab) {
+export function switchTab(tab) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => {
     b.classList.remove('active');
@@ -107,7 +121,7 @@ function switchTab(tab) {
 // ────────────────────────────────────────────────────────────────
 // OVERFLOW MENU
 // ────────────────────────────────────────────────────────────────
-function toggleOverflowMenu() {
+export function toggleOverflowMenu() {
   const dd  = document.getElementById('overflow-dropdown');
   const btn = document.getElementById('overflow-btn');
   if (!dd) return;
@@ -146,7 +160,7 @@ document.addEventListener('click', e => {
  *
  * @returns {boolean}
  */
-function isTyping() {
+export function isTyping() {
   const el  = document.activeElement;
   if (!el) return false;
   const tag = el.tagName;
@@ -227,7 +241,7 @@ document.addEventListener('keydown', e => {
  * Scroll to and focus the purchase-name input in the Wants section.
  * Called by the floating action button on mobile.
  */
-function quickAddPurchase() {
+export function quickAddPurchase() {
   const input = document.getElementById('purchase-name');
   if (!input) return;
   input.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -328,7 +342,7 @@ document.addEventListener('focusin', e => {
 // ────────────────────────────────────────────────────────────────
 
 /** Re-renders the Schedule only when it is the active tab. */
-function _scheduleIfActive() {
+export function _scheduleIfActive() {
   if (document.getElementById('tab-schedule')?.classList.contains('active')) renderSchedule();
 }
 
@@ -337,7 +351,7 @@ function _scheduleIfActive() {
  * (i.e. income, wants envelope, expense card remaining, BvA, savings, goals).
  * Called after any income-stream or allocation-% mutation.
  */
-function _renderIncomeDependents() {
+export function _renderIncomeDependents() {
   renderIncome();
   renderIncomeStreams();
   renderWants();
@@ -351,22 +365,22 @@ function _renderIncomeDependents() {
 // ────────────────────────────────────────────────────────────────
 // SCHEDULE NAVIGATION
 // ────────────────────────────────────────────────────────────────
-function prevScheduleMonth() {
-  scheduleViewMonth--;
-  if (scheduleViewMonth < 1) { scheduleViewMonth = 12; scheduleViewYear--; }
+export function prevScheduleMonth() {
+  uiState.scheduleViewMonth--;
+  if (uiState.scheduleViewMonth < 1) { uiState.scheduleViewMonth = 12; uiState.scheduleViewYear--; }
   renderSchedule();
 }
 
-function nextScheduleMonth() {
-  scheduleViewMonth++;
-  if (scheduleViewMonth > 12) { scheduleViewMonth = 1; scheduleViewYear++; }
+export function nextScheduleMonth() {
+  uiState.scheduleViewMonth++;
+  if (uiState.scheduleViewMonth > 12) { uiState.scheduleViewMonth = 1; uiState.scheduleViewYear++; }
   renderSchedule();
 }
 
 // ────────────────────────────────────────────────────────────────
 // INFO TOOLTIPS
 // ────────────────────────────────────────────────────────────────
-function toggleInfoTip(e, id) {
+export function toggleInfoTip(e, id) {
   e.stopPropagation();
   const tip    = document.getElementById(id);
   const isOpen = tip.classList.contains('open');
@@ -392,9 +406,9 @@ document.addEventListener('click', () => {
  * @param {Function} onSave   - Callback bound to the Save button's `onclick`.
  * @returns {void}
  */
-let _modalOpener = null;
+export let _modalOpener = null;
 
-function openModal(title, bodyHTML, onSave) {
+export function openModal(title, bodyHTML, onSave) {
   _modalOpener = document.activeElement;
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML    = bodyHTML;
@@ -413,7 +427,7 @@ function openModal(title, bodyHTML, onSave) {
 }
 
 /** Keep Tab/Shift+Tab focus inside the open modal. */
-function _trapFocus(e) {
+export function _trapFocus(e) {
   if (e.key !== 'Tab') return;
   const modal = document.getElementById('modal');
   const focusable = Array.from(modal.querySelectorAll(
@@ -433,7 +447,7 @@ function _trapFocus(e) {
  *
  * @returns {void}
  */
-function closeModal() {
+export function closeModal() {
   document.getElementById('modal-overlay').classList.remove('active');
   document.getElementById('modal')?.removeEventListener('keydown', _trapFocus, true);
   // Return focus to the element that triggered the modal
@@ -450,7 +464,7 @@ function closeModal() {
  * @param {MouseEvent} e
  * @returns {void}
  */
-function handleOverlayClick(e) {
+export function handleOverlayClick(e) {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
 }
 
@@ -462,7 +476,7 @@ function handleOverlayClick(e) {
  * @param {string} id - The `id` attribute of the input/select element.
  * @returns {void}
  */
-function markFieldInvalid(id) {
+export function markFieldInvalid(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.add('is-invalid', 'shake');
@@ -483,7 +497,7 @@ function markFieldInvalid(id) {
  * @param {string}  [extraAttrs='']  - Additional HTML attribute string (e.g. `'min="0" max="100"'`).
  * @returns {string} HTML string for the field.
  */
-function mField(label, id, type, value, placeholder, extraAttrs) {
+export function mField(label, id, type, value, placeholder, extraAttrs) {
   // Auto-add inputmode="decimal" for number inputs (shows numeric keypad on mobile)
   // unless extraAttrs already specifies an inputmode.
   const extra = extraAttrs || '';
@@ -502,7 +516,7 @@ function mField(label, id, type, value, placeholder, extraAttrs) {
 // ────────────────────────────────────────────────────────────────
 // BUDGET ALLOCATION
 // ────────────────────────────────────────────────────────────────
-function openEditAllocation() {
+export function openEditAllocation() {
   const a = state.allocation || { needs: 50, wants: 30, savings: 20 };
   openModal(
     'Edit Budget Allocation',
@@ -531,7 +545,7 @@ function openEditAllocation() {
   updateAllocValidation();
 }
 
-function updateAllocValidation() {
+export function updateAllocValidation() {
   const n     = parseFloat(document.getElementById('alloc-needs').value)   || 0;
   const w     = parseFloat(document.getElementById('alloc-wants').value)   || 0;
   const s     = parseFloat(document.getElementById('alloc-savings').value) || 0;
@@ -544,7 +558,7 @@ function updateAllocValidation() {
   display.style.fontWeight = isValid ? '600' : '700';
 }
 
-function toggleBudgetMode(category) {
+export function toggleBudgetMode(category) {
   if (!state.budgetDisplayMode) state.budgetDisplayMode = { needs: 'monthly', wants: 'monthly', savings: 'monthly' };
   state.budgetDisplayMode[category] = state.budgetDisplayMode[category] === 'monthly' ? 'biweekly' : 'monthly';
   saveToStorage(); renderIncome();
@@ -553,7 +567,7 @@ function toggleBudgetMode(category) {
 // ────────────────────────────────────────────────────────────────
 // INCOME STREAMS — CRUD
 // ────────────────────────────────────────────────────────────────
-function addIncomeStream() {
+export function addIncomeStream() {
   const name     = document.getElementById('new-stream-name').value.trim();
   const amount   = parseFloat(document.getElementById('new-stream-amount').value);
   const biweekly = document.getElementById('new-stream-biweekly').checked;
@@ -579,7 +593,7 @@ function addIncomeStream() {
  * Stores the amount in state.fundsRemaining and today's date in
  * state.fundsRemainingUpdated so the card can show "updated May 14".
  */
-function openEditFundsRemaining() {
+export function openEditFundsRemaining() {
   openModal(
     'Update Funds Remaining',
     mField('Available Balance ($)', 'fr-amount', 'number',
@@ -598,7 +612,7 @@ function openEditFundsRemaining() {
   setTimeout(() => document.getElementById('fr-amount')?.select(), 50);
 }
 
-function openEditIncomeStream(id) {
+export function openEditIncomeStream(id) {
   const stream = (state.incomeStreams || []).find(s => s.id === id);
   if (!stream) return;
   openModal(
@@ -630,7 +644,7 @@ function openEditIncomeStream(id) {
   );
 }
 
-function deleteIncomeStream(id) {
+export function deleteIncomeStream(id) {
   if (!confirm('Remove this income stream?')) return;
   state.incomeStreams = state.incomeStreams.filter(s => s.id !== id);
   saveToStorage(); _renderIncomeDependents();
@@ -640,7 +654,7 @@ function deleteIncomeStream(id) {
 // ────────────────────────────────────────────────────────────────
 // WANTS — CRUD
 // ────────────────────────────────────────────────────────────────
-function addPurchase() {
+export function addPurchase() {
   const name   = document.getElementById('purchase-name').value.trim();
   const amount = parseFloat(document.getElementById('purchase-amount').value);
   if (!name || isNaN(amount) || amount <= 0) {
@@ -666,14 +680,14 @@ function addPurchase() {
   showToast(`${name} added`);
 }
 
-function removePurchase(id) {
+export function removePurchase(id) {
   state.purchases = state.purchases.filter(p => p.id !== id);
   saveToStorage(); renderWants(); renderBudgetVsActual();
   showToast('Purchase removed', 'danger');
 }
 
 /** Manually override the category of a current-period purchase */
-function setPurchaseCategory(id, category) {
+export function setPurchaseCategory(id, category) {
   const p = (state.purchases || []).find(p => p.id === id);
   if (!p) return;
   p.category = category;
@@ -681,7 +695,7 @@ function setPurchaseCategory(id, category) {
 }
 
 /** Update the linked payment card on an existing purchase */
-function setPurchaseCard(id, cardId) {
+export function setPurchaseCard(id, cardId) {
   const p = (state.purchases || []).find(p => p.id === id);
   if (!p) return;
   p.cardId = cardId || null;
@@ -689,7 +703,7 @@ function setPurchaseCard(id, cardId) {
 }
 
 /** Toggle a purchase between Wants and Needs budget types */
-function setPurchaseBudgetType(id, type) {
+export function setPurchaseBudgetType(id, type) {
   const p = (state.purchases || []).find(p => p.id === id);
   if (!p) return;
   p.budgetType = (type === 'needs') ? 'needs' : 'wants';
@@ -697,7 +711,7 @@ function setPurchaseBudgetType(id, type) {
 }
 
 /** Re-apply all rules to current-period purchases (non-destructive: only sets if a rule matches) */
-function reapplyRulesToPurchases() {
+export function reapplyRulesToPurchases() {
   let changed = 0;
   (state.purchases || []).forEach(p => {
     const matched = applyRulesToName(p.name);
@@ -711,7 +725,7 @@ function reapplyRulesToPurchases() {
  * Archive current purchases to spendingHistory, then reset.
  * Refreshes analytics panel if it is open.
  */
-function resetWants() {
+export function resetWants() {
   if (!confirm('Reset all purchases for this bi-weekly period?')) return;
   if ((state.purchases || []).length > 0) {
     // Archive only Wants-tagged purchases in the period total so historical
@@ -737,15 +751,15 @@ function resetWants() {
 // ────────────────────────────────────────────────────────────────
 // ANALYTICS FILTERS
 // ────────────────────────────────────────────────────────────────
-function updateAnalyticsFilters() {
-  analyticsFilters.startDate = document.getElementById('analytics-filter-start').value;
-  analyticsFilters.endDate   = document.getElementById('analytics-filter-end').value;
-  analyticsFilters.search    = document.getElementById('analytics-filter-search').value;
+export function updateAnalyticsFilters() {
+  uiState.analyticsFilters.startDate = document.getElementById('analytics-filter-start').value;
+  uiState.analyticsFilters.endDate   = document.getElementById('analytics-filter-end').value;
+  uiState.analyticsFilters.search    = document.getElementById('analytics-filter-search').value;
   renderSpendingAnalytics();
 }
 
-function resetAnalyticsFilters() {
-  analyticsFilters = { startDate: '', endDate: '', search: '' };
+export function resetAnalyticsFilters() {
+  uiState.analyticsFilters = { startDate: '', endDate: '', search: '' };
   document.getElementById('analytics-filter-start').value  = '';
   document.getElementById('analytics-filter-end').value    = '';
   document.getElementById('analytics-filter-search').value = '';
@@ -755,7 +769,7 @@ function resetAnalyticsFilters() {
 // ────────────────────────────────────────────────────────────────
 // SPENDING HISTORY — CRUD
 // ────────────────────────────────────────────────────────────────
-function openEditHistoryPurchase(periodId, purchaseId) {
+export function openEditHistoryPurchase(periodId, purchaseId) {
   const period   = (state.spendingHistory || []).find(p => p.id === periodId);
   if (!period) return;
   const purchase = (period.items || []).find(p => p.id === purchaseId);
@@ -778,7 +792,7 @@ function openEditHistoryPurchase(periodId, purchaseId) {
   );
 }
 
-function deleteHistoryPurchase(periodId, purchaseId) {
+export function deleteHistoryPurchase(periodId, purchaseId) {
   const period = (state.spendingHistory || []).find(p => p.id === periodId);
   if (!period || !confirm('Remove this purchase from history?')) return;
   period.items = period.items.filter(p => p.id !== purchaseId);
@@ -787,7 +801,7 @@ function deleteHistoryPurchase(periodId, purchaseId) {
   showToast('Purchase removed from history', 'danger');
 }
 
-function deleteHistoryPeriod(periodId) {
+export function deleteHistoryPeriod(periodId) {
   if (!confirm('Delete this entire spending period from history?')) return;
   state.spendingHistory = state.spendingHistory.filter(p => p.id !== periodId);
   saveToStorage(); renderSpendingAnalytics();
@@ -797,7 +811,7 @@ function deleteHistoryPeriod(periodId) {
 // ────────────────────────────────────────────────────────────────
 // EXPENSE CARDS — CRUD
 // ────────────────────────────────────────────────────────────────
-function addExpense(cardId) {
+export function addExpense(cardId) {
   const card = (state.expenseCards || []).find(c => c.id === cardId);
   if (!card) return;
   const name     = document.getElementById('new-name-'   + cardId).value.trim();
@@ -812,7 +826,7 @@ function addExpense(cardId) {
   showToast(`"${name}" added`);
 }
 
-function removeExpense(cardId, itemId) {
+export function removeExpense(cardId, itemId) {
   const card = (state.expenseCards || []).find(c => c.id === cardId);
   if (!card) return;
   card.items = card.items.filter(i => i.id !== itemId);
@@ -820,7 +834,7 @@ function removeExpense(cardId, itemId) {
   showToast('Expense removed', 'danger');
 }
 
-function openAddExpenseCard() {
+export function openAddExpenseCard() {
   openModal('Add Payment Card', mField('Card Label', 'mec-label', 'text', '', 'e.g. TD Debit'), () => {
     const label = document.getElementById('mec-label').value.trim();
     if (!label) return;
@@ -830,7 +844,7 @@ function openAddExpenseCard() {
   });
 }
 
-function openEditExpenseCard(id) {
+export function openEditExpenseCard(id) {
   const card = (state.expenseCards || []).find(c => c.id === id);
   if (!card) return;
   openModal('Rename Payment Card', mField('Card Label', 'mec-label', 'text', card.label, ''), () => {
@@ -842,14 +856,14 @@ function openEditExpenseCard(id) {
   });
 }
 
-function deleteExpenseCard(id) {
+export function deleteExpenseCard(id) {
   if (!confirm('Delete this payment card and all its expenses?')) return;
   state.expenseCards = state.expenseCards.filter(c => c.id !== id);
   saveToStorage(); renderExpenseCards(); renderBudgetVsActual(); _scheduleIfActive();
   showToast('Payment card deleted', 'danger');
 }
 
-function openEditExpenseItem(cardId, itemId) {
+export function openEditExpenseItem(cardId, itemId) {
   const card = (state.expenseCards || []).find(c => c.id === cardId);
   if (!card) return;
   const item = (card.items || []).find(i => i.id === itemId);
@@ -892,7 +906,7 @@ function openEditExpenseItem(cardId, itemId) {
 // ────────────────────────────────────────────────────────────────
 
 /** Shared frequency options used by both loan and subscription modals */
-const LOAN_FREQ_OPTIONS = [
+export const LOAN_FREQ_OPTIONS = [
   ['monthly',   'Monthly'],
   ['bi-weekly', 'Bi-Weekly'],
   ['quarterly', 'Quarterly'],
@@ -901,7 +915,7 @@ const LOAN_FREQ_OPTIONS = [
 ];
 
 /** Build the loan modal body HTML, pre-populated when editing an existing loan */
-function _loanModalBody(loan) {
+export function _loanModalBody(loan) {
   const freqOpts = LOAN_FREQ_OPTIONS
     .map(([v, l]) => `<option value="${v}" ${v === (loan?.frequency || 'monthly') ? 'selected' : ''}>${l}</option>`)
     .join('');
@@ -949,7 +963,7 @@ function _loanModalBody(loan) {
 }
 
 /** Read all loan fields from the open modal */
-function _readLoanModal() {
+export function _readLoanModal() {
   return {
     name:          document.getElementById('ml-name').value.trim(),
     remaining:     parseFloat(document.getElementById('ml-rem').value),
@@ -962,7 +976,7 @@ function _readLoanModal() {
   };
 }
 
-function openAddLoan() {
+export function openAddLoan() {
   openModal('Add Loan', _loanModalBody(null), () => {
     const { name, remaining, original, paymentAmount, frequency, date, budgetType, cardId } = _readLoanModal();
     if (!name || isNaN(remaining) || isNaN(original)) return;
@@ -972,7 +986,7 @@ function openAddLoan() {
   });
 }
 
-function openEditLoan(id) {
+export function openEditLoan(id) {
   const loan = state.loans.find(l => l.id === id);
   if (!loan) return;
   openModal('Edit Loan', _loanModalBody(loan), () => {
@@ -984,7 +998,7 @@ function openEditLoan(id) {
   });
 }
 
-function deleteLoan(id) {
+export function deleteLoan(id) {
   if (!confirm('Delete this loan?')) return;
   state.loans = state.loans.filter(l => l.id !== id);
   saveToStorage(); renderLoans(); renderNetWorth(); renderExpenseCards();
@@ -994,7 +1008,7 @@ function deleteLoan(id) {
 // ────────────────────────────────────────────────────────────────
 // CREDIT CARDS — CRUD
 // ────────────────────────────────────────────────────────────────
-function openAddCreditCard() {
+export function openAddCreditCard() {
   openModal(
     'Add Credit Card',
     mField('Card Name',  'cc-name',    'text',   '', 'e.g. TD Small CC (9602)') +
@@ -1014,7 +1028,7 @@ function openAddCreditCard() {
   );
 }
 
-function openEditCreditCard(id) {
+export function openEditCreditCard(id) {
   const cc = state.creditCards.find(c => c.id === id);
   if (!cc) return;
   openModal(
@@ -1036,7 +1050,7 @@ function openEditCreditCard(id) {
   );
 }
 
-function deleteCreditCard(id) {
+export function deleteCreditCard(id) {
   if (!confirm('Delete this credit card?')) return;
   state.creditCards = state.creditCards.filter(c => c.id !== id);
   saveToStorage(); renderCreditCards(); renderNetWorth();
@@ -1046,7 +1060,7 @@ function deleteCreditCard(id) {
 // ────────────────────────────────────────────────────────────────
 // SAVINGS ACCOUNTS — CRUD
 // ────────────────────────────────────────────────────────────────
-function addSavingsAccount() {
+export function addSavingsAccount() {
   const name             = document.getElementById('new-savings-name').value.trim();
   const defaultAllocated = parseFloat(document.getElementById('new-savings-amount').value) || 0;
   if (!name) { markFieldInvalid('new-savings-name'); return; }
@@ -1058,7 +1072,7 @@ function addSavingsAccount() {
   showToast(`"${name}" account added`);
 }
 
-function openEditSavingsAccount(id) {
+export function openEditSavingsAccount(id) {
   const acct = (state.savingsAccounts || []).find(a => a.id === id);
   if (!acct) return;
   openModal(
@@ -1080,7 +1094,7 @@ function openEditSavingsAccount(id) {
   );
 }
 
-function deleteSavingsAccount(id) {
+export function deleteSavingsAccount(id) {
   if (!confirm('Remove this savings account?')) return;
   state.savingsAccounts = state.savingsAccounts.filter(a => a.id !== id);
   state.goals           = (state.goals || []).filter(g => g.accountId !== id);
@@ -1088,7 +1102,7 @@ function deleteSavingsAccount(id) {
   showToast('Account deleted', 'danger');
 }
 
-function openAllocateSavingsModal() {
+export function openAllocateSavingsModal() {
   const today     = new Date();
   const year      = today.getFullYear();
   const month     = today.getMonth() + 1;
@@ -1174,7 +1188,7 @@ function openAllocateSavingsModal() {
 // ────────────────────────────────────────────────────────────────
 // SAVINGS GOALS — CRUD
 // ────────────────────────────────────────────────────────────────
-function openAddGoal() {
+export function openAddGoal() {
   const accounts = state.savingsAccounts || [];
   if (!accounts.length) { srAnnounce('Please add a savings account first'); return; }
 
@@ -1200,7 +1214,7 @@ function openAddGoal() {
   );
 }
 
-function openEditGoal(id) {
+export function openEditGoal(id) {
   const goal     = (state.goals || []).find(g => g.id === id);
   if (!goal) return;
   const accounts = state.savingsAccounts || [];
@@ -1227,7 +1241,7 @@ function openEditGoal(id) {
   );
 }
 
-function deleteGoal(id) {
+export function deleteGoal(id) {
   if (!confirm('Delete this savings goal?')) return;
   state.goals = (state.goals || []).filter(g => g.id !== id);
   saveToStorage(); renderGoals();
@@ -1237,9 +1251,9 @@ function deleteGoal(id) {
 // ────────────────────────────────────────────────────────────────
 // SUBSCRIPTIONS — CRUD
 // ────────────────────────────────────────────────────────────────
-const SUB_CATEGORIES = ['Entertainment', 'Utilities', 'Health', 'Productivity', 'Other'];
+export const SUB_CATEGORIES = ['Entertainment', 'Utilities', 'Health', 'Productivity', 'Other'];
 
-function _subModalBody(sub) {
+export function _subModalBody(sub) {
   const catOpts  = SUB_CATEGORIES.map(c =>
     `<option value="${c}" ${c === (sub?.category || 'Other') ? 'selected' : ''}>${c}</option>`
   ).join('');
@@ -1301,7 +1315,7 @@ function _subModalBody(sub) {
   );
 }
 
-function _readSubModal() {
+export function _readSubModal() {
   return {
     name:       document.getElementById('ms-name').value.trim(),
     amount:     parseFloat(document.getElementById('ms-amount').value) || 0,
@@ -1313,7 +1327,7 @@ function _readSubModal() {
   };
 }
 
-function openAddSubscription() {
+export function openAddSubscription() {
   openModal('Add Subscription', _subModalBody(null), () => {
     const { name, amount, frequency, budgetType, category, date, cardId } = _readSubModal();
     if (!name || !date) { srAnnounce('Please enter a name and renewal date.'); return; }
@@ -1324,7 +1338,7 @@ function openAddSubscription() {
   });
 }
 
-function openEditSubscription(id) {
+export function openEditSubscription(id) {
   const sub = (state.subscriptions || []).find(s => s.id === id);
   if (!sub) return;
   openModal('Edit Subscription', _subModalBody(sub), () => {
@@ -1337,7 +1351,7 @@ function openEditSubscription(id) {
   });
 }
 
-function deleteSubscription(id) {
+export function deleteSubscription(id) {
   if (!confirm('Remove this subscription?')) return;
   state.subscriptions = state.subscriptions.filter(s => s.id !== id);
   saveToStorage(); renderSubscriptions(); renderWants(); renderExpenseCards(); _scheduleIfActive();
@@ -1348,7 +1362,7 @@ function deleteSubscription(id) {
  * Called oninput/onchange in the subscription modal.
  * Warns if the subscription name closely matches an item already on the selected card.
  */
-function checkSubDuplicate() {
+export function checkSubDuplicate() {
   const warn    = document.getElementById('ms-dup-warn');
   const cardSel = document.getElementById('ms-card');
   const nameEl  = document.getElementById('ms-name');
@@ -1378,7 +1392,7 @@ function checkSubDuplicate() {
 // ────────────────────────────────────────────────────────────────
 // PAYDAY ANCHOR
 // ────────────────────────────────────────────────────────────────
-function openSetPayStart() {
+export function openSetPayStart() {
   openModal(
     'Set Payday Anchor',
     `<div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">
@@ -1402,13 +1416,13 @@ function openSetPayStart() {
 // ────────────────────────────────────────────────────────────────
 // TRANSACTION RULES — CRUD
 // ────────────────────────────────────────────────────────────────
-function _ruleCatOpts(selected) {
+export function _ruleCatOpts(selected) {
   return WANT_CATEGORIES
     .map(c => `<option value="${c}" ${c === selected ? 'selected' : ''}>${c}</option>`)
     .join('');
 }
 
-function _ruleModalBody(rule) {
+export function _ruleModalBody(rule) {
   const matchOpts = [
     ['contains',   'Contains (default)'],
     ['startsWith', 'Starts With'],
@@ -1430,7 +1444,7 @@ function _ruleModalBody(rule) {
   );
 }
 
-function _readRuleModal() {
+export function _readRuleModal() {
   return {
     pattern:   document.getElementById('rule-pattern').value.trim().toLowerCase(),
     matchType: document.getElementById('rule-matchtype').value,
@@ -1438,7 +1452,7 @@ function _readRuleModal() {
   };
 }
 
-function openAddRule() {
+export function openAddRule() {
   openModal('Add Spending Rule', _ruleModalBody(null), () => {
     const { pattern, matchType, category } = _readRuleModal();
     if (!pattern) { srAnnounce('Please enter a keyword or pattern.'); return; }
@@ -1454,7 +1468,7 @@ function openAddRule() {
   });
 }
 
-function openEditRule(id) {
+export function openEditRule(id) {
   const rule = (state.rules || []).find(r => r.id === id);
   if (!rule) return;
   openModal('Edit Rule', _ruleModalBody(rule), () => {
@@ -1467,7 +1481,7 @@ function openEditRule(id) {
   });
 }
 
-function deleteRule(id) {
+export function deleteRule(id) {
   if (!confirm('Delete this rule?')) return;
   state.rules = (state.rules || []).filter(r => r.id !== id);
   saveToStorage(); renderRules();
@@ -1477,7 +1491,7 @@ function deleteRule(id) {
 // ────────────────────────────────────────────────────────────────
 // BUDGET ALERTS — CRUD
 // ────────────────────────────────────────────────────────────────
-function openAddAlert() {
+export function openAddAlert() {
   openModal(
     'Add Budget Alert',
     `<div class="modal-row">
@@ -1506,7 +1520,7 @@ function openAddAlert() {
   );
 }
 
-function openEditAlert(id) {
+export function openEditAlert(id) {
   const alertItem = (state.budgetAlerts || []).find(a => a.id === id);
   if (!alertItem) return;
   openModal(
@@ -1532,7 +1546,7 @@ function openEditAlert(id) {
   );
 }
 
-function deleteAlert(id) {
+export function deleteAlert(id) {
   if (!confirm('Delete this alert?')) return;
   state.budgetAlerts = (state.budgetAlerts || []).filter(a => a.id !== id);
   saveToStorage(); renderBudgetAlerts(); renderWants();
@@ -1542,7 +1556,7 @@ function deleteAlert(id) {
 // ────────────────────────────────────────────────────────────────
 // WISHLIST — CRUD
 // ────────────────────────────────────────────────────────────────
-function addWishlistItem() {
+export function addWishlistItem() {
   const icon = document.getElementById('new-wish-icon').value.trim() || '🛒';
   const name = document.getElementById('new-wish-name').value.trim();
   const url  = document.getElementById('new-wish-url').value.trim();
@@ -1556,7 +1570,7 @@ function addWishlistItem() {
   showToast(`"${name}" added to wishlist`);
 }
 
-function openEditWishlistItem(id) {
+export function openEditWishlistItem(id) {
   const item = (state.wishlist || []).find(w => w.id === id);
   if (!item) return;
   openModal(
@@ -1578,7 +1592,7 @@ function openEditWishlistItem(id) {
   );
 }
 
-function deleteWishlistItem(id) {
+export function deleteWishlistItem(id) {
   if (!confirm('Remove this item from the wishlist?')) return;
   state.wishlist = state.wishlist.filter(w => w.id !== id);
   saveToStorage(); renderWishlist();
@@ -1588,7 +1602,7 @@ function deleteWishlistItem(id) {
 // ────────────────────────────────────────────────────────────────
 // NET WORTH — CRUD (manual assets)
 // ────────────────────────────────────────────────────────────────
-function openAddAsset(category) {
+export function openAddAsset(category) {
   const cat = ASSET_CATEGORIES.find(c => c.key === category);
   const placeholders = { investment: 'RRSP', vehicle: '2022 Honda Civic', real_estate: 'Primary Residence', other: 'Collectibles' };
   openModal(
@@ -1608,7 +1622,7 @@ function openAddAsset(category) {
   );
 }
 
-function openEditAsset(id) {
+export function openEditAsset(id) {
   const asset = (state.assets || []).find(a => a.id === id);
   if (!asset) return;
   const cat = ASSET_CATEGORIES.find(c => c.key === asset.category);
@@ -1629,7 +1643,7 @@ function openEditAsset(id) {
   );
 }
 
-function deleteAsset(id) {
+export function deleteAsset(id) {
   if (!confirm('Remove this asset?')) return;
   state.assets = state.assets.filter(a => a.id !== id);
   saveToStorage(); renderNetWorth();
@@ -1652,7 +1666,7 @@ function deleteAsset(id) {
  *
  * @returns {void}
  */
-function exportCsv() {
+export function exportCsv() {
   const rows  = [];
   const e     = csvEscape;
   const today = new Date().toISOString().split('T')[0];
@@ -1761,7 +1775,7 @@ function exportCsv() {
  * @param {Event} event - The `change` event from the file input.
  * @returns {void}
  */
-function importCsv(event) {
+export function importCsv(event) {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -1769,7 +1783,7 @@ function importCsv(event) {
     try {
       const newState = parseCsv(e.target.result);
       if (!confirm('Import this CSV? This will replace all current data.')) { event.target.value = ''; return; }
-      state = newState;
+      setState(newState);
       saveToStorage(); renderAll(); switchTab('dashboard');
       showToast('CSV imported successfully', 'info');
     } catch (err) {
@@ -1782,14 +1796,14 @@ function importCsv(event) {
 }
 
 /** Clear all data and reset to blank defaults. */
-function clearAllData() {
+export function clearAllData() {
   if (!confirm('⚠️  WARNING: This will delete ALL your data and reset to a blank dashboard.\n\nThis action cannot be undone. Are you sure you want to continue?')) return;
   if (!confirm('This will permanently delete all your data.\n\nClick OK and type "CLEAR" in the prompt below to confirm.')) return;
   if (prompt('Type CLEAR to confirm deletion of all data:') !== 'CLEAR') {
     srAnnounce('Clear cancelled. Your data is safe.');
     return;
   }
-  state = deepClone(BLANK_STATE);
+  setState(deepClone(BLANK_STATE));
   saveToStorage(); renderAll();
   srAnnounce('All data has been cleared. Starting fresh!');
   showToast('All data cleared', 'danger');
@@ -1809,7 +1823,7 @@ function clearAllData() {
  * @returns {Object} Parsed state object (not yet saved to storage).
  * @throws {Error} If parsing fails critically.
  */
-function parseCsv(text) {
+export function parseCsv(text) {
   const parsed = {};
   let currentSection = null;
   let headers        = null;
@@ -1972,7 +1986,7 @@ function parseCsv(text) {
 // ────────────────────────────────────────────────────────────────
 
 /** @returns {boolean} True when the shortcuts panel is currently visible. */
-function _shortcutsPanelVisible() {
+export function _shortcutsPanelVisible() {
   return document.getElementById('shortcuts-panel')?.classList.contains('visible') ?? false;
 }
 
@@ -1981,7 +1995,7 @@ function _shortcutsPanelVisible() {
  * Uses a brief .closing animation before removing .visible so the
  * exit transition plays before the element is hidden.
  */
-function toggleShortcutsPanel() {
+export function toggleShortcutsPanel() {
   const panel   = document.getElementById('shortcuts-panel');
   const trigger = document.getElementById('shortcuts-trigger');
   if (!panel) return;
@@ -2028,9 +2042,5 @@ document.getElementById('purchase-name').addEventListener('input', function () {
 });
 
 // ────────────────────────────────────────────────────────────────
-// INIT
+// INIT — moved to src/main.js
 // ────────────────────────────────────────────────────────────────
-initTheme();
-loadFromStorage();
-renderDate();
-renderAll();

@@ -1,0 +1,139 @@
+/* ===================================================
+   Module:   css/tokens.css
+   Project:  A Penny For Our Thoughts
+   Summary:  CSS custom properties (dark/light botanical themes),
+             global reset, body styles
+=================================================== */
+
+/* ── Dark theme (default) — Botanical ── */
+:root {
+  /* Typography System — All Sans-Serif */
+  --font-body:       -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', system-ui, sans-serif;
+  --font-mono:       'Courier New', monospace;
+
+  /* Color Palette — Botanical Dark */
+  --bg:           #040d08;
+  --surface:      #0a1810;
+  --surface2:     #0f2018;
+  --surface3:     #152a1e;
+  --accent:       #4ade80;
+  --accent2:      #a3e635;
+  --danger:       #ff4d6d;
+  --warn:         #ffa63d;
+  --text:         #dcfce7;
+  --text-secondary: #bbf0cc;
+  --muted:        #5a7a63;
+  --border:       #1a3526;
+  --border-light: #244530;
+
+  /* Contrast-safe tokens — WCAG AA */
+  --accent-btn:  #16a34a;   /* button bg  → white text ~4.7:1  */
+  --accent-text: #4ade80;   /* text on dark surfaces */
+  --accent-chip: #4ade80;   /* chip text on tinted bg */
+  --danger-btn:  #b8202e;   /* danger bg  → white text 4.6:1  */
+
+  /* Spacing System */
+  --space-xs:     4px;
+  --space-sm:     8px;
+  --space-md:     12px;
+  --space-lg:     16px;
+  --space-xl:     20px;
+  --space-2xl:    28px;
+
+  /* Effects */
+  --radius:       8px;
+  --radius-sm:    6px;
+  --card-shadow:  0 4px 24px rgba(0,0,0,.5);
+  --card-shadow-sm: 0 2px 8px rgba(0,0,0,.35);
+  --transition:   background .25s, color .25s, border-color .25s, box-shadow .25s;
+  --transition-fast: .15s;
+
+  /* Funds Remaining card accent */
+  --funds-accent: #22d3ee;  /* cyan-400 — harmonises with botanical greens in dark mode */
+
+  /* Chart-specific tokens (read via cssVar() in JS) */
+  --chart-tooltip-bg:     rgba(10,24,16,0.95);
+  --chart-tooltip-text:   #dcfce7;
+  --chart-tooltip-border: #1a3526;
+  --chart-tick:           #5a7a63;
+  --chart-grid:           #1a3526;
+}
+
+/* ── Light theme — Botanical ── */
+[data-theme="light"] {
+  --bg:           #f0faf3;
+  --surface:      #ffffff;
+  --surface2:     #e3f5e8;
+  --surface3:     #d4edda;
+  --accent:       #16a34a;
+  --accent2:      #65a30d;
+  --danger:       #dc2626;
+  --warn:         #d97706;
+  --text:         #0f2415;
+  --text-secondary: #1a3d22;
+  --muted:        #5a7a63;
+  --border:       #c8e6d0;
+  --border-light: #d4edda;
+  --card-shadow:  0 2px 12px rgba(22,163,74,.09);
+  --card-shadow-sm: 0 1px 4px rgba(22,163,74,.06);
+  --accent-btn:  #16a34a;
+  --accent-text: #15803d;
+  --accent-chip: #15803d;
+  --danger-btn:  #b91c1c;
+
+  /* Funds Remaining card accent */
+  --funds-accent: #0369a1;  /* sky-700 — readable blue on light botanical background */
+
+  /* Chart-specific tokens */
+  --chart-tooltip-bg:     rgba(255,255,255,0.97);
+  --chart-tooltip-text:   #0f2415;
+  --chart-tooltip-border: #c8e6d0;
+  --chart-tick:           #5a7a63;
+  --chart-grid:           #c8e6d0;
+}
+
+/* ── Global reset ── */
+*,
+*::before,
+*::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Prevent horizontal scrollbar from any layout overflow */
+html, body { overflow-x: clip; }
+
+/* Apply smooth transitions globally for theme switching */
+body,
+.card,
+header,
+.tabs,
+.tab-btn,
+.modal,
+input,
+select,
+textarea,
+.expense-item,
+.purchase-item,
+.sub-item,
+.wish-item,
+.savings-acct-item,
+.income-stream-item,
+.period-history-item,
+.period-purchase-row,
+.analytics-stat-card,
+.add-form-stacked,
+.edit-section,
+.save-bar {
+  transition: var(--transition);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+

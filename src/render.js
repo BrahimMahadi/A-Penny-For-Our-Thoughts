@@ -14,8 +14,29 @@
               renderSavings, renderGoals, renderNetWorth,
               renderSubscriptions, renderRules, renderBudgetAlerts,
               renderWishlist, renderSchedule, renderAll
-   Depends on: utils.js, state.js, analytics.js, charts.js
+   Depends on: utils.js, state.js, analytics.js, charts.js, uistate.js
 ═══════════════════════════════════════════════════════════════ */
+
+import { state }                              from './state.js';
+import { fmt, pct, daysUntil, monthlyAmount, cssVar } from './utils.js';
+import {
+  getTotalMonthlyIncome, getAlloc, grandTotal,
+  getSubsDeductedThisPeriod, getSubsDeductedThisMonth,
+  getLoansDeductedThisMonth, getLoansDeductedThisPeriod,
+  getTriggeredAlerts, getCurrentPeriodStart,
+  getCategorySpending, CATEGORY_COLOURS, WANT_CATEGORIES,
+  getMonthActuals, getMonthBudgeted, calculateVariance,
+  getFilteredSpendingHistory, getNextRenewal,
+  getAllocationForMonth, getGoalProgress,
+  getNetWorthData, getMonthForecast,
+  applyRulesToName, ASSET_CATEGORIES,
+} from './analytics.js';
+import {
+  renderWantsDonut, renderCcBarChart,
+  renderAnalyticsLineChart, renderAnalyticsBarChart,
+  renderBudgetVsActualChart, renderNetWorthChart,
+} from './charts.js';
+import { uiState } from './uistate.js';
 
 // ────────────────────────────────────────────────────────────────
 // EMPTY STATE HELPER
@@ -30,7 +51,7 @@
  * @param {string} [hint=''] - Optional secondary hint in muted text.
  * @returns {string} HTML string ready for innerHTML assignment.
  */
-function emptyState(icon, title, hint = '') {
+export function emptyState(icon, title, hint = '') {
   return `<div class="empty-state">
     <div class="empty-state-icon" aria-hidden="true">${icon}</div>
     <div class="empty-state-title">${title}</div>
@@ -41,7 +62,7 @@ function emptyState(icon, title, hint = '') {
 // ────────────────────────────────────────────────────────────────
 // HEADER
 // ────────────────────────────────────────────────────────────────
-function renderDate() {
+export function renderDate() {
   const el = document.getElementById('header-date');
   if (el) {
     el.textContent = new Date().toLocaleDateString('en-CA', {
@@ -53,7 +74,7 @@ function renderDate() {
 // ────────────────────────────────────────────────────────────────
 // INCOME OVERVIEW
 // ────────────────────────────────────────────────────────────────
-function renderIncome() {
+export function renderIncome() {
   const inc   = getTotalMonthlyIncome();
   const alloc = getAlloc();
 
@@ -131,7 +152,7 @@ function renderIncome() {
 // ────────────────────────────────────────────────────────────────
 // INCOME STREAMS
 // ────────────────────────────────────────────────────────────────
-function renderIncomeStreams() {
+export function renderIncomeStreams() {
   const streams = state.incomeStreams || [];
   const ul      = document.getElementById('income-stream-list');
   const empty   = document.getElementById('income-empty-state');
@@ -163,7 +184,7 @@ function renderIncomeStreams() {
 // ────────────────────────────────────────────────────────────────
 // WANTS TRACKER
 // ────────────────────────────────────────────────────────────────
-function renderWants() {
+export function renderWants() {
   const inc     = getTotalMonthlyIncome();
   const biWants = inc * getAlloc().wants / 2;
 
@@ -279,7 +300,7 @@ function renderWants() {
   renderWantsDonut(catSpending, Math.max(0, remaining), usedPct);
 }
 
-function renderPurchaseList() {
+export function renderPurchaseList() {
   const ul = document.getElementById('purchase-list');
   ul.innerHTML = '';
 
@@ -354,7 +375,7 @@ function renderPurchaseList() {
  * Called from renderWants() so the list stays in sync when cards change.
  * Preserves any currently selected value to survive re-renders mid-session.
  */
-function populatePurchaseCardSelect() {
+export function populatePurchaseCardSelect() {
   const sel = document.getElementById('purchase-card');
   if (!sel) return;
   const current = sel.value;
@@ -368,7 +389,7 @@ function populatePurchaseCardSelect() {
 // ────────────────────────────────────────────────────────────────
 // BUDGET VS. ACTUAL
 // ────────────────────────────────────────────────────────────────
-function renderBudgetVsActual() {
+export function renderBudgetVsActual() {
   const today    = new Date();
   const actuals  = getMonthActuals(today.getFullYear(), today.getMonth() + 1);
   const budgeted = getMonthBudgeted(today.getFullYear(), today.getMonth() + 1);
@@ -379,7 +400,7 @@ function renderBudgetVsActual() {
 }
 
 /** Render three variance cards (Needs, Wants, Savings) */
-function renderBudgetVarianceCards(budgeted, actuals) {
+export function renderBudgetVarianceCards(budgeted, actuals) {
   const container  = document.getElementById('budget-variance-cards');
   container.innerHTML = '';
 
@@ -413,7 +434,7 @@ function renderBudgetVarianceCards(budgeted, actuals) {
 }
 
 /** Render variance summary table */
-function renderVarianceSummary(budgeted, actuals, income) {
+export function renderVarianceSummary(budgeted, actuals, income) {
   const container = document.getElementById('budget-variance-summary');
 
   const rows = ['needs', 'wants', 'savings'].map(key => {
@@ -453,7 +474,7 @@ function renderVarianceSummary(budgeted, actuals, income) {
 // ────────────────────────────────────────────────────────────────
 // SPENDING ANALYTICS
 // ────────────────────────────────────────────────────────────────
-function toggleAnalyticsPanel() {
+export function toggleAnalyticsPanel() {
   const panel   = document.getElementById('analytics-panel');
   const btn     = document.getElementById('analytics-toggle-btn');
   const visible = panel.style.display !== 'none';
@@ -464,7 +485,7 @@ function toggleAnalyticsPanel() {
   if (!visible) renderSpendingAnalytics();
 }
 
-function renderSpendingAnalytics() {
+export function renderSpendingAnalytics() {
   const history = getFilteredSpendingHistory();
 
   const allTimeTotal = history.reduce((s, p) => s + p.total, 0);
@@ -472,7 +493,7 @@ function renderSpendingAnalytics() {
   const allPurchases = history.flatMap(p => p.items || []);
   const largestPurch = allPurchases.reduce((max, p) => +p.amount > max ? +p.amount : max, 0);
 
-  const hasActiveFilters = analyticsFilters.startDate || analyticsFilters.endDate || analyticsFilters.search;
+  const hasActiveFilters = uiState.analyticsFilters.startDate || uiState.analyticsFilters.endDate || uiState.analyticsFilters.search;
   const filterHint = hasActiveFilters ? ` <span style="font-size:10px;color:var(--accent)">ℹ Filters Active</span>` : '';
 
   document.getElementById('analytics-stats').innerHTML = `
@@ -498,7 +519,7 @@ function renderSpendingAnalytics() {
   renderAnalyticsHistory(history);
 }
 
-function renderAnalyticsHistory(filteredHistory) {
+export function renderAnalyticsHistory(filteredHistory) {
   const container = document.getElementById('analytics-history');
   const history   = filteredHistory || [];
 
@@ -537,7 +558,7 @@ function renderAnalyticsHistory(filteredHistory) {
 // ────────────────────────────────────────────────────────────────
 // EXPENSE CARDS
 // ────────────────────────────────────────────────────────────────
-function renderExpenseCards() {
+export function renderExpenseCards() {
   const cards = state.expenseCards || [];
   const grid  = document.getElementById('expense-cards-grid');
   const empty = document.getElementById('expense-empty-state');
@@ -713,7 +734,7 @@ function renderExpenseCards() {
 // ────────────────────────────────────────────────────────────────
 // LOANS
 // ────────────────────────────────────────────────────────────────
-function renderLoans() {
+export function renderLoans() {
   const grid = document.getElementById('loans-grid');
   grid.innerHTML = '';
 
@@ -770,7 +791,7 @@ function renderLoans() {
 // ────────────────────────────────────────────────────────────────
 // CREDIT CARDS
 // ────────────────────────────────────────────────────────────────
-function renderCreditCards() {
+export function renderCreditCards() {
   const cards     = state.creditCards || [];
   const container = document.getElementById('cc-bars-container');
   container.innerHTML = '';
@@ -821,7 +842,7 @@ function renderCreditCards() {
 // ────────────────────────────────────────────────────────────────
 // SAVINGS
 // ────────────────────────────────────────────────────────────────
-function renderSavings() {
+export function renderSavings() {
   const today     = new Date();
   const year      = today.getFullYear();
   const month     = today.getMonth() + 1;
@@ -871,7 +892,7 @@ function renderSavings() {
 // ────────────────────────────────────────────────────────────────
 // SAVINGS GOALS
 // ────────────────────────────────────────────────────────────────
-function renderGoals() {
+export function renderGoals() {
   const container = document.getElementById('goals-list');
   if (!container) return;
 
@@ -925,7 +946,7 @@ function renderGoals() {
 // ────────────────────────────────────────────────────────────────
 // NET WORTH
 // ────────────────────────────────────────────────────────────────
-function renderNetWorth() {
+export function renderNetWorth() {
   if (!document.getElementById('net-worth-section')) return;
 
   const d       = getNetWorthData();
@@ -1013,7 +1034,7 @@ function renderNetWorth() {
 // ────────────────────────────────────────────────────────────────
 // SUBSCRIPTIONS
 // ────────────────────────────────────────────────────────────────
-function renderSubscriptions() {
+export function renderSubscriptions() {
   const ul     = document.getElementById('sub-list');
   ul.innerHTML = '';
 
@@ -1087,7 +1108,7 @@ function renderSubscriptions() {
 // ────────────────────────────────────────────────────────────────
 // WISHLIST
 // ────────────────────────────────────────────────────────────────
-function renderWishlist() {
+export function renderWishlist() {
   const ul     = document.getElementById('wishlist');
   ul.innerHTML = '';
 
@@ -1116,7 +1137,7 @@ function renderWishlist() {
 // ────────────────────────────────────────────────────────────────
 // SPENDING RULES
 // ────────────────────────────────────────────────────────────────
-function renderRules() {
+export function renderRules() {
   const container = document.getElementById('rules-list');
   if (!container) return;
 
@@ -1146,7 +1167,7 @@ function renderRules() {
 // ────────────────────────────────────────────────────────────────
 // BUDGET ALERTS
 // ────────────────────────────────────────────────────────────────
-function renderBudgetAlerts() {
+export function renderBudgetAlerts() {
   const container = document.getElementById('budget-alerts-list');
   if (!container) return;
 
@@ -1191,9 +1212,9 @@ function renderBudgetAlerts() {
 
 /**
  * Render the 3-month summary bar + active-month bill list.
- * Reads scheduleViewYear/Month from app.js globals.
+ * Reads uiState.scheduleViewYear/Month from app.js globals.
  */
-function renderSchedule() {
+export function renderSchedule() {
   const summaryEl = document.getElementById('schedule-summary');
   const detailEl  = document.getElementById('schedule-detail');
   if (!summaryEl || !detailEl) return;
@@ -1203,11 +1224,11 @@ function renderSchedule() {
   // ── 3-month summary cards ──────────────────────────────────────
   summaryEl.innerHTML = '';
   for (let offset = 0; offset < 3; offset++) {
-    const d     = new Date(scheduleViewYear, scheduleViewMonth - 1 + offset, 1);
+    const d     = new Date(uiState.scheduleViewYear, uiState.scheduleViewMonth - 1 + offset, 1);
     const y     = d.getFullYear();
     const m     = d.getMonth() + 1;
     const fc    = getMonthForecast(y, m);
-    const isActive = (y === scheduleViewYear && m === scheduleViewMonth);
+    const isActive = (y === uiState.scheduleViewYear && m === uiState.scheduleViewMonth);
 
     const overBudget = fc.variance < 0;
     const atLabel    = d.toLocaleString('en-CA', { month: 'long', year: 'numeric' });
@@ -1221,7 +1242,7 @@ function renderSchedule() {
     card.className = 'schedule-summary-card' + (isActive ? ' active' : '');
     card.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     card.setAttribute('aria-label', atLabel);
-    card.onclick   = () => { scheduleViewYear = y; scheduleViewMonth = m; renderSchedule(); };
+    card.onclick   = () => { uiState.scheduleViewYear = y; uiState.scheduleViewMonth = m; renderSchedule(); };
     card.innerHTML = `
       <div class="ssc-month">${atLabel}</div>
       <div class="ssc-total">${fmt(fc.total)}</div>
@@ -1233,8 +1254,8 @@ function renderSchedule() {
   }
 
   // ── Active-month detail ───────────────────────────────────────
-  const fc       = getMonthForecast(scheduleViewYear, scheduleViewMonth);
-  const monthLabel = new Date(scheduleViewYear, scheduleViewMonth - 1, 1)
+  const fc       = getMonthForecast(uiState.scheduleViewYear, uiState.scheduleViewMonth);
+  const monthLabel = new Date(uiState.scheduleViewYear, uiState.scheduleViewMonth - 1, 1)
     .toLocaleString('en-CA', { month: 'long', year: 'numeric' });
 
   /** Render a single bill row */
@@ -1297,7 +1318,7 @@ function renderSchedule() {
 }
 
 /** Format a day number as an ordinal string (1 → "1st", 15 → "15th"). */
-function ordinal(n) {
+export function ordinal(n) {
   const s = ['th','st','nd','rd'];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
@@ -1315,7 +1336,7 @@ function ordinal(n) {
  *
  * @returns {void}
  */
-function renderAll() {
+export function renderAll() {
   renderIncome();
   renderIncomeStreams();
   renderWants();
