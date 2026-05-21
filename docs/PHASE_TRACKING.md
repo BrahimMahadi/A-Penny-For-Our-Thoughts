@@ -197,10 +197,15 @@ Real-time tracking of development progress. Updated as work completes.
 - ✅ Fixed pre-existing bug: `cssVar` not imported in `render.js` → added to import from `utils.js`
 - ✅ Verified: theme toggle round-trip passes, all Tailwind tokens resolve, zero console errors
 
-### Story 5: Build Pipeline & Measurement 🔲
-- [ ] `vite build` → verify bundle sizes
-- [ ] Compare before/after: JS bundle size, CSS size
-- [ ] Update `.claude/launch.json` if needed
+### Story 5: Build Pipeline & Measurement ✅
+- ✅ `vite build` succeeds in 321ms, zero errors, 19 modules transformed
+- ✅ Bundle sizes (production, Vite + Tailwind v4):
+  - `index.html`      71.84 kB  │ gzip: 16.32 kB
+  - CSS bundle        71.44 kB  │ gzip: 13.74 kB
+  - JS bundle        115.32 kB  │ gzip: 29.18 kB
+  - **Total gzip:    ~59 kB** (HTML + CSS + JS)
+- ✅ Production verified via `vite preview`: all tokens resolve, theme toggle works, 1 merged stylesheet, zero console errors
+- ✅ `.claude/launch.json` updated: added `preview` entry (port 4173) for testing production builds
 
 ---
 
@@ -212,7 +217,7 @@ Real-time tracking of development progress. Updated as work completes.
 | Phase 1 — Analytics & Goal Tracking | ✅ Complete | 100% |
 | Sprint 3 — Polish & UX Refinement | ✅ Complete | 100% |
 | Phase 2 — Advanced Features | 🟡 In Progress | 25% (2A done) |
-| Infra — Vite + Tailwind Migration | 🟡 In Progress | 80% (Stories 1-4 done) |
+| Infra — Vite + Tailwind Migration | ✅ Complete | 100% (Stories 1-5 done) |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
 | **Overall** | **In Progress** | **~73%** |
 
@@ -238,5 +243,5 @@ Real-time tracking of development progress. Updated as work completes.
 ---
 
 **Last Updated**: May 2026  
-**Current Phase**: Vite + Tailwind migration in progress on `feat/vite-setup`. Stories 1–4 complete. Story 5 (build pipeline + bundle measurement) is next.  
+**Current Phase**: Vite + Tailwind migration complete on `feat/vite-setup` — ready to merge to `main`. All 5 stories done.  
 **Next Branch**: TBD based on Sprint 4 planning
