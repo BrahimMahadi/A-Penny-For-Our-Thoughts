@@ -573,14 +573,38 @@
   <!-- ── Subscriptions ── -->
   <h2 class="section-title">Subscription Renewals</h2>
   <div class="card">
-    <!-- Totals header -->
-    <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
-      <div class="flex gap-5 text-xs text-muted">
-        <span>Wants: <strong id="sub-wants-monthly" class="text-accent2">—</strong></span>
-        <span>Needs: <strong id="sub-needs-monthly" class="text-accent-text">—</strong></span>
+
+    <!-- Stats row: monthly total · annual total · wants budget % -->
+    <div class="sub-stats-row">
+      <div class="sub-stat">
+        <div class="sub-stat-label">Monthly Cost</div>
+        <div class="sub-stat-value" id="sub-total-monthly">—</div>
       </div>
-      <span class="text-[11px] text-muted">monthly equiv.</span>
+      <div class="sub-stat">
+        <div class="sub-stat-label">Annual Total</div>
+        <div class="sub-stat-value" id="sub-total-annual">—</div>
+      </div>
+      <div class="sub-stat">
+        <div class="sub-stat-label">Wants Budget</div>
+        <div class="sub-stat-value" id="sub-wants-pct">—</div>
+      </div>
     </div>
+
+    <!-- Wants budget impact bar -->
+    <div class="sub-budget-bar-wrap" id="sub-budget-bar-wrap">
+      <div class="sub-budget-bar-track">
+        <div class="sub-budget-bar-fill" id="sub-budget-bar-fill"></div>
+      </div>
+      <div class="sub-budget-bar-label" id="sub-budget-bar-label"></div>
+    </div>
+
+    <!-- Renewal alert banner (shown only when renewals are within 7 days) -->
+    <div class="sub-renewal-alert" id="sub-renewal-alert" style="display:none"></div>
+
+    <!-- Hidden compat elements kept for Wants card reference -->
+    <span id="sub-wants-monthly" style="display:none"></span>
+    <span id="sub-needs-monthly" style="display:none"></span>
+
     <ul class="sub-list" id="sub-list" role="list"></ul>
     <button class="btn sm secondary mt-3" onclick="openAddSubscription()">+ Add Subscription</button>
   </div>

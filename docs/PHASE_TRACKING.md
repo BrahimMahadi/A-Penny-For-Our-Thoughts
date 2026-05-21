@@ -115,11 +115,14 @@ Real-time tracking of development progress. Updated as work completes.
 - [ ] 6-month expense forecast
 - [ ] Toggle between list and calendar views
 
-### 2C: Subscription Budget Integration
-**Priority**: 🟡 MEDIUM
-- [ ] Track subscription annual cost total
-- [ ] Show monthly subscription spend vs. Wants budget impact
-- [ ] Renewal alert system (in-dashboard, not just day countdown)
+### 2C: Subscription Budget Integration ✅
+**Priority**: 🟡 MEDIUM — COMPLETE
+- ✅ Stats header: Monthly Cost / Annual Total / Wants Budget % (3 tiles)
+- ✅ Wants budget impact bar — color-coded green/amber/red at 30%/60% thresholds
+- ✅ Renewal alert banner — amber callout for any sub renewing within 7 days
+- ✅ Per-item annual cost annotation (non-annual subs show `· $X/yr`)
+- ✅ Empty state: stats show `—`, bar label = "No subscriptions tracked yet"
+- ✅ Responsive: 3-col stats grid scales to mobile; label font reduces at ≤380px
 
 ### 2D: Month-over-Month Analytics
 **Priority**: 🟢 LOW
@@ -248,7 +251,7 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Phase 0 — Design & Visual Polish | ✅ Complete | 100% |
 | Phase 1 — Analytics & Goal Tracking | ✅ Complete | 100% |
 | Sprint 3 — Polish & UX Refinement | ✅ Complete | 100% |
-| Phase 2 — Advanced Features | 🟡 In Progress | 25% (2A done) |
+| Phase 2 — Advanced Features | 🟡 In Progress | 50% (2A + 2C done) |
 | Infra — Vite + Tailwind Migration | ✅ Complete | 100% — merged to main |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
 | Sprint 4 — Vue 3 Migration | 🟢 Planned | 0% — starts after Phase 2 |
@@ -276,5 +279,5 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 ---
 
 **Last Updated**: May 2026  
-**Current Phase**: Phase 2B — Recurring Expense Calendar  
+**Current Phase**: Phase 2B — Recurring Expense Calendar (2C complete)  
 **Next Branch**: `feat/phase2b-recurring-calendar`

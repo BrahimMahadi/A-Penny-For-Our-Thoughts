@@ -615,6 +615,92 @@
   & .sub-deduction-amt  { font-weight: 700; color: var(--danger); }
 }
 
+/* ── Phase 2C: Subscription analytics ─────────────── */
+
+/* 3-column stats row at top of subscription card */
+.sub-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sub-stat {
+  background: var(--surface3);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.sub-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.sub-stat-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Wants budget impact bar */
+.sub-budget-bar-wrap {
+  margin-bottom: 14px;
+}
+
+.sub-budget-bar-track {
+  height: 5px;
+  background: var(--surface3);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+
+.sub-budget-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  width: 0%;
+  background: var(--accent2);
+  transition: width 0.4s ease, background 0.3s ease;
+
+  &.warn   { background: var(--warn); }
+  &.danger { background: var(--danger); }
+}
+
+.sub-budget-bar-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Renewal alert banner */
+.sub-renewal-alert {
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--warn);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+/* Annual cost annotation on each sub item */
+.sub-annual {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 /* ─────────────────────────────────────────────────────
    TRANSACTION RULES ENGINE
 ───────────────────────────────────────────────────── */
