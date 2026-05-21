@@ -455,6 +455,23 @@ function handleOverlayClick(e) {
 }
 
 /**
+ * Mark a form field as invalid with a shake animation and danger border.
+ * The shake class removes itself once the animation ends; the invalid class
+ * removes itself the next time the user changes the field value.
+ *
+ * @param {string} id - The `id` attribute of the input/select element.
+ * @returns {void}
+ */
+function markFieldInvalid(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('is-invalid', 'shake');
+  el.addEventListener('animationend', () => el.classList.remove('shake'), { once: true });
+  el.addEventListener('input', () => el.classList.remove('is-invalid'), { once: true });
+  el.addEventListener('change', () => el.classList.remove('is-invalid'), { once: true });
+}
+
+/**
  * Build a labelled modal form field as an HTML string.
  * Produces a `<div class="modal-field">` containing a `<label>` and `<input>`.
  *
@@ -467,13 +484,18 @@ function handleOverlayClick(e) {
  * @returns {string} HTML string for the field.
  */
 function mField(label, id, type, value, placeholder, extraAttrs) {
+  // Auto-add inputmode="decimal" for number inputs (shows numeric keypad on mobile)
+  // unless extraAttrs already specifies an inputmode.
+  const extra = extraAttrs || '';
+  const withInputmode = (type === 'number' && !extra.includes('inputmode'))
+    ? `inputmode="decimal" ${extra}` : extra;
   return `
     <div class="modal-field">
       <label for="${id}">${label}</label>
       <input type="${type}" id="${id}"
              value="${value !== undefined ? value : ''}"
              placeholder="${placeholder || ''}"
-             ${extraAttrs || ''} />
+             ${withInputmode} />
     </div>`;
 }
 
@@ -498,6 +520,7 @@ function openEditAllocation() {
       const s = parseFloat(document.getElementById('alloc-savings').value) || 0;
       if (Math.round(n + w + s) !== 100) {
         srAnnounce(`Budget allocation must sum to 100%. Currently: ${n + w + s}%`);
+        ['alloc-needs', 'alloc-wants', 'alloc-savings'].forEach(markFieldInvalid);
         return;
       }
       state.allocation = { needs: n, wants: w, savings: s };
@@ -534,7 +557,11 @@ function addIncomeStream() {
   const name     = document.getElementById('new-stream-name').value.trim();
   const amount   = parseFloat(document.getElementById('new-stream-amount').value);
   const biweekly = document.getElementById('new-stream-biweekly').checked;
-  if (!name || isNaN(amount) || amount <= 0) return;
+  if (!name || isNaN(amount) || amount <= 0) {
+    if (!name)                      markFieldInvalid('new-stream-name');
+    if (isNaN(amount) || amount <= 0) markFieldInvalid('new-stream-amount');
+    return;
+  }
   state.incomeStreams.push({ id: genId(), name, amount, biweekly });
   document.getElementById('new-stream-name').value         = '';
   document.getElementById('new-stream-amount').value       = '';
@@ -616,7 +643,11 @@ function deleteIncomeStream(id) {
 function addPurchase() {
   const name   = document.getElementById('purchase-name').value.trim();
   const amount = parseFloat(document.getElementById('purchase-amount').value);
-  if (!name || isNaN(amount) || amount <= 0) return;
+  if (!name || isNaN(amount) || amount <= 0) {
+    if (!name)                      markFieldInvalid('purchase-name');
+    if (isNaN(amount) || amount <= 0) markFieldInvalid('purchase-amount');
+    return;
+  }
   const category   = applyRulesToName(name) || 'Other';
   const cardSel    = document.getElementById('purchase-card');
   const cardId     = (cardSel && cardSel.value) ? cardSel.value : null;
@@ -1018,7 +1049,7 @@ function deleteCreditCard(id) {
 function addSavingsAccount() {
   const name             = document.getElementById('new-savings-name').value.trim();
   const defaultAllocated = parseFloat(document.getElementById('new-savings-amount').value) || 0;
-  if (!name) return;
+  if (!name) { markFieldInvalid('new-savings-name'); return; }
   state.savingsAccounts.push({ id: genId(), name, balance: 0, defaultAllocated, monthlyAllocations: {} });
   document.getElementById('new-savings-name').value   = '';
   document.getElementById('new-savings-amount').value = '';
@@ -1071,7 +1102,7 @@ function openAllocateSavingsModal() {
     return `
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;align-items:center;padding:8px;background:var(--surface);border-radius:6px">
         <span style="font-weight:600;font-size:13px">${acct.name}</span>
-        <input type="number" class="alloc-input" id="alloc-${acct.id}" value="${currentMonthAlloc}" min="0" step="0.01" style="font-size:13px;padding:6px">
+        <input type="number" inputmode="decimal" class="alloc-input" id="alloc-${acct.id}" value="${currentMonthAlloc}" min="0" step="0.01" style="font-size:13px;padding:6px">
       </div>`;
   }).join('');
 
@@ -1515,7 +1546,7 @@ function addWishlistItem() {
   const icon = document.getElementById('new-wish-icon').value.trim() || '🛒';
   const name = document.getElementById('new-wish-name').value.trim();
   const url  = document.getElementById('new-wish-url').value.trim();
-  if (!name) return;
+  if (!name) { markFieldInvalid('new-wish-name'); return; }
   state.wishlist.push({ id: genId(), icon, name, url });
   document.getElementById('new-wish-icon').value = '';
   document.getElementById('new-wish-name').value = '';
