@@ -280,8 +280,40 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Phase 2 — Advanced Features | ✅ Complete | 100% (2A + 2B + 2C + 2D done) |
 | Infra — Vite + Tailwind Migration | ✅ Complete | 100% — merged to main |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
-| Sprint 4 — Vue 3 Migration | 🟢 Planned | 0% — starts after Phase 2 |
-| **Overall** | **In Progress** | **~90%** |
+| Sprint 4 — Vue 3 Migration | 🟡 In Progress | 25% — Sprints 0+1 done (foundation + state) |
+| **Overall** | **In Progress** | **~92%** |
+
+---
+
+## Sprint 4 — Vue 3 + TypeScript Migration
+
+**Branch:** `feat/vue3-migration` (long-lived; cutover when complete)
+**Plan:** [docs/VUE3_MIGRATION_PLAN.md](VUE3_MIGRATION_PLAN.md)
+
+### Sprint 0 — Foundation ✅ COMPLETE
+- ✅ Branch off `main`
+- ✅ Installed Vue 3, Pinia, vue-chartjs, TypeScript, vue-tsc, Vitest, ESLint
+- ✅ Configured `tsconfig.json` (strict), `vite.config.ts` w/ `@/*` alias
+- ✅ `.eslintrc.cjs` with `no-undef` enforced (prevents BUG-004/-005/-007/-008 class)
+- ✅ Scaffolded `main.ts`, `App.vue`, `env.d.ts`
+- ✅ GitHub Actions: type-check + lint + test + build on non-main branches
+- ✅ All four scripts green (`type-check`, `lint`, `test`, `build`)
+
+### Sprint 1 — State Foundation ✅ COMPLETE
+- ✅ Typed schema (`BudgetState`, `UiState`, all entity interfaces)
+- ✅ Utils ported (`fmt`, `pct`, `csv`, `date`, `id`, `dom`)
+- ✅ Pinia stores: `budget` (full CRUD + v1 migration), `ui`, `theme`
+- ✅ Auto-persist on mutation via `$subscribe`
+- ✅ Analytics ported to `utils/calculations.ts` (~600 lines, fully typed)
+- ✅ `useAnalytics()` composable wrapping calculations as reactive `computed` refs
+- ✅ 173 tests passing across 9 spec files
+- ✅ BUG-009 fixed during port (`fmt()` negative formatting)
+
+### Sprint 2 — Core Layout & Primitives 🟢 NEXT
+- App.vue header + tabs
+- BaseModal (Teleport-based), BaseCard, BaseButton, StatCard, EmptyState, ProgressBar
+- ToastContainer.vue
+- useToast / useModal / useKeyboard composables
 
 ---
 
@@ -304,6 +336,6 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 
 ---
 
-**Last Updated**: May 2026  
-**Current Phase**: Phase 3 — Code Quality & Modularity (or Sprint 4 Vue 3 Migration)  
-**Next Branch**: `feat/phase3-code-quality` or `feat/vue3-migration`
+**Last Updated**: May 2026
+**Current Phase**: Sprint 4 — Vue 3 Migration (Sprint 1 complete, Sprint 2 next)
+**Current Branch**: `feat/vue3-migration`
