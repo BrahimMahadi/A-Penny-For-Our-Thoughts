@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
+  plugins: [tailwindcss()],
   // Serve from the project root (index.html lives here)
   root: '.',
 

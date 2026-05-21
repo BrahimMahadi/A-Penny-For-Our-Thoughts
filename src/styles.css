@@ -5,9 +5,66 @@
    Modified: May 2026 — CSS nesting refactor to reduce
              selector duplication (Chrome 112+, FF 117+,
              Safari 16.5+)
+             May 2026 — Tailwind v4 integration (Story 2)
    Summary:  All visual styles — dark/light themes,
              layout, components, mobile breakpoints
 ═══════════════════════════════════════════════════ */
+
+/* ── Tailwind v4 ─────────────────────────────────────
+   @import must be first.  Tailwind's Preflight runs in
+   @layer base which is automatically overridden by our
+   unlayered rules below — no conflicts.
+   @source paths tell Tailwind to scan JS files for
+   utility classes used in innerHTML template strings so
+   they are never purged from the production build.
+──────────────────────────────────────────────────── */
+@import "tailwindcss";
+@source "../src/render.js";
+@source "../src/app.js";
+
+/* ── Tailwind theme bridge ───────────────────────────
+   @theme inline registers our botanical CSS variables
+   as Tailwind colour tokens WITHOUT a build-time static
+   value.  With "inline", generated utilities reference
+   var(--surface), var(--danger), etc. directly, so they
+   automatically reflect whichever :root or [data-theme]
+   block is active.  No intermediate --color-* hop needed.
+   (Regular @theme would bake in a static value and break
+   dark/light switching at the utility-class level.)
+──────────────────────────────────────────────────── */
+@theme inline {
+  /* Colors — resolve via CSS vars so dark/light theme switching works */
+  --color-bg:        var(--bg);
+  --color-surface:   var(--surface);
+  --color-surface2:  var(--surface2);
+  --color-surface3:  var(--surface3);
+  --color-accent:    var(--accent);
+  --color-accent2:   var(--accent2);
+  --color-danger:    var(--danger);
+  --color-warn:      var(--warn);
+  --color-text:      var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-muted:     var(--muted);
+  --color-border:    var(--border);
+  --color-border-light: var(--border-light);
+  --color-funds:     var(--funds-accent);
+
+  /* Spacing — mirrors our --space-* tokens */
+  --spacing-xs:   4px;
+  --spacing-sm:   8px;
+  --spacing-md:   12px;
+  --spacing-lg:   16px;
+  --spacing-xl:   20px;
+  --spacing-2xl:  28px;
+
+  /* Border radius */
+  --radius-sm:    var(--radius-sm);
+  --radius-DEFAULT: var(--radius);
+
+  /* Fonts */
+  --font-sans:    var(--font-body);
+  --font-mono:    var(--font-mono);
+}
 
 /* ── Dark theme (default) — Botanical ── */
 :root {

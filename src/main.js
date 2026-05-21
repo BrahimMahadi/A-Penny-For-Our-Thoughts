@@ -9,6 +9,9 @@
              any markup changes, then initialises the app.
 ═══════════════════════════════════════════════════════════════ */
 
+// ── CSS — must be first so Tailwind's @import "tailwindcss" runs ─
+import './styles.css';
+
 // ── Import in dependency order ────────────────────────────────────
 import './utils.js';       // no side-effects; exports used by others
 import {
