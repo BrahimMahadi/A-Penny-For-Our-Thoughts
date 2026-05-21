@@ -1879,20 +1879,47 @@ label.toggle-row {
 /* ═══════════════════════════════════════════════════
    EMPTY STATE
 ═══════════════════════════════════════════════════ */
+@keyframes emptyStateIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 28px;
-  color: var(--muted);
-  font-size: 13px;
+  gap: 6px;
+  padding: 32px 24px;
   text-align: center;
   background: var(--surface2);
   border: 1px dashed var(--border);
   border-radius: var(--radius);
+  animation: emptyStateIn 280ms ease both;
 
+  /* Legacy children (emoji divs in HTML) still work */
   & > div:first-child { font-size: 28px; }
+}
+
+/* Structured sub-elements used by emptyState() helper in render.js */
+.empty-state-icon {
+  font-size: 2.2rem;
+  line-height: 1;
+  margin-bottom: 4px;
+  filter: grayscale(20%);
+}
+
+.empty-state-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.empty-state-hint {
+  font-size: 0.775rem;
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 240px;
 }
 
 /* ═══════════════════════════════════════════════════

@@ -5,7 +5,7 @@
    Summary:  All DOM render functions. Each function reads from
              global state and rebuilds its section idempotently.
              No state mutations here — rendering only.
-   Functions: renderDate, renderIncome, renderIncomeStreams,
+   Functions: emptyState, renderDate, renderIncome, renderIncomeStreams,
               renderWants, renderPurchaseList,
               renderBudgetVsActual, renderBudgetVarianceCards,
               renderVarianceSummary, toggleAnalyticsPanel,
@@ -16,6 +16,27 @@
               renderWishlist, renderSchedule, renderAll
    Depends on: utils.js, state.js, analytics.js, charts.js
 ═══════════════════════════════════════════════════════════════ */
+
+// ────────────────────────────────────────────────────────────────
+// EMPTY STATE HELPER
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Build a consistent empty-state HTML string.
+ * Renders inside any container that currently has no items.
+ *
+ * @param {string} icon  - Emoji or symbol (e.g. '💳').
+ * @param {string} title - Short primary message (e.g. 'No loans tracked').
+ * @param {string} [hint=''] - Optional secondary hint in muted text.
+ * @returns {string} HTML string ready for innerHTML assignment.
+ */
+function emptyState(icon, title, hint = '') {
+  return `<div class="empty-state">
+    <div class="empty-state-icon" aria-hidden="true">${icon}</div>
+    <div class="empty-state-title">${title}</div>
+    ${hint ? `<div class="empty-state-hint">${hint}</div>` : ''}
+  </div>`;
+}
 
 // ────────────────────────────────────────────────────────────────
 // HEADER
@@ -263,7 +284,7 @@ function renderPurchaseList() {
   ul.innerHTML = '';
 
   if (!(state.purchases || []).length) {
-    ul.innerHTML = '<li style="color:var(--muted);font-size:12px;padding:8px 0">No purchases yet this period.</li>';
+    ul.innerHTML = `<li style="list-style:none">${emptyState('🧾', 'Nothing spent yet', 'Add your first purchase for this bi-weekly period above.')}</li>`;
     return;
   }
   const cards    = state.expenseCards || [];
@@ -696,6 +717,11 @@ function renderLoans() {
   const grid = document.getElementById('loans-grid');
   grid.innerHTML = '';
 
+  if (!(state.loans || []).length) {
+    grid.innerHTML = emptyState('🏦', 'No loans tracked', 'Add a loan to monitor your remaining balance and payoff progress.');
+    return;
+  }
+
   (state.loans || []).forEach(loan => {
     const pctUsed    = +loan.original > 0 ? (+loan.remaining / +loan.original) * 100 : 0;
     const colour     = pctUsed > 70 ? cssVar('--danger') : pctUsed > 40 ? cssVar('--warn') : cssVar('--accent2');
@@ -748,6 +774,10 @@ function renderCreditCards() {
   const cards     = state.creditCards || [];
   const container = document.getElementById('cc-bars-container');
   container.innerHTML = '';
+
+  if (!cards.length) {
+    container.innerHTML = emptyState('💳', 'No credit cards tracked', 'Add a card to monitor your balance and utilization rate.');
+  }
 
   let totalBal = 0, totalLim = 0;
 
@@ -813,6 +843,9 @@ function renderSavings() {
 
   const ul = document.getElementById('savings-accounts-list');
   ul.innerHTML = '';
+  if (!accounts.length) {
+    ul.innerHTML = `<li style="list-style:none">${emptyState('🏦', 'No savings accounts', 'Add an account below to start allocating your savings budget.')}</li>`;
+  }
   accounts.forEach(acct => {
     const monthlyAlloc = getAllocationForMonth(acct, year, month);
     const li = document.createElement('li');
@@ -844,7 +877,7 @@ function renderGoals() {
 
   const goals = state.goals || [];
   if (!goals.length) {
-    container.innerHTML = '<p style="color:var(--text-secondary);padding:16px 0">No savings goals yet. Add one to get started!</p>';
+    container.innerHTML = emptyState('🎯', 'No goals set', 'Add a goal to track your progress toward a savings target.');
     return;
   }
 
@@ -984,6 +1017,10 @@ function renderSubscriptions() {
   const ul     = document.getElementById('sub-list');
   ul.innerHTML = '';
 
+  if (!(state.subscriptions || []).length) {
+    ul.innerHTML = `<li style="list-style:none">${emptyState('📺', 'No subscriptions tracked', 'Add recurring services like Netflix or Spotify to monitor your monthly costs.')}</li>`;
+  }
+
   const freqLabel = { monthly: '/mo', quarterly: '/qtr', 'bi-yearly': '/6mo', annual: '/yr' };
 
   [...(state.subscriptions || [])].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(sub => {
@@ -1054,6 +1091,10 @@ function renderWishlist() {
   const ul     = document.getElementById('wishlist');
   ul.innerHTML = '';
 
+  if (!(state.wishlist || []).length) {
+    ul.innerHTML = `<li style="list-style:none">${emptyState('🛒', 'Wishlist is empty', "Add items you're saving up for to keep them in view.")}</li>`;
+  }
+
   (state.wishlist || []).forEach(item => {
     const li = document.createElement('li');
     li.className = 'wish-item swipeable';
@@ -1081,7 +1122,7 @@ function renderRules() {
 
   const rules = state.rules || [];
   if (!rules.length) {
-    container.innerHTML = '<p style="color:var(--muted);font-size:12px;padding:8px 0">No rules yet. Add a rule to auto-categorize purchases as you type.</p>';
+    container.innerHTML = emptyState('⚡', 'No auto-categorization rules', 'Rules tag purchases by keyword as you type — e.g. "Tim Hortons" → Food & Drink.');
     return;
   }
 
