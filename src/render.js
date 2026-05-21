@@ -30,11 +30,13 @@ import {
   getAllocationForMonth, getGoalProgress,
   getNetWorthData, getMonthForecast,
   getCalendarDayMap, getSixMonthForecast,
+  getMonthlyWantsHistory, getMomInsights,
   applyRulesToName, ASSET_CATEGORIES,
 } from './analytics.js';
 import {
   renderWantsDonut, renderCcBarChart,
   renderAnalyticsLineChart, renderAnalyticsBarChart,
+  renderMomTrendChart,
   renderBudgetVsActualChart, renderNetWorthChart,
   renderForecastBarChart,
 } from './charts.js';
@@ -518,7 +520,72 @@ export function renderSpendingAnalytics() {
 
   renderAnalyticsLineChart(history);
   renderAnalyticsBarChart(history);
+  renderMomSection();
   renderAnalyticsHistory(history);
+}
+
+// ────────────────────────────────────────────────────────────────
+// MONTH-OVER-MONTH INSIGHTS
+// ────────────────────────────────────────────────────────────────
+export function renderMomSection() {
+  const statsEl    = document.getElementById('mom-stats');
+  const insightsEl = document.getElementById('mom-insights');
+  if (!statsEl || !insightsEl) return;
+
+  const monthlyData = getMonthlyWantsHistory(6);
+  const current     = monthlyData[monthlyData.length - 1];
+  const previous    = monthlyData[monthlyData.length - 2];
+  const wantsBudget = getTotalMonthlyIncome() * getAlloc().wants;
+
+  // ── MoM delta ─────────────────────────────────────────────────
+  let deltaHtml = '<span class="mom-delta muted">No prior data</span>';
+  if (previous && previous.total > 0) {
+    const delta   = current.total - previous.total;
+    const deltaPct = (delta / previous.total) * 100;
+    const sign    = delta >= 0 ? '+' : '';
+    const cls     = delta >= 0 ? 'over' : 'good';
+    const arrow   = delta >= 0 ? '▲' : '▼';
+    deltaHtml = `<span class="mom-delta ${cls}">${arrow} ${sign}${fmt(delta)} (${sign}${deltaPct.toFixed(1)}%)</span>`;
+  }
+
+  // ── Stat cards ─────────────────────────────────────────────────
+  statsEl.innerHTML = `
+    <div class="analytics-stat-card">
+      <div class="analytics-stat-label">This Month</div>
+      <div class="analytics-stat-value">${current.total > 0 ? fmt(current.total) : '—'}</div>
+    </div>
+    <div class="analytics-stat-card">
+      <div class="analytics-stat-label">Last Month</div>
+      <div class="analytics-stat-value">${previous && previous.total > 0 ? fmt(previous.total) : '—'}</div>
+    </div>
+    <div class="analytics-stat-card">
+      <div class="analytics-stat-label">MoM Change</div>
+      <div class="analytics-stat-value" style="font-size:15px">${deltaHtml}</div>
+    </div>
+    <div class="analytics-stat-card">
+      <div class="analytics-stat-label">Wants Budget</div>
+      <div class="analytics-stat-value">${fmt(wantsBudget)}</div>
+    </div>`;
+
+  // ── Trend chart ────────────────────────────────────────────────
+  renderMomTrendChart(monthlyData, wantsBudget);
+
+  // ── Auto insights ──────────────────────────────────────────────
+  const insights = getMomInsights(monthlyData);
+  if (!insights.length) {
+    insightsEl.innerHTML = '<p class="mom-no-data">Track a few months of spending to see trend insights here.</p>';
+    return;
+  }
+
+  const iconMap = { good: '✅', warn: '⚠️', info: '📊' };
+  insightsEl.innerHTML = `
+    <ul class="mom-insights-list">
+      ${insights.map(i => `
+        <li class="mom-insight-item ${i.type}">
+          <span class="mom-insight-icon">${iconMap[i.type]}</span>
+          <span class="mom-insight-text">${i.text}</span>
+        </li>`).join('')}
+    </ul>`;
 }
 
 export function renderAnalyticsHistory(filteredHistory) {
@@ -1545,4 +1612,6 @@ export function renderAll() {
   renderWishlist();
   // Schedule is expensive — only render when the tab is visible
   if (document.getElementById('tab-schedule')?.classList.contains('active')) renderSchedule();
+  // Analytics panel: re-render charts if the panel is currently open (e.g. after theme toggle)
+  if (document.getElementById('analytics-panel')?.style.display !== 'none') renderSpendingAnalytics();
 }

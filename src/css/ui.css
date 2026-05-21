@@ -474,6 +474,71 @@ label.toggle-row {
 }
 
 /* ═══════════════════════════════════════════════════
+   MONTH-OVER-MONTH ANALYTICS
+═══════════════════════════════════════════════════ */
+.analytics-section-divider {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 14px;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+}
+
+.mom-delta {
+  font-weight: 800;
+  &.good  { color: var(--accent2); }
+  &.over  { color: var(--danger); }
+  &.muted { color: var(--muted); font-size: 13px; font-weight: 400; }
+}
+
+.mom-no-data {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  padding: 12px 0 4px;
+  margin: 0;
+}
+
+.mom-insights-list {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.mom-insight-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--surface2);
+  border-left: 3px solid transparent;
+
+  &.good { border-left-color: var(--accent2); }
+  &.warn { border-left-color: var(--warn); }
+  &.info { border-left-color: var(--accent); }
+
+  & .mom-insight-icon { flex-shrink: 0; font-size: 14px; line-height: 1.4; }
+  & .mom-insight-text { color: var(--text); line-height: 1.45; }
+}
+
+/* ═══════════════════════════════════════════════════
    PERIOD HISTORY (spending analytics)
 ═══════════════════════════════════════════════════ */
 .period-history-item {

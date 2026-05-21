@@ -356,8 +356,25 @@
           </div>
         </div>
 
+        <!-- Monthly Trends divider -->
+        <div class="analytics-section-divider">MONTHLY TRENDS</div>
+
+        <!-- MoM stat cards -->
+        <div class="analytics-stats-row" id="mom-stats"></div>
+
+        <!-- MoM trend chart -->
+        <div class="analytics-chart-box mom-chart-box my-4">
+          <div class="analytics-chart-title">Monthly Wants Spending — Last 6 Months</div>
+          <div style="position:relative;height:180px">
+            <canvas id="momTrendChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Auto insights -->
+        <div id="mom-insights"></div>
+
         <!-- Period history -->
-        <div class="text-xs font-bold uppercase tracking-[.8px] text-muted mb-2">
+        <div class="text-xs font-bold uppercase tracking-[.8px] text-muted mb-2 mt-6">
           Period History
         </div>
         <div id="analytics-history"></div>

@@ -19,6 +19,7 @@
 
 import { state, saveToStorage } from './state.js';
 import { genId, fmt, monthlyAmount, daysUntil, deepClone, cssVar } from './utils.js';
+import { uiState } from './uistate.js';
 
 // ────────────────────────────────────────────────────────────────
 // TRANSACTION RULES ENGINE — CONSTANTS
@@ -662,19 +663,20 @@ export function getSixMonthForecast(year, month, count = 6) {
 export function getFilteredSpendingHistory() {
   let history = state.spendingHistory || [];
 
-  if (analyticsFilters.startDate || analyticsFilters.endDate) {
+  const filters = uiState.analyticsFilters;
+  if (filters.startDate || filters.endDate) {
     history = history.filter(period => {
-      if (analyticsFilters.startDate && period.date < analyticsFilters.startDate) return false;
-      if (analyticsFilters.endDate   && period.date > analyticsFilters.endDate)   return false;
+      if (filters.startDate && period.date < filters.startDate) return false;
+      if (filters.endDate   && period.date > filters.endDate)   return false;
       return true;
     });
   }
 
-  if (analyticsFilters.search.trim()) {
-    const searchTerm = analyticsFilters.search.trim().toLowerCase();
+  if (filters.search.trim()) {
+    const searchTerm = filters.search.trim().toLowerCase();
     history = history
       .map(period => ({ ...period, items: (period.items || []).filter(p => p.name.toLowerCase().includes(searchTerm)) }))
-      .filter(period => (period.items || []).length > 0 || !analyticsFilters.search.trim());
+      .filter(period => (period.items || []).length > 0 || !filters.search.trim());
   }
 
   return history;
@@ -694,6 +696,107 @@ export function getTopCategories(filteredHistory) {
     });
   });
   return Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+}
+
+// ────────────────────────────────────────────────────────────────
+// MONTH-OVER-MONTH ANALYTICS
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Aggregate wants spending by calendar month for the last `count` months.
+ * For the current month: sums live purchases + any closed periods this month.
+ * For past months: sums closed spendingHistory periods whose date falls in that month.
+ *
+ * Returns an array (oldest → newest) of:
+ *   { year, month, monthKey, label, total, categories, isCurrentMonth }
+ * where `categories` is { [categoryName]: amount }.
+ */
+export function getMonthlyWantsHistory(count = 6) {
+  const today   = new Date();
+  const results = [];
+
+  for (let i = count - 1; i >= 0; i--) {
+    const d        = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const year     = d.getFullYear();
+    const month    = d.getMonth() + 1; // 1-based
+    const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+    const label    = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+    const isCurrent = (i === 0);
+
+    let total = 0;
+    const categories = {};
+
+    // Current month: include live (unsaved) purchases
+    if (isCurrent) {
+      (state.purchases || [])
+        .filter(p => (p.budgetType || 'wants') !== 'needs')
+        .forEach(p => {
+          total += +p.amount || 0;
+          const cat = p.category || 'Other';
+          categories[cat] = (categories[cat] || 0) + (+p.amount || 0);
+        });
+    }
+
+    // Add all closed periods whose date falls in this calendar month
+    (state.spendingHistory || []).forEach(period => {
+      if ((period.date || '').substring(0, 7) !== monthKey) return;
+      total += period.total || 0;
+      (period.items || []).forEach(item => {
+        const cat = item.category || 'Other';
+        categories[cat] = (categories[cat] || 0) + (+item.amount || 0);
+      });
+    });
+
+    results.push({ year, month, monthKey, label, total, categories, isCurrent });
+  }
+
+  return results;
+}
+
+/**
+ * Generate auto-text insights from monthly wants history.
+ * Returns an array of { type: 'good'|'warn'|'info', text: string }.
+ */
+export function getMomInsights(monthlyData) {
+  const insights = [];
+  if (!monthlyData || monthlyData.length < 2) return insights;
+
+  const current  = monthlyData[monthlyData.length - 1];
+  const previous = monthlyData[monthlyData.length - 2];
+
+  // MoM change insight
+  if (previous.total > 0) {
+    const delta = current.total - previous.total;
+    const pct   = (delta / previous.total) * 100;
+    if (pct > 20)
+      insights.push({ type: 'warn', text: `Spending up ${pct.toFixed(0)}% vs. last month (+${fmt(delta)})` });
+    else if (pct < -10)
+      insights.push({ type: 'good', text: `Spending down ${Math.abs(pct).toFixed(0)}% vs. last month (${fmt(delta)})` });
+    else
+      insights.push({ type: 'info', text: `Spending roughly flat vs. last month (${delta >= 0 ? '+' : ''}${fmt(delta)})` });
+  } else if (current.total > 0) {
+    insights.push({ type: 'info', text: 'First month with recorded spending' });
+  }
+
+  // Best / worst month (only meaningful when there is at least some history)
+  const totals    = monthlyData.map(m => m.total);
+  const maxTotal  = Math.max(...totals);
+  const positiveTotals = totals.filter(t => t > 0);
+  const minTotal  = positiveTotals.length ? Math.min(...positiveTotals) : 0;
+  if (maxTotal > 0 && current.total === maxTotal && monthlyData.length > 2)
+    insights.push({ type: 'warn', text: `Highest spending month in ${monthlyData.length} months` });
+  else if (minTotal > 0 && current.total === minTotal && current.total > 0 && monthlyData.length > 2)
+    insights.push({ type: 'good', text: `Lowest spending month in ${monthlyData.length} months` });
+
+  // Top category this month
+  const catEntries = Object.entries(current.categories).sort((a, b) => b[1] - a[1]);
+  if (catEntries.length > 0) {
+    const [topCat, topAmt] = catEntries[0];
+    const pctOfTotal = current.total > 0 ? (topAmt / current.total) * 100 : 0;
+    insights.push({ type: 'info', text: `Top category: ${topCat} — ${fmt(topAmt)} (${pctOfTotal.toFixed(0)}% of spending)` });
+  }
+
+  return insights;
 }
 
 // ────────────────────────────────────────────────────────────────

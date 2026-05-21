@@ -140,5 +140,133 @@ a Tailwind utility won't override it — keep the inline style or add `!importan
 
 ---
 
+---
+
+## BUG-005 — `getTopCategories is not defined` inside `renderAnalyticsBarChart`
+
+**Date:** May 2026  
+**Branch:** `feat/phase2d-mom-analytics`  
+**Severity:** High (Top Categories chart crashes when analytics panel opens)
+
+### Symptom
+Opening the Analytics panel and rendering the Top Categories horizontal bar chart would
+crash with `ReferenceError: getTopCategories is not defined` inside `charts.js`.
+
+### Root Cause
+Same pattern as BUG-004: `getTopCategories` is exported from `analytics.js` and is called
+inside `renderAnalyticsBarChart()` in `charts.js`, but was never imported. The function
+existed without an import statement — another latent bug surviving from the pre-Vite
+single-file era. It was never triggered because BUG-004 crashed the panel before this
+code could run.
+
+```js
+// charts.js — Broken (no import):
+const topCats = getTopCategories(filteredHistory); // ReferenceError
+
+// Fixed — import added:
+import { getTopCategories } from './analytics.js';
+```
+
+### Fix
+Added `import { getTopCategories } from './analytics.js';` to `src/charts.js`.
+
+### Prevention
+Same as BUG-004: ESLint `no-undef` rule would catch bare identifiers at lint time.
+Consider: prefer passing data as function arguments from the render layer rather than
+importing analytics functions into charts.js (cleaner separation of concerns).
+
+---
+
+## BUG-006 — Analytics charts go blank after theme toggle when panel is open
+
+**Date:** May 2026  
+**Branch:** `feat/phase2d-mom-analytics`  
+**Severity:** Medium (visible regression on every theme toggle with panel open)
+
+### Symptom
+With the Spending Analytics panel open, clicking the dark/light theme toggle caused all
+three analytics charts (line, bar, MoM trend) to go blank/empty. The stat cards and
+insight text remained visible but the chart canvases showed nothing.
+
+### Root Cause
+The theme toggle calls `applyTheme()` → `resetAllCharts()` → `renderAll()`.
+`resetAllCharts()` destroys all Chart.js instances. But `renderAll()` only calls
+`renderSpendingAnalytics()` when the analytics panel is opened via `toggleAnalyticsPanel()`
+— it was never included in the global re-render cycle. So after a theme toggle, the
+charts were destroyed and never recreated.
+
+```js
+// renderAll() — Broken (analytics panel re-render missing):
+export function renderAll() {
+  renderIncome(); renderWants(); /* ... */
+  // analytics: never re-rendered → blank charts after theme toggle
+}
+
+// Fixed — conditionally re-render if panel is open:
+export function renderAll() {
+  renderIncome(); renderWants(); /* ... */
+  if (document.getElementById('analytics-panel')?.style.display !== 'none')
+    renderSpendingAnalytics();
+}
+```
+
+### Fix
+Added a conditional `renderSpendingAnalytics()` call at the end of `renderAll()` in
+`src/render.js`, guarded by checking whether the analytics panel is currently visible.
+
+### Prevention
+**Rule:** Every panel or section that contains Chart.js instances must be included in
+`renderAll()` (conditionally if expensive). When adding a new panel with charts, also
+wire it into `renderAll()` at the same time.
+
+---
+
+## BUG-004 — `analyticsFilters is not defined` when opening Spending Analytics panel
+
+**Date:** May 2026  
+**Branch:** `feat/phase2d-mom-analytics`  
+**Severity:** High (opening the Analytics panel crashes with ReferenceError)
+
+### Symptom
+Clicking "📊 Show Spending Analytics" threw:
+```
+ReferenceError: analyticsFilters is not defined
+  at getFilteredSpendingHistory (analytics.js:665)
+  at renderSpendingAnalytics (render.js:491)
+```
+The panel never opened.
+
+### Root Cause
+`getFilteredSpendingHistory()` in `analytics.js` referenced `analyticsFilters` as a
+bare identifier. That variable lives on `uiState` in `uistate.js`. Before the Vite
+modularisation (Phase Infra), everything was in one file and `uiState` was in scope.
+After the split, `analytics.js` was never updated to import `uiState` — the bare
+reference was a latent bug that only fired the first time `getFilteredSpendingHistory()`
+was called at runtime.
+
+```js
+// Broken — analyticsFilters used as if it were a local variable:
+if (analyticsFilters.startDate || analyticsFilters.endDate) { ... }
+
+// Fixed — reference through the imported uiState object:
+const filters = uiState.analyticsFilters;
+if (filters.startDate || filters.endDate) { ... }
+```
+
+### Fix
+- Added `import { uiState } from './uistate.js';` to `analytics.js`
+- Replaced all 4 bare `analyticsFilters` references with `uiState.analyticsFilters`
+  (via a local `const filters` alias for readability)
+
+**Commit:** Part of Phase 2D initial commit.
+
+### Prevention
+**Rule:** `analytics.js` must not reach into UI state. If filtering logic genuinely
+needs UI context (filter values), accept them as function parameters rather than
+importing `uiState` directly. A cleaner long-term fix (Phase 3) is to pass the
+filter object as an argument: `getFilteredSpendingHistory(filters)`.
+
+---
+
 *Last updated: May 2026*  
 *See also: [PHASE_TRACKING.md](PHASE_TRACKING.md) for feature roadmap and sprint status.*
