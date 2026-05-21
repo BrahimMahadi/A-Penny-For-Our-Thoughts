@@ -10,10 +10,34 @@
    Depends on: utils.js (genId, deepClone)
 ═══════════════════════════════════════════════════════════════ */
 
+import { genId, deepClone } from './utils.js';
+
+// ────────────────────────────────────────────────────────────────
+// THEME CALLBACK REGISTRY
+// Resolves the circular dependency: state.js needs to call
+// resetAllCharts() and renderAll() on theme change, but those
+// live in charts.js and render.js which both import state.js.
+// main.js registers the callbacks after all modules are loaded.
+// ────────────────────────────────────────────────────────────────
+let _themeResetFn  = null;
+let _themeRenderFn = null;
+
+/**
+ * Register callbacks that applyTheme() will invoke on theme change.
+ * Called once from main.js after all modules are imported.
+ *
+ * @param {Function} resetFn  - resetAllCharts()
+ * @param {Function} renderFn - renderAll()
+ */
+export function setThemeCallbacks(resetFn, renderFn) {
+  _themeResetFn  = resetFn;
+  _themeRenderFn = renderFn;
+}
+
 // ────────────────────────────────────────────────────────────────
 // DEFAULT STATE
 // ────────────────────────────────────────────────────────────────
-const DEFAULT_STATE = {
+export const DEFAULT_STATE = {
   allocation:        { needs: 50, wants: 30, savings: 20 },
   budgetDisplayMode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
 
@@ -64,7 +88,7 @@ const DEFAULT_STATE = {
  * and numeric fields are zeroed. Keeps the 50/30/20 allocation as a
  * sensible starting point so the dashboard is usable immediately.
  */
-const BLANK_STATE = {
+export const BLANK_STATE = {
   allocation:        { needs: 50, wants: 30, savings: 20 },
   budgetDisplayMode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
   incomeStreams:    [],
@@ -89,7 +113,20 @@ const BLANK_STATE = {
 // ────────────────────────────────────────────────────────────────
 // MODULE-LEVEL STATE
 // ────────────────────────────────────────────────────────────────
-let state = {};
+export let state = {};
+
+/**
+ * Replace the entire state object. Use this instead of direct
+ * assignment (`state = X`) from other modules, because ES module
+ * imported bindings are read-only — only this module can reassign
+ * its own exported `let`.
+ *
+ * @param {object} newState - The new state object to use.
+ * @returns {void}
+ */
+export function setState(newState) {
+  state = newState;
+}
 
 // ────────────────────────────────────────────────────────────────
 // PERSISTENCE
@@ -108,7 +145,7 @@ let state = {};
  *
  * @returns {void}
  */
-function loadFromStorage() {
+export function loadFromStorage() {
   const saved = localStorage.getItem('penny_state_v2');
   try {
     state = saved ? JSON.parse(saved) : deepClone(DEFAULT_STATE);
@@ -191,7 +228,8 @@ function loadFromStorage() {
   if (state.fundsRemaining        === undefined) state.fundsRemaining        = 0;
   if (state.fundsRemainingUpdated === undefined) state.fundsRemainingUpdated = '';
 
-  recordNetWorthSnapshot();
+  // NOTE: recordNetWorthSnapshot() is called by main.js after loadFromStorage()
+  // to avoid a circular dependency (analytics.js → state.js → analytics.js).
 }
 
 /**
@@ -200,15 +238,15 @@ function loadFromStorage() {
  *
  * @returns {void}
  */
-function saveToStorage() {
+export function saveToStorage() {
   localStorage.setItem('penny_state_v2', JSON.stringify(state));
 }
 
 // ────────────────────────────────────────────────────────────────
 // THEME
 // ────────────────────────────────────────────────────────────────
-const THEME_KEY     = 'penny_theme';
-const TOGGLE_BTN_ID = 'theme-toggle';
+export const THEME_KEY     = 'penny_theme';
+export const TOGGLE_BTN_ID = 'theme-toggle';
 
 /**
  * Read the persisted theme preference from localStorage and apply it.
@@ -216,7 +254,7 @@ const TOGGLE_BTN_ID = 'theme-toggle';
  *
  * @returns {void}
  */
-function initTheme() {
+export function initTheme() {
   const saved = localStorage.getItem(THEME_KEY) || 'dark';
   applyTheme(saved);
 }
@@ -226,7 +264,7 @@ function initTheme() {
  *
  * @returns {void}
  */
-function toggleTheme() {
+export function toggleTheme() {
   const current = document.documentElement.getAttribute('data-theme') || 'dark';
   applyTheme(current === 'dark' ? 'light' : 'dark');
 }
@@ -239,7 +277,7 @@ function toggleTheme() {
  * @param {'dark'|'light'} theme - Theme name to activate.
  * @returns {void}
  */
-function applyTheme(theme) {
+export function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem(THEME_KEY, theme);
   const btn = document.getElementById(TOGGLE_BTN_ID);
@@ -251,7 +289,7 @@ function applyTheme(theme) {
   // applyTheme is also called by initTheme() before loadFromStorage(), so we
   // guard against the empty-state case by checking for state.allocation.
   if (state && state.allocation) {
-    if (typeof resetAllCharts === 'function') resetAllCharts();
-    if (typeof renderAll === 'function') renderAll();
+    if (_themeResetFn)  _themeResetFn();
+    if (_themeRenderFn) _themeRenderFn();
   }
 }

@@ -14,7 +14,7 @@
  *
  * @returns {string} A unique identifier (e.g. "k7f2zxm1n1mhz8c")
  */
-function genId() {
+export function genId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
@@ -25,7 +25,7 @@ function genId() {
  * @param {number|string} n - The numeric value to format.
  * @returns {string} Dollar-prefixed string (e.g. "$1,234.50").
  */
-function fmt(n) {
+export function fmt(n) {
   return '$' + Number(n).toLocaleString('en-CA', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -40,7 +40,7 @@ function fmt(n) {
  * @param {number} b - The total value.
  * @returns {string} Percentage string with one decimal place (e.g. "72.5").
  */
-function pct(a, b) {
+export function pct(a, b) {
   return b > 0 ? Math.min(100, (a / b) * 100).toFixed(1) : '0.0';
 }
 
@@ -51,7 +51,7 @@ function pct(a, b) {
  * @param {string} dateStr - ISO date string in "YYYY-MM-DD" format.
  * @returns {number} Signed integer day count (negative = past).
  */
-function daysUntil(dateStr) {
+export function daysUntil(dateStr) {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   return Math.round((new Date(dateStr + 'T00:00:00') - now) / 86400000);
@@ -64,7 +64,7 @@ function daysUntil(dateStr) {
  * @param {{ amount: number, biweekly?: boolean }} item - Expense item object.
  * @returns {number} Monthly cost in dollars.
  */
-function monthlyAmount(item) {
+export function monthlyAmount(item) {
   return item.biweekly ? item.amount * 2 : item.amount;
 }
 
@@ -77,7 +77,7 @@ function monthlyAmount(item) {
  * @param {T} obj - Value to clone.
  * @returns {T} Independent deep copy.
  */
-function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+export function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
 /**
  * Escape a value for safe embedding inside a CSV field (RFC 4180).
@@ -92,7 +92,7 @@ function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
  * csvEscape('a,b')           // '"a,b"'
  * csvEscape('say "hi"')      // '"say ""hi"""'
  */
-function csvEscape(val) {
+export function csvEscape(val) {
   const s = String(val ?? '');
   return s.includes(',') || s.includes('"') || s.includes('\n')
     ? `"${s.replace(/"/g, '""')}"` : s;
@@ -105,7 +105,7 @@ function csvEscape(val) {
  * @param {string} name - CSS variable name including the '--' prefix (e.g. '--accent').
  * @returns {string} The trimmed property value (e.g. '#4ade80').
  */
-function cssVar(name) {
+export function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
@@ -117,7 +117,7 @@ function cssVar(name) {
  * @param {number} alpha - Alpha channel 0–1 (e.g. 0.15).
  * @returns {string} CSS rgba() string (e.g. 'rgba(74,222,128,0.15)').
  */
-function hexToRgba(hex, alpha) {
+export function hexToRgba(hex, alpha) {
   const h = hex.replace('#', '');
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
@@ -138,7 +138,7 @@ function hexToRgba(hex, alpha) {
  * parseCSVRow('"a,b",c')       // ['a,b', 'c']
  * parseCSVRow('"say ""hi"""')  // ['say "hi"']
  */
-function parseCSVRow(row) {
+export function parseCSVRow(row) {
   const fields = [];
   let cur = '', inQ = false;
 
@@ -167,7 +167,7 @@ function parseCSVRow(row) {
  * @param {'success'|'danger'|'info'} [type='success'] - Visual variant.
  * @returns {void}
  */
-function showToast(message, type = 'success') {
+export function showToast(message, type = 'success') {
   const container = document.getElementById('toast-container');
   if (!container) return;
 
