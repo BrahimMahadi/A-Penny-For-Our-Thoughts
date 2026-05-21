@@ -1035,36 +1035,129 @@ export function renderNetWorth() {
 // SUBSCRIPTIONS
 // ────────────────────────────────────────────────────────────────
 export function renderSubscriptions() {
-  const ul     = document.getElementById('sub-list');
+  const ul   = document.getElementById('sub-list');
+  const subs = state.subscriptions || [];
   ul.innerHTML = '';
 
-  if (!(state.subscriptions || []).length) {
-    ul.innerHTML = `<li style="list-style:none">${emptyState('📺', 'No subscriptions tracked', 'Add recurring services like Netflix or Spotify to monitor your monthly costs.')}</li>`;
+  // Frequency → monthly and annual multipliers
+  const moRate = { monthly: 1, quarterly: 1 / 3, 'bi-yearly': 1 / 6, annual: 1 / 12 };
+  const yrRate = { monthly: 12, quarterly: 4, 'bi-yearly': 2, annual: 1 };
+
+  // ── Aggregate calculations ────────────────────────────────────
+  const totalMo = subs.reduce((s, sub) =>
+    s + (+sub.amount || 0) * (moRate[sub.frequency || 'monthly'] ?? 1), 0);
+  const totalYr = subs.reduce((s, sub) =>
+    s + (+sub.amount || 0) * (yrRate[sub.frequency || 'monthly'] ?? 12), 0);
+  const wantsMo = subs
+    .filter(s => (s.budgetType || 'wants') !== 'needs')
+    .reduce((s, sub) => s + (+sub.amount || 0) * (moRate[sub.frequency || 'monthly'] ?? 1), 0);
+  const needsMo = subs
+    .filter(s => s.budgetType === 'needs')
+    .reduce((s, sub) => s + (+sub.amount || 0) * (moRate[sub.frequency || 'monthly'] ?? 1), 0);
+
+  // Wants budget = total monthly income × wants allocation %
+  const wantsBudget = getTotalMonthlyIncome() * getAlloc().wants;
+  const wantsPct    = wantsBudget > 0 ? Math.min(100, (wantsMo / wantsBudget) * 100) : 0;
+
+  // ── Stats header ──────────────────────────────────────────────
+  const totalMoEl  = document.getElementById('sub-total-monthly');
+  const totalYrEl  = document.getElementById('sub-total-annual');
+  const wantsPctEl = document.getElementById('sub-wants-pct');
+  if (totalMoEl)  totalMoEl.textContent  = subs.length ? fmt(totalMo) + '/mo' : '—';
+  if (totalYrEl)  totalYrEl.textContent  = subs.length ? fmt(totalYr) + '/yr' : '—';
+  if (wantsPctEl) {
+    wantsPctEl.textContent = subs.length && wantsBudget > 0
+      ? pct(wantsMo, wantsBudget) + '%'
+      : '—';
+    // Colour the % value based on how much of the Wants budget is committed
+    wantsPctEl.style.color = wantsPct > 60
+      ? 'var(--danger)'
+      : wantsPct > 30
+        ? 'var(--warn)'
+        : 'var(--text)';
   }
 
-  const freqLabel = { monthly: '/mo', quarterly: '/qtr', 'bi-yearly': '/6mo', annual: '/yr' };
+  // ── Wants budget impact bar ───────────────────────────────────
+  const fillEl  = document.getElementById('sub-budget-bar-fill');
+  const labelEl = document.getElementById('sub-budget-bar-label');
+  if (fillEl) {
+    fillEl.style.width = wantsPct + '%';
+    fillEl.className   = 'sub-budget-bar-fill' +
+      (wantsPct > 60 ? ' danger' : wantsPct > 30 ? ' warn' : '');
+  }
+  if (labelEl) {
+    if (!subs.length) {
+      labelEl.textContent = 'No subscriptions tracked yet';
+    } else if (wantsBudget > 0) {
+      labelEl.textContent =
+        `${fmt(wantsMo)}/mo in subscriptions · ${pct(wantsMo, wantsBudget)}% of ${fmt(wantsBudget)} Wants budget`;
+    } else {
+      labelEl.textContent = 'Add income streams to see budget impact';
+    }
+  }
 
-  [...(state.subscriptions || [])].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(sub => {
+  // ── Renewal alert banner (≤ 7 days) ──────────────────────────
+  const alertEl = document.getElementById('sub-renewal-alert');
+  if (alertEl) {
+    const MONTHS  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const upcoming = subs.filter(s => { const d = daysUntil(s.date); return d >= 0 && d <= 7; });
+    if (upcoming.length) {
+      const names = upcoming
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .map(s => {
+          const [, sm, sd] = s.date.split('-');
+          const dayLabel   = daysUntil(s.date) === 0 ? 'today' : `${MONTHS[+sm - 1]} ${+sd}`;
+          return `<strong>${s.name}</strong> <span style="opacity:.75">${dayLabel}</span>`;
+        })
+        .join(' &nbsp;·&nbsp; ');
+      alertEl.innerHTML = `⚠&nbsp; Renewing within 7 days — ${names}`;
+      alertEl.style.display = 'flex';
+    } else {
+      alertEl.style.display = 'none';
+    }
+  }
+
+  // ── Backward-compat hidden elements (used by Wants card calc) ─
+  const wantsTotEl = document.getElementById('sub-wants-monthly');
+  const needsTotEl = document.getElementById('sub-needs-monthly');
+  if (wantsTotEl) wantsTotEl.textContent = fmt(wantsMo) + '/mo';
+  if (needsTotEl) needsTotEl.textContent = fmt(needsMo) + '/mo';
+
+  // ── Empty state ───────────────────────────────────────────────
+  if (!subs.length) {
+    ul.innerHTML = `<li style="list-style:none">${emptyState('📺', 'No subscriptions tracked', 'Add recurring services like Netflix or Spotify to monitor your monthly costs.')}</li>`;
+    return;
+  }
+
+  // ── Subscription list ─────────────────────────────────────────
+  const freqLabel = { monthly: '/mo', quarterly: '/qtr', 'bi-yearly': '/6mo', annual: '/yr' };
+  const MONTHS    = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  [...subs].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(sub => {
     const days       = daysUntil(sub.date);
     const chipCls    = days < 0 ? 'red' : days < 60 ? 'warn' : 'green';
     const chipTxt    = days < 0 ? 'Expired' : days === 0 ? 'Today!' : `${days}d`;
     const amount     = +sub.amount || 0;
-    const suffix     = freqLabel[sub.frequency || 'monthly'] || '/mo';
+    const freq       = sub.frequency || 'monthly';
+    const suffix     = freqLabel[freq] || '/mo';
+    const annualAmt  = amount * (yrRate[freq] ?? 12);
     const budgetType = sub.budgetType || 'wants';
     const cardLabel  = sub.cardId
       ? ((state.expenseCards || []).find(c => c.id === sub.cardId)?.label ?? '?')
       : null;
 
-    // Format the renewal date as "Jun 2, 2026"
-    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const [sy, sm, sd] = sub.date ? sub.date.split('-') : ['','',''];
-    const displayDate = sub.date
-      ? `${MONTHS[+sm - 1]} ${+sd}, ${sy}`
-      : '—';
+    const [sy, sm, sd] = sub.date ? sub.date.split('-') : ['', '', ''];
+    const displayDate  = sub.date ? `${MONTHS[+sm - 1]} ${+sd}, ${sy}` : '—';
+
+    // Annual annotation — shown for all frequencies except annual (already shown as /yr)
+    const annualNote = amount > 0 && freq !== 'annual'
+      ? `<span class="sub-annual">· ${fmt(annualAmt)}/yr</span>`
+      : '';
 
     const li = document.createElement('li');
     li.className = 'sub-item swipeable';
-    li.setAttribute('aria-label', `${sub.name} subscription${days === 0 ? ', due today' : days < 0 ? ', expired' : `, renews in ${days} days`}`);
+    li.setAttribute('aria-label',
+      `${sub.name} subscription${days === 0 ? ', due today' : days < 0 ? ', expired' : `, renews in ${days} days`}`);
     li.innerHTML = `
       <div class="swipe-delete-bg" aria-hidden="true">🗑</div>
       <div class="swipe-content">
@@ -1077,7 +1170,7 @@ export function renderSubscriptions() {
           ${cardLabel
             ? `<span class="chip purple sub-card-chip" title="Charged to ${cardLabel}">💳 ${cardLabel}</span>`
             : `<span class="chip warn sub-card-chip" title="No payment card linked">⚠ No card</span>`}
-          <span class="sub-amount">${amount > 0 ? fmt(amount) + suffix : '—'}</span>
+          <span class="sub-amount">${amount > 0 ? fmt(amount) + suffix : '—'} ${annualNote}</span>
         </div>
         <div class="sub-row-3">
           <span class="sub-date">Renews ${displayDate}</span>
@@ -1089,20 +1182,6 @@ export function renderSubscriptions() {
       </div>`;
     ul.appendChild(li);
   });
-
-  // ── Totals by budget type ─────────────────────────────────────
-  const moRate = { monthly: 1, quarterly: 1 / 3, 'bi-yearly': 1 / 6, annual: 1 / 12 };
-  const wantsMo = (state.subscriptions || [])
-    .filter(s => (s.budgetType || 'wants') !== 'needs')
-    .reduce((sum, s) => sum + (+s.amount || 0) * (moRate[s.frequency || 'monthly'] ?? 1), 0);
-  const needsMo = (state.subscriptions || [])
-    .filter(s => s.budgetType === 'needs')
-    .reduce((sum, s) => sum + (+s.amount || 0) * (moRate[s.frequency || 'monthly'] ?? 1), 0);
-
-  const wantsTotEl = document.getElementById('sub-wants-monthly');
-  const needsTotEl = document.getElementById('sub-needs-monthly');
-  if (wantsTotEl) wantsTotEl.textContent = fmt(wantsMo) + '/mo';
-  if (needsTotEl) needsTotEl.textContent = fmt(needsMo) + '/mo';
 }
 
 // ────────────────────────────────────────────────────────────────
