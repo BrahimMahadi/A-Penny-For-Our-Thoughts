@@ -606,8 +606,10 @@ input {
 
   &:invalid       { border-color: var(--danger); }
   &:invalid:focus { box-shadow: 0 0 0 3px rgba(255, 77, 109, 0.35); }
-  &:valid         { border-color: var(--accent2); }
-  &:valid:focus   { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 35%, transparent); }
+  /* :user-valid only fires after the user has interacted with the field
+     (unlike :valid which fires immediately and turns every empty field green) */
+  &:user-valid       { border-color: var(--accent2); }
+  &:user-valid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 35%, transparent); }
 }
 
 /* Visible focus ring for all interactive elements (keyboard nav) */
@@ -2825,6 +2827,9 @@ canvas { max-width: 100%; height: auto; }
 
   .edit-grid { grid-template-columns: 1fr; gap: 10px; }
 
+  /* Modal-row: collapse 2-col grid to 1-col so each field has full width */
+  .modal-row { grid-template-columns: 1fr !important; gap: 10px; }
+
 }
 
 /* ═══════════════════════════════════════════════════
@@ -3258,6 +3263,53 @@ kbd {
 #shortcuts-trigger {
   @media (max-width: 768px) {
     display: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE FORM UX
+   Touch-friendly enhancements: inputmode attributes (HTML),
+   shake + invalid highlight for validation feedback,
+   and inline-form spacing improvements at ≤540px.
+═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. JS-triggered invalid state ─────────────────────────────
+   .is-invalid is added by markFieldInvalid() after a failed save.
+   Removed automatically once the user starts typing.             */
+input.is-invalid,
+select.is-invalid,
+textarea.is-invalid {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent) !important;
+}
+
+/* ── 2. Shake animation for invalid submit attempt ─────────────
+   Applied together with .is-invalid via markFieldInvalid().
+   Class removed once animationend fires.                         */
+@keyframes shakeField {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-5px); }
+  40%       { transform: translateX(5px); }
+  60%       { transform: translateX(-3px); }
+  80%       { transform: translateX(3px); }
+}
+.shake {
+  animation: shakeField 0.35s ease both;
+}
+
+/* ── 3. Add-form spacing on phones (≤540px) ────────────────────
+   Slightly larger gaps and taller submit button for fat-finger
+   friendliness on the inline add forms.                          */
+@media (max-width: 540px) {
+  .add-form-stacked { gap: 14px; }
+  .add-form-submit  { height: 48px; font-size: 14px; }
+
+  /* Analytics date inputs: bring them up to touch-target size */
+  .analytics-filters input[type="date"],
+  .analytics-filters input[type="text"] {
+    padding: 8px 10px !important;
+    font-size: 14px !important;
+    min-height: 40px;
   }
 }
 
