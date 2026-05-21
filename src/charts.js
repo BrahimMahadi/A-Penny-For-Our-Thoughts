@@ -13,6 +13,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 import { fmt, cssVar, hexToRgba } from './utils.js';
+import { getTopCategories } from './analytics.js';
 
 // ────────────────────────────────────────────────────────────────
 // CHART INSTANCES
@@ -21,6 +22,7 @@ export let wantsChart             = null;
 export let ccChart                = null;
 export let analyticsLineChart     = null;
 export let analyticsBarChart      = null;
+export let momTrendChart          = null;
 export let budgetVsActualChart    = null;
 export let netWorthChart          = null;
 export let forecastBarChart       = null;
@@ -82,9 +84,9 @@ export function getChartStyles() {
  * @returns {void}
  */
 export function resetAllCharts() {
-  [wantsChart, ccChart, analyticsLineChart, analyticsBarChart, budgetVsActualChart, netWorthChart, forecastBarChart]
+  [wantsChart, ccChart, analyticsLineChart, analyticsBarChart, momTrendChart, budgetVsActualChart, netWorthChart, forecastBarChart]
     .forEach(c => { if (c) c.destroy(); });
-  wantsChart = ccChart = analyticsLineChart = analyticsBarChart = budgetVsActualChart = netWorthChart = forecastBarChart = null;
+  wantsChart = ccChart = analyticsLineChart = analyticsBarChart = momTrendChart = budgetVsActualChart = netWorthChart = forecastBarChart = null;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -677,6 +679,113 @@ export function renderForecastBarChart(forecastData, onBarClick) {
       },
       onHover(event, elements) {
         event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+      },
+    },
+  });
+}
+
+// ────────────────────────────────────────────────────────────────
+// MONTH-OVER-MONTH TREND CHART
+// ────────────────────────────────────────────────────────────────
+/**
+ * Render (or update in-place) the Monthly Wants Spending trend bar chart.
+ * The current month's bar uses a brighter accent colour; past months are muted.
+ * Shows the Wants budget as a dashed reference line.
+ *
+ * @param {Array<{label:string, total:number, isCurrent:boolean}>} monthlyData
+ *   From getMonthlyWantsHistory().
+ * @param {number} wantsBudget
+ *   Monthly Wants budget amount (drawn as dashed reference line).
+ * @returns {void}
+ */
+export function renderMomTrendChart(monthlyData, wantsBudget) {
+  const canvas = document.getElementById('momTrendChart');
+  if (!canvas) return;
+
+  const S      = getChartStyles();
+  const labels = monthlyData.map(d => d.label);
+  const totals = monthlyData.map(d => d.total);
+  const colors = monthlyData.map(d =>
+    d.isCurrent ? S.accent2 : hexToRgba(S.accent2, 0.45));
+  const hoverColors = monthlyData.map(d =>
+    d.isCurrent ? hexToRgba(S.accent2, 0.9) : hexToRgba(S.accent2, 0.65));
+
+  if (_chartValid(momTrendChart)) {
+    momTrendChart.data.labels                            = labels;
+    momTrendChart.data.datasets[0].data                  = totals;
+    momTrendChart.data.datasets[0].backgroundColor       = colors;
+    momTrendChart.data.datasets[0].hoverBackgroundColor  = hoverColors;
+    momTrendChart.data.datasets[1].data                  = Array(labels.length).fill(wantsBudget);
+    momTrendChart.update();
+    return;
+  }
+
+  if (momTrendChart) { momTrendChart.destroy(); momTrendChart = null; }
+  momTrendChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Wants Spending',
+          data: totals,
+          backgroundColor: colors,
+          hoverBackgroundColor: hoverColors,
+          borderRadius: 6,
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: 'Wants Budget',
+          data: Array(labels.length).fill(wantsBudget),
+          borderColor: hexToRgba(S.accent, 0.7),
+          borderDash: [5, 4],
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+          order: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            color: S.tickColor,
+            font: { size: 11, weight: '600', family: CHART_FONT_FAMILY },
+            padding: 12,
+            usePointStyle: true,
+            pointStyle: 'rect',
+            filter: item => item.type !== 'line' || item.text === 'Wants Budget',
+          },
+        },
+        tooltip: {
+          ...S.tooltip,
+          callbacks: {
+            label: ctx => ctx.dataset.type === 'line'
+              ? ' Budget: ' + fmt(ctx.parsed.y)
+              : ' Spent: '  + fmt(ctx.parsed.y),
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: S.tickColor, font: { size: 11, family: CHART_FONT_FAMILY } },
+          grid:  { color: S.gridColor, drawBorder: false },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: S.tickColor,
+            font:  { size: 11, family: CHART_FONT_FAMILY },
+            callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v),
+          },
+          grid: { color: S.gridColor, drawBorder: false },
+        },
       },
     },
   });

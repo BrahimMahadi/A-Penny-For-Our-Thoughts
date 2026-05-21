@@ -137,11 +137,24 @@ Real-time tracking of development progress. Updated as work completes.
 - ✅ Empty state: stats show `—`, bar label = "No subscriptions tracked yet"
 - ✅ Responsive: 3-col stats grid scales to mobile; label font reduces at ≤380px
 
-### 2D: Month-over-Month Analytics
-**Priority**: 🟢 LOW
-- [ ] Compare current month to previous months in spending analytics
-- [ ] Seasonal trend detection (e.g., "spending typically up in Dec")
-- [ ] Category breakdown over time
+### 2D: Month-over-Month Analytics ✅
+**Priority**: 🟢 LOW — COMPLETE
+- ✅ `getMonthlyWantsHistory(6)` — aggregates wants spending by calendar month
+  (live purchases for current month + closed spendingHistory periods for past months)
+- ✅ `getMomInsights()` — generates up to 3 auto-text insights:
+  - MoM delta (spending up/down % vs. last month, with $-amount)
+  - Best/worst month in range (guarded: only fires when `maxTotal > 0`)
+  - Top category this month (name + amount + % of total)
+- ✅ "MONTHLY TRENDS" section in Spending Analytics panel:
+  - 4 stat cards: This Month / Last Month / MoM Change / Wants Budget
+  - Monthly Wants Spending bar chart (6 months, current month brighter)
+  - Dashed Wants Budget reference line on chart
+  - Auto-insight list with colour-coded left borders (good/warn/info)
+  - Empty-state copy when < 2 months of data
+- ✅ `renderMomTrendChart()` in charts.js — in-place update on re-render, recreated on theme toggle
+- ✅ Fixed BUG-004: `analyticsFilters` bare reference → import `uiState` in analytics.js
+- ✅ Fixed BUG-005: `getTopCategories` missing import in charts.js (Top Categories chart was silently broken)
+- ✅ Fixed BUG-006: analytics charts blank after theme toggle → `renderAll()` re-renders open analytics panel
 
 ---
 
@@ -264,11 +277,11 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Phase 0 — Design & Visual Polish | ✅ Complete | 100% |
 | Phase 1 — Analytics & Goal Tracking | ✅ Complete | 100% |
 | Sprint 3 — Polish & UX Refinement | ✅ Complete | 100% |
-| Phase 2 — Advanced Features | 🟡 In Progress | 75% (2A + 2B + 2C done) |
+| Phase 2 — Advanced Features | ✅ Complete | 100% (2A + 2B + 2C + 2D done) |
 | Infra — Vite + Tailwind Migration | ✅ Complete | 100% — merged to main |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
 | Sprint 4 — Vue 3 Migration | 🟢 Planned | 0% — starts after Phase 2 |
-| **Overall** | **In Progress** | **~80%** |
+| **Overall** | **In Progress** | **~90%** |
 
 ---
 
@@ -292,5 +305,5 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 ---
 
 **Last Updated**: May 2026  
-**Current Phase**: Phase 2D — Month-over-Month Analytics  
-**Next Branch**: `feat/phase2d-mom-analytics`
+**Current Phase**: Phase 3 — Code Quality & Modularity (or Sprint 4 Vue 3 Migration)  
+**Next Branch**: `feat/phase3-code-quality` or `feat/vue3-migration`
