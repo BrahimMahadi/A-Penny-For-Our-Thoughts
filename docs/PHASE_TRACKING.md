@@ -160,7 +160,7 @@ Real-time tracking of development progress. Updated as work completes.
 ---
 
 ## Infrastructure: Vite + Tailwind Migration 🏗️
-**Status**: 🟡 **IN PROGRESS** (branch: `feat/vite-setup`)
+**Status**: ✅ **COMPLETE** — merged to `main` May 2026  
 **Goal**: Replace http-server + plain CSS with Vite bundler + Tailwind CSS to eliminate the large monolithic file problem
 
 ### Story 1: Vite Infrastructure ✅
@@ -217,7 +217,7 @@ Real-time tracking of development progress. Updated as work completes.
 | Phase 1 — Analytics & Goal Tracking | ✅ Complete | 100% |
 | Sprint 3 — Polish & UX Refinement | ✅ Complete | 100% |
 | Phase 2 — Advanced Features | 🟡 In Progress | 25% (2A done) |
-| Infra — Vite + Tailwind Migration | ✅ Complete | 100% (Stories 1-5 done) |
+| Infra — Vite + Tailwind Migration | ✅ Complete | 100% — merged to main |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
 | **Overall** | **In Progress** | **~73%** |
 
@@ -243,5 +243,5 @@ Real-time tracking of development progress. Updated as work completes.
 ---
 
 **Last Updated**: May 2026  
-**Current Phase**: Vite + Tailwind migration complete on `feat/vite-setup` — ready to merge to `main`. All 5 stories done.  
-**Next Branch**: TBD based on Sprint 4 planning
+**Current Phase**: Phase 2B — Recurring Expense Calendar  
+**Next Branch**: `feat/phase2b-recurring-calendar`
