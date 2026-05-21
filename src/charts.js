@@ -13,7 +13,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 import { fmt, cssVar, hexToRgba } from './utils.js';
-import { getTopCategories } from './analytics.js';
+import { getTopCategories, CATEGORY_COLOURS } from './analytics.js';
 
 // ────────────────────────────────────────────────────────────────
 // CHART INSTANCES

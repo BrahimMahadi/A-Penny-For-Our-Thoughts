@@ -142,6 +142,58 @@ a Tailwind utility won't override it — keep the inline style or add `!importan
 
 ---
 
+## BUG-007 — `CATEGORY_COLOURS is not defined` inside `renderWantsDonut`
+
+**Date:** May 2026
+**Branch:** `main` (post-Phase 2D)
+**Severity:** High (Wants donut chart crashes on every render in production build)
+
+### Symptom
+After deploying the production build to GitHub Pages, the page loaded but the
+console threw:
+```
+ReferenceError: CATEGORY_COLOURS is not defined
+  at Array.map (<anonymous>)
+  at renderWantsDonut (charts.js:119)
+  at renderWants (render.js)
+  at renderAll
+```
+The Wants donut chart failed to render. The bug was masked locally during
+dev because the same identifier was resolved on the window object via an
+earlier accidental global from `app.js`'s import.
+
+### Root Cause
+Identical pattern to BUG-004 and BUG-005 — a third latent reference from
+the pre-Vite single-file era. `CATEGORY_COLOURS` is exported from
+`analytics.js` and used inside `renderWantsDonut()` in `charts.js` line 119:
+
+```js
+cat === 'Subscriptions' ? SUBS_COLOUR : (CATEGORY_COLOURS[cat] || '#8b95ad')
+```
+
+The previous fix for BUG-005 added `getTopCategories` to the
+analytics.js import but missed `CATEGORY_COLOURS`.
+
+### Fix
+Updated the import in `src/charts.js`:
+
+```js
+// Before:
+import { getTopCategories } from './analytics.js';
+
+// After:
+import { getTopCategories, CATEGORY_COLOURS } from './analytics.js';
+```
+
+### Prevention
+**Rule:** When fixing a missing-import bug, do a full scan of the file for
+ALL bare identifiers that match exports from the imported module — don't
+just patch the one that crashed. Three rounds of the same bug means the
+codebase needs an ESLint pass with `no-undef` enforced, before the next
+phase.
+
+---
+
 ## BUG-005 — `getTopCategories is not defined` inside `renderAnalyticsBarChart`
 
 **Date:** May 2026  
