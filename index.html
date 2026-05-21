@@ -215,8 +215,9 @@
     </div>
     <ul class="income-stream-list" id="income-stream-list" role="list"></ul>
     <div id="income-empty-state" class="empty-state" style="display:none">
-      <div>💰</div>
-      <div>No income streams yet — add one below</div>
+      <div class="empty-state-icon" aria-hidden="true">💰</div>
+      <div class="empty-state-title">No income streams yet</div>
+      <div class="empty-state-hint">Add a stream below to start building your budget.</div>
     </div>
     <div class="add-form-stacked">
       <div class="add-form-field">
@@ -389,9 +390,9 @@
 
   <!-- Empty state + add button -->
   <div id="expense-empty-state" class="empty-state card" style="display:none;margin-top:0">
-    <div>💳</div>
-    <div>No payment cards yet</div>
-    <div style="font-size:12px;color:var(--muted)">Add a card below to start tracking expenses</div>
+    <div class="empty-state-icon" aria-hidden="true">💳</div>
+    <div class="empty-state-title">No payment cards yet</div>
+    <div class="empty-state-hint">Create a card to group your fixed monthly expenses by account.</div>
   </div>
   <div style="margin-top:12px">
     <button class="btn sm secondary" onclick="openAddExpenseCard()">+ Add Payment Card</button>
