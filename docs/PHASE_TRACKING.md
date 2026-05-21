@@ -73,6 +73,26 @@ Real-time tracking of development progress. Updated as work completes.
 
 ---
 
+## Sprint 3: Polish & UX Refinement ✨
+**Status**: ✅ **COMPLETE** (May 2026 — v2.4)
+**Goal**: Tactile, delightful interactions that make the dashboard feel production-ready
+
+### Completed
+- ✅ **Toast Notifications** — `showToast()` in `utils.js`; self-dismissing pills after every CRUD action (49 functions); `aria-live` accessible; stacks upward above mobile nav; `toastIn`/`toastOut` CSS animations
+- ✅ **Keyboard Shortcuts** — global `handleGlobalKeydown` listener; `?` panel with 14 shortcuts across 4 groups; `isTyping()` guard; focus-trap + slide-up/out animation; hidden on mobile
+- ✅ **Empty State Illustrations** — `emptyState(icon, title, hint)` helper in `render.js`; animated entrance (`emptyStateIn`); applied to all 10 data sections
+- ✅ **Micro-interactions** — CSS-only (zero JS changes): card hover lift, button press scale, tab page fade-in (`pageFadeIn`), progress bar fill (`scaleBarIn` with `transform-origin: left`), list item stagger (3 tiers, 140ms max), chip hover scale; `prefers-reduced-motion` override
+- ✅ **Mobile Form UX** — `inputmode="decimal"` on all money inputs; `markFieldInvalid()` shake + danger border (auto-clears on input); `mField()` auto-injects `inputmode`; `.modal-row` collapses 1-col at ≤380px; `:valid` → `:user-valid` fix for untouched inputs
+
+### Branches merged to main
+- `feat/sprint3-toast-notifications`
+- `feat/sprint3-keyboard-shortcuts`
+- `feat/sprint3-empty-states`
+- `feat/sprint3-micro-interactions`
+- `feat/sprint3-mobile-form-ux`
+
+---
+
 ## Phase 2: Advanced Features 📅
 **Status**: 🟡 **IN PROGRESS**  
 **Goal**: Handle complex financial scenarios
@@ -145,9 +165,10 @@ Real-time tracking of development progress. Updated as work completes.
 |-------|--------|--------|
 | Phase 0 — Design & Visual Polish | ✅ Complete | 100% |
 | Phase 1 — Analytics & Goal Tracking | ✅ Complete | 100% |
+| Sprint 3 — Polish & UX Refinement | ✅ Complete | 100% |
 | Phase 2 — Advanced Features | 🟡 In Progress | 25% (2A done) |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
-| **Overall** | **In Progress** | **~62%** |
+| **Overall** | **In Progress** | **~70%** |
 
 ---
 
@@ -170,6 +191,6 @@ Real-time tracking of development progress. Updated as work completes.
 
 ---
 
-**Last Updated**: May 13, 2026  
-**Current Phase**: Phase 2 (Advanced Features) — Net Worth Tracker complete; Recurring Expense Calendar (2B) is next  
-**Branch**: `phase-1/budget-vs-actual` (Phase 1 work; consider branching `phase-2/net-worth` for next initiative)
+**Last Updated**: May 2026  
+**Current Phase**: Sprint 3 ✅ complete (v2.4). Phase 2 (Advanced Features) resumes next — Recurring Expense Calendar (2B) is the next candidate, or a Sprint 4 focused on further polish/features.  
+**Next Branch**: TBD based on Sprint 4 planning

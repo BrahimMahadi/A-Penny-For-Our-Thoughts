@@ -461,6 +461,9 @@ All sections: `meta`, `allocation`, `budgetDisplayMode`, `incomeStreams`, `expen
 
 ## Keyboard Shortcuts
 
+Press **`?`** anywhere in the app (when not typing in a field) to open the shortcuts panel. All shortcuts are disabled while focus is inside an input, select, or textarea.
+
+### Navigation
 | Shortcut | Action |
 |----------|--------|
 | `Alt + 1` | Switch to Dashboard tab |
@@ -468,7 +471,41 @@ All sections: `meta`, `allocation`, `budgetDisplayMode`, `incomeStreams`, `expen
 | `Alt + 3` | Switch to Analytics tab |
 | `Alt + 4` | Switch to Schedule tab |
 | `Alt + 5` | Switch to Rules tab |
-| `Escape` | Close open modal |
+| `Alt + 6` | Switch to Docs tab |
+
+### Actions
+| Shortcut | Action |
+|----------|--------|
+| `N` | Focus the add-purchase / add-income input |
+| `E` | Toggle CSV export |
+| `T` | Toggle dark / light theme |
+| `?` | Open / close the keyboard shortcuts panel |
+
+### Modals
+| Shortcut | Action |
+|----------|--------|
+| `Escape` | Close open modal or shortcuts panel |
+| `Enter` | Confirm / save the open modal |
+
+> **Mobile:** The shortcuts panel and trigger button are hidden on mobile — use the bottom navigation and swipe gestures instead.
+
+---
+
+## Toast Notifications
+
+Every save, add, and delete action shows a brief **toast notification** in the bottom-right corner (above the mobile nav bar on phones). Toasts are colour-coded:
+
+- 🟢 **Green** — successful action (item added, saved, updated)
+- 🔴 **Red** — destructive action (item deleted)
+- 🔵 **Blue** — informational message
+
+Toasts dismiss automatically after 2.5 seconds and are announced to screen readers via `aria-live`.
+
+---
+
+## Empty States
+
+When a section has no data yet, an animated illustration appears with a brief hint explaining how to add the first record. These appear in: Income Streams, Purchases, Loans, Credit Cards, Savings Accounts, Goals, Subscriptions, Wishlist, Auto-categorisation Rules, and the purchase list within the Wants Tracker.
 
 ---
 
@@ -490,4 +527,4 @@ The app uses `penny_state_v2` as the localStorage key. Older data stored under `
 
 ---
 
-*Last updated: May 2026 · Version 1.0*
+*Last updated: May 2026 · Version 2.4*

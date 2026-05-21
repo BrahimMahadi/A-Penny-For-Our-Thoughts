@@ -65,6 +65,10 @@ The entry point is index.html. All JS lives under src/. All files must stay in t
 - `getGoalProgress(goal)` — returns `{ accountName, currentAmount, targetAmount, progressPercent, monthsRemaining, monthlySavingsNeeded, status, isOnTrack }`
 - `calculateMonthsBetween(startYYYY-MM, endYYYY-MM)` — returns integer month difference
 - `getTotalMonthlyIncome()`, `getAlloc()`, `fmt(n)`, `genId()`
+- `showToast(message, type)` — displays a self-dismissing toast (`'success'` | `'danger'` | `'info'`); lives in `utils.js`
+- `markFieldInvalid(id)` — adds `.is-invalid` + `.shake` to a field; auto-clears `.is-invalid` on next user input; lives in `app.js`
+- `emptyState(icon, title, hint)` — returns HTML string for an animated empty-state block; lives in `render.js`
+- `isTyping()` — returns `true` if focus is inside an input/select/textarea; used to guard keyboard shortcuts
 
 **State migration (automatic in loadFromStorage):**
 - Old `state.gov` → one incomeStream entry
