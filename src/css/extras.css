@@ -1,0 +1,404 @@
+/* ===================================================
+   Module:   css/extras.css
+   Project:  A Penny For Our Thoughts
+   Summary:  Additions — toast notifications, keyboard shortcuts panel, mobile form UX, micro-interactions
+=================================================== */
+
+/* ═══════════════════════════════════════════════════════════════
+   TOAST NOTIFICATIONS
+   Stack grows upward from the bottom-right corner.
+   showToast() in utils.js creates .toast elements here.
+═══════════════════════════════════════════════════════════════ */
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(24px); }
+}
+
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  pointer-events: none;
+
+  /* Stack above the mobile bottom nav */
+  @media (max-width: 768px) {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
+    right: 12px;
+    left: 12px;
+  }
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  max-width: 360px;
+  animation: toastIn 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  pointer-events: auto;
+
+  /* Icon prefix via pseudo-element */
+  &::before {
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  /* Exit triggered by JS adding .toast--out */
+  &.toast--out {
+    animation: toastOut 220ms ease-in both;
+  }
+
+  /* ── Variants ── */
+  &.toast-success {
+    background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    color: var(--text);
+    &::before { content: '✓'; color: var(--accent); }
+  }
+
+  &.toast-danger {
+    background: color-mix(in srgb, var(--danger-btn) 18%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--danger-btn) 45%, transparent);
+    color: var(--text);
+    &::before { content: '✕'; color: var(--danger-btn); }
+  }
+
+  &.toast-info {
+    background: color-mix(in srgb, var(--funds-accent) 18%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--funds-accent) 45%, transparent);
+    color: var(--text);
+    &::before { content: 'ℹ'; color: var(--funds-accent); }
+  }
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+    font-size: 0.84rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   KEYBOARD SHORTCUTS PANEL
+   Floating card anchored bottom-right, above the toast stack.
+   Hidden on touch/mobile devices — no physical keyboard.
+═══════════════════════════════════════════════════════════════ */
+
+/* Styled <kbd> chips used inside the shortcuts panel */
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 6px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  box-shadow: 0 1px 0 var(--border);
+  white-space: nowrap;
+}
+
+.shortcut-plus {
+  font-size: 0.7rem;
+  color: var(--muted);
+  line-height: 1;
+}
+
+@keyframes shortcutsIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@keyframes shortcutsOut {
+  from { opacity: 1; transform: translateY(0)    scale(1); }
+  to   { opacity: 0; transform: translateY(12px) scale(0.97); }
+}
+
+.shortcuts-panel {
+  position: fixed;
+  bottom: 80px;       /* sit above toast area */
+  right: 24px;
+  z-index: 9998;      /* below toasts (9999) */
+  width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  /* Hidden by default — JS adds .visible */
+  display: none;
+  animation: shortcutsIn 200ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+
+  &.visible {
+    display: block;
+  }
+
+  &.closing {
+    animation: shortcutsOut 160ms ease-in both;
+  }
+
+  /* Hide entirely on mobile — no physical keyboard */
+  @media (max-width: 768px) {
+    display: none !important;
+  }
+}
+
+.shortcuts-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+}
+
+.shortcuts-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 120ms, background 120ms;
+
+  &:hover {
+    color: var(--text);
+    background: var(--surface2);
+  }
+}
+
+.shortcuts-grid {
+  padding: 10px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shortcuts-group-label {
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+  margin-top: 10px;
+  margin-bottom: 4px;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+
+  & span {
+    font-size: 0.82rem;
+    color: var(--text);
+    flex: 1;
+    text-align: right;
+  }
+}
+
+.shortcut-keys {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+/* Also hide the ⌨ header trigger button on mobile */
+#shortcuts-trigger {
+  @media (max-width: 768px) {
+    display: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE FORM UX
+   Touch-friendly enhancements: inputmode attributes (HTML),
+   shake + invalid highlight for validation feedback,
+   and inline-form spacing improvements at ≤540px.
+═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. JS-triggered invalid state ─────────────────────────────
+   .is-invalid is added by markFieldInvalid() after a failed save.
+   Removed automatically once the user starts typing.             */
+input.is-invalid,
+select.is-invalid,
+textarea.is-invalid {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent) !important;
+}
+
+/* ── 2. Shake animation for invalid submit attempt ─────────────
+   Applied together with .is-invalid via markFieldInvalid().
+   Class removed once animationend fires.                         */
+@keyframes shakeField {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-5px); }
+  40%       { transform: translateX(5px); }
+  60%       { transform: translateX(-3px); }
+  80%       { transform: translateX(3px); }
+}
+.shake {
+  animation: shakeField 0.35s ease both;
+}
+
+/* ── 3. Add-form spacing on phones (≤540px) ────────────────────
+   Slightly larger gaps and taller submit button for fat-finger
+   friendliness on the inline add forms.                          */
+@media (max-width: 540px) {
+  .add-form-stacked { gap: 14px; }
+  .add-form-submit  { height: 48px; font-size: 14px; }
+
+  /* Analytics date inputs: bring them up to touch-target size */
+  .analytics-filters input[type="date"],
+  .analytics-filters input[type="text"] {
+    padding: 8px 10px !important;
+    font-size: 14px !important;
+    min-height: 40px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MICRO-INTERACTIONS
+   All animations respect prefers-reduced-motion at the end.
+   Rule order matters — these intentionally override earlier rules
+   via cascade (same specificity, later position wins).
+═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. Card hover lift ─────────────────────────────────────────
+   Adds a subtle 2 px upward translate on top of the existing
+   border-color / box-shadow hover already defined on .card.     */
+.card {
+  transition: var(--transition), transform 180ms ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+}
+
+/* ── 2. Button active press feel ───────────────────────────────
+   Primary (.btn) already has translateY on hover/active.
+   Secondary and danger get a scale-down for a physical press.   */
+.btn.secondary:active {
+  transform: scale(0.97);
+}
+.btn.danger:active {
+  transform: scale(0.97);
+}
+/* Danger hover: add a subtle warning glow ring */
+.btn.danger:hover {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger-btn) 35%, transparent);
+}
+
+/* ── 3. Tab page fade-in ────────────────────────────────────────
+   Fires whenever switchTab() toggles .active onto a .page.
+   Also plays on initial dashboard load (desired — feels alive).  */
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+}
+.page.active {
+  animation: pageFadeIn 200ms ease both;
+}
+
+/* ── 4. Progress bar fill animation ────────────────────────────
+   Uses scaleX so the inline width value (set by JS) is the
+   "natural" end state — no JS changes needed.
+   transform-origin: left keeps the grow direction correct.       */
+@keyframes scaleBarIn {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.progress-fill,
+.cc-bar-fill,
+#savings-alloc-bar,
+.goal-progress-container .progress-bar {
+  transform-origin: left center;
+  animation: scaleBarIn 650ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* ── 5. List item staggered entrance ───────────────────────────
+   Applies to dynamically rendered list items.
+   Three stagger tiers; keeps total sequence under 330 ms.        */
+@keyframes listItemIn {
+  from { opacity: 0; transform: translateY(8px); }
+}
+.loan-card,
+.sub-item,
+.wish-item,
+.savings-acct-item,
+.goal-item {
+  animation: listItemIn 200ms ease both;
+}
+/* 2nd item */
+.loan-card:nth-child(2),
+.sub-item:nth-child(2),
+.wish-item:nth-child(2),
+.savings-acct-item:nth-child(2),
+.goal-item:nth-child(2) { animation-delay: 50ms; }
+/* 3rd item */
+.loan-card:nth-child(3),
+.sub-item:nth-child(3),
+.wish-item:nth-child(3),
+.savings-acct-item:nth-child(3),
+.goal-item:nth-child(3) { animation-delay: 100ms; }
+/* 4th item and beyond */
+.loan-card:nth-child(n+4),
+.sub-item:nth-child(n+4),
+.wish-item:nth-child(n+4),
+.savings-acct-item:nth-child(n+4),
+.goal-item:nth-child(n+4) { animation-delay: 140ms; }
+
+/* ── 6. Chip hover scale ────────────────────────────────────────
+   Status chips (green/red/warn) scale up slightly on hover to
+   provide visual confirmation they carry meaning.                */
+.chip {
+  transition: transform 120ms ease;
+}
+.chip:hover {
+  transform: scale(1.06);
+}
+
+/* ── 7. Prefers-reduced-motion ─────────────────────────────────
+   Collapse all durations to near-zero for users who have asked
+   the OS to reduce motion. MUST be the last rule in this block. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration:       0.01ms !important;
+    animation-iteration-count: 1     !important;
+    transition-duration:      0.01ms !important;
+    scroll-behavior:          auto   !important;
+  }
+}

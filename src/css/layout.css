@@ -1,0 +1,353 @@
+/* ===================================================
+   Module:   css/layout.css
+   Project:  A Penny For Our Thoughts
+   Summary:  Shell — header, tabs, pages, section titles, grid, card containers
+=================================================== */
+
+/* ═══════════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════════ */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+
+  & h1 {
+    font-family: var(--font-body);
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    white-space: nowrap;
+    color: var(--text);
+  }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.header-date {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ── Theme toggle button ── */
+.theme-toggle {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 17px;
+  flex-shrink: 0;
+  transition: var(--transition), transform .2s;
+
+  &:hover { transform: scale(1.1); }
+}
+
+/* ═══════════════════════════════════════════════════
+   TABS
+═══════════════════════════════════════════════════ */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 20px 32px 0;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 20px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color .2s, border-color .2s;
+
+  &.active              { color: var(--accent-text); border-color: var(--accent); }
+  &:hover:not(.active)  { color: var(--text); }
+}
+
+/* ═══════════════════════════════════════════════════
+   PAGES
+═══════════════════════════════════════════════════ */
+.page {
+  display: none;
+  padding: 28px 32px 80px;
+  max-width: 1280px;
+  margin: 0 auto;
+
+  &.active { display: block; }
+}
+
+/* ═══════════════════════════════════════════════════
+   SECTION TITLES
+═══════════════════════════════════════════════════ */
+.section-title {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  margin: 40px 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--border), transparent);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   GRID & LAYOUT
+═══════════════════════════════════════════════════ */
+.grid {
+  display: grid;
+  gap: 20px;
+}
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-5 { grid-template-columns: repeat(5, 1fr); }
+/* Prevent grid tracks from stretching beyond their 1fr allocation
+   (CSS default is minmax(auto, 1fr) which lets content inflate tracks) */
+.grid > * { min-width: 0; }
+
+/* KPI Metrics Bar — Prominent Display
+   ─────────────────────────────────────────────────────────────────
+   Font sizes use clamp() so values scale down before they can clip.
+   Flex strategy for value+button rows: the value-block uses
+   flex: 1 0 auto (grow freely, never shrink below content width).
+   When value+button+gap exceeds the card width the button wraps to
+   the next line — avoiding both overflow AND truncation.
+   ───────────────────────────────────────────────────────────────── */
+#income-stat-cards {
+  margin-top: 12px;
+  padding-bottom: 8px;
+
+  /* Reclaim width at narrow viewports by scaling down card padding */
+  & .card {
+    padding: clamp(14px, 1.8vw, 24px);
+  }
+
+  /* Total Monthly Income — fluid: 22px @ 1025px → 34px @ 1600px
+     Formula derived from actual measured usable card widths:
+       @ 1100px → 150px usable  @ 1600px → 179px usable
+     A 9-char value like "$3,551.64" at 34px ≈ 162px < 179px ✓   */
+  & .card.accent {
+    grid-column: span 1;
+    border-width: 2px;
+
+    & .card-value {
+      font-size: clamp(22px, calc(2.6vw - 7px), 34px);
+      font-weight: 900;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+  }
+
+  /* Funds Remaining — fluid: 18px @ 1025px → 28px @ 1600px */
+  & .card.funds {
+    border-width: 2px;
+
+    & .card-value {
+      font-size: clamp(18px, calc(2vw - 4px), 28px);
+      font-weight: 900;
+      color: var(--funds-accent);
+      margin-bottom: 8px;
+    }
+  }
+
+  /* Fluid font size for Needs / Wants / Savings dollar amounts:
+     16px @ 1025px (5-col tightest) → 26px @ 1600px              */
+  & .kpi-val {
+    font-size: clamp(16px, calc(1.8vw - 3px), 26px);
+    font-weight: 800;
+    white-space: nowrap;
+    margin-bottom: 4px;
+  }
+}
+
+/* Toggle button + info icon grouped in card-title (Needs/Wants/Savings) */
+.kpi-title-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;  /* never squeeze the controls group */
+}
+
+/* ═══════════════════════════════════════════════════
+   CARDS
+═══════════════════════════════════════════════════ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--card-shadow-sm);
+  transition: var(--transition);
+
+  &:hover {
+    border-color: var(--border-light);
+    box-shadow: var(--card-shadow);
+  }
+
+  /* KPI Card — Emphasized Style */
+  &.kpi-card {
+    border-color: var(--accent);
+    background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+
+    & .card-value { color: var(--accent); font-size: 36px; }
+  }
+
+  /* Status Color Cards */
+  &.accent {
+    border-color: var(--accent);
+    & .card-title { color: var(--accent-text); }
+  }
+
+  &.danger {
+    border-color: var(--danger);
+    & .card-title { color: var(--danger); }
+  }
+
+  &.warn {
+    border-color: var(--warn);
+    & .card-title { color: var(--warn); }
+  }
+
+  &.funds {
+    border-color: var(--funds-accent);
+    background: color-mix(in srgb, var(--funds-accent) 6%, var(--surface));
+    & .card-title { color: var(--funds-accent); }
+  }
+}
+
+.card-title {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Info icon + tooltip ── */
+.info-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.info-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-style: normal;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 50%;
+  transition: color .15s, background .15s;
+  flex-shrink: 0;
+  font-family: var(--font-body);
+
+  &:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+}
+
+.info-tip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 300;
+  width: 260px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.35);
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+
+  &.open { display: block; }
+
+  & .tip-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  & .tip-formula {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: var(--surface2);
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    line-height: 1.5;
+  }
+}
+
+.card-value {
+  font-family: var(--font-body);
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.5px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.card-sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+

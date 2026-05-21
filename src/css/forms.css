@@ -1,0 +1,185 @@
+/* ===================================================
+   Module:   css/forms.css
+   Project:  A Penny For Our Thoughts
+   Summary:  Controls — buttons, form inputs, chips/badges, progress bars, split bar
+=================================================== */
+
+/* ═══════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════ */
+.btn {
+  background: var(--accent-btn);
+  color: #ffffff;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-btn) 40%, transparent);
+  transition: opacity .15s, background .15s, transform .15s, box-shadow .15s;
+  user-select: none;
+
+  &:hover  { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-btn) 50%, transparent); }
+  &:active { transform: translateY(0); box-shadow: 0 1px 4px color-mix(in srgb, var(--accent-btn) 30%, transparent); }
+
+  &.sm { padding: 7px 14px; font-size: 11px; border-radius: 6px; }
+  &.xs { padding: 5px 10px; font-size: 10px; border-radius: 5px; }
+
+  /* Tinted outlined danger — draws the eye without aggression */
+  &.danger {
+    background: color-mix(in srgb, var(--danger-btn) 15%, transparent);
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger-btn) 45%, transparent);
+    box-shadow: none;
+
+    &:hover { background: color-mix(in srgb, var(--danger-btn) 22%, transparent); box-shadow: none; }
+  }
+
+  &.warn   { background: var(--warn); color: #000000; box-shadow: 0 2px 8px color-mix(in srgb, var(--warn) 35%, transparent); }
+
+  &.secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1.5px solid var(--border);
+    box-shadow: none;
+    transition: border-color .15s, background .15s;
+
+    &:hover { border-color: var(--border-light); background: var(--surface3); box-shadow: none; }
+  }
+
+  /* Icon Button — no uppercase, no tracking, no shadow */
+  &.icon-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 15px;
+    padding: 6px 8px;
+    line-height: 1;
+    border-radius: 4px;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+    box-shadow: none;
+    transition: color .15s, background .15s;
+
+    &:hover      { color: var(--text); background: var(--surface2); box-shadow: none; }
+    &.del:hover  { color: var(--danger); }
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   FORM CONTROLS
+═══════════════════════════════════════════════════ */
+input, select, textarea {
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.4;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+
+  &::placeholder { color: var(--muted); opacity: 1; }
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+}
+
+/* Checkbox, validation states (input-only) */
+input {
+  &[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    border-radius: 4px;
+  }
+
+  &:invalid       { border-color: var(--danger); }
+  &:invalid:focus { box-shadow: 0 0 0 3px rgba(255, 77, 109, 0.35); }
+  /* :user-valid only fires after the user has interacted with the field
+     (unlike :valid which fires immediately and turns every empty field green) */
+  &:user-valid       { border-color: var(--accent2); }
+  &:user-valid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 35%, transparent); }
+}
+
+/* Visible focus ring for all interactive elements (keyboard nav) */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Suppress outline on inputs/selects — they get the box-shadow ring instead */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
+/* ═══════════════════════════════════════════════════
+   CHIPS / BADGES
+═══════════════════════════════════════════════════ */
+.chip {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 3px 10px;
+
+  &.green  { background: color-mix(in srgb, var(--accent2) 15%, transparent);  color: var(--accent2); }
+  &.red    { background: color-mix(in srgb, var(--danger)  15%, transparent);  color: var(--danger); }
+  &.warn   { background: color-mix(in srgb, var(--warn)    15%, transparent);  color: var(--warn); }
+  &.purple { background: color-mix(in srgb, var(--accent)  15%, transparent);  color: var(--accent-chip); }
+}
+
+/* ═══════════════════════════════════════════════════
+   PROGRESS BARS
+═══════════════════════════════════════════════════ */
+.progress-track {
+  height: 12px;
+  background: var(--surface3);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.4s ease;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════════════
+   SPLIT BAR (income allocation)
+═══════════════════════════════════════════════════ */
+.split-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface2);
+  overflow: hidden;
+  display: flex;
+  margin-top: 12px;
+}
+.split-seg { height: 100%; transition: width .5s; }
+

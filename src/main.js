@@ -9,8 +9,21 @@
              any markup changes, then initialises the app.
 ═══════════════════════════════════════════════════════════════ */
 
-// ── CSS — must be first so Tailwind's @import "tailwindcss" runs ─
+// ── CSS — Tailwind entry must be first (establishes @layer base) ─
 import './styles.css';
+
+// ── Stylesheet modules — imported in cascade order ────────────────
+// Vite bundles these as separate CSS chunks in declaration order.
+// styles.css (Tailwind) → tokens → layout → forms → features → ui
+// → docs → responsive → extras
+import './css/tokens.css';      // CSS custom properties + global reset
+import './css/layout.css';      // Header, tabs, pages, section titles, grid
+import './css/forms.css';       // Buttons, inputs, chips, progress bars
+import './css/features.css';    // Wants, expense/loan/credit, savings, goals, subscriptions
+import './css/ui.css';          // Modal, analytics, schedule, charts, net worth
+import './css/docs.css';        // Docs tab
+import './css/responsive.css';  // @media breakpoints + mobile overlays
+import './css/extras.css';      // Toast, shortcuts, mobile form UX, micro-interactions
 
 // ── Import in dependency order ────────────────────────────────────
 import './utils.js';       // no side-effects; exports used by others
