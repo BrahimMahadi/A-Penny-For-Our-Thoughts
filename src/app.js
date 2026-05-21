@@ -133,13 +133,91 @@ document.addEventListener('click', e => {
   }
 });
 
-// Escape key: close modal or overflow menu
+// ────────────────────────────────────────────────────────────────
+// GLOBAL KEYBOARD HANDLER
+// Handles Escape (modal / overflow / shortcuts panel) plus all
+// registered global shortcuts. Guards against firing while the
+// user is typing inside any input, textarea, or select.
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Return true when the user's focus is inside an editable element so
+ * that single-key shortcuts don't fire while they're typing.
+ *
+ * @returns {boolean}
+ */
+function isTyping() {
+  const el  = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+}
+
 document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape') return;
-  const overlay = document.getElementById('modal-overlay');
-  if (overlay && overlay.classList.contains('active')) { closeModal(); return; }
-  const dd = document.getElementById('overflow-dropdown');
-  if (dd && dd.classList.contains('open')) toggleOverflowMenu();
+  const modal   = document.getElementById('modal-overlay');
+  const modalOpen = modal?.classList.contains('active');
+
+  // ── Ctrl/Cmd + Enter → save open modal ────────────────────────
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if (modalOpen) {
+      e.preventDefault();
+      document.getElementById('modal-save-btn')?.click();
+    }
+    return;
+  }
+
+  // ── Escape → close layered UI in priority order ────────────────
+  if (e.key === 'Escape') {
+    if (modalOpen)                                     { closeModal();            return; }
+    if (_shortcutsPanelVisible())                      { toggleShortcutsPanel();  return; }
+    const dd = document.getElementById('overflow-dropdown');
+    if (dd?.classList.contains('open'))                { toggleOverflowMenu();    return; }
+    return;
+  }
+
+  // ── All remaining shortcuts: blocked when user is typing ───────
+  if (isTyping()) return;
+
+  switch (e.key) {
+    case '?':
+      e.preventDefault();
+      toggleShortcutsPanel();
+      break;
+
+    case 'd':
+    case 'D':
+      e.preventDefault();
+      switchTab('dashboard');
+      showToast('Dashboard', 'info');
+      break;
+
+    case 's':
+    case 'S':
+      e.preventDefault();
+      switchTab('schedule');
+      showToast('Schedule', 'info');
+      break;
+
+    case 'n':
+    case 'N': {
+      e.preventDefault();
+      // Navigate to Dashboard first so the input is visible
+      switchTab('dashboard');
+      const input = document.getElementById('purchase-name');
+      if (input) {
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Small delay so the scroll lands before focus
+        setTimeout(() => input.focus(), 120);
+      }
+      break;
+    }
+
+    case 'e':
+    case 'E':
+      e.preventDefault();
+      exportCsv();
+      break;
+  }
 });
 
 // ────────────────────────────────────────────────────────────────
@@ -1859,7 +1937,44 @@ function parseCsv(text) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// KEYBOARD SHORTCUTS
+// SHORTCUTS PANEL
+// ────────────────────────────────────────────────────────────────
+
+/** @returns {boolean} True when the shortcuts panel is currently visible. */
+function _shortcutsPanelVisible() {
+  return document.getElementById('shortcuts-panel')?.classList.contains('visible') ?? false;
+}
+
+/**
+ * Show or hide the keyboard shortcuts help panel.
+ * Uses a brief .closing animation before removing .visible so the
+ * exit transition plays before the element is hidden.
+ */
+function toggleShortcutsPanel() {
+  const panel   = document.getElementById('shortcuts-panel');
+  const trigger = document.getElementById('shortcuts-trigger');
+  if (!panel) return;
+
+  if (panel.classList.contains('visible')) {
+    // Animate out, then hide
+    panel.classList.add('closing');
+    panel.addEventListener('animationend', () => {
+      panel.classList.remove('visible', 'closing');
+      panel.setAttribute('aria-hidden', 'true');
+      trigger?.setAttribute('aria-expanded', 'false');
+    }, { once: true });
+  } else {
+    panel.classList.remove('closing'); // safety reset
+    panel.classList.add('visible');
+    panel.setAttribute('aria-hidden', 'false');
+    trigger?.setAttribute('aria-expanded', 'true');
+    // Move focus into the panel for keyboard/screen-reader users
+    panel.querySelector('.shortcuts-close')?.focus();
+  }
+}
+
+// ────────────────────────────────────────────────────────────────
+// INLINE KEYBOARD SHORTCUTS (purchase form)
 // ────────────────────────────────────────────────────────────────
 document.getElementById('purchase-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('purchase-amount').focus();
