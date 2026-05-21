@@ -47,6 +47,7 @@
         <button class="overflow-item danger" role="menuitem" onclick="clearAllData();toggleOverflowMenu()">🗑 Clear Data</button>
       </div>
     </div>
+    <button class="btn sm secondary header-action" id="shortcuts-trigger" onclick="toggleShortcutsPanel()" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">⌨</button>
     <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Switch to light mode">🌙</button>
   </div>
 </header>
@@ -1272,6 +1273,31 @@
     <span>Docs</span>
   </button>
 </nav>
+
+<!-- ══════════════════════════════════════
+     KEYBOARD SHORTCUTS PANEL
+     Toggled by pressing ? or the ⌨ header button.
+     Hidden on mobile (no physical keyboard).
+══════════════════════════════════════ -->
+<div id="shortcuts-panel" class="shortcuts-panel" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" aria-hidden="true">
+  <div class="shortcuts-panel-header">
+    <span>Keyboard Shortcuts</span>
+    <button class="shortcuts-close" onclick="toggleShortcutsPanel()" aria-label="Close shortcuts panel">✕</button>
+  </div>
+  <div class="shortcuts-grid">
+    <div class="shortcuts-group-label">Navigation</div>
+    <div class="shortcut-row"><div class="shortcut-keys"><kbd>D</kbd></div><span>Dashboard tab</span></div>
+    <div class="shortcut-row"><div class="shortcut-keys"><kbd>S</kbd></div><span>Schedule tab</span></div>
+    <div class="shortcuts-group-label">Actions</div>
+    <div class="shortcut-row"><div class="shortcut-keys"><kbd>N</kbd></div><span>New purchase</span></div>
+    <div class="shortcut-row"><div class="shortcut-keys"><kbd>E</kbd></div><span>Export CSV</span></div>
+    <div class="shortcuts-group-label">Modals</div>
+    <div class="shortcut-row"><div class="shortcut-keys"><kbd>Ctrl</kbd><span class="shortcut-plus">+</span><kbd>↵</kbd></div><span>Save modal</span></div>
+    <div class="shortcut-row"><div class="shortcut-keys"><kbd>Esc</kbd></div><span>Close modal / panel</span></div>
+    <div class="shortcuts-group-label">Help</div>
+    <div class="shortcut-row"><div class="shortcut-keys"><kbd>?</kbd></div><span>Show / hide this panel</span></div>
+  </div>
+</div>
 
 <script src="src/utils.js"></script>
 <script src="src/state.js"></script>
