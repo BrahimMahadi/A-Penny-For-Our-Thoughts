@@ -671,10 +671,21 @@
 
   <h2 class="section-title" style="margin-top:8px">Expense Schedule</h2>
 
-  <!-- 3-month summary cards -->
+  <!-- 6-month summary cards (navigation) -->
   <div id="schedule-summary" class="schedule-summary-row"></div>
 
-  <!-- Active-month bill list -->
+  <!-- 6-month forecast bar chart -->
+  <div class="card mt-4">
+    <div class="flex justify-between items-center mb-3">
+      <div class="card-title">6-Month Forecast</div>
+      <span class="text-[11px] text-muted">recurring bills vs. Needs budget</span>
+    </div>
+    <div style="height:180px;position:relative">
+      <canvas id="forecastBarChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Active-month detail: list or calendar -->
   <div class="card mt-4">
     <div id="schedule-detail"></div>
   </div>

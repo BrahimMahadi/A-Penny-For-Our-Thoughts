@@ -23,4 +23,7 @@ export const uiState = {
   /** Schedule tab — currently-displayed month (1-based) */
   scheduleViewYear:  _now.getFullYear(),
   scheduleViewMonth: _now.getMonth() + 1,
+
+  /** Schedule tab — 'list' | 'calendar' */
+  scheduleView: 'list',
 };

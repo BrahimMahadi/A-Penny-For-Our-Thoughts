@@ -29,12 +29,14 @@ import {
   getFilteredSpendingHistory, getNextRenewal,
   getAllocationForMonth, getGoalProgress,
   getNetWorthData, getMonthForecast,
+  getCalendarDayMap, getSixMonthForecast,
   applyRulesToName, ASSET_CATEGORIES,
 } from './analytics.js';
 import {
   renderWantsDonut, renderCcBarChart,
   renderAnalyticsLineChart, renderAnalyticsBarChart,
   renderBudgetVsActualChart, renderNetWorthChart,
+  renderForecastBarChart,
 } from './charts.js';
 import { uiState } from './uistate.js';
 
@@ -1291,7 +1293,7 @@ export function renderBudgetAlerts() {
 
 /**
  * Render the 3-month summary bar + active-month bill list.
- * Reads uiState.scheduleViewYear/Month from app.js globals.
+ * Reads uiState.scheduleViewYear/Month and uiState.scheduleView from uistate.js.
  */
 export function renderSchedule() {
   const summaryEl = document.getElementById('schedule-summary');
@@ -1299,65 +1301,76 @@ export function renderSchedule() {
   if (!summaryEl || !detailEl) return;
 
   const today = new Date();
+  const viewYear  = uiState.scheduleViewYear;
+  const viewMonth = uiState.scheduleViewMonth;
 
-  // ── 3-month summary cards ──────────────────────────────────────
+  // ── 6-month summary cards (navigation) ───────────────────────
   summaryEl.innerHTML = '';
-  for (let offset = 0; offset < 3; offset++) {
-    const d     = new Date(uiState.scheduleViewYear, uiState.scheduleViewMonth - 1 + offset, 1);
-    const y     = d.getFullYear();
-    const m     = d.getMonth() + 1;
-    const fc    = getMonthForecast(y, m);
-    const isActive = (y === uiState.scheduleViewYear && m === uiState.scheduleViewMonth);
-
+  for (let offset = 0; offset < 6; offset++) {
+    const d        = new Date(viewYear, viewMonth - 1 + offset, 1);
+    const y        = d.getFullYear();
+    const m        = d.getMonth() + 1;
+    const fc       = getMonthForecast(y, m);
+    const isActive = (y === viewYear && m === viewMonth);
     const overBudget = fc.variance < 0;
-    const atLabel    = d.toLocaleString('en-CA', { month: 'long', year: 'numeric' });
-    const varSign    = overBudget ? '+' : '';
-    const varAmt     = fmt(Math.abs(fc.variance));
+    const atLabel    = d.toLocaleString('en-CA', { month: 'short', year: 'numeric' });
     const varColor   = overBudget ? 'var(--danger)' : 'var(--accent2)';
-    const varLabel   = overBudget ? 'over budget' : 'under budget';
+    const varLabel   = overBudget
+      ? `+${fmt(Math.abs(fc.variance))} over`
+      : `${fmt(Math.abs(fc.variance))} under`;
 
     const card = document.createElement('button');
     card.type      = 'button';
     card.className = 'schedule-summary-card' + (isActive ? ' active' : '');
     card.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     card.setAttribute('aria-label', atLabel);
-    card.onclick   = () => { uiState.scheduleViewYear = y; uiState.scheduleViewMonth = m; renderSchedule(); };
+    card.onclick   = () => {
+      uiState.scheduleViewYear  = y;
+      uiState.scheduleViewMonth = m;
+      renderSchedule();
+    };
     card.innerHTML = `
       <div class="ssc-month">${atLabel}</div>
       <div class="ssc-total">${fmt(fc.total)}</div>
-      <div class="ssc-variance" style="color:${varColor}">
-        ${varSign}${varAmt} ${varLabel}
-      </div>
-      <div class="ssc-count">${fc.dated.length + fc.undated.length} recurring bill${fc.dated.length + fc.undated.length !== 1 ? 's' : ''}</div>`;
+      <div class="ssc-variance" style="color:${varColor}">${varLabel}</div>
+      <div class="ssc-count">${fc.dated.length + fc.undated.length} bill${fc.dated.length + fc.undated.length !== 1 ? 's' : ''}</div>`;
     summaryEl.appendChild(card);
   }
 
+  // ── 6-month forecast bar chart ────────────────────────────────
+  const forecastData = getSixMonthForecast(viewYear, viewMonth, 6);
+  renderForecastBarChart(forecastData, (y, m) => {
+    uiState.scheduleViewYear  = y;
+    uiState.scheduleViewMonth = m;
+    renderSchedule();
+  });
+
   // ── Active-month detail ───────────────────────────────────────
-  const fc       = getMonthForecast(uiState.scheduleViewYear, uiState.scheduleViewMonth);
-  const monthLabel = new Date(uiState.scheduleViewYear, uiState.scheduleViewMonth - 1, 1)
+  const fc         = getMonthForecast(viewYear, viewMonth);
+  const monthLabel = new Date(viewYear, viewMonth - 1, 1)
     .toLocaleString('en-CA', { month: 'long', year: 'numeric' });
+  const overBudget  = fc.variance < 0;
+  const totalColor  = overBudget ? 'var(--danger)' : 'var(--accent2)';
+  const view        = uiState.scheduleView || 'list';
 
-  /** Render a single bill row */
-  function billRow(item) {
-    const dayLabel   = item.dueDay ? ordinal(item.dueDay) : '∞';
-    const cardBadge  = `<span class="schedule-badge card-label">${item.cardLabel}</span>`;
-    const typeBadge  = item.biweekly
-      ? `<span class="schedule-badge biweekly">×2 bi-wk</span>`
-      : item.source === 'subscription'
-        ? `<span class="schedule-badge sub">subscription</span>`
-        : '';
-    return `
-      <div class="schedule-bill-row">
-        <span class="sched-day">${dayLabel}</span>
-        <span class="sched-name">${item.name}</span>
-        ${cardBadge}
-        ${typeBadge}
-        <span class="sched-amt">${fmt(item.totalForMonth)}</span>
-      </div>`;
-  }
-
-  const datedHtml   = fc.dated.map(billRow).join('');
-  const undatedHtml = fc.undated.map(billRow).join('');
+  // Header with nav + view toggle
+  const headerHtml = `
+    <div class="schedule-detail-header">
+      <button class="btn xs secondary" onclick="prevScheduleMonth()">‹ Prev</button>
+      <div class="schedule-detail-title">
+        ${monthLabel}
+        <span class="schedule-total" style="color:${totalColor}">${fmt(fc.total)} / mo</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <div class="schedule-view-toggle">
+          <button class="sched-toggle-btn${view === 'list' ? ' active' : ''}"
+            onclick="setScheduleView('list')" aria-label="List view" title="List view">☰</button>
+          <button class="sched-toggle-btn${view === 'calendar' ? ' active' : ''}"
+            onclick="setScheduleView('calendar')" aria-label="Calendar view" title="Calendar view">⊞</button>
+        </div>
+        <button class="btn xs secondary" onclick="nextScheduleMonth()">Next ›</button>
+      </div>
+    </div>`;
 
   const emptyHtml = `
     <div class="empty-state" style="margin-top:16px">
@@ -1365,35 +1378,135 @@ export function renderSchedule() {
       <div>No recurring bills yet — add expense cards or subscriptions to see them here.</div>
     </div>`;
 
-  const hasAny = fc.dated.length > 0 || fc.undated.length > 0;
+  if (view === 'calendar') {
+    detailEl.innerHTML = headerHtml + renderCalendarGrid(viewYear, viewMonth, fc, today);
+  } else {
+    // ── List view (original) ──────────────────────────────────
+    const hasAny = fc.dated.length > 0 || fc.undated.length > 0;
 
-  const overBudget = fc.variance < 0;
-  const totalColor = overBudget ? 'var(--danger)' : 'var(--accent2)';
+    /** Render a single bill row */
+    function billRow(item) {
+      const dayLabel  = item.dueDay ? ordinal(item.dueDay) : '∞';
+      const cardBadge = `<span class="schedule-badge card-label">${item.cardLabel}</span>`;
+      const typeBadge = item.biweekly
+        ? `<span class="schedule-badge biweekly">×2 bi-wk</span>`
+        : item.source === 'subscription'
+          ? `<span class="schedule-badge sub">subscription</span>`
+          : '';
+      return `
+        <div class="schedule-bill-row">
+          <span class="sched-day">${dayLabel}</span>
+          <span class="sched-name">${item.name}</span>
+          ${cardBadge}
+          ${typeBadge}
+          <span class="sched-amt">${fmt(item.totalForMonth)}</span>
+        </div>`;
+    }
 
-  detailEl.innerHTML = `
-    <div class="schedule-detail-header">
-      <button class="btn xs secondary" onclick="prevScheduleMonth()">‹ Prev</button>
-      <div class="schedule-detail-title">
-        ${monthLabel}
-        <span class="schedule-total" style="color:${totalColor}">${fmt(fc.total)} / mo</span>
-      </div>
-      <button class="btn xs secondary" onclick="nextScheduleMonth()">Next ›</button>
-    </div>
-
-    ${!hasAny ? emptyHtml : `
+    detailEl.innerHTML = headerHtml + (!hasAny ? emptyHtml : `
       ${fc.dated.length ? `
         <div class="schedule-group-label">Scheduled by date</div>
-        ${datedHtml}
+        ${fc.dated.map(billRow).join('')}
       ` : ''}
       ${fc.undated.length ? `
         <div class="schedule-group-label">Any time this month</div>
-        ${undatedHtml}
+        ${fc.undated.map(billRow).join('')}
       ` : ''}
       <div class="schedule-total-row">
         <span>Total recurring</span>
         <span style="color:${totalColor};font-weight:800">${fmt(fc.total)}</span>
-      </div>
-    `}`;
+      </div>`);
+  }
+}
+
+/**
+ * Build the HTML string for a monthly calendar grid.
+ * Each cell shows the day number, up to 2 bill badges, and a total amount.
+ * The current day is highlighted with .cal-today.
+ * Days with bills above 15% of the Needs budget are tinted with .cal-heavy.
+ *
+ * @param {number} year
+ * @param {number} month - 1-based
+ * @param {{ dated: Array, total: number, budgeted: number }} fc - from getMonthForecast
+ * @param {Date} today
+ * @returns {string} HTML string
+ */
+function renderCalendarGrid(year, month, fc, today) {
+  const dayMap     = getCalendarDayMap(year, month);
+  const maxDay     = new Date(year, month, 0).getDate();
+  const firstDow   = new Date(year, month - 1, 1).getDay(); // 0=Sun
+  const isThisMonth = today.getFullYear() === year && today.getMonth() + 1 === month;
+  const heavyThreshold = fc.budgeted * 0.12; // days with > 12% of Needs budget = heavy
+
+  const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Header row
+  let html = `<div class="cal-grid">`;
+  DOW_LABELS.forEach(d => { html += `<div class="cal-header-cell">${d}</div>`; });
+
+  // Leading blank cells
+  for (let i = 0; i < firstDow; i++) {
+    html += `<div class="cal-cell cal-blank"></div>`;
+  }
+
+  // Day cells
+  for (let day = 1; day <= maxDay; day++) {
+    const items    = dayMap.get(day) || [];
+    const dayTotal = items.reduce((s, i) => s + i.totalForMonth, 0);
+    const isToday  = isThisMonth && today.getDate() === day;
+    const isHeavy  = dayTotal > heavyThreshold && heavyThreshold > 0;
+
+    // Up to 2 badges; overflow shown as "+N more"
+    const MAX_BADGES = 2;
+    const badges = items.slice(0, MAX_BADGES).map(item => {
+      const cls = item.source === 'subscription' ? 'sub' : 'expense';
+      return `<div class="cal-badge ${cls}" title="${item.name} — ${fmt(item.totalForMonth)}">${item.name}</div>`;
+    }).join('');
+    const overflow = items.length > MAX_BADGES
+      ? `<div class="cal-badge more">+${items.length - MAX_BADGES}</div>`
+      : '';
+
+    const totalLabel = dayTotal > 0
+      ? `<div class="cal-day-total">${fmt(dayTotal)}</div>`
+      : '';
+
+    html += `
+      <div class="cal-cell${isToday ? ' cal-today' : ''}${items.length ? ' cal-has-bills' : ''}${isHeavy ? ' cal-heavy' : ''}">
+        <span class="cal-day-num">${day}</span>
+        ${badges}${overflow}
+        ${totalLabel}
+      </div>`;
+  }
+
+  // Trailing blank cells to complete the last row
+  const totalCells = firstDow + maxDay;
+  const remainder  = totalCells % 7;
+  if (remainder !== 0) {
+    for (let i = 0; i < 7 - remainder; i++) {
+      html += `<div class="cal-cell cal-blank"></div>`;
+    }
+  }
+
+  html += `</div>`;
+
+  // Undated items below the grid
+  if (fc.undated.length) {
+    html += `<div class="schedule-group-label" style="margin-top:16px">No fixed date this month</div>`;
+    fc.undated.forEach(item => {
+      const typeBadge = item.source === 'subscription'
+        ? `<span class="schedule-badge sub">subscription</span>`
+        : `<span class="schedule-badge card-label">${item.cardLabel}</span>`;
+      html += `
+        <div class="schedule-bill-row">
+          <span class="sched-day">∞</span>
+          <span class="sched-name">${item.name}</span>
+          ${typeBadge}
+          <span class="sched-amt">${fmt(item.totalForMonth)}</span>
+        </div>`;
+    });
+  }
+
+  return html;
 }
 
 /** Format a day number as an ordinal string (1 → "1st", 15 → "15th"). */

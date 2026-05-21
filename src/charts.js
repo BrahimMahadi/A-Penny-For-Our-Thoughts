@@ -23,6 +23,7 @@ export let analyticsLineChart     = null;
 export let analyticsBarChart      = null;
 export let budgetVsActualChart    = null;
 export let netWorthChart          = null;
+export let forecastBarChart       = null;
 
 /**
  * Returns true if the Chart.js instance exists and its canvas is
@@ -81,9 +82,9 @@ export function getChartStyles() {
  * @returns {void}
  */
 export function resetAllCharts() {
-  [wantsChart, ccChart, analyticsLineChart, analyticsBarChart, budgetVsActualChart, netWorthChart]
+  [wantsChart, ccChart, analyticsLineChart, analyticsBarChart, budgetVsActualChart, netWorthChart, forecastBarChart]
     .forEach(c => { if (c) c.destroy(); });
-  wantsChart = ccChart = analyticsLineChart = analyticsBarChart = budgetVsActualChart = netWorthChart = null;
+  wantsChart = ccChart = analyticsLineChart = analyticsBarChart = budgetVsActualChart = netWorthChart = forecastBarChart = null;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -563,6 +564,119 @@ export function renderNetWorthChart(history) {
           grid: { color: S.gridColor },
           ticks: { color: 'var(--muted)', font: { size: 11 }, callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v) },
         },
+      },
+    },
+  });
+}
+
+// ────────────────────────────────────────────────────────────────
+// SCHEDULE — 6-MONTH FORECAST BAR
+// ────────────────────────────────────────────────────────────────
+/**
+ * Render (or update in-place) the 6-month recurring expense forecast bar chart.
+ * Bars are coloured green (under budget) or red (over budget).
+ * A horizontal budget reference line is drawn across all bars.
+ * Clicking a bar calls onBarClick(year, month) to navigate the schedule.
+ *
+ * @param {Array<{year,month,label,total,budgeted}>} forecastData
+ *   From getSixMonthForecast().
+ * @param {function(year:number, month:number):void} onBarClick
+ *   Callback invoked when the user clicks a bar.
+ * @returns {void}
+ */
+export function renderForecastBarChart(forecastData, onBarClick) {
+  const canvas = document.getElementById('forecastBarChart');
+  if (!canvas) return;
+
+  const S        = getChartStyles();
+  const labels   = forecastData.map(d => d.label);
+  const totals   = forecastData.map(d => d.total);
+  const budgeted = forecastData[0]?.budgeted ?? 0;
+  const barColors = forecastData.map(d =>
+    d.total > d.budgeted ? hexToRgba(S.danger, 0.8) : hexToRgba(S.accent2, 0.8));
+  const hoverColors = forecastData.map(d =>
+    d.total > d.budgeted ? S.danger : S.accent2);
+
+  if (_chartValid(forecastBarChart)) {
+    forecastBarChart.data.labels                        = labels;
+    forecastBarChart.data.datasets[0].data              = totals;
+    forecastBarChart.data.datasets[0].backgroundColor   = barColors;
+    forecastBarChart.data.datasets[0].hoverBackgroundColor = hoverColors;
+    forecastBarChart.data.datasets[1].data              = Array(labels.length).fill(budgeted);
+    forecastBarChart.update();
+    return;
+  }
+
+  if (forecastBarChart) { forecastBarChart.destroy(); forecastBarChart = null; }
+  forecastBarChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Recurring Bills',
+          data: totals,
+          backgroundColor: barColors,
+          hoverBackgroundColor: hoverColors,
+          borderColor: 'transparent',
+          borderRadius: 6,
+          borderSkipped: false,
+          order: 2,
+        },
+        {
+          label: 'Needs Budget',
+          data: Array(labels.length).fill(budgeted),
+          type: 'line',
+          borderColor: hexToRgba(S.accent, 0.6),
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: [5, 4],
+          pointRadius: 0,
+          order: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: S.tickColor,
+            font: { size: 11, weight: '600', family: CHART_FONT_FAMILY },
+            padding: 12,
+            usePointStyle: true,
+            pointStyle: 'rect',
+          },
+        },
+        tooltip: {
+          ...S.tooltip,
+          callbacks: {
+            label: ctx => ctx.dataset.type === 'line'
+              ? ' Budget: ' + fmt(ctx.parsed.y)
+              : ' Bills: ' + fmt(ctx.parsed.y),
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: S.tickColor, font: { size: 11, family: CHART_FONT_FAMILY } },
+          grid:  { color: S.gridColor, drawBorder: false },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: S.tickColor, font: { size: 11, family: CHART_FONT_FAMILY }, callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v) },
+          grid:  { color: S.gridColor, drawBorder: false },
+        },
+      },
+      onClick(event, elements) {
+        if (!elements.length || !onBarClick) return;
+        const idx = elements[0].index;
+        const d   = forecastData[idx];
+        if (d) onBarClick(d.year, d.month);
+      },
+      onHover(event, elements) {
+        event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
       },
     },
   });

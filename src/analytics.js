@@ -602,6 +602,55 @@ export function getMonthForecast(year, month) {
   return { dated, undated, total, budgeted, variance };
 }
 
+/**
+ * Build a Map<dayNumber, item[]> from a month's forecast so the
+ * calendar grid can look up bills by date in O(1).
+ *
+ * Undated items (dueDay === null) are excluded — they appear in the
+ * list view's "Any time this month" group instead.
+ *
+ * @param {number} year
+ * @param {number} month - 1-based
+ * @returns {Map<number, Array>}
+ */
+export function getCalendarDayMap(year, month) {
+  const { dated } = getMonthForecast(year, month);
+  const map = new Map();
+  dated.forEach(item => {
+    if (!map.has(item.dueDay)) map.set(item.dueDay, []);
+    map.get(item.dueDay).push(item);
+  });
+  return map;
+}
+
+/**
+ * Build forecast totals for the next N months starting from (year, month).
+ * Used by the 6-month bar chart.
+ *
+ * @param {number} year
+ * @param {number} month - 1-based starting month
+ * @param {number} [count=6]
+ * @returns {Array<{ year, month, label, total, budgeted, variance }>}
+ */
+export function getSixMonthForecast(year, month, count = 6) {
+  const results = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(year, month - 1 + i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    const fc = getMonthForecast(y, m);
+    results.push({
+      year: y,
+      month: m,
+      label: d.toLocaleString('en-CA', { month: 'short', year: '2-digit' }),
+      total: fc.total,
+      budgeted: fc.budgeted,
+      variance: fc.variance,
+    });
+  }
+  return results;
+}
+
 // ────────────────────────────────────────────────────────────────
 // SPENDING ANALYTICS
 // ────────────────────────────────────────────────────────────────

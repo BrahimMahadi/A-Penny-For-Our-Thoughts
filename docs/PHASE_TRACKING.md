@@ -108,12 +108,25 @@ Real-time tracking of development progress. Updated as work completes.
 - ✅ CSV import/export: `SECTION:assets` and `SECTION:netWorthHistory`
 - ✅ Mobile responsive (2-column stat tiles, stacked panels at 380px)
 
-### 2B: Recurring Expense Calendar
-**Priority**: 🟡 MEDIUM
-- [ ] Month calendar view with expenses mapped to dates
-- [ ] Highlight "expensive months" based on bi-weekly schedules
-- [ ] 6-month expense forecast
-- [ ] Toggle between list and calendar views
+### 2B: Recurring Expense Calendar ✅
+**Priority**: 🟡 MEDIUM — COMPLETE
+- ✅ 6-month summary cards (clickable — click any card to jump to that month)
+- ✅ 6-month forecast bar chart (Chart.js mixed: bars for bills, dashed line for Needs budget)
+- ✅ Click bars in forecast chart to navigate to that month
+- ✅ Toggle between List and Calendar views (persists across month changes)
+- ✅ Calendar grid: 7-column layout, leading blank cells, correct day-of-week alignment
+- ✅ Bills shown as badges on their due dates with per-day totals
+- ✅ Today's date highlighted (green tint + border)
+- ✅ "Expensive days" highlighted in amber (`.cal-heavy`) when day total > 12% of Needs budget
+- ✅ Multi-badge overflow: up to 2 shown + "+N more" for crowded days
+- ✅ Undated items listed below grid
+- ✅ PREV / NEXT month navigation preserved in both views
+- ✅ `getCalendarDayMap(year, month)` — `Map<dayNum, item[]>` from `getMonthForecast()`
+- ✅ `getSixMonthForecast(year, month)` — array of 6 `{year, month, label, total, budgeted, variance}`
+- ✅ `renderForecastBarChart()` in charts.js — destroyed and re-created on theme toggle
+- ✅ `scheduleView` persisted in `uiState` (survives navigation, not localStorage)
+- ✅ Responsive at 375px mobile — 7-col grid stays readable, badges fit cells
+- ✅ date-fns installed as lightweight date utility dependency
 
 ### 2C: Subscription Budget Integration ✅
 **Priority**: 🟡 MEDIUM — COMPLETE
@@ -251,11 +264,11 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Phase 0 — Design & Visual Polish | ✅ Complete | 100% |
 | Phase 1 — Analytics & Goal Tracking | ✅ Complete | 100% |
 | Sprint 3 — Polish & UX Refinement | ✅ Complete | 100% |
-| Phase 2 — Advanced Features | 🟡 In Progress | 50% (2A + 2C done) |
+| Phase 2 — Advanced Features | 🟡 In Progress | 75% (2A + 2B + 2C done) |
 | Infra — Vite + Tailwind Migration | ✅ Complete | 100% — merged to main |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
 | Sprint 4 — Vue 3 Migration | 🟢 Planned | 0% — starts after Phase 2 |
-| **Overall** | **In Progress** | **~73%** |
+| **Overall** | **In Progress** | **~80%** |
 
 ---
 
@@ -279,5 +292,5 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 ---
 
 **Last Updated**: May 2026  
-**Current Phase**: Phase 2B — Recurring Expense Calendar (2C complete)  
-**Next Branch**: `feat/phase2b-recurring-calendar`
+**Current Phase**: Phase 2D — Month-over-Month Analytics  
+**Next Branch**: `feat/phase2d-mom-analytics`

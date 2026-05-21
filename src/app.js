@@ -377,6 +377,12 @@ export function nextScheduleMonth() {
   renderSchedule();
 }
 
+/** Switch schedule detail between 'list' and 'calendar' views. */
+export function setScheduleView(view) {
+  uiState.scheduleView = view;
+  renderSchedule();
+}
+
 // ────────────────────────────────────────────────────────────────
 // INFO TOOLTIPS
 // ────────────────────────────────────────────────────────────────

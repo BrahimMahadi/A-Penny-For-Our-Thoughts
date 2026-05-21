@@ -55,7 +55,7 @@ import {
   switchTab, switchDocsSection, toggleDocsDropdown,
   toggleOverflowMenu, toggleInfoTip, toggleShortcutsPanel,
   // Schedule
-  prevScheduleMonth, nextScheduleMonth,
+  prevScheduleMonth, nextScheduleMonth, setScheduleView,
   // Allocation / income
   openEditAllocation, updateAllocValidation, toggleBudgetMode,
   addIncomeStream, openEditFundsRemaining,
@@ -113,7 +113,7 @@ Object.assign(window, {
   // Theme
   toggleTheme,
   // Schedule
-  prevScheduleMonth, nextScheduleMonth,
+  prevScheduleMonth, nextScheduleMonth, setScheduleView,
   // Allocation / income
   openEditAllocation, updateAllocValidation, toggleBudgetMode,
   addIncomeStream, openEditFundsRemaining,
