@@ -209,6 +209,38 @@ Real-time tracking of development progress. Updated as work completes.
 
 ---
 
+## Sprint 4: Vue 3 Migration 🔄
+**Status**: 🟢 **PLANNED** — begins after Phase 2 completes  
+**Goal**: Full rewrite from vanilla JS to Vue 3 + Pinia to replace manual DOM rendering with a reactive component architecture
+
+### Why Vue 3
+The current architecture uses template-literal HTML strings in `render*()` functions and calls `renderAll()` on every state change. Vue 3's reactivity system eliminates this pattern entirely — state changes propagate to the DOM automatically, components encapsulate their own markup and logic, and Vitest enables proper unit testing.
+
+### Scope
+- **Full rewrite** (not incremental) — each `render*()` function becomes a `.vue` SFC
+- Vite already in place — Vue plugin is a one-line add (`@vitejs/plugin-vue`)
+- Tailwind CSS stays — utility classes carry over unchanged
+- All CSS modules (`src/css/`) carry over unchanged
+- localStorage persistence stays — wrapped in a Pinia store
+
+### Planned Stories
+- [ ] **Story 1** — Scaffold Vue 3 app: install `vue`, `@vitejs/plugin-vue`, `pinia`; create `App.vue` entry, convert `main.js` to `createApp()`
+- [ ] **Story 2** — Pinia store: migrate `state.js` → `useAppStore()` with full state shape, migrations, and `setState()` equivalent
+- [ ] **Story 3** — Layout shell: `AppHeader.vue`, `BottomNav.vue`, `TabRouter.vue` (replaces tab-switching JS)
+- [ ] **Story 4** — Home tab components: `IncomeOverview.vue`, `BudgetVariance.vue`, `WantsTracker.vue`
+- [ ] **Story 5** — Expenses + Loans + Credit Cards components
+- [ ] **Story 6** — Savings + Goals + Net Worth components
+- [ ] **Story 7** — Schedule + Analytics + Docs components
+- [ ] **Story 8** — Modal system: `AppModal.vue` with slot-based content, replaces `openModal()`/`closeModal()`
+- [ ] **Story 9** — Charts: wrap Chart.js instances in `useChart()` composable; lazy-render on tab visibility
+- [ ] **Story 10** — CSV import/export, keyboard shortcuts, toast system ported to composables
+- [ ] **Story 11** — Full QA pass: all tabs, CRUD, theme toggle, mobile breakpoints, CSV round-trip
+- [ ] **Story 12** — Vitest setup: unit tests for store actions, calculation helpers, composables
+
+### Branch: `feat/vue3-migration`
+
+---
+
 ## Overall Progress
 
 | Phase | Status | % Done |
@@ -219,6 +251,7 @@ Real-time tracking of development progress. Updated as work completes.
 | Phase 2 — Advanced Features | 🟡 In Progress | 25% (2A done) |
 | Infra — Vite + Tailwind Migration | ✅ Complete | 100% — merged to main |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
+| Sprint 4 — Vue 3 Migration | 🟢 Planned | 0% — starts after Phase 2 |
 | **Overall** | **In Progress** | **~73%** |
 
 ---
