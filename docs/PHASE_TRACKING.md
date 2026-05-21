@@ -280,8 +280,8 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Phase 2 — Advanced Features | ✅ Complete | 100% (2A + 2B + 2C + 2D done) |
 | Infra — Vite + Tailwind Migration | ✅ Complete | 100% — merged to main |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
-| Sprint 4 — Vue 3 Migration | 🟡 In Progress | 25% — Sprints 0+1 done (foundation + state) |
-| **Overall** | **In Progress** | **~92%** |
+| Sprint 4 — Vue 3 Migration | 🟡 In Progress | 38% — Sprints 0+1+2 done (foundation + state + primitives) |
+| **Overall** | **In Progress** | **~93%** |
 
 ---
 
@@ -309,11 +309,23 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 - ✅ 173 tests passing across 9 spec files
 - ✅ BUG-009 fixed during port (`fmt()` negative formatting)
 
-### Sprint 2 — Core Layout & Primitives 🟢 NEXT
-- App.vue header + tabs
-- BaseModal (Teleport-based), BaseCard, BaseButton, StatCard, EmptyState, ProgressBar
-- ToastContainer.vue
-- useToast / useModal / useKeyboard composables
+### Sprint 2 — Core Layout & Primitives ✅ COMPLETE
+- ✅ App.vue header + tab navigation (Dashboard / Schedule / Docs)
+- ✅ Theme toggle wired to theme store; persists across reload
+- ✅ Three pages scaffolded (DashboardPage, SchedulePage, DocsPage)
+- ✅ 7 UI primitives: BaseButton, BaseCard, BaseModal, EmptyState, StatCard,
+     ProgressBar, ToastContainer (all `base-*` class-prefixed)
+- ✅ 3 composables: useToast, useModal (scroll lock + ESC), useKeyboard
+- ✅ 195 tests passing (22 new in Sprint 2)
+- ✅ Visual QA via preview tool — tab switch, theme toggle, dark/light both work
+- ✅ BUG-010 fixed: class-name collisions with legacy CSS
+- ✅ BUG-011 fixed: bare `header { }` rule bleeding into BaseCard
+
+### Sprint 3 — Chart Components 🟢 NEXT
+- vue-chartjs wrappers for all 8 charts (WantsDonut, CcBar, AnalyticsLine,
+  AnalyticsBar, MoMTrend, BudgetVsActual, NetWorth, ForecastBar)
+- Reactive to props via watch; theme toggle triggers chart.update()
+- ~10 hrs estimated
 
 ---
 
