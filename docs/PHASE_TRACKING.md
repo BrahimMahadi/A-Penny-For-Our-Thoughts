@@ -159,6 +159,42 @@ Real-time tracking of development progress. Updated as work completes.
 
 ---
 
+## Infrastructure: Vite + Tailwind Migration 🏗️
+**Status**: 🟡 **IN PROGRESS** (branch: `feat/vite-setup`)
+**Goal**: Replace http-server + plain CSS with Vite bundler + Tailwind CSS to eliminate the large monolithic file problem
+
+### Story 1: Vite Infrastructure ✅
+- ✅ All 6 JS files converted to ES modules (`import`/`export`)
+- ✅ New `src/main.js` entry point — wires callbacks, exposes ~60 functions to `window`
+- ✅ New `src/uistate.js` — shared mutable UI state (analyticsFilters, scheduleViewYear/Month)
+- ✅ `setState()` helper in state.js — solves ES module read-only binding issue
+- ✅ `setThemeCallbacks()` pattern — resolves state ↔ charts circular dep
+- ✅ `index.html` updated: 6 classic scripts → 1 `<script type="module">`
+- ✅ `vite.config.js` created
+- ✅ `package.json` updated with `dev`/`build`/`preview` scripts
+- ✅ Tested: all 19 window functions OK, zero console errors, all sections render
+
+### Story 2: Tailwind + PostCSS Config 🔲
+- [ ] Install `tailwindcss`, `@tailwindcss/vite` (Vite plugin)
+- [ ] Create `tailwind.config.js` with content paths + botanical CSS variable mapping
+- [ ] Add `@import "tailwindcss"` to styles.css
+- [ ] Verify build still works (no purge false-positives)
+
+### Story 3: CSS File Split 🔲
+- [ ] Extract each major section into its own CSS file (`theme.css`, `layout.css`, `components.css`, etc.)
+- [ ] Import all from `styles.css` (kept as barrel)
+
+### Story 4: Tailwind Utility Migration 🔲
+- [ ] Replace hand-written utilities with Tailwind classes in HTML
+- [ ] Keep semantic `@layer components` classes that are used in JS template strings
+
+### Story 5: Build Pipeline & Measurement 🔲
+- [ ] `vite build` → verify bundle sizes
+- [ ] Compare before/after: JS bundle size, CSS size
+- [ ] Update `.claude/launch.json` if needed
+
+---
+
 ## Overall Progress
 
 | Phase | Status | % Done |
@@ -167,8 +203,9 @@ Real-time tracking of development progress. Updated as work completes.
 | Phase 1 — Analytics & Goal Tracking | ✅ Complete | 100% |
 | Sprint 3 — Polish & UX Refinement | ✅ Complete | 100% |
 | Phase 2 — Advanced Features | 🟡 In Progress | 25% (2A done) |
+| Infra — Vite + Tailwind Migration | 🟡 In Progress | 20% (Story 1 done) |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
-| **Overall** | **In Progress** | **~70%** |
+| **Overall** | **In Progress** | **~73%** |
 
 ---
 
@@ -192,5 +229,5 @@ Real-time tracking of development progress. Updated as work completes.
 ---
 
 **Last Updated**: May 2026  
-**Current Phase**: Sprint 3 ✅ complete (v2.4). Phase 2 (Advanced Features) resumes next — Recurring Expense Calendar (2B) is the next candidate, or a Sprint 4 focused on further polish/features.  
+**Current Phase**: Vite + Tailwind migration in progress on `feat/vite-setup`. Story 1 (ES module conversion) complete. Story 2 (Tailwind + PostCSS) is next.  
 **Next Branch**: TBD based on Sprint 4 planning
