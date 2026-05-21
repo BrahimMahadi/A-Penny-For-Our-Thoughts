@@ -1,235 +1,248 @@
 <!--
   Module:   App.vue
   Project:  A Penny For Our Thoughts
-  Created:  May 2026 (Vue 3 migration — Sprint 0)
-  Modified: May 2026 — Sprint 1 (wired to budget + theme stores)
-  Summary:  Root placeholder. Shows migration progress, theme toggle,
-            and a live income demo proving Pinia reactivity works
-            end-to-end. Gets replaced with the real header / tabs /
-            sections in Sprint 2.
+  Created:  May 2026 (Vue 3 migration)
+  Modified: May 2026 — Sprint 2 (real header + tabs + page switcher)
+  Summary:  Root layout. Header (title + theme toggle), tab bar
+            (Dashboard / Schedule / Docs), page slot routed via
+            ui store's activeTab.
 -->
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useBudgetStore } from '@/stores/budget';
+import { computed } from 'vue';
 import { useThemeStore } from '@/stores/theme';
-import { fmt } from '@/utils/format';
+import { useUiStore } from '@/stores/ui';
+import type { TabId } from '@/types/state';
 
-const appName = ref('A Penny For Our Thoughts');
-const sprint = ref('Sprint 1 — Typed state foundation');
+import DashboardPage from '@/components/pages/DashboardPage.vue';
+import SchedulePage from '@/components/pages/SchedulePage.vue';
+import DocsPage from '@/components/pages/DocsPage.vue';
+import ToastContainer from '@/components/ui/ToastContainer.vue';
 
-const budget = useBudgetStore();
 const theme = useThemeStore();
+const ui = useUiStore();
 
-// Demo: add a test income stream to prove reactivity
-function addDemoIncome(): void {
-  budget.addIncomeStream({
-    name: `Demo income ${budget.incomeStreams.length + 1}`,
-    amount: 1000,
-    biweekly: false,
-  });
+interface Tab {
+  id: TabId;
+  label: string;
+  icon: string;
 }
 
-function clearDemoIncome(): void {
-  budget.incomeStreams = [];
-}
+const tabs: Tab[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
+  { id: 'schedule',  label: 'Schedule',  icon: '📅' },
+  { id: 'docs',      label: 'Docs',      icon: '📖' },
+];
+
+const activePage = computed(() => {
+  switch (ui.activeTab) {
+    case 'schedule':  return SchedulePage;
+    case 'docs':      return DocsPage;
+    case 'dashboard':
+    default:          return DashboardPage;
+  }
+});
 </script>
 
 <template>
-  <div class="vue-scaffold">
-    <header class="vue-scaffold__header">
-      <div>
-        <h1>{{ appName }}</h1>
-        <p class="vue-scaffold__tagline">
-          Vue 3 + TypeScript Migration
-        </p>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-header__brand">
+        <span
+          class="app-header__icon"
+          aria-hidden="true"
+        >💸</span>
+        <h1 class="app-header__title">
+          A Penny For Our Thoughts
+        </h1>
       </div>
+
+      <nav
+        class="app-tabs"
+        role="tablist"
+        aria-label="Main sections"
+      >
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          class="app-tab"
+          :class="{ 'app-tab--active': ui.activeTab === tab.id }"
+          role="tab"
+          :aria-selected="ui.activeTab === tab.id"
+          :aria-controls="`page-${tab.id}`"
+          @click="ui.setActiveTab(tab.id)"
+        >
+          <span
+            class="app-tab__icon"
+            aria-hidden="true"
+          >{{ tab.icon }}</span>
+          <span class="app-tab__label">{{ tab.label }}</span>
+        </button>
+      </nav>
+
       <button
-        class="vue-scaffold__theme-btn"
-        :title="`Currently ${theme.mode}`"
-        @click="theme.toggle()"
+        class="app-theme-toggle"
+        :aria-label="`Switch to ${theme.isDark ? 'light' : 'dark'} mode`"
+        :title="`Switch to ${theme.isDark ? 'light' : 'dark'} mode`"
+        @click="theme.toggle"
       >
         {{ theme.isDark ? '🌙' : '☀️' }}
       </button>
     </header>
 
-    <main class="vue-scaffold__main">
-      <section class="vue-scaffold__card">
-        <h2>🚧 Migration in progress</h2>
-        <p>
-          You're looking at the Vue 3 scaffold for
-          <code>feat/vue3-migration</code>. The legacy app remains
-          deployable on <code>main</code> until cutover.
-        </p>
-        <p>
-          <strong>Current phase:</strong> {{ sprint }}
-        </p>
-      </section>
-
-      <section class="vue-scaffold__card">
-        <h3>Sprint 1 checklist</h3>
-        <ul>
-          <li>✅ Typed schema (<code>BudgetState</code>, <code>UiState</code>)</li>
-          <li>✅ Utils ported (<code>fmt</code>, <code>csv</code>, <code>date</code>, <code>id</code>)</li>
-          <li>✅ Pinia stores (<code>budget</code>, <code>ui</code>, <code>theme</code>)</li>
-          <li>✅ Auto-persist on mutation</li>
-          <li>✅ v1 → v2 migration logic + tests</li>
-          <li>⏳ Port <code>analytics.js</code> calculations</li>
-        </ul>
-      </section>
-
-      <section class="vue-scaffold__card">
-        <h3>🧪 Reactivity demo</h3>
-        <p>Income streams (auto-persisted to localStorage):</p>
-        <ul v-if="budget.incomeStreams.length">
-          <li
-            v-for="stream in budget.incomeStreams"
-            :key="stream.id"
-          >
-            {{ stream.name }} — {{ fmt(stream.amount) }} ({{ stream.biweekly ? 'biweekly' : 'monthly' }})
-          </li>
-        </ul>
-        <p
-          v-else
-          class="muted"
-        >
-          No income streams yet.
-        </p>
-        <p>
-          <strong>Total monthly:</strong> {{ fmt(budget.totalMonthlyIncome) }}
-        </p>
-        <div class="demo-buttons">
-          <button
-            class="btn"
-            @click="addDemoIncome"
-          >
-            + Add demo income
-          </button>
-          <button
-            class="btn btn-secondary"
-            @click="clearDemoIncome"
-          >
-            Clear all
-          </button>
-        </div>
-      </section>
+    <main
+      :id="`page-${ui.activeTab}`"
+      class="app-main"
+      role="tabpanel"
+    >
+      <component :is="activePage" />
     </main>
+
+    <ToastContainer />
   </div>
 </template>
 
 <style scoped>
-.vue-scaffold {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem 4rem;
-  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
-}
-
-.vue-scaffold__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  border-bottom: 1px solid var(--border, #2a3041);
-  padding-bottom: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.vue-scaffold__header h1 {
-  font-size: 1.75rem;
-  letter-spacing: -0.02em;
-  margin: 0;
+.app-shell {
+  min-height: 100vh;
+  background: var(--bg, #0d1117);
   color: var(--text, #e3e6ee);
-}
-
-.vue-scaffold__tagline {
-  margin: 0.25rem 0 0;
-  color: var(--text-muted, #8b95ad);
-  font-size: 0.9rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.vue-scaffold__theme-btn {
-  background: var(--card, #161b2b);
-  border: 1px solid var(--border, #2a3041);
-  border-radius: 8px;
-  width: 44px;
-  height: 44px;
-  font-size: 1.4rem;
-  cursor: pointer;
-  transition: transform 0.15s ease, background 0.2s ease;
-}
-.vue-scaffold__theme-btn:hover {
-  transform: scale(1.05);
-}
-
-.vue-scaffold__main {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
 }
 
-.vue-scaffold__card {
-  background: var(--card, #161b2b);
-  border: 1px solid var(--border, #2a3041);
-  border-radius: 10px;
-  padding: 1.25rem 1.5rem;
-  color: var(--text, #e3e6ee);
+/* ─── Header ──────────────────────────────────────────────────── */
+.app-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.85rem 1.5rem;
+  background: var(--surface, #0a1810);
+  border-bottom: 1px solid var(--border, #2a3041);
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
-.vue-scaffold__card h2,
-.vue-scaffold__card h3 {
-  margin-top: 0;
-  margin-bottom: 0.75rem;
-  letter-spacing: -0.01em;
-}
-
-.vue-scaffold__card p {
-  line-height: 1.55;
-  margin: 0.5rem 0;
-}
-
-.vue-scaffold__card ul {
-  line-height: 1.8;
-  padding-left: 1.25rem;
-  margin: 0.5rem 0;
-}
-
-.vue-scaffold__card code {
-  background: var(--card-2, #1f2435);
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  font-size: 0.9em;
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-}
-
-.muted {
-  color: var(--text-muted, #8b95ad);
-  font-style: italic;
-}
-
-.demo-buttons {
+.app-header__brand {
   display: flex;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  align-items: center;
+  gap: 0.6rem;
+}
+.app-header__icon {
+  font-size: 1.5rem;
+}
+.app-header__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
-.btn {
-  background: var(--accent, #4ade80);
-  color: var(--card, #161b2b);
+/* ─── Tabs ────────────────────────────────────────────────────── */
+.app-tabs {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+.app-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  color: var(--muted, #5a7a63);
   border: 0;
-  border-radius: 6px;
-  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.92rem;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  transition: filter 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
-.btn:hover {
-  filter: brightness(1.1);
-}
-.btn-secondary {
-  background: var(--card-2, #1f2435);
+
+.app-tab:hover {
   color: var(--text, #e3e6ee);
+  background: var(--surface2, #0f2018);
+}
+
+.app-tab--active {
+  color: var(--accent, #4ade80);
+  background: var(--surface2, #0f2018);
+}
+
+.app-tab:focus-visible {
+  outline: 2px solid var(--accent, #4ade80);
+  outline-offset: 2px;
+}
+
+/* ─── Theme toggle ────────────────────────────────────────────── */
+.app-theme-toggle {
+  background: var(--surface2, #0f2018);
   border: 1px solid var(--border, #2a3041);
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    filter 0.2s ease;
+}
+.app-theme-toggle:hover {
+  filter: brightness(1.15);
+  transform: scale(1.05);
+}
+.app-theme-toggle:focus-visible {
+  outline: 2px solid var(--accent, #4ade80);
+  outline-offset: 2px;
+}
+
+/* ─── Main page area ─────────────────────────────────────────── */
+.app-main {
+  padding: 1.25rem 1.5rem 3rem;
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ─── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .app-header {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
+  }
+  .app-tabs {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .app-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .app-main {
+    padding: 1rem 1rem 3rem;
+  }
+}
+
+@media (max-width: 540px) {
+  .app-header__title {
+    font-size: 0.95rem;
+  }
+  .app-tab__label {
+    display: none;
+  }
+  .app-tab {
+    padding: 0.4rem 0.6rem;
+  }
 }
 </style>

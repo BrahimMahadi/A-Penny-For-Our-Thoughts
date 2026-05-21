@@ -10,11 +10,13 @@
  */
 
 import { defineStore } from 'pinia';
-import type { UiState, AnalyticsFilters, ScheduleView } from '@/types/state';
+import type { UiState, AnalyticsFilters, ScheduleView, TabId } from '@/types/state';
 
 function makeInitialUiState(): UiState {
   const now = new Date();
   return {
+    activeTab: 'dashboard',
+    analyticsPanelOpen: false,
     analyticsFilters: { startDate: '', endDate: '', search: '' },
     scheduleViewYear: now.getFullYear(),
     scheduleViewMonth: now.getMonth() + 1,
@@ -26,6 +28,18 @@ export const useUiStore = defineStore('ui', {
   state: (): UiState => makeInitialUiState(),
 
   actions: {
+    setActiveTab(tab: TabId): void {
+      this.activeTab = tab;
+    },
+
+    toggleAnalyticsPanel(): void {
+      this.analyticsPanelOpen = !this.analyticsPanelOpen;
+    },
+
+    setAnalyticsPanelOpen(open: boolean): void {
+      this.analyticsPanelOpen = open;
+    },
+
     setAnalyticsFilters(patch: Partial<AnalyticsFilters>): void {
       this.analyticsFilters = { ...this.analyticsFilters, ...patch };
     },

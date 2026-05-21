@@ -95,11 +95,17 @@ export interface AnalyticsFilters {
 /** Schedule tab view mode */
 export type ScheduleView = 'list' | 'calendar';
 
+/** Main app tabs */
+export type TabId = 'dashboard' | 'schedule' | 'docs';
+
 /**
  * Volatile UI state — panel visibility, filter inputs, current month.
  * NOT persisted to localStorage; resets to defaults on page load.
  */
 export interface UiState {
+  activeTab: TabId;
+  /** Whether the Spending Analytics panel is open inside the Dashboard tab */
+  analyticsPanelOpen: boolean;
   analyticsFilters: AnalyticsFilters;
   /** Calendar month displayed in Schedule tab (1-based 1–12) */
   scheduleViewYear: number;
