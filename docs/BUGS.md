@@ -11,6 +11,43 @@ for recurring patterns and a post-mortem trail for regressions.
 
 ---
 
+## BUG-009 — `fmt()` produces `$-42.50` instead of `-$42.50` for negative values
+
+**Date:** May 2026
+**Branch:** `feat/vue3-migration` (Sprint 1)
+**Severity:** Low (cosmetic; visible only on negative variances and momChange display)
+
+### Symptom
+Legacy `utils.js#fmt(-42.5)` returned `"$-42.50"` — the sign came AFTER the
+dollar symbol, which is not standard English convention. Callers in
+`render.js` compensated by either taking `Math.abs()` then prepending their
+own sign, or by accepting the awkward output for negative variances.
+
+### Root Cause
+The legacy implementation was `'$' + n.toLocaleString(...)`. For negative
+numbers, `toLocaleString` produced `"-42.50"`, yielding `"$-42.50"`.
+
+### Fix
+Rewrote `src/utils/format.ts#fmt()` (the new typed version) to split sign
+from amount:
+
+```ts
+const num = Number(n);
+const abs = Math.abs(num).toLocaleString('en-CA', { ... });
+return num < 0 ? `-$${abs}` : `$${abs}`;
+```
+
+Legacy `src/utils.js` is unchanged (still used by legacy `render.js`).
+New Vue section components import from `@/utils/format` and get correct
+formatting.
+
+### Prevention
+Caught by Vitest unit test (`tests/utils/format.spec.ts`) — was the very
+first test that ran on the new typed utils. Adding tests during the port
+surfaced a latent legacy bug.
+
+---
+
 ## BUG-001 — Responsive grid breakpoints broken after utility class rename
 
 **Date:** May 2026  
