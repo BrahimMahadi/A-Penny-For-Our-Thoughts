@@ -280,7 +280,7 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Phase 2 — Advanced Features | ✅ Complete | 100% (2A + 2B + 2C + 2D done) |
 | Infra — Vite + Tailwind Migration | ✅ Complete | 100% — merged to main |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
-| Sprint 4 — Vue 3 Migration | 🟡 In Progress | 56% — Sprints 0+1+2+3 done (foundation + state + primitives + charts) |
+| Sprint 4 — Vue 3 Migration | 🟡 In Progress | 78% — Sprints 0+1+2+3+4 done (foundation + state + primitives + charts + all 13 section SFCs) |
 | **Overall** | **In Progress** | **~93%** |
 
 ---
@@ -343,6 +343,31 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 - ✅ `vite build` green — 87 modules, 114 kB gzip (Chart.js expected overhead)
 - ✅ Visual QA: 3 charts render, 7 cards visible, zero console errors in dev server
 
+### Sprint 4 — Section Components ✅ COMPLETE
+- ✅ All 13 section SFCs built in `src/components/sections/`:
+  - `IncomeStreams.vue` — CRUD list with bi-weekly chip, monthly total
+  - `BudgetAllocation.vue` — 50/30/20 cards, segmented bar, monthly/bi-weekly toggle, edit modal
+  - `WantsTracker.vue` — bi-weekly envelope, WantsDonut, category chips, purchase CRUD
+  - `ExpenseCards.vue` — card grid, per-card item CRUD, linked subs/loans, needs-remaining hint
+  - `Loans.vue` — progress bars, next payment, frequency-typed form (Frequency union)
+  - `CreditCards.vue` — utilisation bars with 30% marker, CcBar chart, aggregate totals
+  - `Subscriptions.vue` — stats header, budget impact bar, renewal alerts, sorted list
+  - `Savings.vue` — stats, per-account allocation modal, monthly override via setSavingsAccountAllocation
+  - `SavingsGoals.vue` — progress bars from useAnalytics.progressForGoal, status borders
+  - `Wishlist.vue` — emoji icon, optional URL link, CRUD
+  - `NetWorth.vue` — 4 stat tiles, asset category breakdown, manual asset CRUD, snapshot
+  - `BudgetVsActual.vue` — 3 variance cards + BudgetVsActualChart
+  - `SpendingAnalytics.vue` — collapsible panel, filter bar, history list, charts, MoM insights
+  - `RecurringCalendar.vue` — 6 summary cards, ForecastBar chart, list/calendar view toggle, PREV/NEXT
+- ✅ DashboardPage.vue rewritten to host all 13 sections in organised layout
+- ✅ SchedulePage.vue simplified to single RecurringCalendar wrapper
+- ✅ TypeScript fixes: `'xs'` added to BaseButton Size type, `billCount` added to SixMonthForecastRow, Frequency type cast in Loans + Subscriptions
+- ✅ Subscription frequencies aligned to Frequency union type (weekly/biweekly/monthly/quarterly/yearly)
+- ✅ ESLint auto-format pass + all 9 unused-var/unused-import warnings resolved
+- ✅ 70 tests added in `tests/components/sections/sections.spec.ts`
+- ✅ 287 tests passing total (217 → 287)
+- ✅ `vue-tsc --noEmit`, `eslint --max-warnings 0`, `vite build` all green
+
 ---
 
 ## Weekly Check-in Template
@@ -365,5 +390,5 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 ---
 
 **Last Updated**: May 2026
-**Current Phase**: Sprint 4 — Vue 3 Migration (Sprint 1 complete, Sprint 2 next)
+**Current Phase**: Sprint 4 — Vue 3 Migration (Sprints 0-4 complete — section SFCs done, CSV I/O + keyboard shortcuts + final QA next)
 **Current Branch**: `feat/vue3-migration`
