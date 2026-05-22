@@ -133,13 +133,23 @@ const minDate = new Date().toISOString().slice(0, 7);
       </BaseButton>
     </div>
 
-    <!-- Empty state -->
+    <!-- Empty state (nudge variant for first-run) -->
     <EmptyState
       v-if="budget.goals.length === 0"
       icon="🎯"
       title="No goals set"
-      hint="Add a goal to track your progress toward a savings target."
-    />
+      :hint="budget.hasOnboarded
+        ? 'Add a goal to track your progress toward a savings target.'
+        : 'Set a target amount and date for each savings account — the dashboard will tell you exactly how much to save each month to hit your goal on time.'"
+    >
+      <BaseButton
+        v-if="!budget.hasOnboarded"
+        size="sm"
+        @click="openAdd"
+      >
+        Add your first goal
+      </BaseButton>
+    </EmptyState>
 
     <!-- Goal list -->
     <div

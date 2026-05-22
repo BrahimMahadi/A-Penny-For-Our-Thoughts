@@ -86,6 +86,8 @@ export function makeDefaultState(): BudgetState {
     budgetAlerts: [],
     fundsRemaining: 0,
     fundsRemainingUpdated: '',
+    hasOnboarded: false,
+    dismissedVersion: null,
   };
 }
 
@@ -116,6 +118,8 @@ export function makeBlankState(): BudgetState {
     budgetAlerts: [],
     fundsRemaining: 0,
     fundsRemainingUpdated: '',
+    hasOnboarded: false,
+    dismissedVersion: null,
   };
 }
 
@@ -225,6 +229,8 @@ export function migrateState(raw: unknown): BudgetState {
   if (!s.budgetAlerts) s.budgetAlerts = [];
   if (s.fundsRemaining === undefined) s.fundsRemaining = 0;
   if (s.fundsRemainingUpdated === undefined) s.fundsRemainingUpdated = '';
+  if (s.hasOnboarded === undefined) s.hasOnboarded = false;
+  if (s.dismissedVersion === undefined) s.dismissedVersion = null;
 
   return s as BudgetState;
 }
@@ -285,6 +291,15 @@ export const useBudgetStore = defineStore('budget', {
         wants: (a.wants || 0) / 100,
         savings: (a.savings || 0) / 100,
       };
+    },
+
+    /**
+     * True when the user has never completed onboarding AND has not yet
+     * added any income streams.  Used to conditionally show the welcome
+     * stepper modal and the nudge empty-state variants.
+     */
+    isFirstRun(state): boolean {
+      return !state.hasOnboarded && state.incomeStreams.length === 0;
     },
 
     /** Sum of monthly expense-card item costs (biweekly items doubled). */
@@ -626,6 +641,24 @@ export const useBudgetStore = defineStore('budget', {
     setFundsRemaining(amount: number, asOf: ISODate | '' = ''): void {
       this.fundsRemaining = amount;
       this.fundsRemainingUpdated = asOf;
+    },
+
+    // ─── Onboarding & version ─────────────────────────────────
+
+    /**
+     * Mark the user as having completed (or dismissed) onboarding.
+     * Called by OnboardingModal on finish or skip-all.
+     */
+    completeOnboarding(): void {
+      this.hasOnboarded = true;
+    },
+
+    /**
+     * Dismiss the "What's New" banner for the given version string.
+     * The banner will not re-appear until a higher version is released.
+     */
+    dismissWhatsNew(version: string): void {
+      this.dismissedVersion = version;
     },
 
     // ─── CSV import / export ──────────────────────────────────

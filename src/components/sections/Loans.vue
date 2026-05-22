@@ -151,13 +151,23 @@ const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'] as 
       </BaseButton>
     </div>
 
-    <!-- Empty state -->
+    <!-- Empty state (nudge variant for first-run) -->
     <EmptyState
       v-if="budget.loans.length === 0"
       icon="🏦"
       title="No loans tracked"
-      hint="Add a loan to monitor your remaining balance and payoff progress."
-    />
+      :hint="budget.hasOnboarded
+        ? 'Add a loan to monitor your remaining balance and payoff progress.'
+        : 'Tracking loans here keeps your net worth accurate and helps you see how debt fits into your 50/30/20 Needs budget.'"
+    >
+      <BaseButton
+        v-if="!budget.hasOnboarded"
+        size="sm"
+        @click="openAdd"
+      >
+        Add your first loan
+      </BaseButton>
+    </EmptyState>
 
     <!-- Loan list -->
     <div

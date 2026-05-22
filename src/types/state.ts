@@ -78,6 +78,15 @@ export interface BudgetState {
   fundsRemaining: number;
   /** ISO date 'YYYY-MM-DD' or empty string when never updated */
   fundsRemainingUpdated: ISODate | '';
+
+  // Onboarding & version flags
+  /** True once the user completes or dismisses the first-run onboarding stepper. */
+  hasOnboarded: boolean;
+  /**
+   * The last app version string for which the user dismissed the "What's New"
+   * banner. Null means the banner has never been dismissed.
+   */
+  dismissedVersion: string | null;
 }
 
 // ─── UI-only state (transient, not persisted) ────────────────────

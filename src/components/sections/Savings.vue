@@ -203,13 +203,23 @@ function saveAlloc(): void {
       </BaseButton>
     </div>
 
-    <!-- Empty state -->
+    <!-- Empty state (nudge variant for first-run) -->
     <EmptyState
       v-if="budget.savingsAccounts.length === 0"
       icon="🏦"
       title="No savings accounts"
-      hint="Add an account below to start allocating your savings budget."
-    />
+      :hint="budget.hasOnboarded
+        ? 'Add an account below to start allocating your savings budget.'
+        : 'Savings accounts let you split your 20% savings bucket across goals like an emergency fund, investments, or a vacation fund.'"
+    >
+      <BaseButton
+        v-if="!budget.hasOnboarded"
+        size="sm"
+        @click="openAdd"
+      >
+        Add your first savings account
+      </BaseButton>
+    </EmptyState>
 
     <!-- Accounts list -->
     <ul
