@@ -12,6 +12,7 @@
 
 import { defineStore } from 'pinia';
 import { genId, deepClone } from '@/utils/id';
+import { exportStateToCSV, parseCSVToState, triggerCSVDownload } from '@/utils/csvImportExport';
 import type {
   IncomeStream,
   ExpenseCard,
@@ -607,6 +608,29 @@ export const useBudgetStore = defineStore('budget', {
     setFundsRemaining(amount: number, asOf: ISODate | '' = ''): void {
       this.fundsRemaining = amount;
       this.fundsRemainingUpdated = asOf;
+    },
+
+    // ─── CSV import / export ──────────────────────────────────
+
+    /**
+     * Serialise the entire state to CSV and trigger a browser download.
+     * File is named `penny-export-YYYY-MM-DD.csv`.
+     */
+    exportCSV(): void {
+      const csv = exportStateToCSV(this.$state);
+      triggerCSVDownload(csv);
+    },
+
+    /**
+     * Parse a raw CSV string (produced by exportCSV) and replace the entire
+     * store state with the parsed result.
+     *
+     * @param text  Raw CSV text from the imported file.
+     * @throws      If the text cannot be parsed.
+     */
+    importCSV(text: string): void {
+      const newState = parseCSVToState(text);
+      this.$state = newState;
     },
   },
 });

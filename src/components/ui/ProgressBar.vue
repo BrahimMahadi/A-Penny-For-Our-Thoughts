@@ -88,6 +88,12 @@ const computedStatus = computed<Status>(() => {
   transition: width 0.35s ease-out, background-color 0.2s ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .base-progress-bar__fill {
+    transition: none;
+  }
+}
+
 .base-progress-bar__fill--on-track {
   background: var(--accent, #4ade80);
 }

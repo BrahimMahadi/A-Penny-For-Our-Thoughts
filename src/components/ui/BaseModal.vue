@@ -282,4 +282,24 @@ function onBackdropClick(): void {
     padding: 0.5rem;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .base-modal-enter-active,
+  .base-modal-leave-active {
+    transition: none;
+  }
+  .base-modal-enter-active .base-modal,
+  .base-modal-leave-active .base-modal {
+    transition: none;
+  }
+  .base-modal-enter-from,
+  .base-modal-leave-to {
+    opacity: 0;
+  }
+  .base-modal-enter-from .base-modal,
+  .base-modal-leave-to .base-modal {
+    transform: none;
+    opacity: 0;
+  }
+}
 </style>

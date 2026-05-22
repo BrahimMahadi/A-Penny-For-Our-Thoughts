@@ -128,4 +128,17 @@ watch(
     max-width: none;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .base-toast-enter-active,
+  .base-toast-leave-active,
+  .base-toast-move {
+    transition: none;
+  }
+  .base-toast-enter-from,
+  .base-toast-leave-to {
+    transform: none;
+    opacity: 0;
+  }
+}
 </style>

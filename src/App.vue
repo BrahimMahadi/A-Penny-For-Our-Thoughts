@@ -2,26 +2,37 @@
   Module:   App.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration)
-  Modified: May 2026 — Sprint 2 (real header + tabs + page switcher)
-  Summary:  Root layout. Header (title + theme toggle), tab bar
-            (Dashboard / Schedule / Docs), page slot routed via
-            ui store's activeTab.
+  Modified: May 2026 — Sprint 5 (CSV toolbar, keyboard shortcuts)
+  Summary:  Root layout. Header (title + tab bar + CSV toolbar + theme
+            toggle), page slot routed via ui store's activeTab.
+
+  Keyboard shortcuts (global, guarded from inputs):
+    ?           — toggle keyboard-shortcut help panel
+    1 / 2 / 3   — switch to Dashboard / Schedule / Docs
+    E           — export CSV
 -->
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useThemeStore } from '@/stores/theme';
 import { useUiStore } from '@/stores/ui';
+import { useBudgetStore } from '@/stores/budget';
+import { useToast } from '@/composables/useToast';
+import { useKeyboard } from '@/composables/useKeyboard';
 import type { TabId } from '@/types/state';
 
 import DashboardPage from '@/components/pages/DashboardPage.vue';
 import SchedulePage from '@/components/pages/SchedulePage.vue';
 import DocsPage from '@/components/pages/DocsPage.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
+import BaseModal from '@/components/ui/BaseModal.vue';
 
-const theme = useThemeStore();
-const ui = useUiStore();
+const theme  = useThemeStore();
+const ui     = useUiStore();
+const budget = useBudgetStore();
+const toast  = useToast();
 
+// ─── Tabs ────────────────────────────────────────────────────────────────────
 interface Tab {
   id: TabId;
   label: string;
@@ -42,11 +53,77 @@ const activePage = computed(() => {
     default:          return DashboardPage;
   }
 });
+
+// ─── CSV export ───────────────────────────────────────────────────────────────
+function handleExport(): void {
+  try {
+    budget.exportCSV();
+    toast.show('CSV exported.', 'success');
+  } catch (err) {
+    toast.show('Export failed: ' + (err instanceof Error ? err.message : String(err)), 'danger');
+  }
+}
+
+// ─── CSV import ───────────────────────────────────────────────────────────────
+const fileInputRef = ref<HTMLInputElement | null>(null);
+
+function openImportPicker(): void {
+  fileInputRef.value?.click();
+}
+
+function handleFileChange(event: Event): void {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const text = e.target?.result as string;
+      if (!window.confirm('Import this CSV? This will replace all current data.')) {
+        input.value = '';
+        return;
+      }
+      budget.importCSV(text);
+      toast.show('CSV imported successfully.', 'success');
+    } catch (err) {
+      toast.show('Import failed: ' + (err instanceof Error ? err.message : String(err)), 'danger');
+    } finally {
+      input.value = '';
+    }
+  };
+  reader.onerror = () => {
+    toast.show('Could not read the file.', 'danger');
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ─── Keyboard shortcut help panel ─────────────────────────────────────────────
+const showShortcutHelp = ref(false);
+
+const shortcuts = [
+  { combo: '?',   description: 'Show / hide this panel' },
+  { combo: '1',   description: 'Switch to Dashboard' },
+  { combo: '2',   description: 'Switch to Schedule' },
+  { combo: '3',   description: 'Switch to Docs' },
+  { combo: 'E',   description: 'Export CSV' },
+  { combo: 'T',   description: 'Toggle light / dark theme' },
+];
+
+// ─── Global shortcuts (guarded from inputs) ────────────────────────────────
+useKeyboard('?', () => { showShortcutHelp.value = !showShortcutHelp.value; }, { guardFromInputs: true });
+useKeyboard('1', () => { ui.setActiveTab('dashboard'); },                    { guardFromInputs: true });
+useKeyboard('2', () => { ui.setActiveTab('schedule'); },                     { guardFromInputs: true });
+useKeyboard('3', () => { ui.setActiveTab('docs'); },                         { guardFromInputs: true });
+useKeyboard('e', () => { handleExport(); },                                   { guardFromInputs: true });
+useKeyboard('t', () => { theme.toggle(); },                                   { guardFromInputs: true });
 </script>
 
 <template>
   <div class="app-shell">
     <header class="app-header">
+      <!-- Brand -->
       <div class="app-header__brand">
         <span
           class="app-header__icon"
@@ -57,6 +134,7 @@ const activePage = computed(() => {
         </h1>
       </div>
 
+      <!-- Tab navigation -->
       <nav
         class="app-tabs"
         role="tablist"
@@ -80,14 +158,63 @@ const activePage = computed(() => {
         </button>
       </nav>
 
-      <button
-        class="app-theme-toggle"
-        :aria-label="`Switch to ${theme.isDark ? 'light' : 'dark'} mode`"
-        :title="`Switch to ${theme.isDark ? 'light' : 'dark'} mode`"
-        @click="theme.toggle"
+      <!-- Toolbar: CSV + shortcuts + theme -->
+      <div
+        class="app-toolbar"
+        role="toolbar"
+        aria-label="App actions"
       >
-        {{ theme.isDark ? '🌙' : '☀️' }}
-      </button>
+        <!-- CSV export -->
+        <button
+          class="app-toolbar-btn"
+          title="Export all data as CSV (E)"
+          aria-label="Export CSV"
+          @click="handleExport"
+        >
+          ⬆
+        </button>
+
+        <!-- CSV import -->
+        <button
+          class="app-toolbar-btn"
+          title="Import data from CSV file"
+          aria-label="Import CSV"
+          @click="openImportPicker"
+        >
+          ⬇
+        </button>
+
+        <!-- Hidden file input (trigger via openImportPicker) -->
+        <input
+          ref="fileInputRef"
+          type="file"
+          accept=".csv"
+          class="app-file-input"
+          aria-hidden="true"
+          tabindex="-1"
+          @change="handleFileChange"
+        >
+
+        <!-- Shortcut help -->
+        <button
+          class="app-toolbar-btn"
+          title="Keyboard shortcuts (?)"
+          aria-label="Keyboard shortcuts"
+          @click="showShortcutHelp = true"
+        >
+          ?
+        </button>
+
+        <!-- Theme toggle -->
+        <button
+          class="app-theme-toggle"
+          :aria-label="`Switch to ${theme.isDark ? 'light' : 'dark'} mode`"
+          :title="`Switch to ${theme.isDark ? 'light' : 'dark'} mode (T)`"
+          @click="theme.toggle"
+        >
+          {{ theme.isDark ? '🌙' : '☀️' }}
+        </button>
+      </div>
     </header>
 
     <main
@@ -99,6 +226,29 @@ const activePage = computed(() => {
     </main>
 
     <ToastContainer />
+
+    <!-- Keyboard shortcut help panel -->
+    <BaseModal
+      v-model:open="showShortcutHelp"
+      title="Keyboard Shortcuts"
+      size="sm"
+    >
+      <table class="shortcut-table">
+        <tbody>
+          <tr
+            v-for="s in shortcuts"
+            :key="s.combo"
+          >
+            <td>
+              <kbd class="shortcut-kbd">{{ s.combo }}</kbd>
+            </td>
+            <td class="shortcut-desc">
+              {{ s.description }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </BaseModal>
   </div>
 </template>
 
@@ -123,6 +273,43 @@ const activePage = computed(() => {
   position: sticky;
   top: 0;
   z-index: 50;
+}
+
+/* ─── Toolbar ─────────────────────────────────────────────────── */
+.app-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.app-toolbar-btn {
+  background: var(--surface2, #0f2018);
+  border: 1px solid var(--border, #2a3041);
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--muted, #5a7a63);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.app-toolbar-btn:hover {
+  color: var(--text, #e3e6ee);
+  background: var(--surface2, #0f2018);
+  filter: brightness(1.15);
+}
+.app-toolbar-btn:focus-visible {
+  outline: 2px solid var(--accent, #4ade80);
+  outline-offset: 2px;
+}
+
+/* Hide the real file input — triggered programmatically */
+.app-file-input {
+  display: none;
 }
 
 .app-header__brand {
@@ -212,6 +399,37 @@ const activePage = computed(() => {
   box-sizing: border-box;
 }
 
+/* ─── Shortcut help table ─────────────────────────────────────── */
+.shortcut-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.shortcut-table tr + tr td {
+  border-top: 1px solid var(--border, #2a3041);
+}
+.shortcut-table td {
+  padding: 0.5rem 0.25rem;
+  vertical-align: middle;
+}
+.shortcut-kbd {
+  display: inline-block;
+  background: var(--surface2, #0f2018);
+  border: 1px solid var(--border, #2a3041);
+  border-radius: 5px;
+  padding: 0.15rem 0.5rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  color: var(--accent, #4ade80);
+  white-space: nowrap;
+  min-width: 2rem;
+  text-align: center;
+}
+.shortcut-desc {
+  padding-left: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--muted, #5a7a63);
+}
+
 /* ─── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .app-header {
@@ -243,6 +461,20 @@ const activePage = computed(() => {
   }
   .app-tab {
     padding: 0.4rem 0.6rem;
+  }
+  .app-toolbar-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+  }
+}
+
+/* ─── prefers-reduced-motion ──────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .app-tab,
+  .app-toolbar-btn,
+  .app-theme-toggle {
+    transition: none;
   }
 }
 </style>

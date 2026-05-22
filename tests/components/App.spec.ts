@@ -1,0 +1,253 @@
+/**
+ * Tests: App.vue — Sprint 5
+ *
+ * Covers:
+ *  - CSV toolbar buttons render
+ *  - Export button calls budget.exportCSV()
+ *  - Import file input is hidden
+ *  - Shortcut help modal opens via ? button
+ *  - Shortcut help modal lists expected shortcuts
+ *  - Keyboard shortcut: 1/2/3 switch tabs
+ *  - Keyboard shortcut: ? toggles help panel
+ *  - Keyboard shortcut: E triggers export
+ *  - Keyboard shortcut: T toggles theme
+ *  - a11y: toolbar buttons have aria-label
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mount, type VueWrapper } from '@vue/test-utils';
+import { setActivePinia, createPinia } from 'pinia';
+
+// Mock heavy child pages so the App renders quickly
+vi.mock('@/components/pages/DashboardPage.vue', () => ({ default: { template: '<div data-testid="dashboard-page" />' } }));
+vi.mock('@/components/pages/SchedulePage.vue',  () => ({ default: { template: '<div data-testid="schedule-page" />' } }));
+vi.mock('@/components/pages/DocsPage.vue',       () => ({ default: { template: '<div data-testid="docs-page" />' } }));
+
+import App from '@/App.vue';
+import { useBudgetStore } from '@/stores/budget';
+import { useUiStore } from '@/stores/ui';
+import { useThemeStore } from '@/stores/theme';
+
+// ─── Shared wrapper tracking ──────────────────────────────────────────────────
+// Each test mounts via mountApp(), which stores the wrapper here.
+// afterEach always unmounts before clearing the DOM — this prevents the
+// "insertBefore on null" crash that occurs when Vue's Teleport (ToastContainer,
+// BaseModal) tries to update body after body.innerHTML has been reset.
+
+let w: VueWrapper | null = null;
+
+function mountApp(): VueWrapper {
+  w = mount(App as Parameters<typeof mount>[0], { attachTo: document.body });
+  return w;
+}
+
+function fireKey(key: string): void {
+  window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+}
+
+function modalOpen(): boolean {
+  return !!document.body.querySelector('.base-modal');
+}
+
+// ─── Setup / Teardown ─────────────────────────────────────────────────────────
+
+beforeEach(() => {
+  setActivePinia(createPinia());
+});
+
+afterEach(async () => {
+  if (w) {
+    w.unmount();       // let Vue clean up Teleport hooks first
+    w = null;
+  }
+  document.body.innerHTML = '';
+  vi.restoreAllMocks();
+});
+
+// ─── Toolbar rendering ────────────────────────────────────────────────────────
+
+describe('App CSV toolbar', () => {
+  it('renders Export and Import toolbar buttons', () => {
+    mountApp();
+    const buttons = document.body.querySelectorAll('.app-toolbar-btn');
+    // Export (⬆), Import (⬇), Shortcut-help (?)
+    expect(buttons.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('Export button has accessible aria-label', () => {
+    mountApp();
+    expect(document.body.querySelector('[aria-label="Export CSV"]')).not.toBeNull();
+  });
+
+  it('Import button has accessible aria-label', () => {
+    mountApp();
+    expect(document.body.querySelector('[aria-label="Import CSV"]')).not.toBeNull();
+  });
+
+  it('file input is hidden via app-file-input class', () => {
+    mountApp();
+    const input = document.body.querySelector('input[type="file"]');
+    expect(input).not.toBeNull();
+    expect(input!.classList.contains('app-file-input')).toBe(true);
+  });
+
+  it('calls budget.exportCSV() when Export is clicked', async () => {
+    const ww = mountApp();
+    const budget = useBudgetStore();
+    const spy = vi.spyOn(budget, 'exportCSV').mockReturnValue(undefined as unknown as void);
+
+    await ww.find('[aria-label="Export CSV"]').trigger('click');
+
+    expect(spy).toHaveBeenCalledOnce();
+  });
+});
+
+// ─── Shortcut help modal ───────────────────────────────────────────────────────
+
+describe('App shortcut help modal', () => {
+  it('opens when the ? button is clicked', async () => {
+    const ww = mountApp();
+    expect(modalOpen()).toBe(false);
+
+    await ww.find('[aria-label="Keyboard shortcuts"]').trigger('click');
+
+    expect(modalOpen()).toBe(true);
+  });
+
+  it('shows the known shortcuts in the table', async () => {
+    const ww = mountApp();
+    await ww.find('[aria-label="Keyboard shortcuts"]').trigger('click');
+
+    const modal = document.body.querySelector('.base-modal')!;
+    const kbds = Array.from(modal.querySelectorAll('.shortcut-kbd')).map((el) => el.textContent?.trim());
+    expect(kbds).toContain('?');
+    expect(kbds).toContain('1');
+    expect(kbds).toContain('E');
+    expect(kbds).toContain('T');
+  });
+
+  it('closes when the modal close button is clicked', async () => {
+    const ww = mountApp();
+    await ww.find('[aria-label="Keyboard shortcuts"]').trigger('click');
+    expect(modalOpen()).toBe(true);
+
+    const closeBtn = document.body.querySelector<HTMLButtonElement>('.base-modal__close');
+    closeBtn?.click();
+    await ww.vm.$nextTick();
+
+    expect(modalOpen()).toBe(false);
+  });
+});
+
+// ─── Keyboard shortcuts ───────────────────────────────────────────────────────
+
+describe('App keyboard shortcuts', () => {
+  it('? key opens the shortcut help panel', async () => {
+    const ww = mountApp();
+    expect(modalOpen()).toBe(false);
+
+    fireKey('?');
+    await ww.vm.$nextTick();
+
+    expect(modalOpen()).toBe(true);
+  });
+
+  it('? key closes the shortcut help panel when already open', async () => {
+    const ww = mountApp();
+    // Open via button so state is definitely open
+    await ww.find('[aria-label="Keyboard shortcuts"]').trigger('click');
+    expect(modalOpen()).toBe(true);
+
+    // Close via keyboard
+    fireKey('?');
+    await ww.vm.$nextTick();
+
+    expect(modalOpen()).toBe(false);
+  });
+
+  it('1 key switches to Dashboard tab', async () => {
+    const ui = useUiStore();
+    ui.setActiveTab('schedule');
+    const ww = mountApp();
+
+    fireKey('1');
+    await ww.vm.$nextTick();
+
+    expect(ui.activeTab).toBe('dashboard');
+  });
+
+  it('2 key switches to Schedule tab', async () => {
+    const ui = useUiStore();
+    const ww = mountApp();
+
+    fireKey('2');
+    await ww.vm.$nextTick();
+
+    expect(ui.activeTab).toBe('schedule');
+  });
+
+  it('3 key switches to Docs tab', async () => {
+    const ui = useUiStore();
+    const ww = mountApp();
+
+    fireKey('3');
+    await ww.vm.$nextTick();
+
+    expect(ui.activeTab).toBe('docs');
+  });
+
+  it('E key calls budget.exportCSV()', async () => {
+    const budget = useBudgetStore();
+    const spy = vi.spyOn(budget, 'exportCSV').mockReturnValue(undefined as unknown as void);
+    const ww = mountApp();
+
+    fireKey('e');
+    await ww.vm.$nextTick();
+
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it('T key toggles the theme', async () => {
+    const theme = useThemeStore();
+    const initialDark = theme.isDark;
+    const ww = mountApp();
+
+    fireKey('t');
+    await ww.vm.$nextTick();
+
+    expect(theme.isDark).toBe(!initialDark);
+  });
+});
+
+// ─── Tab navigation ───────────────────────────────────────────────────────────
+
+describe('App tab navigation', () => {
+  it('renders the active page based on ui.activeTab', async () => {
+    const ui = useUiStore();
+    const ww = mountApp();
+
+    ui.setActiveTab('dashboard');
+    await ww.vm.$nextTick();
+    expect(ww.find('[data-testid="dashboard-page"]').exists()).toBe(true);
+
+    ui.setActiveTab('schedule');
+    await ww.vm.$nextTick();
+    expect(ww.find('[data-testid="schedule-page"]').exists()).toBe(true);
+
+    ui.setActiveTab('docs');
+    await ww.vm.$nextTick();
+    expect(ww.find('[data-testid="docs-page"]').exists()).toBe(true);
+  });
+
+  it('marks the active tab with aria-selected=true', async () => {
+    const ui = useUiStore();
+    const ww = mountApp();
+
+    ui.setActiveTab('schedule');
+    await ww.vm.$nextTick();
+
+    const tabs = ww.findAll('[role="tab"]');
+    const scheduleTab = tabs.find((t) => t.text().includes('Schedule'));
+    expect(scheduleTab?.attributes('aria-selected')).toBe('true');
+  });
+});

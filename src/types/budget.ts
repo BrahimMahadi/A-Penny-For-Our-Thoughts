@@ -68,12 +68,15 @@ export interface BudgetDisplayModes {
 /**
  * A single line item inside an expense card.
  * `biweekly: true` doubles its monthly contribution to grand total.
+ * `dueDay` is the day-of-month the bill is due (1–31), or null if undated.
  */
 export interface ExpenseItem {
   id: string;
   name: string;
   amount: number;
   biweekly: boolean;
+  /** Day-of-month the bill is due (1–31). Null when no due date is set. */
+  dueDay?: number | null;
 }
 
 /**
@@ -108,9 +111,13 @@ export interface SpendingHistoryPeriod {
   id: string;
   /** ISO date when the period was closed */
   date: ISODate;
+  /** Human-readable period label, e.g. "May 1 – May 14" */
+  label?: string;
   /** Sum of all items in this period */
   total: number;
   items: Array<{
+    /** Optional ID — present on periods imported from CSV or legacy exports */
+    id?: string;
     name: string;
     amount: number;
     category: string;
