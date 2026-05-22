@@ -156,4 +156,13 @@ const classes = computed(() => [
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* ─── 9D: Touch target minimum at ≤540px (WCAG 2.5.5 — 44×44px) ── */
+@media (max-width: 540px) {
+  .base-btn--xs,
+  .base-btn--sm {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
 </style>
