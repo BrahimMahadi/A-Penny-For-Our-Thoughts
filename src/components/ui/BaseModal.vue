@@ -15,7 +15,7 @@
 -->
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed } from 'vue';
+import { ref, watch, nextTick, computed, onBeforeUnmount } from 'vue';
 import { useModal } from '@/composables/useModal';
 
 interface Props {
@@ -70,18 +70,46 @@ async function focusFirst(): Promise<void> {
   else dialogRef.value.focus();
 }
 
+/* ── 9A: Virtual keyboard awareness (visualViewport) ─────────── */
+function scrollFocusedIntoView(): void {
+  const focused = document.activeElement as HTMLElement | null;
+  if (focused && dialogRef.value?.contains(focused)) {
+    focused.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+let vpResizeHandler: (() => void) | null = null;
+
+function attachViewportListener(): void {
+  if (!window.visualViewport) return;
+  vpResizeHandler = scrollFocusedIntoView;
+  window.visualViewport.addEventListener('resize', vpResizeHandler);
+}
+
+function detachViewportListener(): void {
+  if (!window.visualViewport || !vpResizeHandler) return;
+  window.visualViewport.removeEventListener('resize', vpResizeHandler);
+  vpResizeHandler = null;
+}
+
 watch(
   () => props.open,
   (open) => {
     if (open) {
       previouslyFocused = document.activeElement as HTMLElement | null;
       focusFirst();
-    } else if (previouslyFocused) {
-      previouslyFocused.focus();
-      previouslyFocused = null;
+      attachViewportListener();
+    } else {
+      detachViewportListener();
+      if (previouslyFocused) {
+        previouslyFocused.focus();
+        previouslyFocused = null;
+      }
     }
   },
 );
+
+onBeforeUnmount(detachViewportListener);
 
 /* ── Focus trap (Tab cycling inside the modal) ────────────────── */
 function onKeydown(e: KeyboardEvent): void {
@@ -185,7 +213,9 @@ function onBackdropClick(): void {
   border-radius: 12px;
   padding: 1.5rem;
   width: 100%;
+  /* dvh accounts for the virtual keyboard — falls back to vh in older browsers */
   max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
   overflow-y: auto;
   color: var(--text, #e3e6ee);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
@@ -277,9 +307,56 @@ function onBackdropClick(): void {
   opacity: 0;
 }
 
+/* ─── 9C: Bottom-sheet layout on phones ─────────────────────── */
 @media (max-width: 540px) {
   .base-modal-overlay {
-    padding: 0.5rem;
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .base-modal {
+    position: relative;
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    border-bottom: 0;
+    /* Extra top padding to make room for the drag handle pill */
+    padding-top: 2rem;
+    /* Respect device safe area (notch phones) */
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+    /* 9A: dvh keeps the sheet below the keyboard on modern iOS */
+    max-height: 90vh;
+    max-height: 90dvh;
+  }
+
+  /* Drag handle — visual affordance above the modal header */
+  .base-modal::before {
+    content: '';
+    position: absolute;
+    top: 0.75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    background: var(--border-light, #244530);
+    border-radius: 2px;
+  }
+
+  /* 9D: Close button — minimum 44×44 touch target */
+  .base-modal__close {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Slide up from bottom instead of scale+fade */
+  .base-modal-enter-active .base-modal,
+  .base-modal-leave-active .base-modal {
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .base-modal-enter-from .base-modal,
+  .base-modal-leave-to .base-modal {
+    transform: translateY(100%);
+    opacity: 1;
   }
 }
 

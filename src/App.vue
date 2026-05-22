@@ -19,6 +19,7 @@ import { useUiStore } from '@/stores/ui';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useKeyboard } from '@/composables/useKeyboard';
+import { useSwipe } from '@/composables/useSwipe';
 import type { TabId } from '@/types/state';
 
 import DashboardPage from '@/components/pages/DashboardPage.vue';
@@ -123,6 +124,24 @@ useKeyboard('3', () => { ui.setActiveTab('docs'); },                         { g
 useKeyboard('4', () => { ui.setActiveTab('settings'); },                     { guardFromInputs: true });
 useKeyboard('e', () => { handleExport(); },                                   { guardFromInputs: true });
 useKeyboard('t', () => { theme.toggle(); },                                   { guardFromInputs: true });
+
+// ─── 9B: Swipe to change tab on mobile ────────────────────────────────────
+const TAB_ORDER: TabId[] = ['dashboard', 'schedule', 'docs', 'settings'];
+const appMainRef = ref<HTMLElement | null>(null);
+
+useSwipe(
+  appMainRef,
+  () => {
+    // Swipe left → next tab
+    const idx = TAB_ORDER.indexOf(ui.activeTab);
+    if (idx < TAB_ORDER.length - 1) ui.setActiveTab(TAB_ORDER[idx + 1]);
+  },
+  () => {
+    // Swipe right → previous tab
+    const idx = TAB_ORDER.indexOf(ui.activeTab);
+    if (idx > 0) ui.setActiveTab(TAB_ORDER[idx - 1]);
+  },
+);
 </script>
 
 <template>
@@ -224,6 +243,7 @@ useKeyboard('t', () => { theme.toggle(); },                                   { 
 
     <main
       :id="`page-${ui.activeTab}`"
+      ref="appMainRef"
       class="app-main"
       role="tabpanel"
     >
@@ -327,7 +347,8 @@ useKeyboard('t', () => { theme.toggle(); },                                   { 
 }
 .app-header__title {
   margin: 0;
-  font-size: 1.05rem;
+  /* 9E: fluid type — scales smoothly from 0.9rem @ 320px to 1.05rem @ 1024px */
+  font-size: clamp(0.9rem, 2.5vw, 1.05rem);
   font-weight: 700;
   letter-spacing: -0.01em;
   white-space: nowrap;
@@ -470,19 +491,22 @@ useKeyboard('t', () => { theme.toggle(); },                                   { 
 }
 
 @media (max-width: 540px) {
-  .app-header__title {
-    font-size: 0.95rem;
-  }
   .app-tab__label {
     display: none;
   }
+  /* 9D: Minimum 44×44px touch targets (WCAG 2.5.5) */
   .app-tab {
-    padding: 0.4rem 0.6rem;
+    min-height: 44px;
+    padding: 0.4rem 0.75rem;
   }
   .app-toolbar-btn {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     font-size: 0.9rem;
+  }
+  .app-theme-toggle {
+    width: 44px;
+    height: 44px;
   }
 }
 
