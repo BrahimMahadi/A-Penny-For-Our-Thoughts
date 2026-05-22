@@ -11,6 +11,136 @@ for recurring patterns and a post-mortem trail for regressions.
 
 ---
 
+## BUG-011 — Bare `header { ... }` rule from legacy layout.css bleeds into BaseCard
+
+**Date:** May 2026
+**Branch:** `feat/vue3-migration` (Sprint 2)
+**Severity:** Medium (visual inconsistency — section headers got page-header styling)
+
+### Symptom
+Every `<header>` element inside a `BaseCard` rendered with the legacy
+page-header treatment: dark-green background, bottom border, sticky positioning.
+Section headers like "Income Streams" looked like miniature app headers.
+
+### Root Cause
+`src/css/layout.css` defines `header { background, border-bottom, position:sticky, ... }`
+targeting the bare HTML element. `BaseCard.vue` uses semantic `<header>` for its section
+header — which inherits all those styles even though it's nested deep in the page.
+
+### Fix
+Override the inherited rules explicitly in `BaseCard.vue`'s scoped `.base-card__header`:
+
+```css
+.base-card__header {
+  background: transparent;
+  border-bottom: 0;
+  padding: 0;
+  position: static;
+  /* … rest of layout … */
+}
+```
+
+### Prevention
+**Rule:** Bare element selectors in global CSS (`header`, `section`, `nav`, etc.)
+are fragile when reused inside components. Sprint 6 cutover should scope these
+to a layout-specific class instead of the bare element.
+
+---
+
+## BUG-010 — Vue primitive class names collide with legacy CSS
+
+**Date:** May 2026
+**Branch:** `feat/vue3-migration` (Sprint 2)
+**Severity:** Medium (legacy styles leak into Vue components — empty states had dashed
+borders, cards had wrong tinted backgrounds)
+
+### Symptom
+After mounting the Vue 3 scaffold, the new `EmptyState`, `BaseModal`, `BaseButton`,
+`ProgressBar`, and `ToastContainer` components inherited unwanted styling from
+legacy CSS. EmptyState showed a dashed border + animated background. Buttons
+had legacy padding. The dev preview screenshot showed visible bleed-through.
+
+### Root Cause
+Vue's `<style scoped>` adds a data-attribute selector to selectors INSIDE the
+component, but does NOT add any selector specificity bonus when the class name
+itself matches a global rule. The legacy CSS defines `.empty-state`, `.btn`,
+`.modal`, `.modal-overlay`, `.progress-bar`, `.toast`, `.toast-container` as
+GLOBAL rules. My Vue primitives initially used the same class names, so:
+
+1. My scoped selector `.empty-state[data-v-abc]` set some properties (`color`, `padding`).
+2. The legacy global `.empty-state` set OTHER properties (`background`, `border`,
+   `animation`). Those cascaded in because my scoped rule didn't override them.
+
+### Fix
+Renamed all collision-prone classes to use a `base-*` prefix:
+
+| Before          | After                |
+|-----------------|----------------------|
+| `.empty-state`  | `.base-empty-state`  |
+| `.btn`          | `.base-btn`          |
+| `.modal`        | `.base-modal`        |
+| `.modal-overlay`| `.base-modal-overlay`|
+| `.progress-bar` | `.base-progress-bar` |
+| `.toast`        | `.base-toast`        |
+| `.toast-container` | `.base-toast-container` |
+| `.stat-card`    | `.base-stat-card`    |
+
+Also corrected CSS custom property names — components were referencing
+`--card`, `--card-2`, `--text-muted` which don't exist in `src/css/tokens.css`;
+the legacy palette uses `--surface`, `--surface2`, `--muted`. Without the
+correct names the fallback hex codes (dark blue) fired instead of the
+intended Bloomberg-green theme.
+
+### Prevention
+**Rule:** All Vue primitive components must use a unique class prefix
+(`base-*` for `components/ui/*.vue`, `app-*` for App-level chrome). Plain class
+names that match legacy CSS will cascade in and break in subtle ways. Scoped
+CSS only namespaces selectors, not class names themselves.
+
+Caught visually via `preview_screenshot` after the first mount, then confirmed
+via `preview_inspect` on `.empty-state` which showed background and animation
+properties leaking from the legacy rule. Discovered together with BUG-011
+during Sprint 2 visual QA.
+
+---
+
+## BUG-009 — `fmt()` produces `$-42.50` instead of `-$42.50` for negative values
+
+**Date:** May 2026
+**Branch:** `feat/vue3-migration` (Sprint 1)
+**Severity:** Low (cosmetic; visible only on negative variances and momChange display)
+
+### Symptom
+Legacy `utils.js#fmt(-42.5)` returned `"$-42.50"` — the sign came AFTER the
+dollar symbol, which is not standard English convention. Callers in
+`render.js` compensated by either taking `Math.abs()` then prepending their
+own sign, or by accepting the awkward output for negative variances.
+
+### Root Cause
+The legacy implementation was `'$' + n.toLocaleString(...)`. For negative
+numbers, `toLocaleString` produced `"-42.50"`, yielding `"$-42.50"`.
+
+### Fix
+Rewrote `src/utils/format.ts#fmt()` (the new typed version) to split sign
+from amount:
+
+```ts
+const num = Number(n);
+const abs = Math.abs(num).toLocaleString('en-CA', { ... });
+return num < 0 ? `-$${abs}` : `$${abs}`;
+```
+
+Legacy `src/utils.js` is unchanged (still used by legacy `render.js`).
+New Vue section components import from `@/utils/format` and get correct
+formatting.
+
+### Prevention
+Caught by Vitest unit test (`tests/utils/format.spec.ts`) — was the very
+first test that ran on the new typed utils. Adding tests during the port
+surfaced a latent legacy bug.
+
+---
+
 ## BUG-001 — Responsive grid breakpoints broken after utility class rename
 
 **Date:** May 2026  

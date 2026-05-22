@@ -1,0 +1,121 @@
+/**
+ * Module:   types/state.ts
+ * Project:  A Penny For Our Thoughts
+ * Created:  May 2026 (Vue 3 migration — Sprint 1)
+ * Summary:  Top-level application state shapes. `BudgetState` mirrors
+ *           the `penny_state_v2` localStorage payload exactly so
+ *           existing user data loads without transformation.
+ */
+
+import type {
+  IncomeStream,
+  BudgetAllocation,
+  BudgetDisplayModes,
+  ExpenseCard,
+  Purchase,
+  SpendingHistoryPeriod,
+  Loan,
+  CreditCard,
+  Subscription,
+  WishlistItem,
+  SavingsAccount,
+  Goal,
+  Asset,
+  NetWorthSnapshot,
+  Rule,
+  BudgetAlert,
+  ISODate,
+} from './budget';
+
+// ─── Full persisted budget state ─────────────────────────────────
+
+/**
+ * The complete persisted application state.
+ * Stored under localStorage key `penny_state_v2` as JSON.
+ *
+ * IMPORTANT: This shape must stay backward-compatible with existing
+ * user data. Add new keys with forward-compat defaults rather than
+ * renaming/removing fields.
+ */
+export interface BudgetState {
+  // Budget allocation
+  allocation: BudgetAllocation;
+  budgetDisplayMode: BudgetDisplayModes;
+
+  // Income
+  incomeStreams: IncomeStream[];
+
+  // Expenses
+  expenseCards: ExpenseCard[];
+  purchases: Purchase[];
+  spendingHistory: SpendingHistoryPeriod[];
+
+  // Debts
+  loans: Loan[];
+  creditCards: CreditCard[];
+
+  // Recurring
+  subscriptions: Subscription[];
+
+  // Wishlist & savings
+  wishlist: WishlistItem[];
+  savingsAccounts: SavingsAccount[];
+  goals: Goal[];
+
+  // Net worth
+  assets: Asset[];
+  netWorthHistory: NetWorthSnapshot[];
+
+  // Pay period anchor (bi-weekly cycle)
+  /** ISO date 'YYYY-MM-DD' or null when unconfigured */
+  payStart: ISODate | null;
+
+  // Rules + alerts
+  rules: Rule[];
+  budgetAlerts: BudgetAlert[];
+
+  // Manual chequing-balance tracking
+  fundsRemaining: number;
+  /** ISO date 'YYYY-MM-DD' or empty string when never updated */
+  fundsRemainingUpdated: ISODate | '';
+}
+
+// ─── UI-only state (transient, not persisted) ────────────────────
+
+/**
+ * Spending Analytics panel filter values.
+ * Empty string means "no filter applied".
+ */
+export interface AnalyticsFilters {
+  startDate: ISODate | '';
+  endDate: ISODate | '';
+  search: string;
+}
+
+/** Schedule tab view mode */
+export type ScheduleView = 'list' | 'calendar';
+
+/** Main app tabs */
+export type TabId = 'dashboard' | 'schedule' | 'docs';
+
+/**
+ * Volatile UI state — panel visibility, filter inputs, current month.
+ * NOT persisted to localStorage; resets to defaults on page load.
+ */
+export interface UiState {
+  activeTab: TabId;
+  /** Whether the Spending Analytics panel is open inside the Dashboard tab */
+  analyticsPanelOpen: boolean;
+  analyticsFilters: AnalyticsFilters;
+  /** Calendar month displayed in Schedule tab (1-based 1–12) */
+  scheduleViewYear: number;
+  scheduleViewMonth: number;
+  scheduleView: ScheduleView;
+}
+
+// ─── Storage keys (single source of truth) ───────────────────────
+
+export const STORAGE_KEYS = {
+  STATE: 'penny_state_v2',
+  THEME: 'penny_theme',
+} as const;

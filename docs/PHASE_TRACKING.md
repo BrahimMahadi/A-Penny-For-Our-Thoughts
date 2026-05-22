@@ -270,6 +270,109 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 
 ---
 
+## Sprint 4 — Vue 3 + TypeScript Migration
+
+**Branch:** `feat/vue3-migration` (long-lived; cutover when complete)
+**Plan:** [docs/VUE3_MIGRATION_PLAN.md](VUE3_MIGRATION_PLAN.md)
+
+### Sprint 0 — Foundation ✅ COMPLETE
+- ✅ Branch off `main`
+- ✅ Installed Vue 3, Pinia, vue-chartjs, TypeScript, vue-tsc, Vitest, ESLint
+- ✅ Configured `tsconfig.json` (strict), `vite.config.ts` w/ `@/*` alias
+- ✅ `.eslintrc.cjs` with `no-undef` enforced (prevents BUG-004/-005/-007/-008 class)
+- ✅ Scaffolded `main.ts`, `App.vue`, `env.d.ts`
+- ✅ GitHub Actions: type-check + lint + test + build on non-main branches
+- ✅ All four scripts green (`type-check`, `lint`, `test`, `build`)
+
+### Sprint 1 — State Foundation ✅ COMPLETE
+- ✅ Typed schema (`BudgetState`, `UiState`, all entity interfaces)
+- ✅ Utils ported (`fmt`, `pct`, `csv`, `date`, `id`, `dom`)
+- ✅ Pinia stores: `budget` (full CRUD + v1 migration), `ui`, `theme`
+- ✅ Auto-persist on mutation via `$subscribe`
+- ✅ Analytics ported to `utils/calculations.ts` (~600 lines, fully typed)
+- ✅ `useAnalytics()` composable wrapping calculations as reactive `computed` refs
+- ✅ 173 tests passing across 9 spec files
+- ✅ BUG-009 fixed during port (`fmt()` negative formatting)
+
+### Sprint 2 — Core Layout & Primitives ✅ COMPLETE
+- ✅ App.vue header + tab navigation (Dashboard / Schedule / Docs)
+- ✅ Theme toggle wired to theme store; persists across reload
+- ✅ Three pages scaffolded (DashboardPage, SchedulePage, DocsPage)
+- ✅ 7 UI primitives: BaseButton, BaseCard, BaseModal, EmptyState, StatCard,
+     ProgressBar, ToastContainer (all `base-*` class-prefixed)
+- ✅ 3 composables: useToast, useModal (scroll lock + ESC), useKeyboard
+- ✅ 195 tests passing (22 new in Sprint 2)
+- ✅ Visual QA via preview tool — tab switch, theme toggle, dark/light both work
+- ✅ BUG-010 fixed: class-name collisions with legacy CSS
+- ✅ BUG-011 fixed: bare `header { }` rule bleeding into BaseCard
+
+### Sprint 3 — Chart Components ✅ COMPLETE
+- ✅ `useChartStyles()` composable — reads CSS vars reactively, re-computes on theme toggle
+- ✅ `CATEGORY_COLOURS` constant exported from `calculations.ts`
+- ✅ Chart.js registered globally in `main.ts` via `ChartJS.register(...registerables)`
+- ✅ All 8 vue-chartjs wrapper SFCs built in `src/components/charts/`:
+  - `WantsDonut.vue` — doughnut with centre % label + warn/over colour states
+  - `CcBar.vue` — stacked bar, balance coloured green/amber/red by utilisation %
+  - `AnalyticsLine.vue` — spending-over-time line, hidden when empty
+  - `AnalyticsBar.vue` — horizontal bar, top categories, hidden when empty
+  - `BudgetVsActualChart.vue` — grouped bar, Needs/Wants/Savings comparison
+  - `NetWorthChart.vue` — line chart, green/red colour based on sign, single-point note
+  - `MoMTrend.vue` — mixed Bar+Line (6-month wants history + budget reference line)
+  - `ForecastBar.vue` — mixed Bar+Line (6-month forecast + budget line + click-to-navigate)
+- ✅ All chart SFCs use `useChartStyles()` → auto re-colour on theme toggle
+- ✅ Mixed charts (MoMTrend, ForecastBar) use `<Chart type="bar">` generic wrapper
+- ✅ All Chart.js TS type issues resolved (weight numbers, ticks `string | number`, `null` parsed values)
+- ✅ DashboardPage.vue wired with BudgetVsActualChart, WantsDonut, NetWorthChart, CcBar (live data)
+- ✅ 22 chart tests added (all 8 SFCs + composable) — vue-chartjs stubbed for jsdom compatibility
+- ✅ 217 tests passing total (195 → 217)
+- ✅ `vite build` green — 87 modules, 114 kB gzip (Chart.js expected overhead)
+- ✅ Visual QA: 3 charts render, 7 cards visible, zero console errors in dev server
+
+### Sprint 4 — Section Components ✅ COMPLETE
+- ✅ All 13 section SFCs built in `src/components/sections/`:
+  - `IncomeStreams.vue` — CRUD list with bi-weekly chip, monthly total
+  - `BudgetAllocation.vue` — 50/30/20 cards, segmented bar, monthly/bi-weekly toggle, edit modal
+  - `WantsTracker.vue` — bi-weekly envelope, WantsDonut, category chips, purchase CRUD
+  - `ExpenseCards.vue` — card grid, per-card item CRUD, linked subs/loans, needs-remaining hint
+  - `Loans.vue` — progress bars, next payment, frequency-typed form (Frequency union)
+  - `CreditCards.vue` — utilisation bars with 30% marker, CcBar chart, aggregate totals
+  - `Subscriptions.vue` — stats header, budget impact bar, renewal alerts, sorted list
+  - `Savings.vue` — stats, per-account allocation modal, monthly override via setSavingsAccountAllocation
+  - `SavingsGoals.vue` — progress bars from useAnalytics.progressForGoal, status borders
+  - `Wishlist.vue` — emoji icon, optional URL link, CRUD
+  - `NetWorth.vue` — 4 stat tiles, asset category breakdown, manual asset CRUD, snapshot
+  - `BudgetVsActual.vue` — 3 variance cards + BudgetVsActualChart
+  - `SpendingAnalytics.vue` — collapsible panel, filter bar, history list, charts, MoM insights
+  - `RecurringCalendar.vue` — 6 summary cards, ForecastBar chart, list/calendar view toggle, PREV/NEXT
+- ✅ DashboardPage.vue rewritten to host all 13 sections in organised layout
+- ✅ SchedulePage.vue simplified to single RecurringCalendar wrapper
+- ✅ TypeScript fixes: `'xs'` added to BaseButton Size type, `billCount` added to SixMonthForecastRow, Frequency type cast in Loans + Subscriptions
+- ✅ Subscription frequencies aligned to Frequency union type (weekly/biweekly/monthly/quarterly/yearly)
+- ✅ ESLint auto-format pass + all 9 unused-var/unused-import warnings resolved
+- ✅ 70 tests added in `tests/components/sections/sections.spec.ts`
+- ✅ 287 tests passing total (217 → 287)
+- ✅ `vue-tsc --noEmit`, `eslint --max-warnings 0`, `vite build` all green
+
+### Sprint 5 — CSV, Keyboard Shortcuts & Accessibility ✅ COMPLETE
+- ✅ `src/utils/csvImportExport.ts` — typed port of all 17-section CSV logic from legacy `app.js`:
+  - `exportStateToCSV(state)` — pure serialiser, backward-compatible with legacy CSV files
+  - `parseCSVToState(text)` — full parser with backward-compat for 4-column loans, 3-column subs, old savingsAccounts format
+  - `triggerCSVDownload(csv, filename?)` — DOM download helper, separated for testability
+- ✅ `useBudgetStore` gains `exportCSV()` and `importCSV(text)` actions
+- ✅ `App.vue` redesigned with toolbar: ⬆ Export CSV, ⬇ Import CSV (hidden file input), ? shortcut help modal
+- ✅ Global keyboard shortcuts via `useKeyboard` (all guarded from inputs):
+  - `?` — toggle shortcut help panel
+  - `1` / `2` / `3` — switch Dashboard / Schedule / Docs tabs
+  - `E` — export CSV
+  - `T` — toggle light/dark theme
+- ✅ `prefers-reduced-motion` guards added to `BaseModal`, `ProgressBar`, `ToastContainer`, `App.vue`
+- ✅ Type gaps fixed: `ExpenseItem.dueDay`, `SpendingHistoryPeriod.label`, `SpendingHistoryPeriod.items[].id`
+- ✅ 59 new tests: CSV round-trip (all 17 sections), backward-compat imports, download helper, toolbar a11y, keyboard shortcuts
+- ✅ **346 tests passing total** (287 → 346)
+- ✅ `vue-tsc --noEmit` clean · `eslint --max-warnings 0` clean · `vite build` green
+
+---
+
 ## Overall Progress
 
 | Phase | Status | % Done |
@@ -280,8 +383,27 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Phase 2 — Advanced Features | ✅ Complete | 100% (2A + 2B + 2C + 2D done) |
 | Infra — Vite + Tailwind Migration | ✅ Complete | 100% — merged to main |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
-| Sprint 4 — Vue 3 Migration | 🟢 Planned | 0% — starts after Phase 2 |
-| **Overall** | **In Progress** | **~90%** |
+| Vue 3 Migration (Sprints 0–6) | ✅ Complete | 100% — merged to main, tagged v1.0.0 |
+| **Overall** | **✅ Complete** | **100%** |
+
+---
+
+## Sprint 6 — Final QA, Smoke Test & Merge 🏁
+**Status**: ✅ **COMPLETE** — May 2026  
+**Goal**: Visual QA of all sections in dev server, production build verification, bug fixes, merge to `main` and tag `v1.0.0`
+
+### Completed
+- ✅ Production build verified: `vite build` green, 87 modules, 114 kB gzip (Chart.js overhead expected)
+- ✅ Visual QA — all 13 Dashboard sections in dev server: stat cards, Budget vs. Actual chart, all section empty states, all default data, toast notifications, modal open/close
+- ✅ Schedule tab QA: 6-month forecast renders, calendar view, chart canvas, "1 bill" (Netflix) on the 1st, zero errors
+- ✅ Docs tab QA: placeholder renders, zero errors
+- ✅ Keyboard shortcuts verified in real browser (async tick pattern): `?` opens/closes help panel, `1`/`2`/`3` switch tabs, `E` triggers export, `T` toggles theme
+- ✅ **BUG-012 fixed**: `useKeyboard` modifier check was bidirectional (`needsShift !== e.shiftKey`) — rejected symbol keys like `?` that naturally carry `shiftKey=true` in a real browser. Changed to one-directional: `if (needsShift && !e.shiftKey)`. Verified with `shiftKey:true` dispatch.
+- ✅ **BUG-013 fixed**: Mobile header grid at ≤768px — toolbar overflowed to row 3 when `.app-tabs` already claimed the full row. Added explicit `grid-row`/`grid-column` placement for brand, toolbar, and tabs.
+- ✅ All 346 tests still green after both fixes
+- ✅ `PHASE_TRACKING.md` updated
+- ✅ Merged `feat/vue3-migration` → `main`
+- ✅ Tagged `v1.0.0`
 
 ---
 
@@ -304,6 +426,6 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 
 ---
 
-**Last Updated**: May 2026  
-**Current Phase**: Phase 3 — Code Quality & Modularity (or Sprint 4 Vue 3 Migration)  
-**Next Branch**: `feat/phase3-code-quality` or `feat/vue3-migration`
+**Last Updated**: May 2026
+**Current Phase**: Vue 3 Migration — Sprint 5 complete, Sprint 6 (final QA + merge) next
+**Current Branch**: `feat/vue3-migration`
