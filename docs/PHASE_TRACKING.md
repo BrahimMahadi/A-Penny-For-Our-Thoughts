@@ -280,7 +280,7 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Phase 2 — Advanced Features | ✅ Complete | 100% (2A + 2B + 2C + 2D done) |
 | Infra — Vite + Tailwind Migration | ✅ Complete | 100% — merged to main |
 | Phase 3 — Code Quality | 🟢 Pending | 0% |
-| Sprint 4 — Vue 3 Migration | 🟡 In Progress | 38% — Sprints 0+1+2 done (foundation + state + primitives) |
+| Sprint 4 — Vue 3 Migration | 🟡 In Progress | 56% — Sprints 0+1+2+3 done (foundation + state + primitives + charts) |
 | **Overall** | **In Progress** | **~93%** |
 
 ---
@@ -321,11 +321,27 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 - ✅ BUG-010 fixed: class-name collisions with legacy CSS
 - ✅ BUG-011 fixed: bare `header { }` rule bleeding into BaseCard
 
-### Sprint 3 — Chart Components 🟢 NEXT
-- vue-chartjs wrappers for all 8 charts (WantsDonut, CcBar, AnalyticsLine,
-  AnalyticsBar, MoMTrend, BudgetVsActual, NetWorth, ForecastBar)
-- Reactive to props via watch; theme toggle triggers chart.update()
-- ~10 hrs estimated
+### Sprint 3 — Chart Components ✅ COMPLETE
+- ✅ `useChartStyles()` composable — reads CSS vars reactively, re-computes on theme toggle
+- ✅ `CATEGORY_COLOURS` constant exported from `calculations.ts`
+- ✅ Chart.js registered globally in `main.ts` via `ChartJS.register(...registerables)`
+- ✅ All 8 vue-chartjs wrapper SFCs built in `src/components/charts/`:
+  - `WantsDonut.vue` — doughnut with centre % label + warn/over colour states
+  - `CcBar.vue` — stacked bar, balance coloured green/amber/red by utilisation %
+  - `AnalyticsLine.vue` — spending-over-time line, hidden when empty
+  - `AnalyticsBar.vue` — horizontal bar, top categories, hidden when empty
+  - `BudgetVsActualChart.vue` — grouped bar, Needs/Wants/Savings comparison
+  - `NetWorthChart.vue` — line chart, green/red colour based on sign, single-point note
+  - `MoMTrend.vue` — mixed Bar+Line (6-month wants history + budget reference line)
+  - `ForecastBar.vue` — mixed Bar+Line (6-month forecast + budget line + click-to-navigate)
+- ✅ All chart SFCs use `useChartStyles()` → auto re-colour on theme toggle
+- ✅ Mixed charts (MoMTrend, ForecastBar) use `<Chart type="bar">` generic wrapper
+- ✅ All Chart.js TS type issues resolved (weight numbers, ticks `string | number`, `null` parsed values)
+- ✅ DashboardPage.vue wired with BudgetVsActualChart, WantsDonut, NetWorthChart, CcBar (live data)
+- ✅ 22 chart tests added (all 8 SFCs + composable) — vue-chartjs stubbed for jsdom compatibility
+- ✅ 217 tests passing total (195 → 217)
+- ✅ `vite build` green — 87 modules, 114 kB gzip (Chart.js expected overhead)
+- ✅ Visual QA: 3 charts render, 7 cards visible, zero console errors in dev server
 
 ---
 

@@ -12,6 +12,12 @@ import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import App from './App.vue';
 
+// ─── Chart.js global registration ────────────────────────────────
+// Register all Chart.js components once at app startup so vue-chartjs
+// wrappers in any SFC can be used without per-file ChartJS.register() calls.
+import { Chart as ChartJS, registerables } from 'chart.js';
+ChartJS.register(...registerables);
+
 // ─── CSS imports (carried over from legacy app) ───────────────────
 import './styles.css';
 import './css/tokens.css';
