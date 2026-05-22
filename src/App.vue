@@ -491,6 +491,10 @@ useSwipe(
 }
 
 @media (max-width: 540px) {
+  /* Hide brand text — keep only the 💸 icon so the toolbar always fits */
+  .app-header__title {
+    display: none;
+  }
   .app-tab__label {
     display: none;
   }

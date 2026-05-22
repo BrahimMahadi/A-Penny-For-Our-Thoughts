@@ -454,6 +454,7 @@ function removeItem(cardId: string, itemId: string): void {
               v-model.number="itemForm.amount"
               class="form-input"
               type="number"
+              inputmode="decimal"
               min="0"
               step="0.01"
             >

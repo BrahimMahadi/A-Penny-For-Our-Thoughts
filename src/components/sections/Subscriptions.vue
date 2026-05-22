@@ -382,6 +382,7 @@ function remove(id: string): void {
               v-model.number="form.amount"
               class="form-input"
               type="number"
+              inputmode="decimal"
               min="0"
               step="0.01"
             >

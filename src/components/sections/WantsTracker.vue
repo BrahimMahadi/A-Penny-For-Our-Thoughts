@@ -449,6 +449,7 @@ function cardLabel(cardId: string | null): string | null {
               v-model.number="purchaseForm.amount"
               class="form-input"
               type="number"
+              inputmode="decimal"
               min="0.01"
               step="0.01"
             >

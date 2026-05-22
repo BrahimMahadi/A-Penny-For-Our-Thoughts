@@ -178,7 +178,7 @@ function isFiring(alertId: string): boolean {
             min="1"
             step="1"
             class="alerts-modal__input"
-            inputmode="decimal"
+            inputmode="numeric"
             placeholder="e.g. 150"
             aria-required="true"
           >

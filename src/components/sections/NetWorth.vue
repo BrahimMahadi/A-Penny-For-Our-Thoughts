@@ -377,6 +377,7 @@ function catMeta(key: string) {
               v-model.number="assetForm.value"
               class="form-input"
               type="number"
+              inputmode="decimal"
               min="0"
               step="0.01"
             >
