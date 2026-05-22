@@ -270,21 +270,6 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 
 ---
 
-## Overall Progress
-
-| Phase | Status | % Done |
-|-------|--------|--------|
-| Phase 0 — Design & Visual Polish | ✅ Complete | 100% |
-| Phase 1 — Analytics & Goal Tracking | ✅ Complete | 100% |
-| Sprint 3 — Polish & UX Refinement | ✅ Complete | 100% |
-| Phase 2 — Advanced Features | ✅ Complete | 100% (2A + 2B + 2C + 2D done) |
-| Infra — Vite + Tailwind Migration | ✅ Complete | 100% — merged to main |
-| Phase 3 — Code Quality | 🟢 Pending | 0% |
-| Sprint 4 — Vue 3 Migration | 🟡 In Progress | 78% — Sprints 0+1+2+3+4 done (foundation + state + primitives + charts + all 13 section SFCs) |
-| **Overall** | **In Progress** | **~93%** |
-
----
-
 ## Sprint 4 — Vue 3 + TypeScript Migration
 
 **Branch:** `feat/vue3-migration` (long-lived; cutover when complete)
@@ -368,6 +353,55 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 - ✅ 287 tests passing total (217 → 287)
 - ✅ `vue-tsc --noEmit`, `eslint --max-warnings 0`, `vite build` all green
 
+### Sprint 5 — CSV, Keyboard Shortcuts & Accessibility ✅ COMPLETE
+- ✅ `src/utils/csvImportExport.ts` — typed port of all 17-section CSV logic from legacy `app.js`:
+  - `exportStateToCSV(state)` — pure serialiser, backward-compatible with legacy CSV files
+  - `parseCSVToState(text)` — full parser with backward-compat for 4-column loans, 3-column subs, old savingsAccounts format
+  - `triggerCSVDownload(csv, filename?)` — DOM download helper, separated for testability
+- ✅ `useBudgetStore` gains `exportCSV()` and `importCSV(text)` actions
+- ✅ `App.vue` redesigned with toolbar: ⬆ Export CSV, ⬇ Import CSV (hidden file input), ? shortcut help modal
+- ✅ Global keyboard shortcuts via `useKeyboard` (all guarded from inputs):
+  - `?` — toggle shortcut help panel
+  - `1` / `2` / `3` — switch Dashboard / Schedule / Docs tabs
+  - `E` — export CSV
+  - `T` — toggle light/dark theme
+- ✅ `prefers-reduced-motion` guards added to `BaseModal`, `ProgressBar`, `ToastContainer`, `App.vue`
+- ✅ Type gaps fixed: `ExpenseItem.dueDay`, `SpendingHistoryPeriod.label`, `SpendingHistoryPeriod.items[].id`
+- ✅ 59 new tests: CSV round-trip (all 17 sections), backward-compat imports, download helper, toolbar a11y, keyboard shortcuts
+- ✅ **346 tests passing total** (287 → 346)
+- ✅ `vue-tsc --noEmit` clean · `eslint --max-warnings 0` clean · `vite build` green
+
+---
+
+## Overall Progress
+
+| Phase | Status | % Done |
+|-------|--------|--------|
+| Phase 0 — Design & Visual Polish | ✅ Complete | 100% |
+| Phase 1 — Analytics & Goal Tracking | ✅ Complete | 100% |
+| Sprint 3 — Polish & UX Refinement | ✅ Complete | 100% |
+| Phase 2 — Advanced Features | ✅ Complete | 100% (2A + 2B + 2C + 2D done) |
+| Infra — Vite + Tailwind Migration | ✅ Complete | 100% — merged to main |
+| Phase 3 — Code Quality | 🟢 Pending | 0% |
+| Vue 3 Migration (Sprints 0–5) | 🟡 In Progress | 90% — Sprint 6 (final QA + merge) remaining |
+| **Overall** | **In Progress** | **~96%** |
+
+---
+
+## Sprint 6 — Final QA, Smoke Test & Merge 🏁
+**Status**: 🟢 NEXT  
+**Goal**: Side-by-side QA vs. legacy app, localStorage migration smoke test, production build verification, merge to `main` and tag `v1.0.0`
+
+### Planned
+- [ ] Side-by-side QA: open legacy + Vue app with same CSV data, compare every section
+- [ ] localStorage migration smoke test: load v1 data in Vue app, verify migration runs cleanly
+- [ ] CSV round-trip smoke test in real browser (export from legacy → import into Vue app)
+- [ ] Lighthouse audit: Performance ≥ 90, Accessibility ≥ 95, Best Practices ≥ 95
+- [ ] Mobile device test: iOS Safari 17, Android Chrome (all breakpoints)
+- [ ] `vite build --mode production` green, bundle sizes acceptable
+- [ ] Merge `feat/vue3-migration` → `main`
+- [ ] Tag `v1.0.0`
+
 ---
 
 ## Weekly Check-in Template
@@ -390,5 +424,5 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 ---
 
 **Last Updated**: May 2026
-**Current Phase**: Sprint 4 — Vue 3 Migration (Sprints 0-4 complete — section SFCs done, CSV I/O + keyboard shortcuts + final QA next)
+**Current Phase**: Vue 3 Migration — Sprint 5 complete, Sprint 6 (final QA + merge) next
 **Current Branch**: `feat/vue3-migration`
