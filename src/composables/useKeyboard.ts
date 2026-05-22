@@ -42,10 +42,13 @@ export function useKeyboard(
       if (t && t.isContentEditable) return;
     }
     if (e.key.toLowerCase() !== key) return;
-    if (needsMeta !== (e.metaKey || false)) return;
-    if (needsCtrl !== (e.ctrlKey || false)) return;
-    if (needsShift !== (e.shiftKey || false)) return;
-    if (needsAlt !== (e.altKey || false)) return;
+    // Only reject if a *required* modifier is absent — don't reject if an
+    // unrequired modifier is present.  This lets symbol keys like '?' work
+    // correctly in a real browser where they naturally carry shiftKey=true.
+    if (needsMeta && !e.metaKey) return;
+    if (needsCtrl && !e.ctrlKey) return;
+    if (needsShift && !e.shiftKey) return;
+    if (needsAlt && !e.altKey) return;
     handler(e);
   }
 

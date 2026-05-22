@@ -435,10 +435,22 @@ useKeyboard('t', () => { theme.toggle(); },                                   { 
   .app-header {
     grid-template-columns: 1fr auto;
     grid-template-rows: auto auto;
-    gap: 0.5rem 1rem;
+    gap: 0.5rem 0.75rem;
     padding: 0.75rem 1rem;
   }
+  /* Pin brand to row 1 col 1, toolbar to row 1 col 2, tabs to row 2 full-width.
+     Without explicit placement the toolbar (which appears after tabs in source)
+     would overflow to row 3 because .app-tabs already spans 1/-1 in row 2. */
+  .app-header__brand {
+    grid-row: 1;
+    grid-column: 1;
+  }
+  .app-toolbar {
+    grid-row: 1;
+    grid-column: 2;
+  }
   .app-tabs {
+    grid-row: 2;
     grid-column: 1 / -1;
     justify-content: flex-start;
     overflow-x: auto;
