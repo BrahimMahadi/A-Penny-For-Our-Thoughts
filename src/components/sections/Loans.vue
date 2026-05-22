@@ -261,6 +261,7 @@ const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'] as 
               v-model.number="form.remaining"
               class="form-input"
               type="number"
+              inputmode="decimal"
               min="0"
               step="0.01"
             >
@@ -275,6 +276,7 @@ const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'] as 
               v-model.number="form.original"
               class="form-input"
               type="number"
+              inputmode="decimal"
               min="0"
               step="0.01"
             >
@@ -296,6 +298,7 @@ const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'] as 
               v-model.number="form.paymentAmount"
               class="form-input"
               type="number"
+              inputmode="decimal"
               min="0"
               step="0.01"
             >

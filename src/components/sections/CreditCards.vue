@@ -231,6 +231,7 @@ function chipClass(balance: number, limit: number): string {
               v-model.number="form.balance"
               class="form-input"
               type="number"
+              inputmode="decimal"
               min="0"
               step="0.01"
             >
@@ -245,6 +246,7 @@ function chipClass(balance: number, limit: number): string {
               v-model.number="form.limit"
               class="form-input"
               type="number"
+              inputmode="numeric"
               min="1"
               step="1"
             >

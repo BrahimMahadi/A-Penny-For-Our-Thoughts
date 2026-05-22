@@ -285,6 +285,7 @@ function saveAlloc(): void {
               v-model.number="form.balance"
               class="form-input"
               type="number"
+              inputmode="decimal"
               min="0"
               step="0.01"
             >
@@ -299,6 +300,7 @@ function saveAlloc(): void {
               v-model.number="form.defaultAllocated"
               class="form-input"
               type="number"
+              inputmode="decimal"
               min="0"
               step="0.01"
             >
@@ -349,6 +351,7 @@ function saveAlloc(): void {
             v-model.number="allocAmount"
             class="form-input"
             type="number"
+            inputmode="decimal"
             min="0"
             step="0.01"
           >

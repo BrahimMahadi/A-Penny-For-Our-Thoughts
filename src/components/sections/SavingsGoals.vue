@@ -259,6 +259,7 @@ const minDate = new Date().toISOString().slice(0, 7);
               v-model.number="form.targetAmount"
               class="form-input"
               type="number"
+              inputmode="decimal"
               min="1"
               step="0.01"
             >

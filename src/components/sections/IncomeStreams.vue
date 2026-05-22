@@ -201,6 +201,7 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
             v-model.number="form.amount"
             class="form-input"
             type="number"
+            inputmode="decimal"
             min="0"
             step="0.01"
             placeholder="0.00"
