@@ -1,3 +1,11 @@
+> **HISTORICAL — COMPLETE**  
+> This migration plan was executed from May 2026 across Sprints 0–6.  
+> The Vue 3 + TypeScript rewrite shipped as **v1.0.0** on 22 May 2026.  
+> The `feat/vue3-migration` branch was merged to `main` and tagged.  
+> This document is kept for historical reference only — the live architecture is described in **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
+
+---
+
 # Vue 3 + TypeScript Migration Plan
 
 **Author:** Brahim

@@ -9,9 +9,10 @@
 -->
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Doughnut } from 'vue-chartjs';
 import { useChartStyles } from '@/composables/useChartStyles';
+import { useInView } from '@/composables/useInView';
 import { CATEGORY_COLOURS } from '@/utils/calculations';
 import { fmt } from '@/utils/format';
 
@@ -26,6 +27,10 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// ─── Lazy render ─────────────────────────────────────────────────
+const wrapperRef = ref<HTMLElement | null>(null);
+const { isInView } = useInView(wrapperRef);
 
 // ─── Styles ──────────────────────────────────────────────────────
 const styles = useChartStyles();
@@ -95,21 +100,31 @@ const chartOptions = computed(() => {
 </script>
 
 <template>
-  <div class="wants-donut-wrapper">
-    <Doughnut
-      :data="chartData"
-      :options="chartOptions"
-    />
-    <!-- Centre overlay — pct label -->
+  <div
+    ref="wrapperRef"
+    class="wants-donut-wrapper"
+  >
+    <template v-if="isInView">
+      <Doughnut
+        :data="chartData"
+        :options="chartOptions"
+      />
+      <!-- Centre overlay — pct label -->
+      <div
+        class="wants-donut-centre"
+        :class="{
+          'wants-donut-centre--warn': usedPct >= 80 && usedPct < 100,
+          'wants-donut-centre--over': usedPct >= 100,
+        }"
+      >
+        {{ usedPct.toFixed(0) }}%
+      </div>
+    </template>
     <div
-      class="wants-donut-centre"
-      :class="{
-        'wants-donut-centre--warn': usedPct >= 80 && usedPct < 100,
-        'wants-donut-centre--over': usedPct >= 100,
-      }"
-    >
-      {{ usedPct.toFixed(0) }}%
-    </div>
+      v-else
+      class="chart-skeleton"
+      aria-hidden="true"
+    />
   </div>
 </template>
 

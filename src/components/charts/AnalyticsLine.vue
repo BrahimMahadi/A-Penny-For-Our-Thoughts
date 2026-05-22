@@ -9,9 +9,10 @@
 -->
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Line } from 'vue-chartjs';
 import { useChartStyles } from '@/composables/useChartStyles';
+import { useInView } from '@/composables/useInView';
 import { fmt } from '@/utils/format';
 
 // ─── Props ───────────────────────────────────────────────────────
@@ -27,6 +28,10 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// ─── Lazy render ─────────────────────────────────────────────────
+const wrapperRef = ref<HTMLElement | null>(null);
+const { isInView } = useInView(wrapperRef);
 
 // ─── Styles ──────────────────────────────────────────────────────
 const styles = useChartStyles();
@@ -103,9 +108,27 @@ const chartOptions = computed(() => {
 </script>
 
 <template>
-  <Line
-    v-if="history.length > 0"
-    :data="chartData"
-    :options="chartOptions"
-  />
+  <div
+    ref="wrapperRef"
+    class="analytics-line-wrapper"
+  >
+    <Line
+      v-if="isInView && history.length > 0"
+      :data="chartData"
+      :options="chartOptions"
+    />
+    <div
+      v-else-if="!isInView"
+      class="chart-skeleton"
+      aria-hidden="true"
+    />
+    <!-- When isInView && history.length === 0: render nothing (parent shows EmptyState) -->
+  </div>
 </template>
+
+<style scoped>
+.analytics-line-wrapper {
+  position: relative;
+  min-height: 200px;
+}
+</style>
