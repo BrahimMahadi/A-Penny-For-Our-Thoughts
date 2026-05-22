@@ -9,7 +9,7 @@
 
 import { ref, readonly } from 'vue';
 
-export type ToastType = 'success' | 'danger' | 'info';
+export type ToastType = 'success' | 'danger' | 'info' | 'warning';
 
 export interface Toast {
   id: number;

@@ -22,6 +22,7 @@ import { setActivePinia, createPinia } from 'pinia';
 vi.mock('@/components/pages/DashboardPage.vue', () => ({ default: { template: '<div data-testid="dashboard-page" />' } }));
 vi.mock('@/components/pages/SchedulePage.vue',  () => ({ default: { template: '<div data-testid="schedule-page" />' } }));
 vi.mock('@/components/pages/DocsPage.vue',       () => ({ default: { template: '<div data-testid="docs-page" />' } }));
+vi.mock('@/components/pages/SettingsPage.vue',   () => ({ default: { template: '<div data-testid="settings-page" />' } }));
 
 import App from '@/App.vue';
 import { useBudgetStore } from '@/stores/budget';
@@ -249,5 +250,57 @@ describe('App tab navigation', () => {
     const tabs = ww.findAll('[role="tab"]');
     const scheduleTab = tabs.find((t) => t.text().includes('Schedule'));
     expect(scheduleTab?.attributes('aria-selected')).toBe('true');
+  });
+
+  it('renders the Settings page when ui.activeTab is "settings"', async () => {
+    const ui = useUiStore();
+    const ww = mountApp();
+
+    ui.setActiveTab('settings');
+    await ww.vm.$nextTick();
+
+    expect(ww.find('[data-testid="settings-page"]').exists()).toBe(true);
+  });
+
+  it('Settings tab renders in the tab bar', () => {
+    const ww = mountApp();
+    const tabs = ww.findAll('[role="tab"]');
+    const settingsTab = tabs.find((t) => t.text().includes('Settings'));
+    expect(settingsTab).toBeDefined();
+  });
+});
+
+// ─── Sprint 7: Settings tab keyboard shortcut ─────────────────────────────────
+
+describe('App Sprint 7 — Settings shortcut', () => {
+  it('4 key switches to Settings tab', async () => {
+    const ui = useUiStore();
+    const ww = mountApp();
+
+    fireKey('4');
+    await ww.vm.$nextTick();
+
+    expect(ui.activeTab).toBe('settings');
+  });
+
+  it('Settings tab shows aria-selected=true when active', async () => {
+    const ui = useUiStore();
+    const ww = mountApp();
+
+    ui.setActiveTab('settings');
+    await ww.vm.$nextTick();
+
+    const tabs = ww.findAll('[role="tab"]');
+    const settingsTab = tabs.find((t) => t.text().includes('Settings'));
+    expect(settingsTab?.attributes('aria-selected')).toBe('true');
+  });
+
+  it('shortcut help modal lists the 4 key shortcut', async () => {
+    const ww = mountApp();
+    await ww.find('[aria-label="Keyboard shortcuts"]').trigger('click');
+
+    const modal = document.body.querySelector('.base-modal')!;
+    const kbds = Array.from(modal.querySelectorAll('.shortcut-kbd')).map((el) => el.textContent?.trim());
+    expect(kbds).toContain('4');
   });
 });

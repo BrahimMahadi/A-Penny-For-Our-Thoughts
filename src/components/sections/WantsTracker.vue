@@ -9,7 +9,7 @@
 -->
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, watch } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useAnalytics } from '@/composables/useAnalytics';
@@ -24,6 +24,8 @@ import {
   getCurrentPeriodStart,
   getSubsDeductedThisPeriod,
   getLoansDeductedThisPeriod,
+  applyRulesToName,
+  getTriggeredAlerts,
 } from '@/utils/calculations';
 import { WANT_CATEGORIES, CATEGORY_COLOURS } from '@/data/categories';
 
@@ -87,6 +89,9 @@ const progressStatus = computed<'on-track' | 'caution' | 'over'>(() => {
   return 'on-track';
 });
 
+// ─── Triggered budget alerts ─────────────────────────────────────
+const triggeredAlerts = computed(() => getTriggeredAlerts(budget.$state));
+
 // ─── Category chips ───────────────────────────────────────────────
 const categoryChips = computed(() =>
   Object.entries(categorySpending.value)
@@ -105,6 +110,20 @@ const purchaseForm = reactive({
   budgetType: 'wants' as 'wants' | 'needs',
   cardId:     null as string | null,
 });
+
+// ─── Rules auto-categorisation ────────────────────────────────────
+// When the user types a purchase name and rules exist, auto-fill the
+// category — but only when adding (not editing) and only if a rule
+// matches. Must be declared AFTER purchaseForm and editingPurchaseId
+// to avoid a temporal dead zone error.
+watch(
+  () => purchaseForm.name,
+  (name) => {
+    if (editingPurchaseId.value) return;          // don't override edits
+    const matched = applyRulesToName(budget.rules, name);
+    if (matched) purchaseForm.category = matched;
+  },
+);
 
 function resetPurchaseForm(): void {
   purchaseForm.name       = '';
@@ -191,6 +210,24 @@ function cardLabel(cardId: string | null): string | null {
 
 <template>
   <div class="wants-tracker">
+    <!-- Budget alert banners -->
+    <div
+      v-if="triggeredAlerts.length"
+      class="wants-tracker__alerts"
+      role="alert"
+      aria-live="polite"
+    >
+      <div
+        v-for="alert in triggeredAlerts"
+        :key="alert.id"
+        class="wants-tracker__alert-item"
+      >
+        ⚠ <strong>{{ alert.category }}</strong>
+        spending exceeded threshold — {{ fmt(alert.spent) }} spent
+        (limit: {{ fmt(alert.threshold) }})
+      </div>
+    </div>
+
     <!-- Envelope header row -->
     <div class="wants-tracker__header">
       <div class="wants-tracker__period">
@@ -511,6 +548,23 @@ function cardLabel(cardId: string | null): string | null {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+/* ─── Alert banners ──────────────────────────────────────────────── */
+.wants-tracker__alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.wants-tracker__alert-item {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  color: var(--warn, #f59e0b);
+  line-height: 1.4;
 }
 
 .wants-tracker__header {
