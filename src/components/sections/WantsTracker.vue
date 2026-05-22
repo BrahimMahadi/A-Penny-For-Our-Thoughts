@@ -352,13 +352,23 @@ function cardLabel(cardId: string | null): string | null {
       </BaseButton>
     </div>
 
-    <!-- Empty state for purchases -->
+    <!-- Empty state for purchases (nudge variant for first-run) -->
     <EmptyState
       v-if="budget.purchases.length === 0"
       icon="🧾"
       title="Nothing spent yet"
-      hint="Add your first purchase for this bi-weekly period above."
-    />
+      :hint="budget.hasOnboarded
+        ? 'Add your first purchase for this bi-weekly period above.'
+        : 'Log what you spend here — the donut chart fills as you go, so you always know how much of your bi-weekly Wants budget remains.'"
+    >
+      <BaseButton
+        v-if="!budget.hasOnboarded"
+        size="sm"
+        @click="openAddPurchase"
+      >
+        Log your first purchase
+      </BaseButton>
+    </EmptyState>
 
     <!-- Purchase list -->
     <ul

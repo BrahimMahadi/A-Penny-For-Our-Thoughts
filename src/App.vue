@@ -3,6 +3,7 @@
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration)
   Modified: May 2026 — Sprint 5 (CSV toolbar, keyboard shortcuts)
+            May 2026 — Sprint 10 (onboarding, what's new banner)
   Summary:  Root layout. Header (title + tab bar + CSV toolbar + theme
             toggle), page slot routed via ui store's activeTab.
 
@@ -28,6 +29,8 @@ import DocsPage from '@/components/pages/DocsPage.vue';
 import SettingsPage from '@/components/pages/SettingsPage.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
 import BaseModal from '@/components/ui/BaseModal.vue';
+import OnboardingModal from '@/components/onboarding/OnboardingModal.vue';
+import WhatsNewBanner from '@/components/onboarding/WhatsNewBanner.vue';
 
 const theme  = useThemeStore();
 const ui     = useUiStore();
@@ -247,10 +250,19 @@ useSwipe(
       class="app-main"
       role="tabpanel"
     >
+      <!-- 10D: What's New banner — shown until user dismisses for this version -->
+      <WhatsNewBanner />
+
       <component :is="activePage" />
     </main>
 
     <ToastContainer />
+
+    <!-- 10B: First-run onboarding stepper -->
+    <OnboardingModal
+      v-if="budget.isFirstRun"
+      @done="budget.completeOnboarding()"
+    />
 
     <!-- Keyboard shortcut help panel -->
     <BaseModal

@@ -114,13 +114,23 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
       </BaseButton>
     </div>
 
-    <!-- Empty state -->
+    <!-- Empty state (nudge variant for first-run) -->
     <EmptyState
       v-if="budget.incomeStreams.length === 0"
       icon="💵"
-      title="No income streams"
-      hint="Add a paycheque or other income source to get started."
-    />
+      title="No income streams yet"
+      :hint="budget.hasOnboarded
+        ? 'Add a paycheque or other income source to get started.'
+        : 'Your income is the foundation of your budget. Adding it here unlocks the 50/30/20 breakdown, savings goals, and spending envelope.'"
+    >
+      <BaseButton
+        v-if="!budget.hasOnboarded"
+        size="sm"
+        @click="openAdd"
+      >
+        Add your first income stream
+      </BaseButton>
+    </EmptyState>
 
     <!-- Stream list -->
     <ul
