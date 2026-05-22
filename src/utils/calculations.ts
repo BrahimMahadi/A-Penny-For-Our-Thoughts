@@ -671,6 +671,8 @@ export interface SixMonthForecastRow {
   total: number;
   budgeted: number;
   variance: number;
+  /** Total number of bills (dated + undated) in this month's forecast. */
+  billCount: number;
 }
 
 /** Forecast totals for N months starting from (year, month). */
@@ -693,6 +695,7 @@ export function getSixMonthForecast(
       total: fc.total,
       budgeted: fc.budgeted,
       variance: fc.variance,
+      billCount: fc.dated.length + fc.undated.length,
     });
   }
   return results;

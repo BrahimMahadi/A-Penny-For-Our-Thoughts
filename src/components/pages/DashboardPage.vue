@@ -2,24 +2,31 @@
   Module:   components/pages/DashboardPage.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 2)
-  Summary:  Dashboard tab host. Section components plug in here
-            during Sprint 4 (IncomeStreams, BudgetAllocation,
-            WantsTracker, etc.).
+  Updated:  May 2026 (Sprint 4 — all 13 section SFCs wired)
+  Summary:  Dashboard tab host. Houses all financial section components.
 -->
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import BaseCard from '@/components/ui/BaseCard.vue';
 import StatCard from '@/components/ui/StatCard.vue';
-import EmptyState from '@/components/ui/EmptyState.vue';
-import BudgetVsActualChart from '@/components/charts/BudgetVsActualChart.vue';
-import NetWorthChart from '@/components/charts/NetWorthChart.vue';
-import WantsDonut from '@/components/charts/WantsDonut.vue';
-import CcBar from '@/components/charts/CcBar.vue';
+
+// Section components
+import IncomeStreams      from '@/components/sections/IncomeStreams.vue';
+import BudgetAllocation  from '@/components/sections/BudgetAllocation.vue';
+import WantsTracker      from '@/components/sections/WantsTracker.vue';
+import ExpenseCards      from '@/components/sections/ExpenseCards.vue';
+import Loans             from '@/components/sections/Loans.vue';
+import CreditCards       from '@/components/sections/CreditCards.vue';
+import Subscriptions     from '@/components/sections/Subscriptions.vue';
+import Savings           from '@/components/sections/Savings.vue';
+import SavingsGoals      from '@/components/sections/SavingsGoals.vue';
+import NetWorth          from '@/components/sections/NetWorth.vue';
+import BudgetVsActual    from '@/components/sections/BudgetVsActual.vue';
+import SpendingAnalytics from '@/components/sections/SpendingAnalytics.vue';
+import Wishlist          from '@/components/sections/Wishlist.vue';
+
 import { useAnalytics } from '@/composables/useAnalytics';
-import { useBudgetStore } from '@/stores/budget';
 import { fmt } from '@/utils/format';
-import { getCategorySpending } from '@/utils/calculations';
 
 const {
   totalMonthlyIncome,
@@ -27,31 +34,6 @@ const {
   currentMonthActuals,
   netWorth,
 } = useAnalytics();
-
-const budget = useBudgetStore();
-
-// Wants donut data from current purchases
-const categorySpending = computed(() => getCategorySpending(budget.purchases));
-const wantsBudget = computed(() =>
-  (totalMonthlyIncome.value * budget.allocation.wants) / 100,
-);
-const wantsSpent = computed(() =>
-  Object.values(categorySpending.value).reduce((s, v) => s + v, 0),
-);
-const wantsRemaining = computed(() =>
-  Math.max(0, wantsBudget.value - wantsSpent.value),
-);
-const wantsUsedPct = computed(() =>
-  wantsBudget.value > 0
-    ? (wantsSpent.value / wantsBudget.value) * 100
-    : 0,
-);
-
-// Net worth chart data
-const nwHistory = computed(() => netWorth.value.history);
-
-// Credit card data
-const creditCards = computed(() => budget.creditCards);
 </script>
 
 <template>
@@ -74,64 +56,78 @@ const creditCards = computed(() => budget.creditCards);
         :hint="`Spent: ${fmt(currentMonthActuals.wants)}`"
       />
       <StatCard
-        label="Savings"
-        :value="fmt(currentMonthBudgeted.savings)"
-        :hint="`Actual: ${fmt(currentMonthActuals.savings)}`"
+        label="Net worth"
+        :value="fmt(netWorth.netWorth)"
+        :hint="`Assets: ${fmt(netWorth.totalAssets)} · Liabilities: ${fmt(netWorth.totalLiabilities)}`"
       />
     </div>
 
-    <!-- Sprint 3 chart previews — real data, visual verification -->
-    <div class="charts-row">
-      <BaseCard title="Budget vs. Actual">
-        <BudgetVsActualChart
-          :budgeted="currentMonthBudgeted"
-          :actuals="currentMonthActuals"
-        />
+    <!-- Income & Budget Allocation -->
+    <div class="two-col-grid">
+      <BaseCard title="Income Streams">
+        <IncomeStreams />
       </BaseCard>
 
-      <BaseCard title="Wants Spending">
-        <WantsDonut
-          :category-spending="categorySpending"
-          :remaining="wantsRemaining"
-          :used-pct="wantsUsedPct"
-        />
+      <BaseCard title="Budget Allocation (50/30/20)">
+        <BudgetAllocation />
       </BaseCard>
     </div>
 
-    <BaseCard title="Net Worth History">
-      <NetWorthChart :history="nwHistory" />
+    <!-- Wants Tracker -->
+    <BaseCard title="Wants Tracker">
+      <WantsTracker />
     </BaseCard>
 
-    <BaseCard
-      v-if="creditCards.length > 0"
-      title="Credit Card Utilisation"
-    >
-      <CcBar :cards="creditCards" />
+    <!-- Budget vs. Actual -->
+    <BaseCard title="Budget vs. Actual">
+      <BudgetVsActual />
     </BaseCard>
 
-    <!-- Placeholder sections — replaced in Sprint 4 -->
-    <BaseCard title="Income Streams · Budget Allocation">
-      <EmptyState
-        icon="💵"
-        title="Sections migrate in Sprint 4"
-        hint="IncomeStreams.vue + BudgetAllocation.vue — CRUD + editable sliders."
-      />
+    <!-- Expense Cards -->
+    <BaseCard title="Expense Cards">
+      <ExpenseCards />
     </BaseCard>
 
-    <BaseCard title="Expense Cards · Loans · Subscriptions">
-      <EmptyState
-        icon="🧾"
-        title="Sections migrate in Sprint 4"
-        hint="One Vue SFC per legacy section, all wired through the budget store."
-      />
+    <!-- Loans & Credit Cards -->
+    <div class="two-col-grid">
+      <BaseCard title="Loans">
+        <Loans />
+      </BaseCard>
+
+      <BaseCard title="Credit Cards">
+        <CreditCards />
+      </BaseCard>
+    </div>
+
+    <!-- Subscriptions -->
+    <BaseCard title="Subscriptions">
+      <Subscriptions />
     </BaseCard>
 
-    <BaseCard title="Savings · Goals · Analytics">
-      <EmptyState
-        icon="💰"
-        title="Sections migrate in Sprint 4"
-        hint="Goal progress bars, account balances, MoM trend, analytics panel."
-      />
+    <!-- Savings & Goals -->
+    <div class="two-col-grid">
+      <BaseCard title="Savings Accounts">
+        <Savings />
+      </BaseCard>
+
+      <BaseCard title="Savings Goals">
+        <SavingsGoals />
+      </BaseCard>
+    </div>
+
+    <!-- Net Worth -->
+    <BaseCard title="Net Worth">
+      <NetWorth />
+    </BaseCard>
+
+    <!-- Spending Analytics (collapsible) -->
+    <BaseCard title="Spending Analytics">
+      <SpendingAnalytics />
+    </BaseCard>
+
+    <!-- Wishlist -->
+    <BaseCard title="Wishlist">
+      <Wishlist />
     </BaseCard>
   </div>
 </template>
@@ -141,18 +137,6 @@ const creditCards = computed(() => budget.creditCards);
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-.charts-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-@media (max-width: 700px) {
-  .charts-row {
-    grid-template-columns: 1fr;
-  }
 }
 
 .stats-row {
@@ -169,6 +153,18 @@ const creditCards = computed(() => budget.creditCards);
 
 @media (max-width: 540px) {
   .stats-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.two-col-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 700px) {
+  .two-col-grid {
     grid-template-columns: 1fr;
   }
 }

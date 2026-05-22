@@ -10,7 +10,7 @@
 import { computed } from 'vue';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
-type Size = 'sm' | 'md' | 'lg';
+type Size = 'xs' | 'sm' | 'md' | 'lg';
 
 interface Props {
   variant?: Variant;
@@ -80,6 +80,11 @@ const classes = computed(() => [
 }
 
 /* ─── Sizes ───────────────────────────────────────────────────── */
+.base-btn--xs {
+  padding: 0.15rem 0.45rem;
+  font-size: 0.75rem;
+  border-radius: 4px;
+}
 .base-btn--sm {
   padding: 0.3rem 0.65rem;
   font-size: 0.82rem;
