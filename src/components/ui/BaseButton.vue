@@ -9,7 +9,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
+type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
 type Size = 'xs' | 'sm' | 'md' | 'lg';
 
 interface Props {
@@ -139,6 +139,16 @@ const classes = computed(() => [
 .base-btn--ghost:hover:not(.base-btn--disabled) {
   color: var(--text, #e3e6ee);
   background: var(--surface2, #0f2018);
+}
+
+.base-btn--outline {
+  background: transparent;
+  color: var(--text, #e3e6ee);
+  border-color: var(--border, #2a3041);
+}
+.base-btn--outline:hover:not(.base-btn--disabled) {
+  background: var(--surface2, #0f2018);
+  border-color: var(--accent, #4ade80);
 }
 
 /* ─── Disabled ────────────────────────────────────────────────── */

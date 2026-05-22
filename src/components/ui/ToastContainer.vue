@@ -98,6 +98,9 @@ watch(
 .base-toast--info {
   border-left-color: var(--accent, #4ade80);
 }
+.base-toast--warning {
+  border-left-color: #f59e0b;
+}
 
 /* Enter / leave transitions */
 .base-toast-enter-active,

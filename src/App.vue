@@ -24,6 +24,7 @@ import type { TabId } from '@/types/state';
 import DashboardPage from '@/components/pages/DashboardPage.vue';
 import SchedulePage from '@/components/pages/SchedulePage.vue';
 import DocsPage from '@/components/pages/DocsPage.vue';
+import SettingsPage from '@/components/pages/SettingsPage.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
 import BaseModal from '@/components/ui/BaseModal.vue';
 
@@ -43,12 +44,14 @@ const tabs: Tab[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
   { id: 'schedule',  label: 'Schedule',  icon: '📅' },
   { id: 'docs',      label: 'Docs',      icon: '📖' },
+  { id: 'settings',  label: 'Settings',  icon: '⚙️' },
 ];
 
 const activePage = computed(() => {
   switch (ui.activeTab) {
     case 'schedule':  return SchedulePage;
     case 'docs':      return DocsPage;
+    case 'settings':  return SettingsPage;
     case 'dashboard':
     default:          return DashboardPage;
   }
@@ -107,6 +110,7 @@ const shortcuts = [
   { combo: '1',   description: 'Switch to Dashboard' },
   { combo: '2',   description: 'Switch to Schedule' },
   { combo: '3',   description: 'Switch to Docs' },
+  { combo: '4',   description: 'Switch to Settings' },
   { combo: 'E',   description: 'Export CSV' },
   { combo: 'T',   description: 'Toggle light / dark theme' },
 ];
@@ -116,6 +120,7 @@ useKeyboard('?', () => { showShortcutHelp.value = !showShortcutHelp.value; }, { 
 useKeyboard('1', () => { ui.setActiveTab('dashboard'); },                    { guardFromInputs: true });
 useKeyboard('2', () => { ui.setActiveTab('schedule'); },                     { guardFromInputs: true });
 useKeyboard('3', () => { ui.setActiveTab('docs'); },                         { guardFromInputs: true });
+useKeyboard('4', () => { ui.setActiveTab('settings'); },                     { guardFromInputs: true });
 useKeyboard('e', () => { handleExport(); },                                   { guardFromInputs: true });
 useKeyboard('t', () => { theme.toggle(); },                                   { guardFromInputs: true });
 </script>
