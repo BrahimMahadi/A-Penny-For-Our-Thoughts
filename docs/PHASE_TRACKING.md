@@ -385,7 +385,9 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Vue 3 Migration (Sprints 0–6) | ✅ Complete | v1.0.0 |
 | Sprint 7 — Settings, Rules Engine, Docs | ✅ Complete | v1.1.0 |
 | Sprint 8 — Error Handling, Lazy Charts, Docs | ✅ Complete | v1.2.0 |
-| **Overall** | **✅ v1.2.0 shipped** | **v1.2.0** |
+| Sprint 9 — Mobile UX Pass | 🔵 Planned | v1.3.0 |
+| Sprint 10 — Onboarding Flow | 🔵 Planned | v1.4.0 |
+| **Current** | **✅ v1.2.0 shipped** | **v1.2.0** |
 
 ---
 
@@ -488,6 +490,151 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 
 ---
 
+---
+
+## Sprint 9 — Mobile UX Pass 📱
+**Status**: 🔵 **PLANNED**  
+**Branch:** `feat/sprint-9`  
+**Target version:** v1.3.0  
+**Goal**: Make the app feel native on small screens — smooth scrolling, keyboard-aware forms, and comfortable touch interactions throughout
+
+### Planned Work
+
+#### 9A: Keyboard-Aware Form Scrolling
+- [ ] When a modal opens and the virtual keyboard appears (iOS/Android), the focused input should scroll into view and not be obscured by the keyboard
+- [ ] Use `visualViewport` resize event to detect keyboard presence and adjust modal position / scroll offset
+- [ ] Test on iOS Safari (most restrictive) and Android Chrome
+
+#### 9B: Swipe Gestures for Tab Navigation
+- [ ] Horizontal swipe left/right on the main content area switches tabs (Dashboard ↔ Schedule ↔ Docs ↔ Settings)
+- [ ] Implement via `touchstart`/`touchend` delta detection — minimum swipe distance threshold to avoid accidental triggers
+- [ ] Guard: swipe inside a scrollable element (e.g. a list) should NOT trigger tab switch
+- [ ] `useSwipe` composable — clean, reusable, tested
+
+#### 9C: Bottom-Sheet Modals on Small Screens
+- [ ] At ≤540px, `BaseModal` transforms from a centred dialog into a bottom sheet that slides up from the bottom edge
+- [ ] CSS-only approach: swap `position: fixed; top: 50%; transform: translateY(-50%)` for `position: fixed; bottom: 0; border-radius: 16px 16px 0 0`
+- [ ] Drag handle affordance (visual pill at top of sheet)
+- [ ] Backdrop tap still dismisses; ESC still dismisses
+
+#### 9D: Touch Target Audit
+- [ ] All interactive elements at ≤540px meet WCAG 2.5.5 minimum 44×44px touch target size
+- [ ] Focus on: icon-only buttons (edit, delete), tab bar items, modal close button, stats toggle chips
+- [ ] Use browser DevTools device emulation + manual review pass
+
+#### 9E: Responsive Typography Pass
+- [ ] Stat card numbers, chart labels, and section headers should scale gracefully to 380px without overflow or truncation
+- [ ] Introduce a CSS `clamp()` approach for fluid type scaling on key headings
+
+### Definition of Done
+- [ ] Tested on real iOS Safari (iPhone SE form factor) and Android Chrome
+- [ ] `vue-tsc`, `lint`, `test`, `build` all green
+- [ ] `useSwipe` composable has unit tests
+- [ ] Bottom-sheet behaviour verified in dev server via screenshot QA
+
+---
+
+## Sprint 10 — Onboarding Flow 🎉
+**Status**: 🔵 **PLANNED**  
+**Branch:** `feat/sprint-10`  
+**Target version:** v1.4.0  
+**Goal**: Give new users a guided first-run experience so the dashboard feels immediately useful, not empty
+
+### Planned Work
+
+#### 10A: First-Run Detection
+- [ ] On app boot, check if `BudgetState` is the default empty state (no income streams, no pay start date)
+- [ ] If so, set a `ui.isFirstRun = true` flag — triggers the onboarding flow
+- [ ] Once onboarding is dismissed or completed, persist a `hasOnboarded: true` flag in `BudgetState` so it never shows again
+
+#### 10B: Welcome Modal / Stepper
+- [ ] Multi-step modal (3–4 steps) that walks the user through the essentials:
+  - **Step 1** — Name/welcome + brief value prop ("Track your 50/30/20 budget")
+  - **Step 2** — Add first income stream (amount + frequency); pre-fills IncomeStreams on save
+  - **Step 3** — Set pay start date (feeds PayStartDate section)
+  - **Step 4** — Optional: choose budget split (default 50/30/20 with option to customize)
+- [ ] "Skip for now" available on every step after Step 1
+- [ ] Progress indicator (dots or step counter) at top of modal
+
+#### 10C: Empty-State Hints
+- [ ] When a section has no data AND `hasOnboarded` is `false`, show a richer empty state with a short "why this matters" hint and a direct "Add your first X" CTA button
+- [ ] Distinct from the standard `EmptyState` component — this is the "nudge" variant
+- [ ] Sections to target: IncomeStreams, WantsTracker, Savings, SavingsGoals, Loans
+
+#### 10D: "What's New" Banner (v1.x+)
+- [ ] Simple dismissible banner at the top of the dashboard that surfaces 1–2 highlights when the app version changes
+- [ ] Driven by a hardcoded version manifest (not remote); dismissed state stored in `BudgetState`
+- [ ] Useful for announcing new features to returning users
+
+### Definition of Done
+- [ ] First-run stepper completes without errors and pre-fills the store correctly
+- [ ] Onboarding only shows once; repeated page loads skip it
+- [ ] Empty-state nudge variants tested in sections spec
+- [ ] Full test coverage for first-run detection logic
+- [ ] `vue-tsc`, `lint`, `test`, `build` all green
+
+---
+
+## Future Backlog 📋
+Items captured for future sprints — not yet scheduled. See individual option descriptions for rationale.
+
+### Option A — Spending History & Power Analytics
+
+**A1: Spending History Browser** *(High value)*
+- `spendingHistory` array exists in state but there's no UI to browse or manage archived periods
+- Build a history tab/panel: list of past periods with date range, total spent, top categories
+- Allow retroactive edits (rename a period label, delete a period)
+- Filters by date range + category — reuses existing `SpendingAnalytics` filter infrastructure
+
+**A2: Dashboard MoM Stat Deltas** *(Medium value)*
+- Surface month-over-month change deltas directly on the main stat cards (not just inside the Analytics panel)
+- Small `+$X` / `−$X` chip below each headline figure with colour coding
+- Trend sparklines (7-point inline SVG line) on income and savings cards
+
+**A3: Category-Level Budget vs. Actual** *(High value)*
+- Current `BudgetVsActual` section shows only Needs/Wants/Savings totals
+- Add a drilldown: per-category breakdown ("Groceries: $420 budgeted vs $380 actual — ✅ $40 under")
+- Requires adding per-category budget targets to `BudgetAlert` or a new `CategoryBudget[]` state field
+
+### Option B — Forecast & Data Depth
+
+**B1: Envelope Forecast** *(High value)*
+- "At your current pace, you'll spend $X by end of period" projection on the Wants envelope
+- Linear extrapolation from `purchases` spend rate vs. days remaining in period
+- Colour-coded: green (on track), amber (80%+), red (over budget projection)
+
+**B2: Savings Runway Calculator** *(Medium value)*
+- "At $X/month saved, you'll hit your Emergency Fund goal in N months"
+- Interactive slider to explore "what if I saved $Y more per month?"
+- Lives inside `SavingsGoals.vue` as a collapsible panel per goal
+
+**B3: Net Worth Forecast** *(Low value)*
+- Extend `NetWorthChart` with a projected future line (dashed) based on current savings rate
+- 12-month lookahead using average monthly net worth change from history
+
+### Option C — *(Current — Sprints 9 & 10 above)*
+
+### Option D — Infrastructure & Reliability
+
+**D1: JSON Backup / Restore** *(Medium value)*
+- Export full `BudgetState` as a `.json` file (lossless, unlike CSV)
+- Import `.json` replaces state with full validation and version migration
+- Safer than CSV for full backups — preserves all nested structures exactly
+- Lives alongside the existing CSV export/import toolbar buttons
+
+**D2: GitHub Pages CI Deploy** *(Medium value)*
+- GitHub Actions workflow: on push to `main`, run `vite build` then deploy `dist/` to `gh-pages` branch
+- One-command public URL for the app (`https://brahimmahadi.github.io/A-Penny-For-Our-Thoughts/`)
+- Adds `base` config to `vite.config.ts` for the subfolder path
+
+**D3: Vitest Coverage Report** *(Low value)*
+- Add `@vitest/coverage-v8` and a `coverage` npm script
+- Set coverage thresholds (80% lines/functions on `src/utils/` and `src/stores/`)
+- CI step to fail the build if coverage drops below threshold
+
+---
+
 **Last Updated**: May 2026  
 **Current Version**: v1.2.0 — Sprint 8 complete  
+**Next Up**: Sprint 9 — Mobile UX Pass → v1.3.0  
 **Current Branch**: `main`
