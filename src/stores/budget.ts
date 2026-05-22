@@ -231,20 +231,37 @@ export function migrateState(raw: unknown): BudgetState {
 
 // ─── Storage helpers (pure functions; testable) ─────────────────
 
-/** Read + migrate the persisted state. Returns DEFAULT_STATE on missing/corrupt data. */
+/**
+ * Read + migrate the persisted state.
+ * Returns DEFAULT_STATE on any failure — missing data, corrupt JSON,
+ * or storage unavailable (e.g. Safari private-mode quota = 0).
+ */
 export function loadStateFromStorage(): BudgetState {
-  const raw = localStorage.getItem(STORAGE_KEYS.STATE);
-  if (!raw) return makeDefaultState();
   try {
+    const raw = localStorage.getItem(STORAGE_KEYS.STATE);
+    if (!raw) return makeDefaultState();
     return migrateState(JSON.parse(raw));
-  } catch {
+  } catch (e) {
+    console.error('[penny] Could not read state from localStorage — starting with defaults:', e);
     return makeDefaultState();
   }
 }
 
-/** Persist a state object to localStorage as JSON. */
-export function saveStateToStorage(state: BudgetState): void {
-  localStorage.setItem(STORAGE_KEYS.STATE, JSON.stringify(state));
+/**
+ * Persist a state object to localStorage as JSON.
+ *
+ * @returns `true` on success, `false` if the write failed (e.g. quota exceeded).
+ *          Callers should surface a warning to the user on `false`.
+ */
+export function saveStateToStorage(state: BudgetState): boolean {
+  try {
+    localStorage.setItem(STORAGE_KEYS.STATE, JSON.stringify(state));
+    return true;
+  } catch (e) {
+    // DOMException: QuotaExceededError is the most common failure
+    console.error('[penny] Failed to persist state to localStorage:', e);
+    return false;
+  }
 }
 
 // ─── Pinia store definition ─────────────────────────────────────
@@ -286,9 +303,10 @@ export const useBudgetStore = defineStore('budget', {
       this.$state = loadStateFromStorage();
     },
 
-    /** Force a persist (the $subscribe plugin also persists on every mutation). */
-    saveToStorage(): void {
-      saveStateToStorage(this.$state);
+    /** Force a persist (the $subscribe plugin also persists on every mutation).
+     *  Returns true on success, false if storage is unavailable/full. */
+    saveToStorage(): boolean {
+      return saveStateToStorage(this.$state);
     },
 
     /** Reset to BLANK_STATE (used by Settings → Clear All Data). */

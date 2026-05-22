@@ -1,3 +1,10 @@
+> **SUPERSEDED — All phases complete**  
+> This roadmap was drafted for the vanilla JS / Phase 0–3 era of the project.  
+> All planned phases (UI polish, analytics, goal tracking, net worth, recurring calendar, code quality) were fully executed as part of the **Vue 3 + TypeScript migration** (Sprints 0–8, v1.0.0 → v1.2.0).  
+> See **[PHASE_TRACKING.md](./PHASE_TRACKING.md)** for the authoritative sprint-by-sprint completion record and **[ARCHITECTURE.md](./ARCHITECTURE.md)** for the current code structure.
+
+---
+
 # A Penny For Our Thoughts — Development Roadmap Plan
 
 ## Context

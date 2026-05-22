@@ -375,16 +375,17 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 
 ## Overall Progress
 
-| Phase | Status | % Done |
-|-------|--------|--------|
-| Phase 0 — Design & Visual Polish | ✅ Complete | 100% |
-| Phase 1 — Analytics & Goal Tracking | ✅ Complete | 100% |
-| Sprint 3 — Polish & UX Refinement | ✅ Complete | 100% |
-| Phase 2 — Advanced Features | ✅ Complete | 100% (2A + 2B + 2C + 2D done) |
-| Infra — Vite + Tailwind Migration | ✅ Complete | 100% — merged to main |
-| Phase 3 — Code Quality | 🟢 Pending | 0% |
-| Vue 3 Migration (Sprints 0–6) | ✅ Complete | 100% — merged to main, tagged v1.0.0 |
-| **Overall** | **✅ Complete** | **100%** |
+| Sprint / Phase | Status | Version |
+|----------------|--------|---------|
+| Phase 0 — Design & Visual Polish | ✅ Complete | — |
+| Phase 1 — Analytics & Goal Tracking | ✅ Complete | — |
+| Sprint 3 — Polish & UX Refinement | ✅ Complete | — |
+| Phase 2 — Advanced Features | ✅ Complete | — |
+| Infra — Vite + Tailwind Migration | ✅ Complete | — |
+| Vue 3 Migration (Sprints 0–6) | ✅ Complete | v1.0.0 |
+| Sprint 7 — Settings, Rules Engine, Docs | ✅ Complete | v1.1.0 |
+| Sprint 8 — Error Handling, Lazy Charts, Docs | ✅ Complete | v1.2.0 |
+| **Overall** | **✅ v1.2.0 shipped** | **v1.2.0** |
 
 ---
 
@@ -407,6 +408,67 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 
 ---
 
+## Sprint 7 — Settings, Rules Engine, Budget Alerts & Docs 🔧
+**Status**: ✅ **COMPLETE** — May 2026  
+**Branch:** `feat/sprint-7`  
+**Version:** v1.1.0  
+**Goal**: Add the Settings page (pay period, rules, alerts), a full DocsPage with content, and comprehensive tests
+
+### Completed
+- ✅ **Settings tab** — 4th tab added to navigation (`TabId = 'settings'`, keyboard shortcut `4`)
+- ✅ **PayStartDate.vue** — bi-weekly pay period anchor date picker; derives next pay date and days remaining
+- ✅ **RulesEngine.vue** — keyword → category auto-classification CRUD; applied to new purchases in WantsTracker
+- ✅ **BudgetAlerts.vue** — per-category spending threshold alerts; triggered banner shown in WantsTracker when category spending exceeds threshold
+- ✅ **SettingsPage.vue** — hosts PayStartDate, RulesEngine, BudgetAlerts, fundsRemaining balance field, and "Danger Zone" (clear all data)
+- ✅ **DocsPage.vue** — full content port across 5 sections (Overview, Getting Started, Features, CSV Format, Tips)
+- ✅ **BUG-014 fixed**: `docs.css` global `display: none` rule hidden DocsPage — removed legacy import from `main.ts`
+- ✅ Tests: 102 new tests across `settings.spec.ts` + `pages.spec.ts` — **448 tests passing total** (346 → 448)
+- ✅ `vue-tsc --noEmit` clean · `eslint --max-warnings 0` clean · `vite build` green
+- ✅ Merged `feat/sprint-7` → `main`, tagged **v1.1.0**
+
+---
+
+## Sprint 8 — Error Handling, Lazy Charts & Architecture Docs 🏗️
+**Status**: ✅ **COMPLETE** — May 2026  
+**Branch:** `feat/sprint-8`  
+**Version:** v1.2.0  
+**Goal**: Harden storage error handling, lazy-render charts via IntersectionObserver, rewrite architecture docs for Vue 3, clean up stale vanilla-JS documentation
+
+### Task 46: localStorage Error Handling ✅
+- ✅ `saveStateToStorage()` — wraps `localStorage.setItem` in try/catch; returns `boolean` (true = success, false = QuotaExceededError or any DOMException)
+- ✅ `loadStateFromStorage()` — `localStorage.getItem` moved inside try/catch (was only wrapping JSON.parse before)
+- ✅ `loadThemeFromStorage()` — wrapped in try/catch; returns `'dark'` on any storage failure
+- ✅ `applyThemeToDOM()` — DOM `setAttribute` runs unconditionally; `localStorage.setItem` wrapped separately
+- ✅ `main.ts` `$subscribe` watcher — checks save result; shows danger toast ("Storage is full — export a CSV backup") when `saveStateToStorage` returns false
+- ✅ Tests: 13 new error-handling tests across `budget.spec.ts` and `theme.spec.ts`
+
+### Task 47: Lazy Chart Rendering via IntersectionObserver ✅
+- ✅ `src/composables/useInView.ts` — new composable; `isInView` starts `false`, fires once when element enters viewport, stays `true` (disconnect-on-intersect pattern); falls back to `isInView = true` immediately when `IntersectionObserver` is undefined (jsdom/SSR safe)
+- ✅ `src/css/features.css` — `.chart-skeleton` shimmer placeholder with `chart-skeleton-pulse` animation + `prefers-reduced-motion` guard
+- ✅ All 8 chart SFCs updated: `wrapperRef`, `isInView`, `v-if="isInView"` on chart canvas, `v-else` skeleton div
+- ✅ `AnalyticsLine` / `AnalyticsBar` — combined visibility + data conditions: `v-if="isInView && data.length > 0"`, `v-else-if="!isInView"` skeleton; empty-data-in-view renders nothing (parent handles EmptyState)
+- ✅ `tests/composables/useInView.spec.ts` — 11 tests (class-based MockIO, no-IO fallback, intersection lifecycle, disconnect on first intersect, disconnect on unmount, custom/default rootMargin)
+
+### Task 48: ARCHITECTURE.md Rewrite ✅
+- ✅ Full rewrite of `docs/ARCHITECTURE.md` for Vue 3 + TypeScript stack
+- ✅ Covers: overview diagram, annotated file tree, `BudgetState` TS interface, storage keys, persistence flow, `UiState`/`ThemeState`, CRUD data flow, all 6 composable contracts with signatures, chart architecture pattern, tab routing, CSV import/export, testing strategy table (19 spec files), responsive breakpoints, git/version tags, key design decisions
+
+### Task 49: Documentation Cleanup ✅
+- ✅ Deleted stale vanilla-JS era docs: `CHARTS_UPGRADED.md`, `DESIGN_AUDIT.md`, `PHASE0_IMPLEMENTATION.md`
+- ✅ `docs/VUE3_MIGRATION_PLAN.md` — HISTORICAL banner added (migration complete, v1.0.0 shipped)
+- ✅ `docs/README.md` — full rewrite; reflects Vue 3 + TypeScript stack, current version, correct file tree
+- ✅ `CLAUDE.md` — Tech Stack updated from "[HTML, CSS, JS]" to Vue 3 + TypeScript + Pinia + Vite
+- ✅ `docs/BUGS.md` — BUG-012/013/014 added; legacy vanilla-JS bugs section clearly marked
+- ✅ `docs/PHASE_TRACKING.md` — Sprint 7 and Sprint 8 complete entries added; summary table updated
+- ✅ `docs/ROADMAP.md` — SUPERSEDED note added (plan executed via Vue 3 migration)
+
+### Merge & Tag
+- ✅ 448 tests passing — no regressions
+- ✅ `vue-tsc --noEmit` clean · `eslint --max-warnings 0` clean · `vite build` green
+- ✅ Merged `feat/sprint-8` → `main`, tagged **v1.2.0**
+
+---
+
 ## Weekly Check-in Template
 
 **Week #:** [Fill in]  
@@ -426,6 +488,6 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 
 ---
 
-**Last Updated**: May 2026
-**Current Phase**: Vue 3 Migration — Sprint 5 complete, Sprint 6 (final QA + merge) next
-**Current Branch**: `feat/vue3-migration`
+**Last Updated**: May 2026  
+**Current Version**: v1.2.0 — Sprint 8 complete  
+**Current Branch**: `main`

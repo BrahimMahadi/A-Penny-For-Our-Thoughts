@@ -3,9 +3,11 @@
    Project:  A Penny For Our Thoughts
    Created:  May 2026 (Vue 3 migration — Sprint 0)
    Modified: May 2026 — Sprint 1 (Pinia stores + auto-persist)
+             May 2026 — Sprint 8 (localStorage error handling)
    Summary:  Vue 3 entry point. Bootstraps Pinia, hydrates the
              budget + theme stores from localStorage, mounts App.vue,
              and wires up auto-persist on budget mutations.
+             Storage failures surface as user-visible toast warnings.
 ═══════════════════════════════════════════════════════════════ */
 
 import { createApp } from 'vue';
@@ -28,9 +30,13 @@ import './css/ui.css';
 import './css/responsive.css';
 import './css/extras.css';
 
-// ─── Stores ──────────────────────────────────────────────────────
+// ─── Stores & composables ─────────────────────────────────────────
 import { useBudgetStore, saveStateToStorage } from './stores/budget';
 import { useThemeStore } from './stores/theme';
+// useToast is module-scoped (not component-scoped), so it's safe to call
+// here in main.ts before the Vue app mounts. Toasts queued before mount
+// are rendered as soon as <ToastContainer /> initialises.
+import { useToast } from './composables/useToast';
 
 // ─── App bootstrap ───────────────────────────────────────────────
 const app = createApp(App);
@@ -49,10 +55,17 @@ themeStore.init();
 
 // Auto-persist budget mutations.
 // Pinia's $subscribe fires on every mutation; we forward the current
-// state to localStorage. The flushed-sync option ensures we don't
-// race with rapid sequential updates.
+// state to localStorage. If the write fails (e.g. quota exceeded in
+// private-mode Safari), we surface a danger toast so the user knows
+// to export a CSV backup before closing the tab.
 budgetStore.$subscribe((_mutation, state) => {
-  saveStateToStorage(state);
+  const ok = saveStateToStorage(state);
+  if (!ok) {
+    useToast().show(
+      'Storage is full — your changes were not saved. Export a CSV backup to avoid data loss.',
+      'danger',
+    );
+  }
 });
 
 app.mount('#app');

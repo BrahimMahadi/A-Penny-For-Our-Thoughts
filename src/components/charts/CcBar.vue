@@ -8,9 +8,10 @@
 -->
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Bar } from 'vue-chartjs';
 import { useChartStyles } from '@/composables/useChartStyles';
+import { useInView } from '@/composables/useInView';
 import { fmt } from '@/utils/format';
 
 // ─── Props ───────────────────────────────────────────────────────
@@ -25,6 +26,10 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// ─── Lazy render ─────────────────────────────────────────────────
+const wrapperRef = ref<HTMLElement | null>(null);
+const { isInView } = useInView(wrapperRef);
 
 // ─── Styles ──────────────────────────────────────────────────────
 const styles = useChartStyles();
@@ -108,8 +113,26 @@ const chartOptions = computed(() => {
 </script>
 
 <template>
-  <Bar
-    :data="chartData"
-    :options="chartOptions"
-  />
+  <div
+    ref="wrapperRef"
+    class="cc-bar-chart-wrapper"
+  >
+    <Bar
+      v-if="isInView"
+      :data="chartData"
+      :options="chartOptions"
+    />
+    <div
+      v-else
+      class="chart-skeleton"
+      aria-hidden="true"
+    />
+  </div>
 </template>
+
+<style scoped>
+.cc-bar-chart-wrapper {
+  position: relative;
+  min-height: 200px;
+}
+</style>

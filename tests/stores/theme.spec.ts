@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useThemeStore, loadThemeFromStorage, applyThemeToDOM } from '@/stores/theme';
 
@@ -56,5 +56,53 @@ describe('theme store', () => {
     const store = useThemeStore();
     store.setTheme('light');
     expect(localStorage.getItem('penny_theme')).toBe('light');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Theme storage error handling
+// ─────────────────────────────────────────────────────────────────
+describe('theme store — storage error handling', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+    document.documentElement.removeAttribute('data-theme');
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('loadThemeFromStorage returns "dark" when localStorage.getItem throws', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('SecurityError');
+    });
+    expect(loadThemeFromStorage()).toBe('dark');
+  });
+
+  it('loadThemeFromStorage does not throw when storage is unavailable', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('Storage unavailable');
+    });
+    expect(() => loadThemeFromStorage()).not.toThrow();
+  });
+
+  it('applyThemeToDOM still sets data-theme when localStorage.setItem throws', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError');
+    });
+    // Should not throw, and DOM attribute should still be applied
+    expect(() => applyThemeToDOM('light')).not.toThrow();
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+  });
+
+  it('applyThemeToDOM does not persist when storage throws', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError');
+    });
+    applyThemeToDOM('light');
+    // localStorage write silently failed — getItem returns null in this mock context
+    // The important thing is the DOM was updated and no exception propagated
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
   });
 });

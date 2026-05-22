@@ -16,16 +16,30 @@ interface ThemeStateShape {
   mode: ThemeMode;
 }
 
-/** Read the persisted theme preference, defaulting to 'dark'. */
+/**
+ * Read the persisted theme preference, defaulting to 'dark'.
+ * Returns 'dark' safely if localStorage is unavailable.
+ */
 export function loadThemeFromStorage(): ThemeMode {
-  const saved = localStorage.getItem(STORAGE_KEYS.THEME);
-  return saved === 'light' ? 'light' : 'dark';
+  try {
+    const saved = localStorage.getItem(STORAGE_KEYS.THEME);
+    return saved === 'light' ? 'light' : 'dark';
+  } catch {
+    return 'dark';
+  }
 }
 
-/** Write the theme attribute to <html> and persist to localStorage. */
+/**
+ * Write the theme attribute to <html> and persist to localStorage.
+ * The DOM update always succeeds; the localStorage write is best-effort.
+ */
 export function applyThemeToDOM(mode: ThemeMode): void {
   document.documentElement.setAttribute('data-theme', mode);
-  localStorage.setItem(STORAGE_KEYS.THEME, mode);
+  try {
+    localStorage.setItem(STORAGE_KEYS.THEME, mode);
+  } catch (e) {
+    console.error('[penny] Could not persist theme preference:', e);
+  }
 }
 
 export const useThemeStore = defineStore('theme', {

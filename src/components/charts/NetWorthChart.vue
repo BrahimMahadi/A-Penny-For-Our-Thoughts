@@ -8,9 +8,10 @@
 -->
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Line } from 'vue-chartjs';
 import { useChartStyles } from '@/composables/useChartStyles';
+import { useInView } from '@/composables/useInView';
 import { fmt } from '@/utils/format';
 
 // ─── Props ───────────────────────────────────────────────────────
@@ -25,6 +26,10 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// ─── Lazy render ─────────────────────────────────────────────────
+const wrapperRef = ref<HTMLElement | null>(null);
+const { isInView } = useInView(wrapperRef);
 
 // ─── Styles ──────────────────────────────────────────────────────
 const styles = useChartStyles();
@@ -102,19 +107,29 @@ const chartOptions = computed(() => {
 </script>
 
 <template>
-  <div class="net-worth-chart-wrapper">
-    <Line
-      v-if="history.length > 0"
-      :data="chartData"
-      :options="chartOptions"
+  <div
+    ref="wrapperRef"
+    class="net-worth-chart-wrapper"
+  >
+    <template v-if="isInView">
+      <Line
+        v-if="history.length > 0"
+        :data="chartData"
+        :options="chartOptions"
+      />
+      <!-- Shown when < 2 months of data exist -->
+      <p
+        v-if="showSingleNote"
+        class="net-worth-chart-note"
+      >
+        More history will appear as months accumulate.
+      </p>
+    </template>
+    <div
+      v-else
+      class="chart-skeleton"
+      aria-hidden="true"
     />
-    <!-- Shown when < 2 months of data exist -->
-    <p
-      v-if="showSingleNote"
-      class="net-worth-chart-note"
-    >
-      More history will appear as months accumulate.
-    </p>
   </div>
 </template>
 

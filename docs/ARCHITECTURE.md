@@ -1,401 +1,410 @@
-# Project Architecture
+# Architecture — A Penny For Our Thoughts (v1.2+)
+
+> Last updated: May 2026 — reflects the completed Vue 3 + TypeScript migration (v1.0.0) and Sprint 7/8 additions (v1.1.0, v1.2.0).
+
+---
 
 ## Overview
 
-"A Penny For Our Thoughts" is a **client-side only** financial dashboard with no backend. All data persists in browser localStorage.
+"A Penny For Our Thoughts" is a **fully client-side** personal finance dashboard. There is no backend — all state lives in `localStorage`. The app is a Vue 3 SPA built with Vite, TypeScript, and Pinia.
 
 ```
-User Interface (dashboard.html)
-        ↓
-Application Logic (app.js)
-        ↓
-State Management (state object in localStorage)
-        ↓
-Browser Storage (localStorage: penny_state_v2)
+Browser
+  └─ index.html  (Vite entry)
+       └─ main.ts  (createApp + Pinia + Chart.js registration)
+            └─ App.vue  (root: header, tab nav, dynamic page component)
+                 ├─ DashboardPage.vue  ─→  13 section SFCs
+                 ├─ SchedulePage.vue   ─→  RecurringCalendar
+                 ├─ DocsPage.vue       ─→  5 static content sections
+                 └─ SettingsPage.vue   ─→  PayStartDate, RulesEngine, BudgetAlerts
 ```
 
 ---
 
-## File Structure
+## File Tree
 
-### Current (Pre-Phase 3)
 ```
-/A Penny For Our Thoughts/
-├── dashboard.html          (1,089 lines)
-│   ├── Header (title, date, controls)
-│   ├── Navigation (Dashboard / Edit tabs)
-│   ├── Dashboard view (all financial sections)
-│   ├── Edit view (budget percentages, card balances, savings)
-│   └── Modal overlay (CRUD forms)
+src/
 │
-├── app.js                  (1,829 lines)
-│   ├── State initialization & migrations
-│   ├── CRUD functions (add, edit, delete operations)
-│   ├── Render functions (update DOM from state)
-│   ├── Calculations (budget variance, net worth, etc.)
-│   ├── Event handlers (clicks, form submissions)
-│   ├── Utility functions (ID generation, formatting)
-│   └── Chart.js management (4 chart instances)
+├── main.ts                  Entry: createApp, Pinia, Chart.js, auto-persist
+├── App.vue                  Root SFC: header, tab bar, ToastContainer, BaseModal
+├── env.d.ts                 Vite/TypeScript environment declarations
 │
-├── styles.css              (1,157 lines)
-│   ├── CSS variables (colors, fonts, spacing)
-│   ├── Layout & responsive grid
-│   ├── Component styles (cards, buttons, forms)
-│   ├── Theme styles (dark/light modes)
-│   ├── Animations & transitions
-│   └── Media queries (responsive breakpoints)
+├── types/
+│   ├── budget.ts            Entity interfaces (IncomeStream, Loan, Goal, Rule …)
+│   └── state.ts             BudgetState, UiState, STORAGE_KEYS, TabId, ScheduleView
 │
-├── docs/                   (Documentation)
-│   ├── README.md          (This folder's guide)
-│   ├── ROADMAP.md         (Development roadmap)
-│   ├── ARCHITECTURE.md    (This file)
-│   └── PHASE_TRACKING.md  (Progress tracking)
+├── stores/
+│   ├── budget.ts            Pinia: full CRUD + persistence + CSV + migrations
+│   ├── ui.ts                Pinia: transient UI state (active tab, filters, schedule month)
+│   └── theme.ts             Pinia: dark/light mode with localStorage persistence
 │
-└── [Other markdown files]
-    ├── CLAUDE.md          (AI assistant guidelines)
-    ├── Coding_Principles.md (Development standards)
-    ├── Penny_Project_Guide.md (Feature guide)
-    └── A Penny For Our Thoughts.md (Budget reference)
-```
-
-### Post-Phase 3 (Proposed Modular Structure)
-```
-/A Penny For Our Thoughts/
-├── dashboard.html
-├── styles.css
+├── composables/
+│   ├── useAnalytics.ts      Reactive computed wrappers around calculations.ts
+│   ├── useChartStyles.ts    CSS-variable reader — feeds Chart.js colour/font config
+│   ├── useInView.ts         IntersectionObserver — lazy-render charts on scroll
+│   ├── useKeyboard.ts       Global keyboard shortcut registry
+│   ├── useModal.ts          Scroll-lock + ESC-dismiss logic for BaseModal
+│   └── useToast.ts          Module-scoped toast queue (not inject/provide)
 │
-├── src/
-│   ├── app.js              (Entry point, initialization)
-│   ├── state.js            (State object, migrations, schema)
-│   ├── render.js           (All DOM render functions)
-│   ├── charts.js           (Chart.js instance management)
-│   ├── analytics.js        (Calculations: variance, net worth, trends)
-│   ├── ui.js               (Modal, form, UI helpers)
-│   └── utils.js            (Formatting, validation, ID generation)
+├── utils/
+│   ├── calculations.ts      Pure analytics functions (~900 lines, fully typed)
+│   ├── csv.ts               Low-level CSV string parser
+│   ├── csvImportExport.ts   Full state ↔ CSV serialiser/parser (17 sections)
+│   ├── date.ts              ISO date helpers (today, month arithmetic)
+│   ├── dom.ts               cssVar() — reads a CSS custom property from :root
+│   ├── format.ts            fmt() currency, pct() percentage
+│   └── id.ts                genId(), deepClone()
 │
-├── docs/
-│   ├── README.md
-│   ├── ROADMAP.md
-│   ├── ARCHITECTURE.md
-│   ├── PHASE_TRACKING.md
-│   ├── USER_GUIDE.md       (User-facing feature docs)
-│   └── API.md              (State schema & function reference)
+├── data/
+│   └── categories.ts        Canonical spending-category list (shared by sections)
 │
-├── tests/
-│   ├── state.test.js
-│   ├── analytics.test.js
-│   └── utils.test.js
+├── components/
+│   ├── pages/
+│   │   ├── DashboardPage.vue    Hosts all 13 dashboard sections
+│   │   ├── SchedulePage.vue     Hosts RecurringCalendar
+│   │   ├── DocsPage.vue         Static docs with sidebar + mobile dropdown nav
+│   │   └── SettingsPage.vue     Pay period, rules, alerts, balance, danger zone
+│   │
+│   ├── sections/               One SFC per feature area
+│   │   ├── BudgetAllocation.vue
+│   │   ├── BudgetAlerts.vue
+│   │   ├── BudgetVsActual.vue
+│   │   ├── CreditCards.vue
+│   │   ├── ExpenseCards.vue
+│   │   ├── IncomeStreams.vue
+│   │   ├── Loans.vue
+│   │   ├── NetWorth.vue
+│   │   ├── PayStartDate.vue
+│   │   ├── RecurringCalendar.vue
+│   │   ├── RulesEngine.vue
+│   │   ├── Savings.vue
+│   │   ├── SavingsGoals.vue
+│   │   ├── SpendingAnalytics.vue
+│   │   ├── Subscriptions.vue
+│   │   ├── WantsTracker.vue
+│   │   └── Wishlist.vue
+│   │
+│   ├── charts/                 vue-chartjs wrappers — all lazy via useInView
+│   │   ├── AnalyticsBar.vue
+│   │   ├── AnalyticsLine.vue
+│   │   ├── BudgetVsActualChart.vue
+│   │   ├── CcBar.vue
+│   │   ├── ForecastBar.vue
+│   │   ├── MoMTrend.vue
+│   │   ├── NetWorthChart.vue
+│   │   └── WantsDonut.vue
+│   │
+│   └── ui/                     Reusable primitives
+│       ├── BaseButton.vue
+│       ├── BaseCard.vue
+│       ├── BaseModal.vue
+│       ├── EmptyState.vue
+│       ├── ProgressBar.vue
+│       ├── StatCard.vue
+│       └── ToastContainer.vue
 │
-└── [Other files as above]
+├── css/
+│   ├── tokens.css      CSS custom properties (colours, spacing, radius)
+│   ├── layout.css      App shell grid, header, tab bar
+│   ├── forms.css       Inputs, selects, labels, modal forms
+│   ├── features.css    Section-level styles + .chart-skeleton
+│   ├── ui.css          Primitives (cards, buttons, toasts, badges)
+│   ├── responsive.css  Media query overrides (1024/768/540/380 px)
+│   └── extras.css      Animations, transitions, utility classes
+│
+└── styles.css          Tailwind v4 entry point — imports tokens + theme block
 ```
 
 ---
 
 ## State Management
 
-### State Object Schema
-Located in `localStorage` under key `penny_state_v2`:
+### BudgetState (persisted)
 
-```javascript
-state = {
-  // Financial Data
-  savingsAvailable: number,          // Available savings to allocate
-  allocation: {
-    needs: number,                   // % for needs (0-100)
-    wants: number,                   // % for wants (0-100)
-    savings: number                  // % for savings (0-100)
-  },
-  budgetDisplayMode: {
-    needs: 'monthly' | 'biweekly',
-    wants: 'monthly' | 'biweekly',
-    savings: 'monthly' | 'biweekly'
-  },
+Stored under `localStorage['penny_state_v2']` as JSON. Loaded on startup via `loadStateFromStorage()` with automatic v1 → v2 migration.
+
+```typescript
+interface BudgetState {
+  // Budget
+  allocation:       { needs: number; wants: number; savings: number };
+  budgetDisplayMode: BudgetDisplayModes;
 
   // Income
-  incomeStreams: [
-    { id: string, name: string, amount: number, biweekly: boolean },
-    ...
-  ],
+  incomeStreams: IncomeStream[];            // { id, name, amount, biweekly }
 
   // Expenses
-  expenseCards: [
-    {
-      id: string,
-      label: string,
-      items: [
-        { id: string, name: string, amount: number, biweekly: boolean },
-        ...
-      ]
-    },
-    ...
-  ],
+  expenseCards:     ExpenseCard[];          // { id, cardLabel, items[] }
+  purchases:        Purchase[];             // current bi-weekly envelope
+  spendingHistory:  SpendingHistoryPeriod[];// archived periods
 
-  // Wants Tracking (Bi-weekly Envelope)
-  purchases: [
-    { id: string, name: string, amount: number },
-    ...
-  ],
-  spendingHistory: [
-    {
-      id: string,
-      date: string (ISO date),
-      label: string (period label),
-      total: number,
-      items: [{ name: string, amount: number }, ...]
-    },
-    ...
-  ],
+  // Debts
+  loans:        Loan[];
+  creditCards:  CreditCard[];
 
-  // Debts & Credit
-  loans: [
-    { id: string, name: string, remaining: number, original: number },
-    ...
-  ],
-  creditCards: [
-    { id: string, name: string, balance: number, limit: number },
-    ...
-  ],
+  // Recurring
+  subscriptions: Subscription[];
 
-  // Savings & Goals
-  savingsAccounts: [
-    { id: string, name: string, allocated: number },
-    ...
-  ],
+  // Savings
+  wishlist:        WishlistItem[];
+  savingsAccounts: SavingsAccount[];        // balance + defaultAllocated + monthlyAllocations
+  goals:           Goal[];                  // { id, accountId, targetAmount, targetDate }
 
-  // Subscriptions & Wishlist
-  subscriptions: [
-    { id: string, name: string, date: string (renewal date) },
-    ...
-  ],
-  wishlist: [
-    { id: string, icon: string (emoji), name: string, url?: string },
-    ...
-  ]
+  // Net worth
+  assets:          Asset[];
+  netWorthHistory: NetWorthSnapshot[];      // trimmed to 24 months
+
+  // Settings
+  payStart:              ISODate | null;
+  rules:                 Rule[];            // { id, keyword, matchType, category }
+  budgetAlerts:          BudgetAlert[];     // { id, category, threshold }
+  fundsRemaining:        number;
+  fundsRemainingUpdated: ISODate | '';
 }
 ```
 
-### State Persistence
-- **Key**: `penny_state_v2` (v2 schema with automatic migration from v1)
-- **Update Flow**: Modify state → `saveToStorage()` → `render*()`
-- **Migration**: Automatic on load; old v1 format converted to v2
+#### Storage key
 
----
-
-## Core Functions
-
-### Render Functions (Update DOM)
-| Function | Purpose |
-|----------|---------|
-| `renderDashboard()` | Render entire dashboard view |
-| `renderIncomeSection()` | Income streams & total |
-| `renderBudgetBar()` | Budget allocation visualization |
-| `renderWantsTracker()` | Wants envelope tracking & chart |
-| `renderExpenseCards()` | Dynamic payment cards |
-| `renderLoans()` | Loan tracking with progress bars |
-| `renderCreditCards()` | Credit card utilization |
-| `renderSavings()` | Savings allocation & accounts |
-| `renderSubscriptions()` | Subscription list with renewal dates |
-| `renderWishlist()` | Wishlist items |
-
-### CRUD Functions (Data Modification)
-| Operation | Function |
-|-----------|----------|
-| Add Income | `addIncomeStream(name, amount, biweekly)` |
-| Edit Income | `editIncomeStream(id, name, amount, biweekly)` |
-| Delete Income | `deleteIncomeStream(id)` |
-| Add Purchase | `addPurchase(name, amount)` |
-| Delete Purchase | `deletePurchase(id)` |
-| Reset Period | `resetWantsPeriod()` |
-| Add Expense Card | `addExpenseCard(label)` |
-| Edit Expense Card | `editExpenseCard(id, label)` |
-| ... (and similar for loans, credit cards, savings, etc.) |
-
-### Calculation Functions
-| Function | Returns |
-|----------|---------|
-| `calculateMonthlyIncome()` | Total monthly income |
-| `calculateBudgetAmounts()` | Allocated $ amounts for each category |
-| `calculateWantsRemaining()` | Current period remaining budget |
-| `calculateTotalExpenses()` | Sum of all fixed expenses |
-| `calculateCreditUtilization()` | Total credit card utilization % |
-
-### Utility Functions
-| Function | Purpose |
-|----------|---------|
-| `genId()` | Generate stable unique IDs |
-| `saveToStorage()` | Persist state to localStorage |
-| `loadFromStorage()` | Load state from localStorage |
-| `formatCurrency(num)` | Format numbers as currency |
-| `formatDate(date)` | Format date for display |
-| `migrateStateIfNeeded()` | Upgrade old state schemas |
-
----
-
-## Data Flow
-
-### User Action → State Update → DOM Render
 ```
-1. User clicks "Add Income"
-   ↓
-2. Modal opens (editModal content filled)
-   ↓
-3. User submits form
-   ↓
-4. Form validation (if valid)
-   ↓
-5. State updated: state.incomeStreams.push(newStream)
-   ↓
-6. saveToStorage() — persist to localStorage
-   ↓
-7. renderIncomeSection() — update DOM
-   ↓
-8. renderBudgetBar() — recalculate budget allocation
-   ↓
-9. Modal closes, user sees new income in list
+localStorage['penny_state_v2']  — BudgetState as JSON
+localStorage['penny_theme']     — 'dark' | 'light'
 ```
 
-### Example: Editing Budget Allocation
+#### Persistence flow
+
 ```
-1. User changes "Needs %" from 50 to 55
-   ↓
-2. Input validation (must sum to 100)
-   ↓
-3. state.allocation.needs = 55
-4. state.allocation.wants = 30  // Adjusted proportionally
-   ↓
-5. saveToStorage()
-   ↓
-6. renderBudgetBar() — visualize new split
-7. renderIncomeSection() — show new allocation amounts
-   ↓
-8. User sees updated allocation
+User action (CRUD)
+  → Pinia action mutates this.$state
+    → $subscribe in main.ts fires
+      → saveStateToStorage(state) → localStorage.setItem(...)
+        → on failure: useToast().show('Storage is full …', 'danger')
 ```
 
----
+`saveStateToStorage` returns `boolean` — `false` on `QuotaExceededError` or any other `DOMException`. The `$subscribe` watcher in `main.ts` catches failures and surfaces a danger toast.
 
-## Key Design Patterns
+### UiState (transient)
 
-### 1. Idempotent Render Functions
-- Safe to call multiple times
-- Don't add duplicates or accumulate
-- Clear all, rebuild from state
+Not persisted. Resets on every page load.
 
-### 2. Single State Object
-- All data in one `state` object
-- No scattered globals
-- Easier to debug and persist
+```typescript
+interface UiState {
+  activeTab:          'dashboard' | 'schedule' | 'docs' | 'settings';
+  analyticsPanelOpen: boolean;
+  analyticsFilters:   { startDate, endDate, search };
+  scheduleViewYear:   number;
+  scheduleViewMonth:  number;  // 1-based
+  scheduleView:       'list' | 'calendar';
+}
+```
 
-### 3. Modal Pattern
-- Single reusable `#modal-overlay` element
-- Helper function `openModal(title, fields, saveCallback)`
-- Consistent CRUD UX
+### ThemeState
 
-### 4. localStorage Management
-- Automatic save after every state mutation
-- Automatic schema migrations
-- Error handling for corrupted data
+```typescript
+// Backed by localStorage['penny_theme']
+type ThemeMode = 'dark' | 'light';
+```
 
-### 5. Chart.js Management
-- 4 active chart instances (wants donut, CC bar, analytics line, analytics bar)
-- Destroy old chart before creating new one
-- Clean up on DOM element removal
+`applyThemeToDOM(mode)` writes `data-theme` to `<html>` — all colours are CSS custom properties that flip based on `[data-theme="light"]`.
 
 ---
 
-## Responsive Design
+## Data Flow — Typical CRUD Action
 
-### Breakpoints
-| Width | Device | Layout |
-|-------|--------|--------|
-| 1024px+ | Desktop | Full multi-column, 2-3 cols per row |
-| 768px | Tablet | 2 columns, adjusted spacing |
-| 540px | Mobile | Single column, stacked |
-| 380px | Small Mobile | Extra compact, full width |
+```
+1. User clicks "+ Add Stream" in IncomeStreams.vue
+   ↓
+2. BaseModal opens (useModal composable manages scroll-lock + ESC)
+   ↓
+3. User fills form, clicks Save
+   ↓
+4. IncomeStreams calls budget.addIncomeStream({ name, amount, biweekly })
+   ↓
+5. Pinia action pushes to this.incomeStreams
+   ↓
+6. Vue reactivity propagates to all consumers of budget.incomeStreams
+   (IncomeStreams list, BudgetAllocation totals, StatCards, useAnalytics …)
+   ↓
+7. $subscribe in main.ts fires → saveStateToStorage()
+   ↓
+8. Modal closes, toast "Income stream added" appears
+```
 
-### Mobile Optimizations
-- 44px minimum touch target size
-- Full-width inputs and buttons on phones
-- Stack all elements vertically
-- Simplified forms (fewer fields per screen)
-
----
-
-## Browser Support
-
-- **Modern browsers**: Chrome, Firefox, Safari, Edge
-- **Features used**: ES2023, localStorage, CSS Grid, CSS Variables, Chart.js
-- **No build step**: Vanilla HTML/CSS/JS, works directly in browser
-- **CDN**: Chart.js from Cloudflare
+No manual `renderAll()` calls. Reactivity handles all DOM updates automatically.
 
 ---
 
-## Performance Considerations
+## Composable Contracts
 
-### Current
-- No issues with typical dataset (2-3 years of transactions)
-- localStorage limits: ~5-10MB per domain (more than enough)
-- Chart.js instances: 4 active, good performance
+### `useToast()`
+```typescript
+// Module-scoped — safe to call from main.ts or any component
+function useToast(): {
+  toasts: Readonly<Ref<Toast[]>>;
+  show(message: string, type?: 'success' | 'danger' | 'info' | 'warning'): number;
+  dismiss(id: number): void;
+}
+```
+`<ToastContainer />` in `App.vue` renders the queue. Toasts auto-dismiss after 2500 ms.
 
-### Future (Phase 3)
-- Lazy-load charts (only when section visible)
-- Reuse Chart.js instances instead of destroy/recreate
-- Batch DOM updates where possible
-- Test with 5+ years of historical data
+### `useModal(open: Ref<boolean>)`
+```typescript
+// Locks body scroll when open, dismisses on ESC
+function useModal(open: Ref<boolean>): void
+```
+
+### `useKeyboard(bindings: KeyBinding[])`
+```typescript
+// Registers global keydown listeners, guarded inside text inputs
+function useKeyboard(bindings: Array<{
+  key: string;
+  shift?: boolean;
+  handler: () => void;
+}>): void
+```
+
+### `useChartStyles()`
+```typescript
+// Reactive chart colour config derived from CSS custom properties
+function useChartStyles(): ComputedRef<{
+  accent: string; accent2: string; danger: string; warn: string;
+  surface: string; surface2: string; tickColor: string; gridColor: string;
+  fontFamily: string; tooltip: object;
+  rgba(hex: string, alpha: number): string;
+}>
+```
+
+### `useInView(elementRef, options?)`
+```typescript
+// Fires once when element enters viewport; stays true afterwards.
+// Falls back to true immediately when IntersectionObserver is unavailable.
+function useInView(
+  elementRef: Ref<HTMLElement | null>,
+  options?: { rootMargin?: string; threshold?: number }
+): { isInView: Readonly<Ref<boolean>> }
+```
+
+### `useAnalytics()`
+```typescript
+// Computed wrappers around utils/calculations.ts — reactive to budget store
+function useAnalytics(): {
+  totalMonthlyIncome:   ComputedRef<number>;
+  needsBudget:          ComputedRef<number>;
+  wantsBudget:          ComputedRef<number>;
+  savingsBudget:        ComputedRef<number>;
+  wantsRemaining:       ComputedRef<number>;
+  categorySpending:     ComputedRef<Record<string, number>>;
+  usedPct:              ComputedRef<number>;
+  progressForGoal:      (goal: Goal) => GoalProgress | null;
+  // … and more
+}
+```
 
 ---
 
-## Testing Strategy (Phase 3)
+## Chart Architecture
 
-### Unit Tests
-- `state.test.js` — State schema, migrations, CRUD functions
-- `analytics.test.js` — Calculations (variance, net worth, trends)
-- `utils.test.js` — Formatting, validation, ID generation
+All 8 chart SFCs in `src/components/charts/` follow the same pattern:
 
-### Integration Tests
-- Full CRUD workflows (add → edit → delete)
-- localStorage persistence and recovery
-- Theme toggle persistence
-- CSV import/export round-trip
+1. **Props** — receive pre-computed data from the parent section SFC
+2. **`useChartStyles()`** — reactive colour config; automatically recolours on theme toggle
+3. **`useInView(wrapperRef)`** — lazy render; chart canvas is `v-if="isInView"` with a `.chart-skeleton` placeholder until the element enters the viewport
+4. **`vue-chartjs`** wrapper component — `<Bar>`, `<Line>`, `<Doughnut>`, or `<Chart type="bar">` for mixed types
 
-### Manual Testing
-- Mobile devices (real iOS & Android)
-- Different browsers
-- Dark/light theme switching
-- Large datasets (5+ years)
+Chart.js is registered globally in `main.ts`:
+```typescript
+import { Chart as ChartJS, registerables } from 'chart.js';
+ChartJS.register(...registerables);
+```
 
 ---
 
-## Git & Versioning
+## Tab Routing
 
-### Branching
-- `main` — Production-ready, always deployable
-- `phase-0/ui-design` — Phase 0 work
-- `phase-1/analytics` — Phase 1 work
-- etc.
+`App.vue` uses `<component :is="activePage" />` where `activePage` is a computed ref derived from `ui.activeTab`. Switching tabs **fully unmounts** the previous page and **mounts** the new one — no `<keep-alive>`. This means:
 
-### Tagging
-- `v0.1.0` — Phase 0 complete
-- `v1.0.0` — Phase 1 complete
-- etc.
+- Each tab mount re-runs all section setup (cheap — no network calls)
+- `useInView` observers are created fresh and cleaned up on each unmount
+- Charts in hidden tabs never consume canvas memory until the tab is visited
 
 ---
 
-## Future Considerations
+## CSV Import / Export
 
-### Phase 3 Refactor
-When code grows, modularize into `src/` folder with clear separation:
-- **state.js** — Data layer
-- **render.js** — View layer
-- **analytics.js** — Business logic
-- **ui.js** — Component layer
+Implemented in `src/utils/csvImportExport.ts`:
 
-### Potential Enhancements
-- Bank API integration (Plaid, etc.)
-- Multi-user support (separate users per localStorage key)
-- Mobile app wrapper (Capacitor/Electron)
-- Backend sync (optional)
+- `exportStateToCSV(state: BudgetState): string` — pure serialiser
+- `parseCSVToState(text: string): Partial<BudgetState>` — full parser with backward compatibility for legacy formats
+- `triggerCSVDownload(csv, filename?)` — DOM download helper (separated for testability)
+
+The budget store exposes `exportCSV()` and `importCSV(text)` actions that call these utilities. App toolbar buttons + keyboard shortcut `E` trigger export.
 
 ---
 
-**Last Updated**: May 12, 2026
-**Current Phase**: Phase 0 (Design & Visual Polish)
+## Testing Strategy
+
+**Framework**: Vitest + `@vue/test-utils`  
+**Coverage**: 448 tests across 19 spec files (as of v1.2.0)
+
+| Layer | Test file(s) | What's covered |
+|---|---|---|
+| Stores | `tests/stores/budget.spec.ts` | All CRUD actions, persistence, migrations, error handling |
+| Stores | `tests/stores/theme.spec.ts` | Theme load/apply, error handling |
+| Stores | `tests/stores/ui.spec.ts` | Tab state, filter state, month navigation |
+| Composables | `tests/composables/useToast.spec.ts` | show, dismiss, auto-dismiss |
+| Composables | `tests/composables/useKeyboard.spec.ts` | Key bindings, modifier guards |
+| Composables | `tests/composables/useInView.spec.ts` | IO fallback, intersection, cleanup |
+| Utils | `tests/utils/calculations.spec.ts` | All analytics calculations |
+| Utils | `tests/utils/csvImportExport.spec.ts` | Round-trip all 17 sections |
+| Utils | `tests/utils/format.spec.ts`, `id.spec.ts`, `date.spec.ts` | Utility functions |
+| Components | `tests/components/App.spec.ts` | Tab routing, shortcuts, toolbar |
+| Components | `tests/components/sections/sections.spec.ts` | All 13 section SFCs |
+| Components | `tests/components/sections/settings.spec.ts` | PayStartDate, RulesEngine, BudgetAlerts |
+| Components | `tests/components/pages/pages.spec.ts` | DocsPage, SettingsPage |
+| Sanity | `tests/sanity.spec.ts` | Environment check |
+
+**Mocking conventions**:
+- `vue-chartjs` (`Bar`, `Line`, `Doughnut`, `Chart`) → stub canvas tags so jsdom doesn't throw
+- `chart.js` → `{ Chart: { register: vi.fn() }, registerables: [] }`
+- Heavy child sections in page tests → `vi.mock('@/components/sections/...')` stubs
+- `IntersectionObserver` → class-based `MockIO` stub in `useInView.spec.ts`
+- `localStorage` errors → `vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw ... })`
+
+---
+
+## Responsive Breakpoints
+
+| Width | Device | Notable changes |
+|---|---|---|
+| 1200px+ | Wide desktop | Docs sidebar visible |
+| 1024px | Desktop/Tablet break | Single-column dashboard on tablet |
+| 768px | Tablet | Stacked header grid, 2-column stat cards |
+| 540px | Mobile | Full-width forms, single-column |
+| 380px | Small mobile | Compact typography, minimal padding |
+
+---
+
+## Git & Versions
+
+| Tag | Description |
+|---|---|
+| `v1.0.0` | Vue 3 migration complete (Sprints 0–6) |
+| `v1.1.0` | Settings, Rules Engine, Budget Alerts, Docs (Sprint 7) |
+| `v1.2.0` | Error handling, lazy charts, architecture docs (Sprint 8) |
+
+**Branch strategy**: `feat/sprint-N` → PR → merge to `main` → tag.
+
+---
+
+## Key Design Decisions
+
+### Why no Vue Router?
+The app has 4 tabs with no URL-shareable sub-views. `<component :is>` is simpler, has zero bundle overhead, and the tab state (persisted in `UiState`) survives navigation within a session.
+
+### Why module-scoped toast state?
+`useToast()` uses a module-level `ref` rather than `provide/inject`, which allows it to be called from `main.ts` (before Vue mounts) — critical for surfacing localStorage errors that occur during startup hydration.
+
+### Why `IntersectionObserver` in charts instead of sections?
+Each chart SFC is self-contained with its own `wrapperRef`. Sections don't need to know about lazy-loading. The observer is created fresh on each tab mount and cleaned up on unmount — no memory leaks, no shared observer management.
+
+### Why no `<keep-alive>` on tabs?
+Sections are lightweight enough that re-mounting on tab switch is instant. `<keep-alive>` would accumulate detached chart canvases and IntersectionObserver instances, and would make the "fresh state on tab visit" behaviour harder to reason about.

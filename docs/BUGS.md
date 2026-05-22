@@ -11,10 +11,75 @@ for recurring patterns and a post-mortem trail for regressions.
 
 ---
 
+## BUG-014 — `docs.css` global import hides all DocsPage content
+
+**Date:** May 2026
+**Branch:** `feat/sprint-7` (Sprint 7)
+**Severity:** High (entire DocsPage rendered blank)
+
+### Symptom
+`DocsPage.vue` mounted successfully but every `.docs-section` element was invisible — all content hidden.
+
+### Root Cause
+`src/css/docs.css` (a legacy file left over from the vanilla-JS era) contained a global rule `.docs-section { display: none }`. This file was still imported in `src/main.ts`, so the rule applied globally to every element with that class. `DocsPage.vue` used `.docs-section` for its sections and had no corresponding CSS to set `display: block`, because it relied on the browser default. The legacy rule won.
+
+### Fix
+Removed `import './css/docs.css'` from `src/main.ts`. `DocsPage.vue` is fully self-contained with scoped CSS — the legacy stylesheet was vestigial.
+
+### Prevention
+**Rule:** When carrying over CSS from a vanilla JS migration, audit every global import in `main.ts` for hide/show display rules. Any `display: none` global rule is a hazard — scope it to the component that uses it.
+
+---
+
+## BUG-013 — Mobile header toolbar overflows to row 3 at ≤768px
+
+**Date:** May 2026
+**Branch:** `feat/vue3-migration` (Sprint 6)
+**Severity:** Medium (toolbar invisible/overflowed on mobile)
+
+### Symptom
+On viewports ≤768px, the export/import/shortcuts toolbar buttons disappeared — they overflowed to a third row that wasn't visible, pushing the content area down.
+
+### Root Cause
+`App.vue` header uses a CSS grid layout. At ≤768px the grid has 2 rows: brand name + tabs. The toolbar was placed as a third flex item but no `grid-row`/`grid-column` placement rules were set, so it auto-placed after the tabs, creating an invisible third row.
+
+### Fix
+Added explicit `grid-row`/`grid-column` placement in `src/css/responsive.css` at the 768px breakpoint: brand → row 1/col 1; toolbar → row 1/col 2; tabs → row 2/col 1-2. Both items now share row 1 with the tabs spanning the full second row below.
+
+### Prevention
+**Rule:** When adding new elements to an existing CSS grid at a breakpoint, always set `grid-row` and `grid-column` explicitly — auto-placement in a named grid is unpredictable.
+
+---
+
+## BUG-012 — `useKeyboard` rejects `?` (and other shifted keys) in real browser
+
+**Date:** May 2026
+**Branch:** `feat/vue3-migration` (Sprint 6)
+**Severity:** Medium (keyboard shortcut for help panel non-functional in browser)
+
+### Symptom
+Pressing `?` in the app did nothing. The keyboard shortcut worked in jsdom tests but not in a real browser.
+
+### Root Cause
+`useKeyboard.ts` matched shortcut bindings with `if (binding.shift !== undefined && binding.shift !== e.shiftKey)`. When a binding declared `shift: true` (e.g. `?` = Shift+/) and the user pressed it, `e.shiftKey` was `true` — matching. BUT bindings without `shift: true` were incorrectly guarded by the same bidirectional check: `false !== true` → rejected. This caused any shortcut registered without a `shift` flag to reject every keystroke that happened to have `shiftKey: true` (e.g. `?`, `!`, `@`).
+
+### Fix
+Changed the guard from bidirectional to one-directional: `if (needsShift && !e.shiftKey) return`. A binding that doesn't require shift now accepts any keystroke regardless of `shiftKey` state. A binding that DOES require shift rejects it only when shift is absent.
+
+### Prevention
+**Rule:** Keyboard modifier guards should be one-directional: block if modifier *required* but *absent*. Never block because modifier is *present* but not *required* — that rejects shifted characters from non-shortcut keys.
+
+---
+
+## Vue 3 Migration Bugs (Sprints 0–6)
+
+---
+
 ## BUG-011 — Bare `header { ... }` rule from legacy layout.css bleeds into BaseCard
 
 **Date:** May 2026
 **Branch:** `feat/vue3-migration` (Sprint 2)
+**Era:** Vue 3 migration
 **Severity:** Medium (visual inconsistency — section headers got page-header styling)
 
 ### Symptom
@@ -138,6 +203,12 @@ formatting.
 Caught by Vitest unit test (`tests/utils/format.spec.ts`) — was the very
 first test that ran on the new typed utils. Adding tests during the port
 surfaced a latent legacy bug.
+
+---
+
+## Legacy Vanilla JS Bugs (pre-Vue 3 migration)
+
+> The bugs below were filed during the vanilla JS / Vite-infra era (before Sprint 0 of the Vue 3 migration). They are kept for historical reference — the code they describe no longer exists in the Vue 3 codebase.
 
 ---
 
@@ -492,5 +563,5 @@ filter object as an argument: `getFilteredSpendingHistory(filters)`.
 
 ---
 
-*Last updated: May 2026*  
-*See also: [PHASE_TRACKING.md](PHASE_TRACKING.md) for feature roadmap and sprint status.*
+*Last updated: May 2026 — v1.2.0 (Sprint 8)*  
+*See also: [PHASE_TRACKING.md](PHASE_TRACKING.md) for the full sprint history.*

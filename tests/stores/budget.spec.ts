@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import {
   useBudgetStore,
   makeDefaultState,
   makeBlankState,
   migrateState,
+  saveStateToStorage,
+  loadStateFromStorage,
 } from '@/stores/budget';
 
 describe('budget store — initialisation', () => {
@@ -344,5 +346,85 @@ describe('migrateState — v1 schema migrations', () => {
     expect(migrated.netWorthHistory).toEqual([]);
     expect(migrated.fundsRemaining).toBe(0);
     expect(migrated.payStart).toBe(null);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Storage error handling
+// ─────────────────────────────────────────────────────────────────
+describe('saveStateToStorage — error handling', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  it('returns true on successful write', () => {
+    const state = makeDefaultState();
+    expect(saveStateToStorage(state)).toBe(true);
+    expect(localStorage.getItem('penny_state_v2')).not.toBeNull();
+  });
+
+  it('returns false when localStorage.setItem throws (quota exceeded)', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError');
+    });
+    const state = makeDefaultState();
+    expect(saveStateToStorage(state)).toBe(false);
+  });
+
+  it('does not throw when localStorage is unavailable', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Storage unavailable');
+    });
+    expect(() => saveStateToStorage(makeDefaultState())).not.toThrow();
+  });
+
+  it('store.saveToStorage() returns false on quota exceeded', () => {
+    setActivePinia(createPinia());
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError');
+    });
+    const store = useBudgetStore();
+    expect(store.saveToStorage()).toBe(false);
+  });
+
+  it('store.saveToStorage() returns true on success', () => {
+    setActivePinia(createPinia());
+    const store = useBudgetStore();
+    expect(store.saveToStorage()).toBe(true);
+  });
+});
+
+describe('loadStateFromStorage — error handling', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  it('returns DEFAULT_STATE when localStorage.getItem throws', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('SecurityError');
+    });
+    const result = loadStateFromStorage();
+    expect(result.allocation).toEqual({ needs: 50, wants: 30, savings: 20 });
+  });
+
+  it('does not throw when localStorage is entirely unavailable', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('Storage unavailable');
+    });
+    expect(() => loadStateFromStorage()).not.toThrow();
+  });
+
+  it('returns DEFAULT_STATE for corrupt JSON (regression)', () => {
+    localStorage.setItem('penny_state_v2', '{{broken}}');
+    expect(loadStateFromStorage().allocation).toEqual({ needs: 50, wants: 30, savings: 20 });
+  });
+
+  it('returns migrated state when valid JSON is present', () => {
+    const state = makeDefaultState();
+    state.allocation = { needs: 40, wants: 40, savings: 20 };
+    localStorage.setItem('penny_state_v2', JSON.stringify(state));
+    expect(loadStateFromStorage().allocation).toEqual({ needs: 40, wants: 40, savings: 20 });
   });
 });

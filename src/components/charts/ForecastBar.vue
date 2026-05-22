@@ -11,10 +11,11 @@
 -->
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Chart } from 'vue-chartjs';
 import type { ChartData, ChartOptions } from 'chart.js';
 import { useChartStyles } from '@/composables/useChartStyles';
+import { useInView } from '@/composables/useInView';
 import { fmt } from '@/utils/format';
 
 // ─── Props & emits ───────────────────────────────────────────────
@@ -31,6 +32,10 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// ─── Lazy render ─────────────────────────────────────────────────
+const wrapperRef = ref<HTMLElement | null>(null);
+const { isInView } = useInView(wrapperRef);
 
 const emit = defineEmits<{
   (e: 'bar-click', year: number, month: number): void;
@@ -152,11 +157,20 @@ const chartOptions = computed<ChartOptions<'bar'>>(() => {
 </script>
 
 <template>
-  <div class="forecast-bar-wrapper">
+  <div
+    ref="wrapperRef"
+    class="forecast-bar-wrapper"
+  >
     <Chart
+      v-if="isInView"
       type="bar"
       :data="chartData"
       :options="chartOptions"
+    />
+    <div
+      v-else
+      class="chart-skeleton"
+      aria-hidden="true"
     />
   </div>
 </template>
