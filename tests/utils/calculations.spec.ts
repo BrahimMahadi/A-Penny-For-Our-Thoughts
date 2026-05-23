@@ -32,6 +32,8 @@ import {
   getTriggeredAlerts,
   getPrevMonthActuals,
   getEnvelopeForecast,
+  getSpendingTrend,
+  getGoalsTimeline,
 } from '@/utils/calculations';
 import { makeBlankState } from '@/stores/budget';
 import type { BudgetState } from '@/types/state';
@@ -787,5 +789,161 @@ describe('getEnvelopeForecast', () => {
     // Only the $50 wants purchase should contribute
     expect(result.dailyRate).toBeCloseTo(50 / 7, 4);
     expect(result.projectedTotal).toBeCloseTo((50 / 7) * 14, 1);
+  });
+});
+
+// ─── getSpendingTrend ─────────────────────────────────────────────
+
+describe('getSpendingTrend', () => {
+  it('returns exactly `count` rows', () => {
+    const state = buildState();
+    const rows = getSpendingTrend(state, 6);
+    expect(rows).toHaveLength(6);
+  });
+
+  it('oldest row is first, current month is last (isCurrent = true)', () => {
+    const rows = getSpendingTrend(buildState(), 6);
+    expect(rows[0].isCurrent).toBe(false);
+    expect(rows[rows.length - 1].isCurrent).toBe(true);
+  });
+
+  it('each row carries the same income figure', () => {
+    const state = buildState({
+      incomeStreams: [{ id: 'i1', name: 'Salary', amount: 5000, biweekly: false }],
+    });
+    const rows = getSpendingTrend(state, 3);
+    for (const row of rows) {
+      expect(row.income).toBe(5000);
+    }
+  });
+
+  it('includes spending-history wants in past months', () => {
+    const today = new Date('2026-03-15T00:00:00');
+    const state = buildState({
+      spendingHistory: [
+        { id: 'H1', date: '2026-02-10', total: 300, items: [] },
+      ],
+    });
+    // count=2 → rows for Feb + Mar
+    const rows = getSpendingTrend(state, 2, today);
+    const feb = rows.find(r => r.monthKey === '2026-02');
+    expect(feb?.wants).toBe(300);
+  });
+
+  it('current month includes live purchases', () => {
+    const today = new Date('2026-03-15T00:00:00');
+    const state = buildState({
+      purchases: [
+        { id: 'p1', name: 'Coffee', amount: 45, category: 'Food & Drink', cardId: null, budgetType: 'wants' },
+      ],
+    });
+    const rows = getSpendingTrend(state, 1, today);
+    expect(rows[0].wants).toBe(45);
+  });
+
+  it('month keys are unique and in ascending order', () => {
+    const rows = getSpendingTrend(buildState(), 4);
+    const keys = rows.map(r => r.monthKey);
+    const sorted = [...keys].sort();
+    expect(keys).toEqual(sorted);
+    const unique = new Set(keys);
+    expect(unique.size).toBe(4);
+  });
+});
+
+// ─── getGoalsTimeline ─────────────────────────────────────────────
+
+describe('getGoalsTimeline', () => {
+  function makeAccount(id: string, balance: number, allocated = 0) {
+    return {
+      id,
+      name: id,
+      balance,
+      defaultAllocated: allocated,
+      monthlyAllocations: {} as Record<string, number>,
+    };
+  }
+
+  it('returns empty array when there are no goals', () => {
+    const state = buildState();
+    expect(getGoalsTimeline(state)).toHaveLength(0);
+  });
+
+  it('skips goals whose account is missing', () => {
+    const state = buildState({
+      goals: [{ id: 'g1', accountId: 'missing', targetAmount: 1000, targetDate: '2027-12' }],
+      savingsAccounts: [],
+    });
+    expect(getGoalsTimeline(state)).toHaveLength(0);
+  });
+
+  it('marks a goal complete when balance >= target', () => {
+    const today = new Date('2026-05-01T00:00:00');
+    const state = buildState({
+      goals: [{ id: 'g1', accountId: 'acc1', targetAmount: 500, targetDate: '2027-06' }],
+      savingsAccounts: [makeAccount('acc1', 600)],
+    });
+    const [item] = getGoalsTimeline(state, today);
+    expect(item.status).toBe('complete');
+    expect(item.monthsToComplete).toBeNull();
+  });
+
+  it('marks a goal missed when target date has passed and balance < target', () => {
+    const today = new Date('2026-05-01T00:00:00');
+    const state = buildState({
+      goals: [{ id: 'g1', accountId: 'acc1', targetAmount: 5000, targetDate: '2026-04' }],
+      savingsAccounts: [makeAccount('acc1', 1000)],
+    });
+    const [item] = getGoalsTimeline(state, today);
+    expect(item.status).toBe('missed');
+  });
+
+  it('computes on-track when monthly allocation covers shortfall in time', () => {
+    // Target: $3000 by 2026-11 (6 months from May 2026)
+    // Balance: $0, allocating $600/month → completes in 5 months → on track
+    const today = new Date('2026-05-01T00:00:00');
+    const state = buildState({
+      goals: [{ id: 'g1', accountId: 'acc1', targetAmount: 3000, targetDate: '2026-11' }],
+      savingsAccounts: [makeAccount('acc1', 0, 600)],
+    });
+    const [item] = getGoalsTimeline(state, today);
+    expect(item.status).toBe('on-track');
+    expect((item.monthsLate ?? 0)).toBeLessThanOrEqual(0);
+  });
+
+  it('computes off-track when monthly allocation is too low', () => {
+    // Target: $12000 by 2026-11 (6 months)
+    // Balance: $0, allocating $100/month → completes in 120 months → very late
+    const today = new Date('2026-05-01T00:00:00');
+    const state = buildState({
+      goals: [{ id: 'g1', accountId: 'acc1', targetAmount: 12000, targetDate: '2026-11' }],
+      savingsAccounts: [makeAccount('acc1', 0, 100)],
+    });
+    const [item] = getGoalsTimeline(state, today);
+    expect(item.status).toBe('off-track');
+    expect((item.monthsLate ?? 0)).toBeGreaterThan(0);
+  });
+
+  it('sorts goals: active (by target date) → complete → missed', () => {
+    const today = new Date('2026-05-01T00:00:00');
+    const state = buildState({
+      goals: [
+        { id: 'missed', accountId: 'acc_missed', targetAmount: 1000, targetDate: '2026-03' },
+        { id: 'complete', accountId: 'acc_complete', targetAmount: 500, targetDate: '2027-12' },
+        { id: 'active_far', accountId: 'acc_far', targetAmount: 2000, targetDate: '2028-01' },
+        { id: 'active_near', accountId: 'acc_near', targetAmount: 2000, targetDate: '2026-09' },
+      ],
+      savingsAccounts: [
+        makeAccount('acc_missed',  100, 50),   // balance < target, date passed
+        makeAccount('acc_complete', 600, 50),  // balance >= target
+        makeAccount('acc_far',       0, 50),   // active, far
+        makeAccount('acc_near',      0, 50),   // active, near
+      ],
+    });
+    const items = getGoalsTimeline(state, today);
+    expect(items[0].id).toBe('active_near');
+    expect(items[1].id).toBe('active_far');
+    expect(items[2].id).toBe('complete');
+    expect(items[3].id).toBe('missed');
   });
 });

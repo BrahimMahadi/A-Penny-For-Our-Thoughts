@@ -29,6 +29,8 @@ import {
   getGoalProgress,
   getPrevMonthActuals,
   getEnvelopeForecast,
+  getSpendingTrend,
+  getGoalsTimeline,
   type GoalProgress,
   type NetWorthData,
   type MonthForecast,
@@ -38,6 +40,8 @@ import {
   type MomInsight,
   type TriggeredAlert,
   type EnvelopeForecast,
+  type SpendingTrendRow,
+  type GoalTimelineItem,
 } from '@/utils/calculations';
 import type { Goal, SpendingHistoryPeriod } from '@/types/budget';
 
@@ -110,6 +114,16 @@ export function useAnalytics() {
     getEnvelopeForecast(budget.$state),
   );
 
+  // ─── 6-month spending trend ──────────────────────────────────
+  const spendingTrend: ComputedRef<SpendingTrendRow[]> = computed(() =>
+    getSpendingTrend(budget.$state),
+  );
+
+  // ─── Goals timeline ──────────────────────────────────────────
+  const goalsTimeline: ComputedRef<GoalTimelineItem[]> = computed(() =>
+    getGoalsTimeline(budget.$state),
+  );
+
   // ─── Goal progress lookup ────────────────────────────────────
   /** Get progress data for a specific goal (returns null if account missing). */
   function progressForGoal(goal: Goal): GoalProgress | null {
@@ -124,6 +138,8 @@ export function useAnalytics() {
     currentMonthBudgeted,
     prevMonthActuals,
     envelopeForecast,
+    spendingTrend,
+    goalsTimeline,
     netWorth,
     monthForecast,
     calendarDayMap,

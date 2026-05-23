@@ -21,10 +21,14 @@ import CreditCards       from '@/components/sections/CreditCards.vue';
 import Subscriptions     from '@/components/sections/Subscriptions.vue';
 import Savings           from '@/components/sections/Savings.vue';
 import SavingsGoals      from '@/components/sections/SavingsGoals.vue';
+import GoalsTimeline     from '@/components/sections/GoalsTimeline.vue';
 import NetWorth          from '@/components/sections/NetWorth.vue';
 import BudgetVsActual    from '@/components/sections/BudgetVsActual.vue';
 import SpendingAnalytics from '@/components/sections/SpendingAnalytics.vue';
 import Wishlist          from '@/components/sections/Wishlist.vue';
+
+// Chart components
+import SpendingTrendChart from '@/components/charts/SpendingTrendChart.vue';
 
 import { useAnalytics } from '@/composables/useAnalytics';
 import { fmt } from '@/utils/format';
@@ -34,6 +38,7 @@ const {
   currentMonthBudgeted,
   currentMonthActuals,
   prevMonthActuals,
+  spendingTrend,
   netWorth,
 } = useAnalytics();
 
@@ -88,6 +93,11 @@ const wantsDelta = computed(() =>
       />
     </div>
 
+    <!-- 6-month spending trend chart -->
+    <BaseCard title="6-Month Spending Trend">
+      <SpendingTrendChart :rows="spendingTrend" />
+    </BaseCard>
+
     <!-- Income & Budget Allocation -->
     <div class="two-col-grid">
       <BaseCard title="Income Streams">
@@ -140,6 +150,11 @@ const wantsDelta = computed(() =>
         <SavingsGoals />
       </BaseCard>
     </div>
+
+    <!-- Goals Timeline -->
+    <BaseCard title="Goals Timeline">
+      <GoalsTimeline />
+    </BaseCard>
 
     <!-- Net Worth -->
     <BaseCard title="Net Worth">
