@@ -35,6 +35,8 @@ import {
   getSpendingTrend,
   getGoalsTimeline,
   getWantsCategoryActuals,
+  getPayPeriodForecast,
+  getPayPeriodDayMap,
 } from '@/utils/calculations';
 import { makeBlankState } from '@/stores/budget';
 import type { BudgetState } from '@/types/state';
@@ -1091,5 +1093,195 @@ describe('getGoalProgress — runway fields', () => {
     const progress = getGoalProgress(state, goal, today);
     // shortfall = 1000, allocation = 300 → ceil(3.33) = 4
     expect(progress?.monthsAtCurrentRate).toBe(4);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  getPayPeriodForecast / getPayPeriodDayMap
+// ─────────────────────────────────────────────────────────────────
+describe('getPayPeriodForecast', () => {
+  function makeStateWithPayStart(payStart: string | null) {
+    const s = makeBlankState() as BudgetState;
+    s.payStart = payStart;
+    s.incomeStreams = [{ id: 'i1', name: 'Salary', amount: 3000, biweekly: false }];
+    s.allocation = { needs: 50, wants: 30, savings: 20 };
+    return s;
+  }
+
+  it('returns null when payStart is not configured', () => {
+    const state = makeStateWithPayStart(null);
+    expect(getPayPeriodForecast(state, 0)).toBeNull();
+  });
+
+  it('period spans exactly 14 days', () => {
+    const state = makeStateWithPayStart('2026-05-19');
+    const today = new Date('2026-05-19T12:00:00');
+    const fc = getPayPeriodForecast(state, 0, today);
+    expect(fc).not.toBeNull();
+    expect(fc!.periodStart).toBe('2026-05-19');
+    expect(fc!.periodEnd).toBe('2026-06-01');
+  });
+
+  it('offset +1 advances start by 14 days', () => {
+    const state = makeStateWithPayStart('2026-05-19');
+    const today = new Date('2026-05-19T12:00:00');
+    const fc = getPayPeriodForecast(state, 1, today);
+    expect(fc!.periodStart).toBe('2026-06-02');
+    expect(fc!.periodEnd).toBe('2026-06-15');
+  });
+
+  it('offset -1 goes back 14 days', () => {
+    const state = makeStateWithPayStart('2026-05-19');
+    const today = new Date('2026-05-19T12:00:00');
+    const fc = getPayPeriodForecast(state, -1, today);
+    expect(fc!.periodStart).toBe('2026-05-05');
+    expect(fc!.periodEnd).toBe('2026-05-18');
+  });
+
+  it('expense card item with dueDay in the window appears in dated', () => {
+    const state = makeStateWithPayStart('2026-05-19');
+    const today = new Date('2026-05-19T12:00:00');
+    state.expenseCards = [{
+      id: 'card1', label: 'Bills', items: [
+        { id: 'e1', name: 'Hydro', amount: 80, biweekly: false, dueDay: 25 } as any,
+      ],
+    }];
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    expect(fc.dated).toHaveLength(1);
+    expect(fc.dated[0].name).toBe('Hydro');
+    expect(fc.dated[0].periodDate).toBe('2026-05-25');
+    expect(fc.undated).toHaveLength(0);
+  });
+
+  it('expense card item with dueDay outside the window is excluded', () => {
+    const state = makeStateWithPayStart('2026-05-19');
+    const today = new Date('2026-05-19T12:00:00');
+    state.expenseCards = [{
+      id: 'card1', label: 'Bills', items: [
+        { id: 'e1', name: 'Phone', amount: 50, biweekly: false, dueDay: 10 } as any,
+      ],
+    }];
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    expect(fc.dated).toHaveLength(0);
+    expect(fc.undated).toHaveLength(0);
+  });
+
+  it('expense card item without dueDay goes to undated with half monthly amount', () => {
+    const state = makeStateWithPayStart('2026-05-19');
+    const today = new Date('2026-05-19T12:00:00');
+    state.expenseCards = [{
+      id: 'card1', label: 'Bills', items: [
+        { id: 'e1', name: 'Groceries', amount: 400, biweekly: false },
+      ],
+    }];
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    expect(fc.dated).toHaveLength(0);
+    expect(fc.undated).toHaveLength(1);
+    expect(fc.undated[0].totalForMonth).toBeCloseTo(200);
+  });
+
+  it('biweekly expense card item without dueDay gets full per-period amount', () => {
+    const state = makeStateWithPayStart('2026-05-19');
+    const today = new Date('2026-05-19T12:00:00');
+    state.expenseCards = [{
+      id: 'card1', label: 'Bills', items: [
+        { id: 'e1', name: 'BiWk', amount: 100, biweekly: true },
+      ],
+    }];
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    expect(fc.undated[0].totalForMonth).toBe(100);
+  });
+
+  it('subscription renewing in the window appears in dated', () => {
+    const state = makeStateWithPayStart('2026-05-19');
+    const today = new Date('2026-05-19T12:00:00');
+    state.subscriptions = [{
+      id: 's1', name: 'Netflix', amount: 18, date: '2026-01-22', cardId: null,
+      frequency: 'monthly', budgetType: 'wants', category: 'Entertainment',
+    }];
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    expect(fc.dated).toHaveLength(1);
+    expect(fc.dated[0].name).toBe('Netflix');
+    expect(fc.dated[0].periodDate).toBe('2026-05-22');
+  });
+
+  it('subscription NOT renewing in the window is excluded', () => {
+    const state = makeStateWithPayStart('2026-05-19');
+    const today = new Date('2026-05-19T12:00:00');
+    state.subscriptions = [{
+      id: 's1', name: 'Spotify', amount: 10, date: '2026-01-05', cardId: null,
+      frequency: 'monthly', budgetType: 'wants', category: 'Entertainment',
+    }];
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    expect(fc.dated).toHaveLength(0);
+  });
+
+  it('total equals sum of dated items', () => {
+    const state = makeStateWithPayStart('2026-05-19');
+    const today = new Date('2026-05-19T12:00:00');
+    state.expenseCards = [{
+      id: 'card1', label: 'Bills', items: [
+        { id: 'e1', name: 'Hydro', amount: 80, biweekly: false, dueDay: 25 } as any,
+        { id: 'e2', name: 'Internet', amount: 60, biweekly: false, dueDay: 28 } as any,
+      ],
+    }];
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    expect(fc.total).toBe(140);
+    expect(fc.variance).toBe(fc.budgeted - 140);
+  });
+
+  it('budgeted equals half the monthly Needs budget', () => {
+    const state = makeStateWithPayStart('2026-05-19');
+    const today = new Date('2026-05-19T12:00:00');
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    // Income=3000, needs=50% -> monthly Needs=1500; per period=750
+    expect(fc.budgeted).toBe(750);
+  });
+
+  it('label is a human-readable range string', () => {
+    const state = makeStateWithPayStart('2026-05-19');
+    const today = new Date('2026-05-19T12:00:00');
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    expect(fc.label).toMatch(/May/);
+    expect(fc.label).toContain('–'); // en-dash '–'
+  });
+
+  it('dated items are sorted chronologically by periodDate', () => {
+    const state = makeStateWithPayStart('2026-05-19');
+    const today = new Date('2026-05-19T12:00:00');
+    state.expenseCards = [{
+      id: 'card1', label: 'Bills', items: [
+        { id: 'e1', name: 'B', amount: 50, biweekly: false, dueDay: 30 } as any,
+        { id: 'e2', name: 'A', amount: 50, biweekly: false, dueDay: 22 } as any,
+      ],
+    }];
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    expect(fc.dated[0].name).toBe('A');
+    expect(fc.dated[1].name).toBe('B');
+  });
+});
+
+describe('getPayPeriodDayMap', () => {
+  it('returns empty Map when payStart is null', () => {
+    const state = makeBlankState() as BudgetState;
+    state.payStart = null;
+    const map = getPayPeriodDayMap(state, 0);
+    expect(map.size).toBe(0);
+  });
+
+  it('maps each dated item to its ISODate key', () => {
+    const state = makeBlankState() as BudgetState;
+    state.payStart = '2026-05-19';
+    state.incomeStreams = [{ id: 'i1', name: 'Salary', amount: 3000, biweekly: false }];
+    state.allocation = { needs: 50, wants: 30, savings: 20 };
+    state.expenseCards = [{
+      id: 'card1', label: 'Bills', items: [
+        { id: 'e1', name: 'Hydro', amount: 80, biweekly: false, dueDay: 25 } as any,
+      ],
+    }];
+    const today = new Date('2026-05-19T12:00:00');
+    const map = getPayPeriodDayMap(state, 0, today);
+    expect(map.has('2026-05-25')).toBe(true);
+    expect(map.get('2026-05-25')![0].name).toBe('Hydro');
   });
 });

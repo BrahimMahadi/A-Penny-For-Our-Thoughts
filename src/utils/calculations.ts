@@ -751,6 +751,168 @@ export function getSixMonthForecast(
   return results;
 }
 
+// ─── Pay-period forecast ──────────────────────────────────────────
+
+/** A ForecastItem with a known absolute date within the pay period. */
+export interface PayPeriodForecastItem extends ForecastItem {
+  /** ISO date string 'YYYY-MM-DD' for the day this item falls on in the period. */
+  periodDate: ISODate;
+}
+
+export interface PayPeriodForecast {
+  periodStart: ISODate;
+  periodEnd: ISODate;
+  /** Human-readable range, e.g. "May 19 – Jun 1" */
+  label: string;
+  /** Items with a known date within the 14-day window, sorted chronologically. */
+  dated: PayPeriodForecastItem[];
+  /** Expense-card items without a dueDay — cannot be placed on the grid. */
+  undated: ForecastItem[];
+  /** Sum of all dated items for this period. */
+  total: number;
+  /** Bi-weekly Needs budget (monthly Needs ÷ 2). */
+  budgeted: number;
+  /** budgeted − total (positive = under, negative = over). */
+  variance: number;
+}
+
+/**
+ * Build a 14-day pay-period forecast anchored on `state.payStart + offset * 14`.
+ *
+ * Returns null when `state.payStart` is not configured.
+ *
+ * - Expense card items with a `dueDay`: appear if that day falls within the
+ *   14-day window (may be 0 or 1 times per period — never 2).
+ * - Expense card items without a `dueDay`: placed in `undated`.
+ * - Subscriptions: uses `getRenewalDatesBetween` to find exact renewal dates
+ *   within the window; skipped entirely if none fall in the period.
+ */
+export function getPayPeriodForecast(
+  state: BudgetState,
+  offset = 0,
+  today: Date = new Date(),
+): PayPeriodForecast | null {
+  const currentStart = getCurrentPeriodStart(state, today);
+  if (!currentStart) return null;
+
+  // Compute exact start / end dates for this pay period.
+  const startDate = new Date(currentStart + 'T00:00:00');
+  startDate.setDate(startDate.getDate() + offset * 14);
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 13); // 14 days inclusive
+
+  const periodStart = startDate.toISOString().split('T')[0] as ISODate;
+  const periodEnd   = endDate.toISOString().split('T')[0] as ISODate;
+
+  const dateFmtShort = new Intl.DateTimeFormat('en-CA', { month: 'short', day: 'numeric' });
+  const label = `${dateFmtShort.format(startDate)} – ${dateFmtShort.format(endDate)}`;
+
+  const dated: PayPeriodForecastItem[] = [];
+  const undated: ForecastItem[] = [];
+
+  // ── Expense card items ──────────────────────────────────────────
+  state.expenseCards.forEach((card) => {
+    card.items.forEach((item) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dueDayRaw = (item as any).dueDay;
+
+      if (dueDayRaw != null && Number(dueDayRaw) >= 1) {
+        const dueDay = Number(dueDayRaw);
+        // Walk the 14-day window and collect every day whose date matches dueDay.
+        const matchingDates: ISODate[] = [];
+        for (let i = 0; i < 14; i++) {
+          const d = new Date(startDate.getTime() + i * 86400000);
+          if (d.getDate() === dueDay) {
+            matchingDates.push(d.toISOString().split('T')[0] as ISODate);
+          }
+        }
+        if (matchingDates.length === 0) return; // not due in this period
+
+        dated.push({
+          id: item.id,
+          name: item.name,
+          amount: item.amount,
+          dueDay,
+          source: 'expense',
+          cardLabel: card.label,
+          occurrences: matchingDates.length,
+          totalForMonth: item.amount * matchingDates.length,
+          biweekly: item.biweekly,
+          periodDate: matchingDates[0],
+        });
+      } else {
+        // No fixed date — include in undated section.
+        // Biweekly items occur once per period; monthly items are split over ~2 periods.
+        const perPeriodAmount = item.biweekly ? item.amount : item.amount / 2;
+        undated.push({
+          id: item.id,
+          name: item.name,
+          amount: item.amount,
+          dueDay: null,
+          source: 'expense',
+          cardLabel: card.label,
+          occurrences: 1,
+          totalForMonth: perPeriodAmount,
+          biweekly: item.biweekly,
+        });
+      }
+    });
+  });
+
+  // ── Subscriptions ───────────────────────────────────────────────
+  state.subscriptions.forEach((sub) => {
+    const renewalDates = getRenewalDatesBetween(sub, startDate, endDate);
+    if (renewalDates.length === 0) return; // not renewing in this period
+
+    const dueDay = parseInt(renewalDates[0].split('-')[2], 10);
+    dated.push({
+      id: sub.id,
+      name: sub.name,
+      amount: sub.amount,
+      dueDay,
+      source: 'subscription',
+      cardLabel: 'Subscriptions',
+      occurrences: renewalDates.length,
+      totalForMonth: sub.amount * renewalDates.length,
+      biweekly: false,
+      budgetType: sub.budgetType,
+      category: sub.category,
+      frequency: sub.frequency,
+      periodDate: renewalDates[0] as ISODate,
+    });
+  });
+
+  // Sort by actual date within the period.
+  dated.sort((a, b) => a.periodDate.localeCompare(b.periodDate));
+
+  const total = dated.reduce((s, i) => s + i.totalForMonth, 0);
+  // Bi-weekly Needs budget = monthly Needs ÷ 2
+  const budgeted = (getTotalMonthlyIncome(state) * getAlloc(state).needs) / 2;
+  const variance = budgeted - total;
+
+  return { periodStart, periodEnd, label, dated, undated, total, budgeted, variance };
+}
+
+/**
+ * Build a Map<ISODate, PayPeriodForecastItem[]> for the 14-day grid.
+ * Each key is an ISO date string; values are the items due on that date.
+ * Returns an empty Map when payStart is not configured.
+ */
+export function getPayPeriodDayMap(
+  state: BudgetState,
+  offset = 0,
+  today: Date = new Date(),
+): Map<ISODate, PayPeriodForecastItem[]> {
+  const fc = getPayPeriodForecast(state, offset, today);
+  if (!fc) return new Map();
+  const map = new Map<ISODate, PayPeriodForecastItem[]>();
+  fc.dated.forEach((item) => {
+    if (!map.has(item.periodDate)) map.set(item.periodDate, []);
+    map.get(item.periodDate)!.push(item);
+  });
+  return map;
+}
+
 // ─── Spending history & analytics ────────────────────────────────
 
 /** Filter spending history by date range and search term. */

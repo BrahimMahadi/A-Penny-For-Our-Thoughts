@@ -2,9 +2,12 @@
   Module:   components/sections/RecurringCalendar.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 4)
+  Updated:  May 2026 (Sprint 15 — Pay Period view)
   Summary:  Recurring schedule: 6-month summary cards, ForecastBar chart,
-            and active-month detail in list or calendar view.
-            Mirrors renderSchedule() + renderCalendarGrid().
+            and active-period detail in list, calendar, or pay-period view.
+            The 14-day pay-period grid mirrors the calendar grid but is
+            anchored to the user's bi-weekly pay cycle rather than a
+            calendar month.
 -->
 
 <script setup lang="ts">
@@ -15,19 +18,43 @@ import ForecastBar from '@/components/charts/ForecastBar.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import { fmt } from '@/utils/format';
 import type { ForecastItem } from '@/utils/calculations';
+import type { ISODate } from '@/types/budget';
 
 const ui = useUiStore();
-const { sixMonthForecast, monthForecast, calendarDayMap } = useAnalytics();
+const {
+  sixMonthForecast,
+  monthForecast,
+  calendarDayMap,
+  payPeriodForecast,
+  payPeriodDayMap,
+} = useAnalytics();
 
 // ─── Month navigation ─────────────────────────────────────────────
-function prevMonth(): void { ui.stepScheduleMonth(-1); }
-function nextMonth(): void { ui.stepScheduleMonth(1); }
-function setMonth(year: number, month: number): void { ui.setScheduleMonth(year, month); }
+function prevUnit(): void {
+  if (ui.scheduleView === 'payperiod') ui.stepPayPeriod(-1);
+  else ui.stepScheduleMonth(-1);
+}
 
-const viewLabel = computed(() =>
-  new Date(ui.scheduleViewYear, ui.scheduleViewMonth - 1, 1)
-    .toLocaleString('en-CA', { month: 'long', year: 'numeric' }),
-);
+function nextUnit(): void {
+  if (ui.scheduleView === 'payperiod') ui.stepPayPeriod(1);
+  else ui.stepScheduleMonth(1);
+}
+
+function setMonth(year: number, month: number): void {
+  ui.setScheduleMonth(year, month);
+  // Clicking a month card always switches to list/calendar view if in pay period mode
+  if (ui.scheduleView === 'payperiod') ui.setScheduleView('list');
+}
+
+const detailTitle = computed(() => {
+  if (ui.scheduleView === 'payperiod') {
+    return payPeriodForecast.value
+      ? `Pay Period: ${payPeriodForecast.value.label}`
+      : 'Pay Period';
+  }
+  return new Date(ui.scheduleViewYear, ui.scheduleViewMonth - 1, 1)
+    .toLocaleString('en-CA', { month: 'long', year: 'numeric' });
+});
 
 // ─── 6-month summary cards ────────────────────────────────────────
 const summaryCards = computed(() => sixMonthForecast.value);
@@ -55,19 +82,39 @@ function onBarClick(year: number, month: number): void {
   setMonth(year, month);
 }
 
-// ─── Active month detail ──────────────────────────────────────────
+// ─── Active period data (unified for all three views) ─────────────
 const fc = computed(() => monthForecast.value);
 
+const activeVariance = computed(() =>
+  ui.scheduleView === 'payperiod'
+    ? (payPeriodForecast.value?.variance ?? 0)
+    : fc.value.variance,
+);
+
+const activeTotal = computed(() =>
+  ui.scheduleView === 'payperiod'
+    ? (payPeriodForecast.value?.total ?? 0)
+    : fc.value.total,
+);
+
 const totalColor = computed(() =>
-  fc.value.variance < 0 ? 'var(--danger)' : 'var(--accent2)',
+  activeVariance.value < 0 ? 'var(--danger)' : 'var(--accent2)',
 );
 
-const hasAny = computed(() =>
-  fc.value.dated.length > 0 || fc.value.undated.length > 0,
-);
+const hasAny = computed(() => {
+  if (ui.scheduleView === 'payperiod') {
+    if (!payPeriodForecast.value) return false;
+    return (
+      payPeriodForecast.value.dated.length > 0 ||
+      payPeriodForecast.value.undated.length > 0
+    );
+  }
+  return fc.value.dated.length > 0 || fc.value.undated.length > 0;
+});
 
-// ─── Calendar grid ────────────────────────────────────────────────
+// ─── Calendar grid (month view) ───────────────────────────────────
 const today      = new Date();
+const todayIso   = today.toISOString().split('T')[0] as ISODate;
 const maxDay     = computed(() => new Date(ui.scheduleViewYear, ui.scheduleViewMonth, 0).getDate());
 const firstDow   = computed(() => new Date(ui.scheduleViewYear, ui.scheduleViewMonth - 1, 1).getDay());
 const isThisMonth = computed(() =>
@@ -76,7 +123,12 @@ const isThisMonth = computed(() =>
 
 const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const heavyThreshold = computed(() => fc.value.budgeted * 0.12);
+const heavyThreshold = computed(() => {
+  if (ui.scheduleView === 'payperiod') {
+    return (payPeriodForecast.value?.budgeted ?? 0) * 0.12;
+  }
+  return fc.value.budgeted * 0.12;
+});
 
 interface CalDay {
   day:      number;
@@ -110,8 +162,63 @@ const trailingBlanks = computed(() => {
   return rem > 0 ? Array.from({ length: 7 - rem }) : [];
 });
 
+// ─── Pay-period grid (14-day view) ────────────────────────────────
+
+interface PayPeriodDay {
+  isoDate:      ISODate;
+  dayNum:       number;
+  monthLabel:   string;    // shown on the 1st of any month within the period
+  showMonth:    boolean;
+  items:        ReturnType<typeof payPeriodDayMap.value.get> extends infer T ? Exclude<T, undefined> : never[];
+  dayTotal:     number;
+  isToday:      boolean;
+  isHeavy:      boolean;
+}
+
+const ppDays = computed<PayPeriodDay[]>(() => {
+  const fc2 = payPeriodForecast.value;
+  if (!fc2) return [];
+  const map = payPeriodDayMap.value;
+  const startDate = new Date(fc2.periodStart + 'T00:00:00');
+  const days: PayPeriodDay[] = [];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(startDate.getTime() + i * 86400000);
+    const isoDate = d.toISOString().split('T')[0] as ISODate;
+    const items = map.get(isoDate) ?? [];
+    const dayTotal = items.reduce((s, item) => s + item.totalForMonth, 0);
+    days.push({
+      isoDate,
+      dayNum: d.getDate(),
+      monthLabel: d.toLocaleString('en-CA', { month: 'short' }),
+      showMonth: d.getDate() === 1,
+      items,
+      dayTotal,
+      isToday: isoDate === todayIso,
+      isHeavy: dayTotal > heavyThreshold.value && heavyThreshold.value > 0,
+    });
+  }
+  return days;
+});
+
+const ppLeadingBlanks = computed(() => {
+  const fc2 = payPeriodForecast.value;
+  if (!fc2) return [];
+  const startDow = new Date(fc2.periodStart + 'T00:00:00').getDay();
+  return Array.from({ length: startDow });
+});
+
+const ppTrailingBlanks = computed(() => {
+  const total = ppLeadingBlanks.value.length + 14;
+  const rem = total % 7;
+  return rem > 0 ? Array.from({ length: 7 - rem }) : [];
+});
+
 // ─── View toggle ─────────────────────────────────────────────────
-function setView(v: 'list' | 'calendar'): void { ui.setScheduleView(v); }
+function setView(v: 'list' | 'calendar' | 'payperiod'): void {
+  ui.setScheduleView(v);
+  // Reset pay-period offset to current when entering the pay-period view.
+  if (v === 'payperiod') ui.resetToCurrentPayPeriod();
+}
 
 // ─── Bill row helper ─────────────────────────────────────────────
 function ordinal(n: number): string {
@@ -129,7 +236,7 @@ function ordinal(n: number): string {
         v-for="card in summaryCards"
         :key="`${card.year}-${card.month}`"
         class="summary-card"
-        :class="{ 'summary-card--active': isActiveCard(card.year, card.month) }"
+        :class="{ 'summary-card--active': isActiveCard(card.year, card.month) && ui.scheduleView !== 'payperiod' }"
         type="button"
         @click="setMonth(card.year, card.month)"
       >
@@ -157,24 +264,24 @@ function ordinal(n: number): string {
       @bar-click="onBarClick"
     />
 
-    <!-- Active month detail -->
+    <!-- Active period detail -->
     <div class="detail-section">
       <!-- Detail header -->
       <div class="detail-header">
         <BaseButton
           size="xs"
           variant="secondary"
-          @click="prevMonth"
+          @click="prevUnit"
         >
           ‹ Prev
         </BaseButton>
         <div class="detail-title">
-          {{ viewLabel }}
+          {{ detailTitle }}
           <span
             class="detail-total"
             :style="{ color: totalColor }"
           >
-            {{ fmt(fc.total) }}/mo
+            {{ fmt(activeTotal) }}{{ ui.scheduleView === 'payperiod' ? '/period' : '/mo' }}
           </span>
         </div>
         <div class="detail-header-right">
@@ -195,20 +302,37 @@ function ordinal(n: number): string {
             >
               ⊞
             </button>
+            <button
+              class="view-toggle-btn view-toggle-btn--pp"
+              :class="{ active: ui.scheduleView === 'payperiod' }"
+              title="Pay period view (14-day grid)"
+              @click="setView('payperiod')"
+            >
+              2W
+            </button>
           </div>
           <BaseButton
             size="xs"
             variant="secondary"
-            @click="nextMonth"
+            @click="nextUnit"
           >
             Next ›
           </BaseButton>
         </div>
       </div>
 
-      <!-- Empty state -->
+      <!-- Pay period: no payStart configured -->
       <div
-        v-if="!hasAny"
+        v-if="ui.scheduleView === 'payperiod' && !payPeriodForecast"
+        class="detail-empty"
+      >
+        <div>📅</div>
+        <div>No pay period configured. Set a start date in <strong>Settings → Pay Period</strong> to use this view.</div>
+      </div>
+
+      <!-- Empty state (bills configured, but pay-period is fine) -->
+      <div
+        v-else-if="!hasAny"
         class="detail-empty"
       >
         <div>📅</div>
@@ -270,8 +394,8 @@ function ordinal(n: number): string {
         </div>
       </template>
 
-      <!-- CALENDAR VIEW -->
-      <template v-else>
+      <!-- CALENDAR VIEW (month) -->
+      <template v-else-if="ui.scheduleView === 'calendar'">
         <!-- Scroll wrapper prevents the 7-column grid from clipping on narrow screens -->
         <div class="cal-scroll-wrapper">
           <div class="cal-grid">
@@ -361,6 +485,135 @@ function ordinal(n: number): string {
             <span class="bill-amt">{{ fmt(item.totalForMonth) }}</span>
           </div>
         </template>
+      </template>
+
+      <!-- PAY PERIOD VIEW (14-day grid) -->
+      <template v-else-if="ui.scheduleView === 'payperiod' && payPeriodForecast">
+        <!-- Period budget bar -->
+        <div class="pp-budget-bar">
+          <div class="pp-budget-bar__label">
+            <span class="pp-budget-bar__billed">{{ fmt(payPeriodForecast.total) }} billed</span>
+            <span class="pp-budget-bar__budget">of {{ fmt(payPeriodForecast.budgeted) }} Needs budget</span>
+          </div>
+          <div class="pp-budget-bar__track">
+            <div
+              class="pp-budget-bar__fill"
+              :style="{
+                width: payPeriodForecast.budgeted > 0
+                  ? `${Math.min((payPeriodForecast.total / payPeriodForecast.budgeted) * 100, 100)}%`
+                  : '0%',
+                background: activeVariance < 0 ? 'var(--danger)' : 'var(--accent)',
+              }"
+            />
+          </div>
+        </div>
+
+        <!-- 14-day grid -->
+        <div class="cal-scroll-wrapper">
+          <div class="cal-grid">
+            <!-- Day-of-week headers -->
+            <div
+              v-for="dow in DOW_LABELS"
+              :key="dow"
+              class="cal-header-cell"
+            >
+              {{ dow }}
+            </div>
+
+            <!-- Leading blank cells -->
+            <div
+              v-for="(_, i) in ppLeadingBlanks"
+              :key="`pp-blank-l-${i}`"
+              class="cal-cell cal-blank"
+            />
+
+            <!-- 14 day cells -->
+            <div
+              v-for="ppDay in ppDays"
+              :key="ppDay.isoDate"
+              class="cal-cell"
+              :class="{
+                'cal-today': ppDay.isToday,
+                'cal-has-bills': ppDay.items.length > 0,
+                'cal-heavy': ppDay.isHeavy,
+              }"
+            >
+              <span
+                class="cal-day-num"
+                :class="{ 'cal-day-num--month-start': ppDay.showMonth }"
+              >
+                <span v-if="ppDay.showMonth" class="cal-month-abbr">{{ ppDay.monthLabel }}</span>
+                {{ ppDay.dayNum }}
+              </span>
+              <div
+                v-for="(item, bi) in ppDay.items.slice(0, 2)"
+                :key="bi"
+                class="cal-badge"
+                :class="item.source === 'subscription' ? 'cal-badge--sub' : 'cal-badge--expense'"
+                :title="`${item.name} — ${fmt(item.totalForMonth)}`"
+              >
+                {{ item.name }}
+              </div>
+              <div
+                v-if="ppDay.items.length > 2"
+                class="cal-badge cal-badge--more"
+              >
+                +{{ ppDay.items.length - 2 }}
+              </div>
+              <div
+                v-if="ppDay.dayTotal > 0"
+                class="cal-day-total"
+              >
+                {{ fmt(ppDay.dayTotal) }}
+              </div>
+            </div>
+
+            <!-- Trailing blank cells -->
+            <div
+              v-for="(_, i) in ppTrailingBlanks"
+              :key="`pp-blank-t-${i}`"
+              class="cal-cell cal-blank"
+            />
+          </div>
+        </div>
+
+        <!-- Undated items below grid -->
+        <template v-if="payPeriodForecast.undated.length > 0">
+          <div
+            class="bill-group-label"
+            style="margin-top: 1rem"
+          >
+            No fixed date this period
+          </div>
+          <div
+            v-for="(item, i) in payPeriodForecast.undated"
+            :key="`pp-undated-${i}`"
+            class="bill-row"
+          >
+            <span class="bill-day">∞</span>
+            <span class="bill-name">{{ item.name }}</span>
+            <span class="bill-badge bill-badge--card">{{ item.cardLabel }}</span>
+            <span
+              v-if="item.biweekly"
+              class="bill-badge bill-badge--biweekly"
+            >bi-wk</span>
+            <span
+              class="bill-amt"
+              :title="item.biweekly ? 'Per-period amount' : 'Approx. half of monthly amount'"
+            >
+              {{ fmt(item.totalForMonth) }}
+            </span>
+          </div>
+        </template>
+
+        <!-- Period total row -->
+        <div class="bill-total-row">
+          <span>Total this period</span>
+          <span
+            class="bill-total-amt"
+            :style="{ color: totalColor }"
+          >{{ fmt(payPeriodForecast.total) }}</span>
+        </div>
       </template>
     </div>
   </div>
@@ -494,6 +747,13 @@ function ordinal(n: number): string {
   transition: background 0.15s, color 0.15s;
 }
 
+.view-toggle-btn--pp {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  padding: 4px 7px;
+}
+
 .view-toggle-btn.active,
 .view-toggle-btn:hover {
   background: var(--accent);
@@ -509,6 +769,41 @@ function ordinal(n: number): string {
   font-size: 0.85rem;
   text-align: center;
   padding: 1rem;
+}
+
+/* Pay-period budget bar */
+.pp-budget-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pp-budget-bar__label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+}
+
+.pp-budget-bar__billed {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-budget-bar__budget {
+  color: var(--muted);
+}
+
+.pp-budget-bar__track {
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.pp-budget-bar__fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
 }
 
 /* List view */
@@ -659,6 +954,21 @@ function ordinal(n: number): string {
   font-weight: 700;
   color: var(--muted);
   line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cal-day-num--month-start {
+  color: var(--text);
+}
+
+.cal-month-abbr {
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent2);
 }
 
 .cal-today .cal-day-num {

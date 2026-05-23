@@ -102,7 +102,7 @@ export interface AnalyticsFilters {
 }
 
 /** Schedule tab view mode */
-export type ScheduleView = 'list' | 'calendar';
+export type ScheduleView = 'list' | 'calendar' | 'payperiod';
 
 /** Main app tabs */
 export type TabId = 'dashboard' | 'schedule' | 'docs' | 'settings';
@@ -123,6 +123,11 @@ export interface UiState {
   scheduleViewYear: number;
   scheduleViewMonth: number;
   scheduleView: ScheduleView;
+  /**
+   * Pay-period offset from the current period (0 = current, +1 = next, -1 = previous).
+   * Only used when scheduleView === 'payperiod'.
+   */
+  schedulePayPeriodOffset: number;
   /**
    * Set of dashboard section IDs that the user has collapsed.
    * Persisted to `penny_ui_prefs` in localStorage.

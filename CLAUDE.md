@@ -17,10 +17,24 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (508 tests across 21 spec files)
+- Testing: Vitest + @vue/test-utils (606 tests across 23 spec files)
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
+
+## Release Process (MANDATORY — run on every merge to main)
+
+Every time a new version is merged to `main` and tagged, ALL of the following must be updated before the sprint is considered done:
+
+1. **`docs/PHASE_TRACKING.md`** — Add a sprint entry section + update the summary table with the new version number and ✅ Complete status.
+2. **`src/components/onboarding/WhatsNewBanner.vue`** — Bump `APP_VERSION` to the new version string and update `RELEASE_NOTES` with 3–5 bullet highlights for what changed.
+3. **`src/pages/DocsPage.vue`** (or wherever the in-app docs render) — Update any version references so the docs match the deployed version.
+4. **`CLAUDE.md`** — Update the "Tech Stack" test count line to reflect the new total (e.g., "577 tests across 23 spec files").
+5. **Any other version-bearing docs** (`docs/ARCHITECTURE.md`, `docs/README.md`, etc.) — Update version references as applicable.
+
+This checklist must be completed in the same commit/PR as the feature work. Never ship to main without completing all five items.
+
+---
 
 ## Rules
 - Use the latest stable version of JavaScript, ECMAScript 2023 (ES14), as the basis for examples and discussions.

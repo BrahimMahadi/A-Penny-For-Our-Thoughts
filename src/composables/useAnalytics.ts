@@ -32,10 +32,14 @@ import {
   getSpendingTrend,
   getGoalsTimeline,
   getWantsCategoryActuals,
+  getPayPeriodForecast,
+  getPayPeriodDayMap,
   type GoalProgress,
   type NetWorthData,
   type MonthForecast,
   type ForecastItem,
+  type PayPeriodForecast,
+  type PayPeriodForecastItem,
   type SixMonthForecastRow,
   type MonthlyWantsRow,
   type MomInsight,
@@ -44,7 +48,7 @@ import {
   type SpendingTrendRow,
   type GoalTimelineItem,
 } from '@/utils/calculations';
-import type { Goal, SpendingHistoryPeriod } from '@/types/budget';
+import type { Goal, SpendingHistoryPeriod, ISODate } from '@/types/budget';
 
 /**
  * One-stop reactive analytics hook.
@@ -128,6 +132,15 @@ export function useAnalytics() {
     getGoalsTimeline(budget.$state),
   );
 
+  // ─── Pay-period forecast ─────────────────────────────────────
+  const payPeriodForecast: ComputedRef<PayPeriodForecast | null> = computed(() =>
+    getPayPeriodForecast(budget.$state, ui.schedulePayPeriodOffset),
+  );
+
+  const payPeriodDayMap: ComputedRef<Map<ISODate, PayPeriodForecastItem[]>> = computed(() =>
+    getPayPeriodDayMap(budget.$state, ui.schedulePayPeriodOffset),
+  );
+
   // ─── Goal progress lookup ────────────────────────────────────
   /** Get progress data for a specific goal (returns null if account missing). */
   function progressForGoal(goal: Goal): GoalProgress | null {
@@ -154,6 +167,8 @@ export function useAnalytics() {
     monthlyWantsHistory,
     momInsights,
     triggeredAlerts,
+    payPeriodForecast,
+    payPeriodDayMap,
     progressForGoal,
   };
 }
