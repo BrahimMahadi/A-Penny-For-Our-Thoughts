@@ -274,7 +274,9 @@ const testResult = computed(() => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem;
+  /* Wrap button below description on narrow screens so it's never crushed */
+  flex-wrap: wrap;
 }
 
 .rules-engine__desc {

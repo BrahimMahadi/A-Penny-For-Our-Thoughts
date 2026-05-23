@@ -211,7 +211,9 @@ function isFiring(alertId: string): boolean {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem;
+  /* Wrap button below description on narrow screens so it's never crushed */
+  flex-wrap: wrap;
 }
 
 .budget-alerts__desc {

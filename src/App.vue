@@ -500,6 +500,7 @@ useSwipe(
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
+  position: relative; /* needed for the ::before active indicator on mobile */
   transition:
     background 0.15s ease,
     color 0.15s ease;
@@ -617,18 +618,84 @@ useSwipe(
 }
 
 @media (max-width: 540px) {
-  /* Hide brand text — keep only the 💸 icon so the toolbar always fits */
+  /* ─── Header: collapse to single row — tabs move to bottom nav ─ */
+  .app-header {
+    grid-template-rows: auto;
+    padding: 0.6rem 0.75rem;
+  }
+  /* Keep header compact with tabs gone */
   .app-header__title {
     display: none;
   }
-  .app-tab__label {
+
+  /* ─── Bottom navigation bar ─────────────────────────────────── */
+  .app-tabs {
+    /* Take out of header grid flow */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    /* Styling */
+    background: var(--surface, #0a1810);
+    border-top: 1px solid var(--border, #2a3041);
+    border-radius: 0;
+    /* Safe area inset for iPhone home indicator */
+    padding: 0 0 env(safe-area-inset-bottom, 0px);
+    /* Layout */
+    justify-content: stretch;
+    overflow: visible;
+    gap: 0;
+  }
+  .app-tabs::-webkit-scrollbar {
     display: none;
   }
-  /* 9D: Minimum 44×44px touch targets (WCAG 2.5.5) */
+
+  /* Tab items: icon stacked above label, equal width */
   .app-tab {
-    min-height: 44px;
-    padding: 0.4rem 0.75rem;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    padding: 0.45rem 0.2rem 0.5rem;
+    min-height: 54px;
+    border-radius: 0;
   }
+
+  .app-tab__icon {
+    font-size: 1.3rem;
+    line-height: 1;
+  }
+
+  /* Show labels in the bottom bar (overrides the generic mobile hide) */
+  .app-tab__label {
+    display: block;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1;
+  }
+
+  /* Active indicator: accent dot above active tab */
+  .app-tab--active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 2px;
+    background: var(--accent, #4ade80);
+    border-radius: 0 0 2px 2px;
+  }
+
+  /* Pad main content so nothing hides behind the fixed bottom nav */
+  .app-main {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Touch targets for toolbar buttons */
   .app-toolbar-btn {
     width: 44px;
     height: 44px;

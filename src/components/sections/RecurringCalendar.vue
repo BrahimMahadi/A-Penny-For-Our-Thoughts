@@ -272,64 +272,67 @@ function ordinal(n: number): string {
 
       <!-- CALENDAR VIEW -->
       <template v-else>
-        <div class="cal-grid">
-          <!-- Day-of-week headers -->
-          <div
-            v-for="dow in DOW_LABELS"
-            :key="dow"
-            class="cal-header-cell"
-          >
-            {{ dow }}
+        <!-- Scroll wrapper prevents the 7-column grid from clipping on narrow screens -->
+        <div class="cal-scroll-wrapper">
+          <div class="cal-grid">
+            <!-- Day-of-week headers -->
+            <div
+              v-for="dow in DOW_LABELS"
+              :key="dow"
+              class="cal-header-cell"
+            >
+              {{ dow }}
+            </div>
+
+            <!-- Leading blank cells -->
+            <div
+              v-for="(_, i) in leadingBlanks"
+              :key="`blank-l-${i}`"
+              class="cal-cell cal-blank"
+            />
+
+            <!-- Day cells -->
+            <div
+              v-for="calDay in calDays"
+              :key="calDay.day"
+              class="cal-cell"
+              :class="{
+                'cal-today': calDay.isToday,
+                'cal-has-bills': calDay.items.length > 0,
+                'cal-heavy': calDay.isHeavy,
+              }"
+            >
+              <span class="cal-day-num">{{ calDay.day }}</span>
+              <div
+                v-for="(item, bi) in calDay.items.slice(0, 2)"
+                :key="bi"
+                class="cal-badge"
+                :class="item.source === 'subscription' ? 'cal-badge--sub' : 'cal-badge--expense'"
+                :title="`${item.name} — ${fmt(item.totalForMonth)}`"
+              >
+                {{ item.name }}
+              </div>
+              <div
+                v-if="calDay.items.length > 2"
+                class="cal-badge cal-badge--more"
+              >
+                +{{ calDay.items.length - 2 }}
+              </div>
+              <div
+                v-if="calDay.dayTotal > 0"
+                class="cal-day-total"
+              >
+                {{ fmt(calDay.dayTotal) }}
+              </div>
+            </div>
+
+            <!-- Trailing blank cells -->
+            <div
+              v-for="(_, i) in trailingBlanks"
+              :key="`blank-t-${i}`"
+              class="cal-cell cal-blank"
+            />
           </div>
-
-          <!-- Leading blank cells -->
-          <div
-            v-for="(_, i) in leadingBlanks"
-            :key="`blank-l-${i}`"
-            class="cal-cell cal-blank"
-          />
-
-          <!-- Day cells -->
-          <div
-            v-for="calDay in calDays"
-            :key="calDay.day"
-            class="cal-cell"
-            :class="{
-              'cal-today': calDay.isToday,
-              'cal-has-bills': calDay.items.length > 0,
-              'cal-heavy': calDay.isHeavy,
-            }"
-          >
-            <span class="cal-day-num">{{ calDay.day }}</span>
-            <div
-              v-for="(item, bi) in calDay.items.slice(0, 2)"
-              :key="bi"
-              class="cal-badge"
-              :class="item.source === 'subscription' ? 'cal-badge--sub' : 'cal-badge--expense'"
-              :title="`${item.name} — ${fmt(item.totalForMonth)}`"
-            >
-              {{ item.name }}
-            </div>
-            <div
-              v-if="calDay.items.length > 2"
-              class="cal-badge cal-badge--more"
-            >
-              +{{ calDay.items.length - 2 }}
-            </div>
-            <div
-              v-if="calDay.dayTotal > 0"
-              class="cal-day-total"
-            >
-              {{ fmt(calDay.dayTotal) }}
-            </div>
-          </div>
-
-          <!-- Trailing blank cells -->
-          <div
-            v-for="(_, i) in trailingBlanks"
-            :key="`blank-t-${i}`"
-            class="cal-cell cal-blank"
-          />
         </div>
 
         <!-- Undated items below grid -->
@@ -578,11 +581,37 @@ function ordinal(n: number): string {
   font-variant-numeric: tabular-nums;
 }
 
-/* Calendar grid */
+/* Calendar grid — scroll wrapper prevents clipping on narrow screens */
+.cal-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Extend flush to card edges on very small screens */
+  margin: 0 -0.1rem;
+  padding: 0 0.1rem;
+  /* Hide the scrollbar track but keep functionality */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.cal-scroll-wrapper::-webkit-scrollbar {
+  height: 4px;
+}
+
+.cal-scroll-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cal-scroll-wrapper::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 2px;
+  /* Minimum width keeps all 7 columns legible; scrolls below this */
+  min-width: 380px;
 }
 
 .cal-header-cell {
