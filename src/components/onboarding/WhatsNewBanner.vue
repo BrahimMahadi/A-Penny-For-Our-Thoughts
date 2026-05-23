@@ -19,14 +19,15 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.7.1';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📱', text: 'Mobile UX pass — swipe to switch tabs, bottom-sheet modals on phones' },
-  { icon: '🎉', text: 'Onboarding wizard — quick 4-step setup for new users' },
-  { icon: '⌨️',  text: 'Number inputs now open the numeric keyboard on iOS & Android' },
+  { icon: '📱', text: 'Mobile bottom nav — tabs now live at the bottom of the screen on phones' },
+  { icon: '✅', text: 'Form validation — inline field errors on every add/edit form' },
+  { icon: '💾', text: 'JSON backup & restore — export and import a full lossless state snapshot' },
+  { icon: '📅', text: 'Calendar scroll — FRI/SAT columns accessible via horizontal swipe' },
 ];
 
 const budget = useBudgetStore();

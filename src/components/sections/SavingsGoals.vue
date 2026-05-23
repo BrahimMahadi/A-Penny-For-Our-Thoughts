@@ -226,6 +226,34 @@ const minDate = new Date().toISOString().slice(0, 7);
               </span>
             </div>
           </div>
+
+          <!-- Savings runway insight (B2) -->
+          <div
+            v-if="progressForGoal(goal)!.status !== 'complete'"
+            class="goal-item__runway"
+          >
+            <span
+              v-if="progressForGoal(goal)!.monthlyAllocation > 0 && progressForGoal(goal)!.monthsAtCurrentRate !== null"
+              class="goal-runway__text"
+            >
+              At <strong>{{ fmt(progressForGoal(goal)!.monthlyAllocation) }}/mo</strong> you'll reach this goal in
+              <strong>{{ progressForGoal(goal)!.monthsAtCurrentRate }} month{{ progressForGoal(goal)!.monthsAtCurrentRate !== 1 ? 's' : '' }}</strong>
+              <span
+                v-if="progressForGoal(goal)!.monthsAtCurrentRate! > progressForGoal(goal)!.monthsRemaining"
+                class="goal-runway__warn"
+              > — behind target</span>
+              <span
+                v-else
+                class="goal-runway__ok"
+              > — ahead of target 🎉</span>
+            </span>
+            <span
+              v-else-if="progressForGoal(goal)!.monthlyAllocation === 0"
+              class="goal-runway__text goal-runway__text--muted"
+            >
+              No monthly allocation set — use <strong>Allocate</strong> in Savings Accounts to start saving.
+            </span>
+          </div>
         </template>
       </div>
     </div>
@@ -508,5 +536,34 @@ const minDate = new Date().toISOString().slice(0, 7);
   font-size: 0.78rem;
   color: var(--danger);
   margin: 0.15rem 0 0;
+}
+
+/* ─── Savings runway (B2) ──────────────────────────────────────── */
+.goal-item__runway {
+  margin-top: 0.1rem;
+  padding: 0.45rem 0.75rem;
+  background: rgba(139, 149, 173, 0.05);
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 8px 8px;
+}
+
+.goal-runway__text {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.goal-runway__text--muted {
+  font-style: italic;
+}
+
+.goal-runway__ok {
+  color: var(--accent2, #4ade80);
+  font-weight: 600;
+}
+
+.goal-runway__warn {
+  color: var(--warn, #facc15);
+  font-weight: 600;
 }
 </style>

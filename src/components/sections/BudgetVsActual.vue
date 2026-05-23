@@ -12,7 +12,19 @@ import { useAnalytics } from '@/composables/useAnalytics';
 import BudgetVsActualChart from '@/components/charts/BudgetVsActualChart.vue';
 import { fmt } from '@/utils/format';
 
-const { currentMonthBudgeted, currentMonthActuals } = useAnalytics();
+const { currentMonthBudgeted, currentMonthActuals, wantsCategoryActuals } = useAnalytics();
+
+// ─── Category drilldown for Wants ─────────────────────────────────
+/** Sorted list of [category, amount] pairs for the current month's wants. */
+const wantsCategoryRows = computed(() =>
+  Object.entries(wantsCategoryActuals.value)
+    .filter(([, v]) => v > 0)
+    .sort(([, a], [, b]) => b - a),
+);
+
+const wantsTotal = computed(() =>
+  currentMonthActuals.value.wants,
+);
 
 interface VarianceResult {
   dollar:  number;
@@ -161,6 +173,37 @@ function statusLabel(status: string): string {
       </table>
     </div>
 
+    <!-- Wants category drilldown (A3) -->
+    <div
+      v-if="wantsCategoryRows.length > 0"
+      class="bva-category-drilldown"
+    >
+      <div class="bva-drilldown__title">
+        Wants by Category
+      </div>
+      <div class="bva-drilldown__rows">
+        <div
+          v-for="[cat, amt] in wantsCategoryRows"
+          :key="cat"
+          class="bva-drilldown__row"
+        >
+          <span class="bva-drilldown__cat">{{ cat }}</span>
+          <div class="bva-drilldown__bar-wrap">
+            <div
+              class="bva-drilldown__bar"
+              :style="{
+                width: wantsTotal > 0 ? `${Math.min((amt / wantsTotal) * 100, 100)}%` : '0%',
+              }"
+            />
+          </div>
+          <span class="bva-drilldown__amt">{{ fmt(amt) }}</span>
+          <span class="bva-drilldown__pct">
+            {{ wantsTotal > 0 ? ((amt / wantsTotal) * 100).toFixed(0) : 0 }}%
+          </span>
+        </div>
+      </div>
+    </div>
+
     <!-- Footnote -->
     <p class="bva-note">
       <strong>Note:</strong> Actual values include current period spending and archived spending history for this month.
@@ -298,5 +341,86 @@ function statusLabel(status: string): string {
   border-radius: 4px;
   margin: 0;
   line-height: 1.5;
+}
+
+/* ─── Category drilldown ─────────────────────────────────────── */
+.bva-category-drilldown {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.bva-drilldown__title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.bva-drilldown__rows {
+  padding: 0.25rem 0.75rem;
+}
+
+.bva-drilldown__row {
+  display: grid;
+  grid-template-columns: 10rem 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+  font-size: 0.8rem;
+  border-bottom: 1px solid rgba(42, 48, 65, 0.4);
+}
+
+.bva-drilldown__row:last-child {
+  border-bottom: none;
+}
+
+.bva-drilldown__cat {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bva-drilldown__bar-wrap {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bva-drilldown__bar {
+  height: 100%;
+  background: var(--accent2, #facc15);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.bva-drilldown__amt {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent2, #facc15);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.bva-drilldown__pct {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: right;
+  width: 2.5rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .bva-drilldown__row {
+    grid-template-columns: 1fr auto auto;
+  }
+  .bva-drilldown__bar-wrap { display: none; }
 }
 </style>

@@ -31,6 +31,7 @@ import {
   getEnvelopeForecast,
   getSpendingTrend,
   getGoalsTimeline,
+  getWantsCategoryActuals,
   type GoalProgress,
   type NetWorthData,
   type MonthForecast,
@@ -106,6 +107,9 @@ export function useAnalytics() {
     getTriggeredAlerts(budget.$state),
   );
 
+  // ─── Per-category wants actuals (for BvA drilldown) ─────────
+  const wantsCategoryActuals = computed(() => getWantsCategoryActuals(budget.$state));
+
   // ─── MoM stat deltas ─────────────────────────────────────────
   const prevMonthActuals = computed(() => getPrevMonthActuals(budget.$state));
 
@@ -136,6 +140,7 @@ export function useAnalytics() {
     grandTotalExpenses,
     currentMonthActuals,
     currentMonthBudgeted,
+    wantsCategoryActuals,
     prevMonthActuals,
     envelopeForecast,
     spendingTrend,
