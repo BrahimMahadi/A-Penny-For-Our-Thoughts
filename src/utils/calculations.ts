@@ -872,6 +872,165 @@ export function getMomInsights(monthlyData: MonthlyWantsRow[]): MomInsight[] {
   return insights;
 }
 
+// ─── 6-month spending trend ──────────────────────────────────────
+
+export interface SpendingTrendRow {
+  year: number;
+  month: number;
+  monthKey: ISOMonth;
+  /** Short label for chart x-axis: 'Jan 26'. */
+  label: string;
+  income: number;
+  needs: number;
+  wants: number;
+  savings: number;
+  isCurrent: boolean;
+}
+
+/**
+ * Aggregates actual Needs / Wants / Savings for each of the last `count`
+ * calendar months (oldest first). Needs and savings are derived from
+ * the existing `calculateActual*` helpers so the numbers are consistent
+ * with the Budget vs. Actual section.
+ */
+export function getSpendingTrend(
+  state: BudgetState,
+  count = 6,
+  today: Date = new Date(),
+): SpendingTrendRow[] {
+  const income = getTotalMonthlyIncome(state);
+  const rows: SpendingTrendRow[] = [];
+
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;
+    const monthKey: ISOMonth = `${year}-${String(month).padStart(2, '0')}`;
+    const label = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+    const isCurrent = i === 0;
+
+    const needs   = calculateActualNeeds(state, year, month, today);
+    const wants   = calculateActualWants(state, year, month, today);
+    const savings = calculateActualSavings(state, year, month, today);
+
+    rows.push({ year, month, monthKey, label, income, needs, wants, savings, isCurrent });
+  }
+
+  return rows;
+}
+
+// ─── Goals timeline ──────────────────────────────────────────────
+
+export interface GoalTimelineItem {
+  id: string;
+  accountName: string;
+  targetAmount: number;
+  targetDate: ISOMonth;
+  currentAmount: number;
+  progressPercent: number;
+  /** Monthly allocation set for this account (may be 0 if unset). */
+  monthlyAllocation: number;
+  /**
+   * Estimated months until goal is reached at the current monthly
+   * allocation rate. Null when the goal is already complete.
+   */
+  monthsToComplete: number | null;
+  /**
+   * ISO month string (YYYY-MM) of the projected completion.
+   * Null when goal is already complete.
+   */
+  projectedDate: ISOMonth | null;
+  /**
+   * Months late vs. the target date. Negative = will finish early,
+   * positive = will finish late. 0 = exactly on time.
+   * Null when goal is already complete.
+   */
+  monthsLate: number | null;
+  status: GoalStatus;
+}
+
+/**
+ * Returns all goals enriched with timeline projections, sorted by
+ * urgency (soonest target date first; complete goals last).
+ */
+export function getGoalsTimeline(
+  state: Pick<BudgetState, 'goals' | 'savingsAccounts'>,
+  today: Date = new Date(),
+): GoalTimelineItem[] {
+  const currentYearMonth = toMonthKey(today);
+  const items: GoalTimelineItem[] = [];
+
+  for (const goal of state.goals) {
+    const account = state.savingsAccounts.find((a) => a.id === goal.accountId);
+    if (!account) continue;
+
+    const currentAmount   = account.balance || 0;
+    const targetAmount    = goal.targetAmount || 0;
+    const monthlyAlloc    = getAllocationForMonth(account, today.getFullYear(), today.getMonth() + 1);
+    const monthsToTarget  = calculateMonthsBetween(currentYearMonth, goal.targetDate);
+    const progressPercent = targetAmount > 0
+      ? Math.min(100, (currentAmount / targetAmount) * 100)
+      : 0;
+
+    // Base fields shared across all branches
+    const base = {
+      id: goal.id,
+      accountName: account.name,
+      targetAmount,
+      targetDate: goal.targetDate,
+      currentAmount,
+      progressPercent,
+      monthlyAllocation: monthlyAlloc,
+    };
+
+    // Already complete
+    if (currentAmount >= targetAmount) {
+      items.push({ ...base, monthsToComplete: null, projectedDate: null, monthsLate: null, status: 'complete' });
+      continue;
+    }
+
+    // Missed (past target date, not yet complete)
+    if (monthsToTarget <= 0) {
+      items.push({ ...base, monthsToComplete: null, projectedDate: null, monthsLate: null, status: 'missed' });
+      continue;
+    }
+
+    // Project completion date at current monthly allocation
+    const shortfall = targetAmount - currentAmount;
+    let monthsToComplete: number | null = null;
+    let projectedDate: ISOMonth | null = null;
+    let monthsLate: number | null = null;
+
+    if (monthlyAlloc > 0) {
+      monthsToComplete = Math.ceil(shortfall / monthlyAlloc);
+      const projEnd = new Date(today.getFullYear(), today.getMonth() + monthsToComplete, 1);
+      projectedDate = `${projEnd.getFullYear()}-${String(projEnd.getMonth() + 1).padStart(2, '0')}` as ISOMonth;
+      monthsLate = monthsToComplete - monthsToTarget;
+    }
+
+    // Status
+    let status: GoalStatus = 'off-track';
+    if (monthlyAlloc > 0) {
+      if (monthsLate !== null && monthsLate <= 0) {
+        status = 'on-track';
+      } else if (monthlyAlloc >= (shortfall / monthsToTarget) * 0.8) {
+        status = 'caution';
+      }
+    }
+
+    items.push({ ...base, monthsToComplete, projectedDate, monthsLate, status });
+  }
+
+  // Sort: active goals by target date (soonest first), complete, then missed
+  return items.sort((a, b) => {
+    const rank = (s: GoalStatus) => (s === 'complete' ? 2 : s === 'missed' ? 3 : 0);
+    const ra = rank(a.status);
+    const rb = rank(b.status);
+    if (ra !== rb) return ra - rb;
+    return a.targetDate.localeCompare(b.targetDate);
+  });
+}
+
 // ─── MoM stat deltas ────────────────────────────────────────────
 
 /**
