@@ -389,7 +389,8 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 10 — Onboarding Flow | ✅ Complete | v1.4.0 |
 | Sprint 11 — Envelope Forecast & MoM Deltas | ✅ Complete | v1.5.0 |
 | Sprint 12 — Spending Trend Chart & Goals Timeline | ✅ Complete | v1.6.0 |
-| **Current** | **✅ v1.6.0 shipped** | **v1.6.0** |
+| Sprint 13 — Dashboard Polish, Form Validation & JSON Backup | ✅ Complete | v1.7.0 |
+| **Current** | **✅ v1.7.0 shipped** | **v1.7.0** |
 
 ---
 
@@ -651,6 +652,48 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 
 ---
 
+## Sprint 13 — Dashboard Polish, Form Validation & JSON Backup 🛠️
+**Status**: ✅ **COMPLETE** — May 2026  
+**Branch:** `feat/sprint-13`  
+**Version:** v1.7.0
+
+### Goals
+Make the app substantially more robust and polished: better dashboard navigation, consistent field-level validation across all CRUD forms, and a safe JSON backup/restore mechanism.
+
+### Delivered
+
+**Dashboard layout improvements**
+- `BaseCard` gains `sectionId` + `collapsible` props; collapsed state stored in `penny_ui_prefs` localStorage key via ui store (`toggleSection`, `expandSection`, `isSectionCollapsed`)
+- 5 logical section group labels on `DashboardPage` (Income & Budget / Spending / Debt & Credit / Savings & Goals / Wealth & History)
+- `DASHBOARD_SECTIONS` constant — single source of truth for all 15 sections (id, icon, label, group)
+
+**SectionPicker**
+- New `SectionPicker.vue` — `Teleport`-based slide-in panel (right side on desktop, bottom sheet on mobile)
+- `⊞ Sections` nav button opens/closes the picker; `G` keyboard shortcut toggles it
+- Clicking any section: auto-expands if collapsed, switches to Dashboard tab, `scrollIntoView` smooth scroll
+- Shows "collapsed" chip on items currently collapsed
+
+**Form validation hardening (`useFormValidation.ts`)**
+- Generic composable: `buildErrors` thunk → `computed` error map, `touched: ref<Set<string>>`
+- Rule helpers: `required`, `positiveNumber`, `nonNegativeNumber`, `futureMonth`, `notExceedsLimit`, `notExceedsOriginal`
+- Applied to all 6 primary CRUD forms: IncomeStreams, Loans, CreditCards, Savings, SavingsGoals, Subscriptions
+- Field errors appear on blur or Save attempt; reset on modal close/cancel
+
+**JSON backup & restore**
+- `jsonBackup.ts`: `JSON_SCHEMA_VERSION = 2` envelope, `exportStateToJSON`, `parseJSONToState` (validates version), `triggerJSONDownload` (Blob + anchor click)
+- `exportJSON` / `importJSON` actions on budget store
+- 📦 Export and 📂 Import toolbar buttons in `App.vue` with hidden file-input picker
+
+### Tests
+- `tests/utils/jsonBackup.spec.ts` — 14 tests (export, parse validation, download)
+- `tests/composables/useFormValidation.spec.ts` — 44 tests (6 rule helpers + composable behaviour)
+- **Total: 566 passing (↑58 from 508) across 23 spec files**
+
+### Merge & Tag
+- ✅ Merged → `main`, tagged **v1.7.0**
+
+---
+
 ## Future Backlog 📋
 Items captured for future sprints — not yet scheduled. See individual option descriptions for rationale.
 
@@ -711,6 +754,6 @@ Items captured for future sprints — not yet scheduled. See individual option d
 ---
 
 **Last Updated**: May 2026  
-**Current Version**: v1.6.0 — Sprint 12 complete  
+**Current Version**: v1.7.0 — Sprint 13 complete  
 **Next Up**: UI polish & robustness sprint  
 **Current Branch**: `main`
