@@ -128,13 +128,15 @@ export function exportStateToCSV(state: BudgetState): string {
   // ── subscriptions ──
   rows.push(
     'SECTION:subscriptions',
-    'id,name,amount,frequency,date,category,budgetType,cardId',
+    'id,name,amount,frequency,date,category,budgetType,cardId,daysOfWeek',
   );
-  (state.subscriptions ?? []).forEach((s) =>
+  (state.subscriptions ?? []).forEach((s) => {
+    // daysOfWeek serialised as pipe-separated integers, e.g. "1|2|3" for Mon·Tue·Wed
+    const dow = (s.daysOfWeek ?? []).join('|');
     rows.push(
-      `${e(s.id)},${e(s.name)},${s.amount ?? 0},${e(s.frequency ?? 'monthly')},${e(s.date)},${e(s.category ?? 'Other')},${e(s.budgetType ?? 'wants')},${e(s.cardId ?? '')}`,
-    ),
-  );
+      `${e(s.id)},${e(s.name)},${s.amount ?? 0},${e(s.frequency ?? 'monthly')},${e(s.date)},${e(s.category ?? 'Other')},${e(s.budgetType ?? 'wants')},${e(s.cardId ?? '')},${e(dow)}`,
+    );
+  });
   rows.push('');
 
   // ── wishlist ──
@@ -353,7 +355,12 @@ export function parseCSVToState(text: string): BudgetState {
       case 'subscriptions':
         if (!parsed.subscriptions) parsed.subscriptions = [];
         if (vals.length >= 7) {
-          // Current format: id,name,amount,frequency,date,category,budgetType[,cardId]
+          // Current format: id,name,amount,frequency,date,category,budgetType[,cardId[,daysOfWeek]]
+          // daysOfWeek is pipe-separated integers, e.g. "1|2|3" for Mon·Tue·Wed
+          const rawDow = vals[8] || '';
+          const daysOfWeek = rawDow
+            ? rawDow.split('|').map(Number).filter(n => n >= 0 && n <= 6)
+            : [];
           parsed.subscriptions.push({
             id:         vals[0],
             name:       vals[1],
@@ -363,6 +370,7 @@ export function parseCSVToState(text: string): BudgetState {
             category:   vals[5] || 'Other',
             budgetType: vals[6] || 'wants',
             cardId:     vals[7] || null,
+            daysOfWeek,
           });
         } else {
           // Old format fallback: id,name,date
@@ -375,6 +383,7 @@ export function parseCSVToState(text: string): BudgetState {
             category:   'Other',
             budgetType: 'wants',
             cardId:     null,
+            daysOfWeek: [],
           });
         }
         break;

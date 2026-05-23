@@ -40,6 +40,7 @@ import {
 } from '@/utils/calculations';
 import { makeBlankState } from '@/stores/budget';
 import type { BudgetState } from '@/types/state';
+import type { Frequency } from '@/types/budget';
 
 function buildState(overrides: Partial<BudgetState> = {}): BudgetState {
   return { ...makeBlankState(), ...overrides };
@@ -1459,5 +1460,235 @@ describe('getPayPeriodForecast — loans', () => {
     const fc = getPayPeriodForecast(state, 0, today)!;
     const loan = fc.dated.find(i => i.source === 'loan');
     expect(loan?.cardLabel).toBe('Loan');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  getRenewalDatesBetween — custom-days frequency (Sprint 17)
+// ─────────────────────────────────────────────────────────────────
+describe('getRenewalDatesBetween — custom-days', () => {
+  function makeItem(daysOfWeek: number[], date = '2026-01-01') {
+    return { date, frequency: 'custom-days' as Frequency, daysOfWeek };
+  }
+
+  it('returns empty array when daysOfWeek is empty', () => {
+    const s = new Date('2026-05-01T00:00:00');
+    const e = new Date('2026-05-31T23:59:59');
+    expect(getRenewalDatesBetween(makeItem([]), s, e)).toHaveLength(0);
+  });
+
+  it('returns only Mondays when daysOfWeek = [1]', () => {
+    const s = new Date('2026-05-01T00:00:00');
+    const e = new Date('2026-05-31T23:59:59');
+    const dates = getRenewalDatesBetween(makeItem([1]), s, e);
+    // May 2026 Mondays: 4,11,18,25
+    expect(dates).toEqual(['2026-05-04', '2026-05-11', '2026-05-18', '2026-05-25']);
+  });
+
+  it('returns Mon+Tue+Wed occurrences for May 2026', () => {
+    const s = new Date('2026-05-01T00:00:00');
+    const e = new Date('2026-05-31T23:59:59');
+    const dates = getRenewalDatesBetween(makeItem([1, 2, 3]), s, e);
+    // May 2026: Mon 4,11,18,25 | Tue 5,12,19,26 | Wed 6,13,20,27 = 12 dates
+    expect(dates).toHaveLength(12);
+    expect(dates[0]).toBe('2026-05-04'); // first Monday
+    expect(dates).toContain('2026-05-05'); // Tuesday
+    expect(dates).toContain('2026-05-06'); // Wednesday
+  });
+
+  it('respects the effective-from anchor date', () => {
+    // Pattern starts May 15 — only Mondays on or after May 15
+    const s = new Date('2026-05-01T00:00:00');
+    const e = new Date('2026-05-31T23:59:59');
+    const dates = getRenewalDatesBetween(makeItem([1], '2026-05-15'), s, e);
+    // Mondays >= May 15: 18, 25
+    expect(dates).toEqual(['2026-05-18', '2026-05-25']);
+  });
+
+  it('handles a pay-period window (14 days) correctly', () => {
+    const s = new Date('2026-05-19T00:00:00'); // Tuesday
+    const e = new Date('2026-06-01T23:59:59'); // Monday
+    const dates = getRenewalDatesBetween(makeItem([1, 3]), s, e); // Mon+Wed
+    // Wednesdays: 20, 27 | Mondays: 25, Jun 1 = 4 dates
+    expect(dates).toHaveLength(4);
+    expect(dates).toContain('2026-05-20'); // Wed
+    expect(dates).toContain('2026-05-25'); // Mon
+    expect(dates).toContain('2026-05-27'); // Wed
+    expect(dates).toContain('2026-06-01'); // Mon
+  });
+
+  it('returns empty when window is before anchor date', () => {
+    // anchor May 20, window May 1-10
+    const s = new Date('2026-05-01T00:00:00');
+    const e = new Date('2026-05-10T23:59:59');
+    expect(getRenewalDatesBetween(makeItem([1], '2026-05-20'), s, e)).toHaveLength(0);
+  });
+
+  it('all seven days of the week selected returns every day in range', () => {
+    const s = new Date('2026-05-11T00:00:00'); // Monday
+    const e = new Date('2026-05-17T23:59:59'); // Sunday
+    const dates = getRenewalDatesBetween(makeItem([0, 1, 2, 3, 4, 5, 6]), s, e);
+    expect(dates).toHaveLength(7);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  getMonthForecast — custom-days subscriptions (Sprint 17)
+// ─────────────────────────────────────────────────────────────────
+describe('getMonthForecast — custom-days subscriptions', () => {
+  function makeStateWithCustomSub(overrides: Record<string, unknown> = {}) {
+    const s = makeBlankState() as BudgetState;
+    s.incomeStreams = [{ id: 'i1', name: 'Salary', amount: 3000, biweekly: false }];
+    s.allocation = { needs: 50, wants: 30, savings: 20 };
+    s.subscriptions = [{
+      id: 'sub-custom',
+      name: 'Parking',
+      amount: 8,
+      frequency: 'custom-days' as Frequency,
+      date: '2026-01-01',
+      category: 'Transport',
+      budgetType: 'needs' as any,
+      cardId: null,
+      daysOfWeek: [1, 2, 3], // Mon·Tue·Wed
+      ...overrides,
+    } as any];
+    return s;
+  }
+
+  it('produces one ForecastItem per occurrence day', () => {
+    const state = makeStateWithCustomSub();
+    const fc = getMonthForecast(state, 2026, 5);
+    // May 2026 Mon+Tue+Wed: 12 occurrences
+    const items = fc.dated.filter(i => i.id === 'sub-custom');
+    expect(items).toHaveLength(12);
+  });
+
+  it('each occurrence item has amount equal to per-day amount', () => {
+    const state = makeStateWithCustomSub();
+    const fc = getMonthForecast(state, 2026, 5);
+    const items = fc.dated.filter(i => i.id === 'sub-custom');
+    items.forEach(item => expect(item.amount).toBe(8));
+  });
+
+  it('each occurrence item has totalForMonth = amount (occurrences: 1)', () => {
+    const state = makeStateWithCustomSub();
+    const fc = getMonthForecast(state, 2026, 5);
+    const items = fc.dated.filter(i => i.id === 'sub-custom');
+    items.forEach(item => {
+      expect(item.occurrences).toBe(1);
+      expect(item.totalForMonth).toBe(8);
+    });
+  });
+
+  it('items carry daysOfWeek on the ForecastItem', () => {
+    const state = makeStateWithCustomSub();
+    const fc = getMonthForecast(state, 2026, 5);
+    const item = fc.dated.find(i => i.id === 'sub-custom');
+    expect(item?.daysOfWeek).toEqual([1, 2, 3]);
+  });
+
+  it('frequency field is "custom-days" on each item', () => {
+    const state = makeStateWithCustomSub();
+    const fc = getMonthForecast(state, 2026, 5);
+    const items = fc.dated.filter(i => i.id === 'sub-custom');
+    items.forEach(item => expect(item.frequency).toBe('custom-days'));
+  });
+
+  it('fc.total includes all custom-days occurrences', () => {
+    const state = makeStateWithCustomSub();
+    const fc = getMonthForecast(state, 2026, 5);
+    // 12 occurrences × $8 = $96
+    const customTotal = fc.dated
+      .filter(i => i.id === 'sub-custom')
+      .reduce((sum, i) => sum + i.amount, 0);
+    expect(customTotal).toBe(96);
+  });
+
+  it('produces zero items when daysOfWeek is empty', () => {
+    const state = makeStateWithCustomSub({ daysOfWeek: [] });
+    const fc = getMonthForecast(state, 2026, 5);
+    expect(fc.dated.filter(i => i.id === 'sub-custom')).toHaveLength(0);
+  });
+
+  it('respects effective-from date (anchor after month start)', () => {
+    // Anchor May 25: only Mon (25) is a Monday after May 25, no Tue/Wed after 25 in range Mon=25,Tue=26,Wed=27 → 3
+    const state = makeStateWithCustomSub({ date: '2026-05-25' });
+    const fc = getMonthForecast(state, 2026, 5);
+    const items = fc.dated.filter(i => i.id === 'sub-custom');
+    // From May 25 onward: Mon 25, Tue 26, Wed 27
+    expect(items).toHaveLength(3);
+  });
+
+  it('does not appear in undated', () => {
+    const state = makeStateWithCustomSub();
+    const fc = getMonthForecast(state, 2026, 5);
+    expect(fc.undated.filter(i => i.id === 'sub-custom')).toHaveLength(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  getPayPeriodForecast — custom-days subscriptions (Sprint 17)
+// ─────────────────────────────────────────────────────────────────
+describe('getPayPeriodForecast — custom-days subscriptions', () => {
+  function makeStateWithCustomSubAndPayStart(overrides: Record<string, unknown> = {}) {
+    const s = makeBlankState() as BudgetState;
+    s.payStart = '2026-05-19';
+    s.incomeStreams = [{ id: 'i1', name: 'Salary', amount: 3000, biweekly: false }];
+    s.allocation = { needs: 50, wants: 30, savings: 20 };
+    s.subscriptions = [{
+      id: 'sub-pp',
+      name: 'Parking',
+      amount: 10,
+      frequency: 'custom-days' as Frequency,
+      date: '2026-01-01',
+      category: 'Transport',
+      budgetType: 'needs' as any,
+      cardId: null,
+      daysOfWeek: [1, 3], // Mon+Wed
+      ...overrides,
+    } as any];
+    return s;
+  }
+
+  it('produces one item per occurrence in the 14-day window', () => {
+    const state = makeStateWithCustomSubAndPayStart();
+    // May 19 – Jun 1: Mon 25, Jun 1 | Wed 20, 27 = 4 occurrences
+    const fc = getPayPeriodForecast(state, 0, new Date('2026-05-23'));
+    expect(fc).not.toBeNull();
+    const items = fc!.dated.filter(i => i.id === 'sub-pp');
+    expect(items).toHaveLength(4);
+  });
+
+  it('each item has occurrences=1 and totalForMonth=amount', () => {
+    const state = makeStateWithCustomSubAndPayStart();
+    const fc = getPayPeriodForecast(state, 0, new Date('2026-05-23'));
+    const items = fc!.dated.filter(i => i.id === 'sub-pp');
+    items.forEach(item => {
+      expect(item.occurrences).toBe(1);
+      expect(item.totalForMonth).toBe(10);
+    });
+  });
+
+  it('each item has a distinct periodDate matching its actual calendar date', () => {
+    const state = makeStateWithCustomSubAndPayStart();
+    const fc = getPayPeriodForecast(state, 0, new Date('2026-05-23'));
+    const dates = fc!.dated.filter(i => i.id === 'sub-pp').map(i => i.periodDate);
+    expect(dates).toContain('2026-05-20'); // Wed
+    expect(dates).toContain('2026-05-25'); // Mon
+    expect(dates).toContain('2026-05-27'); // Wed
+    expect(dates).toContain('2026-06-01'); // Mon
+  });
+
+  it('carries daysOfWeek on each item', () => {
+    const state = makeStateWithCustomSubAndPayStart();
+    const fc = getPayPeriodForecast(state, 0, new Date('2026-05-23'));
+    const item = fc!.dated.find(i => i.id === 'sub-pp');
+    expect(item?.daysOfWeek).toEqual([1, 3]);
+  });
+
+  it('produces zero items when daysOfWeek is empty', () => {
+    const state = makeStateWithCustomSubAndPayStart({ daysOfWeek: [] });
+    const fc = getPayPeriodForecast(state, 0, new Date('2026-05-23'));
+    expect(fc!.dated.filter(i => i.id === 'sub-pp')).toHaveLength(0);
   });
 });

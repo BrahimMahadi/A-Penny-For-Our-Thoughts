@@ -484,3 +484,68 @@ describe('triggerCSVDownload', () => {
     expect(anchor.download).toMatch(/^penny-export-\d{4}-\d{2}-\d{2}\.csv$/);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  CSV round-trip — custom-days subscriptions (Sprint 17)
+// ─────────────────────────────────────────────────────────────────
+describe('CSV round-trip — custom-days subscriptions', () => {
+  it('exports and reimports daysOfWeek correctly', () => {
+    const state = buildSampleState();
+    state.subscriptions = [{
+      id: 'sub-cd', name: 'Parking', amount: 8,
+      frequency: 'custom-days' as any,
+      date: '2026-05-01',
+      category: 'Transport', budgetType: 'needs' as any,
+      cardId: null, daysOfWeek: [1, 2, 3],
+    }];
+    const parsed = parseCSVToState(exportStateToCSV(state));
+    expect(parsed.subscriptions[0]).toMatchObject({
+      id: 'sub-cd', name: 'Parking', amount: 8,
+      frequency: 'custom-days', daysOfWeek: [1, 2, 3],
+    });
+  });
+
+  it('round-trips an empty daysOfWeek array', () => {
+    const state = buildSampleState();
+    state.subscriptions = [{
+      id: 'sub-mo', name: 'Netflix', amount: 17,
+      frequency: 'monthly' as any, date: '2026-06-01',
+      category: 'Entertainment', budgetType: 'wants' as any,
+      cardId: null, daysOfWeek: [],
+    }];
+    const parsed = parseCSVToState(exportStateToCSV(state));
+    expect(parsed.subscriptions[0].daysOfWeek).toEqual([]);
+  });
+
+  it('correctly parses pipe-separated daysOfWeek from raw CSV', () => {
+    const csv = [
+      'SECTION:meta',
+      'version,exportedAt',
+      '2,2026-05-23T00:00:00.000Z',
+      '',
+      'SECTION:subscriptions',
+      'id,name,amount,frequency,date,category,budgetType,cardId,daysOfWeek',
+      'sub1,Parking,8,custom-days,2026-01-01,Transport,needs,,1|2|3',
+      '',
+    ].join('\n');
+    const parsed = parseCSVToState(csv);
+    expect(parsed.subscriptions[0].daysOfWeek).toEqual([1, 2, 3]);
+    expect(parsed.subscriptions[0].frequency).toBe('custom-days');
+  });
+
+  it('ignores invalid day values in daysOfWeek column', () => {
+    const csv = [
+      'SECTION:meta',
+      'version,exportedAt',
+      '2,2026-05-23T00:00:00.000Z',
+      '',
+      'SECTION:subscriptions',
+      'id,name,amount,frequency,date,category,budgetType,cardId,daysOfWeek',
+      'sub1,Parking,8,custom-days,2026-01-01,Transport,needs,,1|99|3',
+      '',
+    ].join('\n');
+    const parsed = parseCSVToState(csv);
+    // 99 is out of range 0-6 and should be filtered out
+    expect(parsed.subscriptions[0].daysOfWeek).toEqual([1, 3]);
+  });
+});

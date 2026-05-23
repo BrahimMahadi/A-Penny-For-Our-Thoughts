@@ -21,8 +21,12 @@ export type ThemeMode = 'light' | 'dark';
 /** Budget category for a transaction or recurring item */
 export type BudgetType = 'needs' | 'wants' | 'savings';
 
-/** Payment frequency for recurring items (subscriptions, loans) */
-export type Frequency = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
+/**
+ * Payment frequency for recurring items (subscriptions, loans).
+ * `'custom-days'` selects specific days of the week via the `daysOfWeek` field
+ * on the owning entity (Subscription only — Loan uses the other variants).
+ */
+export type Frequency = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom-days';
 
 /** Display granularity for the budget allocation cards */
 export type BudgetDisplayMode = 'biweekly' | 'monthly';
@@ -160,11 +164,22 @@ export interface Subscription {
   name: string;
   amount: number;
   frequency: Frequency;
-  /** Next renewal date 'YYYY-MM-DD' */
+  /**
+   * Next renewal date 'YYYY-MM-DD'.
+   * For `custom-days` subscriptions this is the effective-from date (the
+   * pattern starts on or after this date); the time-picker is hidden in the
+   * UI and this is defaulted to today when the subscription is created.
+   */
   date: ISODate;
   category: string;
   budgetType: BudgetType;
   cardId: string | null;
+  /**
+   * Day-of-week indices for `custom-days` subscriptions.
+   * 0 = Sunday, 1 = Monday, …, 6 = Saturday.
+   * Empty / undefined for all other frequency variants.
+   */
+  daysOfWeek?: number[];
 }
 
 // ─── Wishlist ────────────────────────────────────────────────────

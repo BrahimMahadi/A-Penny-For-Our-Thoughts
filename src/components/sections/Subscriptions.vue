@@ -25,24 +25,54 @@ const toast  = useToast();
 const { totalMonthlyIncome } = useAnalytics();
 
 // ─── Frequency rate maps ──────────────────────────────────────────
-const MO_RATE: Record<Frequency, number> = { weekly: 4.33, biweekly: 2.17, monthly: 1, quarterly: 1/3, yearly: 1/12 };
-const YR_RATE: Record<Frequency, number> = { weekly: 52,   biweekly: 26,   monthly: 12, quarterly: 4,   yearly: 1  };
-const FREQ_LABEL: Record<Frequency, string> = { weekly: '/wk', biweekly: '/2wk', monthly: '/mo', quarterly: '/qtr', yearly: '/yr' };
+// custom-days rate is variable (depends on how many days are selected), so it
+// uses a per-occurrence sentinel of 1 here — actual cost is computed via helpers.
+const MO_RATE: Record<Frequency, number> = { weekly: 4.33, biweekly: 2.17, monthly: 1, quarterly: 1/3, yearly: 1/12, 'custom-days': 1 };
+const YR_RATE: Record<Frequency, number> = { weekly: 52,   biweekly: 26,   monthly: 12, quarterly: 4,   yearly: 1,   'custom-days': 1 };
+const FREQ_LABEL: Record<Frequency, string> = { weekly: '/wk', biweekly: '/2wk', monthly: '/mo', quarterly: '/qtr', yearly: '/yr', 'custom-days': '/day' };
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// ─── Day-of-week helpers ──────────────────────────────────────────
+const DOW_FULL  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DOW_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DOW_MINI  = ['S','M','T','W','T','F','S'];
+/** Average occurrences per month for a given set of weekdays (365.25/12/7 ≈ 4.348). */
+const AVG_PER_WEEKDAY = 365.25 / 12 / 7;
+
+function dayPatternLabel(days: number[]): string {
+  if (!days || days.length === 0) return '—';
+  return [...days].sort((a, b) => a - b).map(d => DOW_SHORT[d]).join(' · ');
+}
+
+/** Monthly cost for any subscription, accounting for custom-days variable rate. */
+function subMonthlyAmount(sub: { amount: number; frequency: Frequency; daysOfWeek?: number[] }): number {
+  if (sub.frequency === 'custom-days') {
+    return (+sub.amount || 0) * (sub.daysOfWeek?.length ?? 0) * AVG_PER_WEEKDAY;
+  }
+  return (+sub.amount || 0) * (MO_RATE[sub.frequency ?? 'monthly'] ?? 1);
+}
+
+/** Annual cost for any subscription. */
+function subAnnualAmount(sub: { amount: number; frequency: Frequency; daysOfWeek?: number[] }): number {
+  if (sub.frequency === 'custom-days') {
+    return (+sub.amount || 0) * (sub.daysOfWeek?.length ?? 0) * (365.25 / 7);
+  }
+  return (+sub.amount || 0) * (YR_RATE[sub.frequency ?? 'monthly'] ?? 12);
+}
 
 // ─── Aggregate stats ──────────────────────────────────────────────
 const subs = computed(() => budget.subscriptions);
 
 const totalMo = computed(() =>
-  subs.value.reduce((s, sub) => s + (+sub.amount || 0) * (MO_RATE[sub.frequency || 'monthly'] ?? 1), 0),
+  subs.value.reduce((s, sub) => s + subMonthlyAmount(sub), 0),
 );
 const totalYr = computed(() =>
-  subs.value.reduce((s, sub) => s + (+sub.amount || 0) * (YR_RATE[sub.frequency || 'monthly'] ?? 12), 0),
+  subs.value.reduce((s, sub) => s + subAnnualAmount(sub), 0),
 );
 const wantsMo = computed(() =>
   subs.value
     .filter(s => (s.budgetType || 'wants') !== 'needs')
-    .reduce((s, sub) => s + (+sub.amount || 0) * (MO_RATE[sub.frequency || 'monthly'] ?? 1), 0),
+    .reduce((s, sub) => s + subMonthlyAmount(sub), 0),
 );
 const wantsBudget = computed(() => totalMonthlyIncome.value * (budget.allocation.wants / 100));
 const wantsPct    = computed(() =>
@@ -67,6 +97,7 @@ const budgetBarLabel = computed(() => {
 const upcomingRenewals = computed(() =>
   [...subs.value]
     .filter(s => {
+      if (s.frequency === 'custom-days') return false; // recurring daily pattern — no countdown
       const d = daysUntil(s.date || '');
       return d >= 0 && d <= 7;
     })
@@ -89,29 +120,37 @@ const sortedSubs = computed(() =>
   }),
 );
 
-function chipClass(dateStr: string): string {
-  const d = daysUntil(dateStr);
+function chipClass(sub: { date: string; frequency: Frequency; daysOfWeek?: number[] }): string {
+  if (sub.frequency === 'custom-days') return 'chip-custom';
+  const d = daysUntil(sub.date);
   if (d < 0)  return 'chip-red';
   if (d < 60) return 'chip-warn';
   return 'chip-green';
 }
 
-function chipText(dateStr: string): string {
-  const d = daysUntil(dateStr);
+function chipText(sub: { date: string; frequency: Frequency; daysOfWeek?: number[] }): string {
+  if (sub.frequency === 'custom-days') {
+    const n = sub.daysOfWeek?.length ?? 0;
+    return n ? sub.daysOfWeek!.map(d => DOW_MINI[d]).join('') : '—';
+  }
+  const d = daysUntil(sub.date);
   if (d < 0)   return 'Expired';
   if (d === 0) return 'Today!';
   return `${d}d`;
 }
 
-function annualNote(amount: number, freq: Frequency): string {
-  if (!amount || freq === 'yearly') return '';
-  const yr = amount * (YR_RATE[freq] ?? 12);
+function annualNote(sub: { amount: number; frequency: Frequency; daysOfWeek?: number[] }): string {
+  if (!sub.amount || sub.frequency === 'yearly') return '';
+  const yr = subAnnualAmount(sub);
   return `· ${fmt(yr)}/yr`;
 }
 
-function displayDate(dateStr: string): string {
-  if (!dateStr) return '—';
-  const [sy, sm, sd] = dateStr.split('-');
+function displayDate(sub: { date: string; frequency: Frequency; daysOfWeek?: number[] }): string {
+  if (sub.frequency === 'custom-days') {
+    return `Every ${dayPatternLabel(sub.daysOfWeek ?? [])}`;
+  }
+  if (!sub.date) return '—';
+  const [sy, sm, sd] = sub.date.split('-');
   return `${MONTHS[+sm - 1]} ${+sd}, ${sy}`;
 }
 
@@ -132,9 +171,28 @@ const form = reactive({
   category:   'Other',
   budgetType: 'wants',
   cardId:     null as string | null,
+  daysOfWeek: [] as number[],
 });
 
-const FREQUENCIES_SUB: Frequency[] = ['monthly', 'quarterly', 'yearly', 'biweekly', 'weekly'];
+const FREQUENCIES_SUB: Frequency[] = ['monthly', 'quarterly', 'yearly', 'biweekly', 'weekly', 'custom-days'];
+const FREQ_DISPLAY: Record<Frequency, string> = {
+  monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly',
+  biweekly: 'Bi-weekly', weekly: 'Weekly', 'custom-days': 'Custom days',
+};
+
+/** Estimated monthly cost for the current form values. */
+const formMonthlyCost = computed(() => {
+  if (form.frequency === 'custom-days') {
+    return form.amount * (form.daysOfWeek.length) * AVG_PER_WEEKDAY;
+  }
+  return form.amount * (MO_RATE[form.frequency] ?? 1);
+});
+
+function toggleDay(dow: number): void {
+  const idx = form.daysOfWeek.indexOf(dow);
+  if (idx === -1) form.daysOfWeek.push(dow);
+  else form.daysOfWeek.splice(idx, 1);
+}
 
 function resetForm(): void {
   form.name       = '';
@@ -144,6 +202,7 @@ function resetForm(): void {
   form.category   = 'Other';
   form.budgetType = 'wants';
   form.cardId     = null;
+  form.daysOfWeek = [];
   editingId.value = null;
 }
 
@@ -162,26 +221,39 @@ function openEdit(id: string): void {
   form.category   = sub.category || 'Other';
   form.budgetType = sub.budgetType || 'wants';
   form.cardId     = sub.cardId ?? null;
+  form.daysOfWeek = [...(sub.daysOfWeek ?? [])];
   editingId.value = id;
   showModal.value = true;
 }
 
 const validation = useFormValidation(() => ({
   name: rules.required(form.name, 'Name'),
-  date: rules.required(form.date, 'Renewal date'),
+  // date is required only for non-custom-days frequencies
+  date: form.frequency !== 'custom-days' ? rules.required(form.date, 'Renewal date') : '',
+  // custom-days requires at least one day selected
+  daysOfWeek: form.frequency === 'custom-days' && form.daysOfWeek.length === 0
+    ? 'Select at least one day'
+    : '',
 }));
 
 function save(): void {
   validation.touchAll();
   if (!validation.isValid.value) return;
+
+  // For custom-days, default the effective-from date to today if not set
+  const date = (form.frequency === 'custom-days' && !form.date)
+    ? new Date().toISOString().split('T')[0]
+    : form.date;
+
   const payload = {
     name:       form.name.trim(),
     amount:     form.amount,
     frequency:  form.frequency,
-    date:       form.date,
+    date,
     category:   form.category,
     budgetType: form.budgetType as 'needs' | 'wants',
     cardId:     form.cardId,
+    daysOfWeek: form.frequency === 'custom-days' ? [...form.daysOfWeek].sort((a, b) => a - b) : [],
   };
   if (editingId.value) {
     budget.updateSubscription(editingId.value, payload);
@@ -305,9 +377,10 @@ function remove(id: string): void {
           <span class="sub-name">{{ sub.name }}</span>
           <span
             class="sub-chip"
-            :class="chipClass(sub.date || '')"
+            :class="chipClass(sub)"
+            :title="sub.frequency === 'custom-days' ? dayPatternLabel(sub.daysOfWeek ?? []) : undefined"
           >
-            {{ chipText(sub.date || '') }}
+            {{ chipText(sub) }}
           </span>
         </div>
         <div class="sub-row-2">
@@ -329,11 +402,11 @@ function remove(id: string): void {
           >⚠ No card</span>
           <span class="sub-amount">
             {{ sub.amount > 0 ? fmt(+sub.amount) + (FREQ_LABEL[sub.frequency || 'monthly'] || '/mo') : '—' }}
-            <span class="sub-annual-note">{{ annualNote(+sub.amount, sub.frequency || 'monthly') }}</span>
+            <span class="sub-annual-note">{{ annualNote(sub) }}</span>
           </span>
         </div>
         <div class="sub-row-3">
-          <span class="sub-date">Renews {{ displayDate(sub.date || '') }}</span>
+          <span class="sub-date">{{ sub.frequency === 'custom-days' ? displayDate(sub) : 'Renews ' + displayDate(sub) }}</span>
           <div class="sub-actions">
             <BaseButton
               size="xs"
@@ -415,11 +488,15 @@ function remove(id: string): void {
                 :key="f"
                 :value="f"
               >
-                {{ f }}
+                {{ FREQ_DISPLAY[f] }}
               </option>
             </select>
           </div>
-          <div class="form-group">
+          <!-- Date picker: hidden for custom-days (uses day-of-week instead) -->
+          <div
+            v-if="form.frequency !== 'custom-days'"
+            class="form-group"
+          >
             <label
               class="form-label"
               for="sub-date"
@@ -439,6 +516,39 @@ function remove(id: string): void {
               {{ validation.errors.value.date }}
             </p>
           </div>
+        </div>
+
+        <!-- Day-of-week picker (custom-days only) -->
+        <div
+          v-if="form.frequency === 'custom-days'"
+          class="form-group"
+        >
+          <label class="form-label">Repeats on</label>
+          <div class="dow-picker">
+            <button
+              v-for="(label, idx) in DOW_FULL"
+              :key="idx"
+              type="button"
+              class="dow-btn"
+              :class="{ 'dow-btn--active': form.daysOfWeek.includes(idx) }"
+              :title="label"
+              @click="toggleDay(idx)"
+            >
+              {{ DOW_MINI[idx] }}
+            </button>
+          </div>
+          <p
+            v-if="validation.errors.value.daysOfWeek"
+            class="field-error"
+          >
+            {{ validation.errors.value.daysOfWeek }}
+          </p>
+          <p
+            v-if="form.daysOfWeek.length > 0"
+            class="form-hint"
+          >
+            ≈ {{ fmt(formMonthlyCost) }}/mo ({{ (form.daysOfWeek.length * AVG_PER_WEEKDAY).toFixed(1) }} days avg)
+          </p>
         </div>
 
         <div class="form-row-2">
@@ -624,9 +734,10 @@ function remove(id: string): void {
   border-radius: 4px;
 }
 
-.chip-green { background: rgba(74, 222, 128, 0.12); color: var(--accent2); }
-.chip-warn  { background: rgba(251, 191, 36, 0.12);  color: var(--warn); }
-.chip-red   { background: rgba(248, 113, 113, 0.12); color: var(--danger); }
+.chip-green  { background: rgba(74, 222, 128, 0.12);  color: var(--accent2); }
+.chip-warn   { background: rgba(251, 191, 36, 0.12);  color: var(--warn); }
+.chip-red    { background: rgba(248, 113, 113, 0.12); color: var(--danger); }
+.chip-custom { background: rgba(167, 139, 250, 0.12); color: #a78bfa; letter-spacing: 0.02em; }
 
 .sub-row-2 {
   display: flex;
@@ -753,5 +864,46 @@ function remove(id: string): void {
   font-size: 0.78rem;
   color: var(--danger);
   margin: 0.15rem 0 0;
+}
+
+/* Day-of-week picker */
+.dow-picker {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.dow-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.dow-btn:hover {
+  border-color: #a78bfa;
+  color: #a78bfa;
+}
+
+.dow-btn--active {
+  background: rgba(167, 139, 250, 0.18);
+  border-color: #a78bfa;
+  color: #a78bfa;
+}
+
+.form-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin: 0.25rem 0 0;
 }
 </style>

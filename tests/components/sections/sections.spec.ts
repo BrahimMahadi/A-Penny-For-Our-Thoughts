@@ -1025,3 +1025,146 @@ describe('RecurringCalendar — loan badges', () => {
     w.unmount();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  Subscriptions — custom-days (Sprint 17)
+// ─────────────────────────────────────────────────────────────────
+describe('Subscriptions — custom-days', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('shows day-of-week picker when Custom days is selected', async () => {
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    // Open modal
+    const addBtn = w.findAll('button').find(b => b.text().includes('Add Subscription'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    // Change frequency to custom-days
+    const freqSelect = document.body.querySelector('#sub-freq') as HTMLSelectElement;
+    freqSelect.value = 'custom-days';
+    freqSelect.dispatchEvent(new Event('change'));
+    await nextTick();
+    // Day picker should appear
+    expect(document.body.querySelector('.dow-picker')).not.toBeNull();
+    w.unmount();
+  });
+
+  it('does NOT show day picker for monthly frequency', async () => {
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    const addBtn = w.findAll('button').find(b => b.text().includes('Add Subscription'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    expect(document.body.querySelector('.dow-picker')).toBeNull();
+    w.unmount();
+  });
+
+  it('renders custom-days subscription with chip-custom class', async () => {
+    const budget = useBudgetStore();
+    budget.subscriptions.push({
+      id: 'cd1', name: 'Parking', amount: 8,
+      frequency: 'custom-days' as any, date: '2026-01-01',
+      category: 'Transport', budgetType: 'needs' as any,
+      cardId: null, daysOfWeek: [1, 2, 3],
+    } as any);
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    expect(w.find('.chip-custom').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders "Every Mon · Tue · Wed" in the date row for custom-days sub', async () => {
+    const budget = useBudgetStore();
+    budget.subscriptions.push({
+      id: 'cd2', name: 'Parking', amount: 8,
+      frequency: 'custom-days' as any, date: '2026-01-01',
+      category: 'Transport', budgetType: 'needs' as any,
+      cardId: null, daysOfWeek: [1, 2, 3],
+    } as any);
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    expect(w.text()).toContain('Every Mon · Tue · Wed');
+    w.unmount();
+  });
+
+  it('does not include custom-days sub in renewal alert', async () => {
+    const budget = useBudgetStore();
+    // Add a custom-days sub with today's date (would trigger renewal if not filtered)
+    budget.subscriptions.push({
+      id: 'cd3', name: 'Parking', amount: 8,
+      frequency: 'custom-days' as any,
+      date: new Date().toISOString().split('T')[0],
+      category: 'Transport', budgetType: 'needs' as any,
+      cardId: null, daysOfWeek: [1],
+    } as any);
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    // Renewal alert should NOT show (custom-days are excluded)
+    expect(w.find('.subs-renewal-alert').exists()).toBe(false);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  RecurringCalendar — custom-days in list view (Sprint 17)
+// ─────────────────────────────────────────────────────────────────
+describe('RecurringCalendar — custom-days list view', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  function setupCustomDaySub() {
+    const budget = useBudgetStore();
+    const ui = useUiStore();
+    budget.subscriptions.push({
+      id: 'park1', name: 'Parking', amount: 8,
+      frequency: 'custom-days' as any,
+      date: '2026-01-01',
+      category: 'Transport', budgetType: 'needs' as any,
+      cardId: null, daysOfWeek: [1, 2, 3],
+    } as any);
+    ui.scheduleViewYear = 2026;
+    ui.scheduleViewMonth = 5;
+    ui.setScheduleView('list');
+    return { budget, ui };
+  }
+
+  it('shows "Weekly recurring pattern" section label in list view', async () => {
+    setupCustomDaySub();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    expect(w.text()).toContain('Weekly recurring pattern');
+    w.unmount();
+  });
+
+  it('shows .bill-badge--custom badge with day pattern', async () => {
+    setupCustomDaySub();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    const badge = w.find('.bill-badge--custom');
+    expect(badge.exists()).toBe(true);
+    expect(badge.text()).toContain('Mon');
+    w.unmount();
+  });
+
+  it('shows occurrence count in list view', async () => {
+    setupCustomDaySub();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    // May 2026 Mon+Tue+Wed = 12 occurrences
+    expect(w.text()).toContain('×12');
+    w.unmount();
+  });
+
+  it('shows .cal-badge--sub badge on each matching calendar day', async () => {
+    setupCustomDaySub();
+    const ui = useUiStore();
+    ui.setScheduleView('calendar');
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    // Calendar grid should have multiple sub badges
+    const badges = w.findAll('.cal-badge--sub');
+    expect(badges.length).toBeGreaterThanOrEqual(12);
+    w.unmount();
+  });
+});

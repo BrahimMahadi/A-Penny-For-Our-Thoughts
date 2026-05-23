@@ -20,6 +20,15 @@ import { fmt } from '@/utils/format';
 import type { ForecastItem } from '@/utils/calculations';
 import type { ISODate } from '@/types/budget';
 
+// Day-of-week abbreviations shared with the schedule list view
+const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** Render a sorted day-pattern label, e.g. [1,3] → "Mon · Wed" */
+function dayPatternLabel(days: number[] | undefined): string {
+  if (!days || days.length === 0) return '—';
+  return [...days].sort((a, b) => a - b).map(d => DOW_SHORT[d]).join(' · ');
+}
+
 const ui = useUiStore();
 const {
   sixMonthForecast,
@@ -110,6 +119,45 @@ const hasAny = computed(() => {
     );
   }
   return fc.value.dated.length > 0 || fc.value.undated.length > 0;
+});
+
+// ─── List-view grouping for custom-days subscriptions ────────────
+// custom-days subs produce one ForecastItem per occurrence day (for the
+// calendar grid), but the list view must collapse them into a single row.
+interface CollapsedCustomDay extends ForecastItem {
+  occurrences: number;
+  totalForMonth: number;
+}
+
+const listGrouped = computed(() => {
+  const dated   = fc.value?.dated   ?? [];
+  const undated = fc.value?.undated ?? [];
+
+  const customMap = new Map<string, CollapsedCustomDay>();
+  const normalDated: ForecastItem[] = [];
+
+  dated.forEach((item) => {
+    if (item.frequency === 'custom-days') {
+      const existing = customMap.get(item.id);
+      if (existing) {
+        customMap.set(item.id, {
+          ...existing,
+          occurrences:  existing.occurrences + 1,
+          totalForMonth: existing.totalForMonth + item.amount,
+        });
+      } else {
+        customMap.set(item.id, { ...item });
+      }
+    } else {
+      normalDated.push(item);
+    }
+  });
+
+  return {
+    dated:      normalDated,
+    customDays: [...customMap.values()],
+    undated,
+  };
 });
 
 // ─── Calendar grid (month view) ───────────────────────────────────
@@ -346,7 +394,7 @@ function ordinal(n: number): string {
             Scheduled by date
           </div>
           <div
-            v-for="(item, i) in fc.dated"
+            v-for="(item, i) in listGrouped.dated"
             :key="`dated-${i}`"
             class="bill-row"
           >
@@ -369,12 +417,31 @@ function ordinal(n: number): string {
           </div>
         </template>
 
-        <template v-if="fc.undated.length > 0">
+        <!-- Custom-days recurring patterns (collapsed, one row per subscription) -->
+        <template v-if="listGrouped.customDays.length > 0">
+          <div class="bill-group-label">
+            Weekly recurring pattern
+          </div>
+          <div
+            v-for="(item, i) in listGrouped.customDays"
+            :key="`custom-${i}`"
+            class="bill-row"
+          >
+            <span class="bill-day bill-day--pattern">≡</span>
+            <span class="bill-name">{{ item.name }}</span>
+            <span class="bill-badge bill-badge--custom">{{ dayPatternLabel(item.daysOfWeek) }}</span>
+            <span class="bill-badge bill-badge--sub">subscription</span>
+            <span class="bill-count">×{{ item.occurrences }} this mo.</span>
+            <span class="bill-amt">{{ fmt(item.totalForMonth) }}</span>
+          </div>
+        </template>
+
+        <template v-if="listGrouped.undated.length > 0">
           <div class="bill-group-label">
             Any time this month
           </div>
           <div
-            v-for="(item, i) in fc.undated"
+            v-for="(item, i) in listGrouped.undated"
             :key="`undated-${i}`"
             class="bill-row"
           >
@@ -845,6 +912,18 @@ function ordinal(n: number): string {
   font-variant-numeric: tabular-nums;
 }
 
+.bill-day--pattern {
+  color: #a78bfa;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.bill-count {
+  font-size: 0.68rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .bill-name {
   font-weight: 600;
   flex: 1;
@@ -862,6 +941,7 @@ function ordinal(n: number): string {
 .bill-badge--biweekly { background: rgba(74, 222, 128, 0.12); color: var(--accent); }
 .bill-badge--sub      { background: rgba(167, 139, 250, 0.12); color: #a78bfa; }
 .bill-badge--loan     { background: rgba(251, 191, 36, 0.12);  color: var(--warn, #f59e0b); }
+.bill-badge--custom   { background: rgba(167, 139, 250, 0.18); color: #a78bfa; font-weight: 700; }
 
 .bill-amt {
   font-weight: 700;
