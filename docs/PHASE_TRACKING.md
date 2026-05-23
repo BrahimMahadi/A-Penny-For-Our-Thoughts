@@ -865,7 +865,53 @@ Items captured for future sprints — not yet scheduled. See individual option d
 
 ---
 
+## Sprint 16 — Loans on Schedule Tab 💳
+**Branch:** `feat/sprint-16`  
+**Version:** v1.10.0  
+**Status:** ✅ **COMPLETE**  
+**Goal:** Show loan payments on the Schedule tab (List, Calendar, and Pay Period views) on their due dates — identical treatment to subscriptions
+
+### Changes
+
+**`src/utils/calculations.ts`**
+- `ForecastSource` union extended: `'expense' | 'subscription' | 'loan'`
+- Loans block added to `getMonthForecast()`: monthly loans produce one `ForecastItem` per occurrence; non-monthly (biweekly etc.) produce **one item per renewal date** so each date gets its own calendar cell; loans with empty `date` go to `undated`; `paymentAmount <= 0` loans are skipped
+- Loans block added to `getPayPeriodForecast()`: uses `getRenewalDatesBetween()` for non-monthly loans, same skip rules apply
+- Linked expense card label resolved via `loan.cardId → expenseCards.find(...)?.label`, falls back to `'Loan'`
+
+**`src/components/sections/RecurringCalendar.vue`**
+- List view dated section: amber `.bill-badge--loan` badge for `source === 'loan'` items
+- Calendar grid: `cal-badge--loan` class (amber) via ternary chain on `item.source`
+- Pay period grid: same `cal-badge--loan` class logic (shares template pattern with calendar)
+- Pay period undated list: `.bill-badge--loan` badge
+- CSS added: `.bill-badge--loan { amber }` and `.cal-badge--loan { amber }`
+
+### Tests Added
+- `tests/utils/calculations.spec.ts`:
+  - `getMonthForecast — loans` (10 tests): monthly loan appears, dueDay correct, totalForMonth, biweekly produces 2 rows, undated handling, card label resolution
+  - `getPayPeriodForecast — loans` (7 tests): appears in window, periodDate correct, excluded outside window, skip rules, card label resolution
+- `tests/components/sections/sections.spec.ts`:
+  - `RecurringCalendar — loan badges` (5 tests): list view badge, badge text, calendar badge, pay period badge, zero-payment filtered
+
+**Bug Fixes During Development**
+- `getMonthForecast` loans: empty `date` was incorrectly causing the loan to be skipped rather than placed in `undated` — fixed by checking `paymentAmount <= 0` first, then branching on `!loan.date` to push with `dueDay: null`
+- Biweekly loans were emitting a single aggregated `ForecastItem` instead of one item per occurrence — fixed to push one item per `renewalDate` entry
+
+### Docs Updated
+- `src/components/onboarding/WhatsNewBanner.vue` — `APP_VERSION` → `'1.10.0'`, loan schedule release notes
+- `tests/components/onboarding.spec.ts` — version string updated to `'1.10.0'`
+- `CLAUDE.md` — test count updated to 628
+- `docs/PHASE_TRACKING.md` — this entry
+
+### Test Totals
+- **Total: 628 passing (↑22 from 606) across 23 spec files**
+
+### Merge & Tag
+- ✅ Merged `feat/sprint-16` → `main`, tagged **v1.10.0**
+
+---
+
 **Last Updated**: May 2026  
-**Current Version**: v1.9.0 — Sprint 15 complete  
+**Current Version**: v1.10.0 — Sprint 16 complete  
 **Next Up**: TBD  
 **Current Branch**: `main`

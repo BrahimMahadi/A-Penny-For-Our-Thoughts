@@ -361,6 +361,10 @@ function ordinal(n: number): string {
               v-else-if="item.source === 'subscription'"
               class="bill-badge bill-badge--sub"
             >subscription</span>
+            <span
+              v-else-if="item.source === 'loan'"
+              class="bill-badge bill-badge--loan"
+            >loan</span>
             <span class="bill-amt">{{ fmt(item.totalForMonth) }}</span>
           </div>
         </template>
@@ -431,7 +435,7 @@ function ordinal(n: number): string {
                 v-for="(item, bi) in calDay.items.slice(0, 2)"
                 :key="bi"
                 class="cal-badge"
-                :class="item.source === 'subscription' ? 'cal-badge--sub' : 'cal-badge--expense'"
+                :class="item.source === 'subscription' ? 'cal-badge--sub' : item.source === 'loan' ? 'cal-badge--loan' : 'cal-badge--expense'"
                 :title="`${item.name} — ${fmt(item.totalForMonth)}`"
               >
                 {{ item.name }}
@@ -549,7 +553,7 @@ function ordinal(n: number): string {
                 v-for="(item, bi) in ppDay.items.slice(0, 2)"
                 :key="bi"
                 class="cal-badge"
-                :class="item.source === 'subscription' ? 'cal-badge--sub' : 'cal-badge--expense'"
+                :class="item.source === 'subscription' ? 'cal-badge--sub' : item.source === 'loan' ? 'cal-badge--loan' : 'cal-badge--expense'"
                 :title="`${item.name} — ${fmt(item.totalForMonth)}`"
               >
                 {{ item.name }}
@@ -597,6 +601,10 @@ function ordinal(n: number): string {
               v-if="item.biweekly"
               class="bill-badge bill-badge--biweekly"
             >bi-wk</span>
+            <span
+              v-else-if="item.source === 'loan'"
+              class="bill-badge bill-badge--loan"
+            >loan</span>
             <span
               class="bill-amt"
               :title="item.biweekly ? 'Per-period amount' : 'Approx. half of monthly amount'"
@@ -853,6 +861,7 @@ function ordinal(n: number): string {
 .bill-badge--card     { background: var(--surface); color: var(--muted); }
 .bill-badge--biweekly { background: rgba(74, 222, 128, 0.12); color: var(--accent); }
 .bill-badge--sub      { background: rgba(167, 139, 250, 0.12); color: #a78bfa; }
+.bill-badge--loan     { background: rgba(251, 191, 36, 0.12);  color: var(--warn, #f59e0b); }
 
 .bill-amt {
   font-weight: 700;
@@ -987,6 +996,7 @@ function ordinal(n: number): string {
 
 .cal-badge--expense { background: rgba(96, 165, 250, 0.15); color: var(--accent2); }
 .cal-badge--sub     { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
+.cal-badge--loan    { background: rgba(251, 191, 36, 0.15);  color: var(--warn, #f59e0b); }
 .cal-badge--more    { background: var(--surface2); color: var(--muted); }
 
 .cal-day-total {

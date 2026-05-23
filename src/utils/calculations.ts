@@ -589,7 +589,7 @@ export function getNetWorthData(
 
 // ─── Recurring calendar / forecast ───────────────────────────────
 
-export type ForecastSource = 'expense' | 'subscription';
+export type ForecastSource = 'expense' | 'subscription' | 'loan';
 
 export interface ForecastItem {
   id: string;
@@ -684,6 +684,81 @@ export function getMonthForecast(
       category: sub.category,
       frequency: sub.frequency,
     });
+  });
+
+  // Loans
+  state.loans.forEach((loan) => {
+    if (loan.paymentAmount <= 0) return; // skip paid-off loans
+
+    // Resolve the linked expense card label (shown as context badge in the UI).
+    const linkedCard = loan.cardId
+      ? state.expenseCards.find((c) => c.id === loan.cardId)
+      : null;
+    const cardLabel = linkedCard ? linkedCard.label : 'Loan';
+
+    // Loan with no date → undated
+    if (!loan.date) {
+      items.push({
+        id:           loan.id,
+        name:         loan.name,
+        amount:       loan.paymentAmount,
+        dueDay:       null,
+        source:       'loan',
+        cardLabel,
+        occurrences:  1,
+        totalForMonth: loan.paymentAmount,
+        biweekly:     false,
+        budgetType:   loan.budgetType,
+        frequency:    loan.frequency,
+      });
+      return;
+    }
+
+    const frequency = loan.frequency || 'monthly';
+    const startOfMonth = new Date(year, month - 1, 1);
+    const endOfMonth   = new Date(year, month - 1, maxDay);
+    startOfMonth.setHours(0, 0, 0, 0);
+    endOfMonth.setHours(0, 0, 0, 0);
+
+    if (frequency !== 'monthly') {
+      // Non-monthly: one item per renewal date in the month
+      const renewalDates = getRenewalDatesBetween(loan, startOfMonth, endOfMonth);
+      if (renewalDates.length === 0) return; // no payments this month
+      renewalDates.forEach((dateStr) => {
+        const day = Math.min(parseInt(dateStr.split('-')[2], 10), maxDay);
+        items.push({
+          id:           loan.id,
+          name:         loan.name,
+          amount:       loan.paymentAmount,
+          dueDay:       day,
+          source:       'loan',
+          cardLabel,
+          occurrences:  1,
+          totalForMonth: loan.paymentAmount,
+          biweekly:     false,
+          budgetType:   loan.budgetType,
+          frequency:    loan.frequency,
+        });
+      });
+    } else {
+      // Monthly loan — extract day from date string
+      const parts = loan.date.split('-');
+      const parsedDay = parts.length >= 3 ? parseInt(parts[2], 10) : parseInt(loan.date, 10);
+      const dueDay = (!isNaN(parsedDay) && parsedDay >= 1) ? Math.min(parsedDay, maxDay) : null;
+      items.push({
+        id:           loan.id,
+        name:         loan.name,
+        amount:       loan.paymentAmount,
+        dueDay,
+        source:       'loan',
+        cardLabel,
+        occurrences:  1,
+        totalForMonth: loan.paymentAmount,
+        biweekly:     false,
+        budgetType:   loan.budgetType,
+        frequency:    loan.frequency,
+      });
+    }
   });
 
   const dated = items
@@ -879,6 +954,35 @@ export function getPayPeriodForecast(
       category: sub.category,
       frequency: sub.frequency,
       periodDate: renewalDates[0] as ISODate,
+    });
+  });
+
+  // ── Loans ────────────────────────────────────────────────────────
+  state.loans.forEach((loan) => {
+    if (!loan.date || loan.paymentAmount <= 0) return; // skip undated or paid-off
+
+    const renewalDates = getRenewalDatesBetween(loan, startDate, endDate);
+    if (renewalDates.length === 0) return; // no payment in this pay period
+
+    const dueDay = parseInt(renewalDates[0].split('-')[2], 10);
+    const linkedCard = loan.cardId
+      ? state.expenseCards.find((c) => c.id === loan.cardId)
+      : null;
+    const cardLabel = linkedCard ? linkedCard.label : 'Loan';
+
+    dated.push({
+      id:           loan.id,
+      name:         loan.name,
+      amount:       loan.paymentAmount,
+      dueDay,
+      source:       'loan',
+      cardLabel,
+      occurrences:  renewalDates.length,
+      totalForMonth: loan.paymentAmount * renewalDates.length,
+      biweekly:     false,
+      budgetType:   loan.budgetType,
+      frequency:    loan.frequency,
+      periodDate:   renewalDates[0] as ISODate,
     });
   });
 
