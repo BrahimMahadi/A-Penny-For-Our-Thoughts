@@ -3,7 +3,10 @@
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 2)
   Updated:  May 2026 (Sprint 4 — all 13 section SFCs wired)
-  Summary:  Dashboard tab host. Houses all financial section components.
+            May 2026 (Sprint 13 — section IDs, group labels, collapsible)
+  Summary:  Dashboard tab host. Houses all financial section components,
+            organised into five logical groups with collapsible cards.
+            Each BaseCard carries a `sectionId` for SectionPicker jump-to.
 -->
 
 <script setup lang="ts">
@@ -93,81 +96,144 @@ const wantsDelta = computed(() =>
       />
     </div>
 
-    <!-- 6-month spending trend chart -->
-    <BaseCard title="6-Month Spending Trend">
+    <!-- ══ Income & Budget ═══════════════════════════════════════════ -->
+    <p class="section-group-label">
+      Income &amp; Budget
+    </p>
+
+    <BaseCard
+      title="6-Month Spending Trend"
+      section-id="spending-trend"
+      :collapsible="true"
+    >
       <SpendingTrendChart :rows="spendingTrend" />
     </BaseCard>
 
-    <!-- Income & Budget Allocation -->
     <div class="two-col-grid">
-      <BaseCard title="Income Streams">
+      <BaseCard
+        title="Income Streams"
+        section-id="income-streams"
+      >
         <IncomeStreams />
       </BaseCard>
 
-      <BaseCard title="Budget Allocation (50/30/20)">
+      <BaseCard
+        title="Budget Allocation (50/30/20)"
+        section-id="budget-allocation"
+      >
         <BudgetAllocation />
       </BaseCard>
     </div>
 
-    <!-- Wants Tracker -->
-    <BaseCard title="Wants Tracker">
+    <!-- ══ Spending ══════════════════════════════════════════════════ -->
+    <p class="section-group-label">
+      Spending
+    </p>
+
+    <BaseCard
+      title="Wants Tracker"
+      section-id="wants-tracker"
+    >
       <WantsTracker />
     </BaseCard>
 
-    <!-- Budget vs. Actual -->
-    <BaseCard title="Budget vs. Actual">
+    <BaseCard
+      title="Budget vs. Actual"
+      section-id="budget-vs-actual"
+    >
       <BudgetVsActual />
     </BaseCard>
 
-    <!-- Expense Cards -->
-    <BaseCard title="Expense Cards">
+    <BaseCard
+      title="Expense Cards"
+      section-id="expense-cards"
+    >
       <ExpenseCards />
     </BaseCard>
 
-    <!-- Loans & Credit Cards -->
+    <BaseCard
+      title="Subscriptions"
+      section-id="subscriptions"
+    >
+      <Subscriptions />
+    </BaseCard>
+
+    <!-- ══ Debt & Credit ═════════════════════════════════════════════ -->
+    <p class="section-group-label">
+      Debt &amp; Credit
+    </p>
+
     <div class="two-col-grid">
-      <BaseCard title="Loans">
+      <BaseCard
+        title="Loans"
+        section-id="loans"
+      >
         <Loans />
       </BaseCard>
 
-      <BaseCard title="Credit Cards">
+      <BaseCard
+        title="Credit Cards"
+        section-id="credit-cards"
+      >
         <CreditCards />
       </BaseCard>
     </div>
 
-    <!-- Subscriptions -->
-    <BaseCard title="Subscriptions">
-      <Subscriptions />
-    </BaseCard>
+    <!-- ══ Savings & Goals ═══════════════════════════════════════════ -->
+    <p class="section-group-label">
+      Savings &amp; Goals
+    </p>
 
-    <!-- Savings & Goals -->
     <div class="two-col-grid">
-      <BaseCard title="Savings Accounts">
+      <BaseCard
+        title="Savings Accounts"
+        section-id="savings-accounts"
+      >
         <Savings />
       </BaseCard>
 
-      <BaseCard title="Savings Goals">
+      <BaseCard
+        title="Savings Goals"
+        section-id="savings-goals"
+      >
         <SavingsGoals />
       </BaseCard>
     </div>
 
-    <!-- Goals Timeline -->
-    <BaseCard title="Goals Timeline">
+    <BaseCard
+      title="Goals Timeline"
+      section-id="goals-timeline"
+      :collapsible="true"
+    >
       <GoalsTimeline />
     </BaseCard>
 
-    <!-- Net Worth -->
-    <BaseCard title="Net Worth">
+    <!-- ══ Wealth & History ══════════════════════════════════════════ -->
+    <p class="section-group-label">
+      Wealth &amp; History
+    </p>
+
+    <BaseCard
+      title="Net Worth"
+      section-id="net-worth"
+      :collapsible="true"
+    >
       <NetWorth />
     </BaseCard>
 
-    <!-- Spending Analytics (collapsible) -->
-    <BaseCard title="Spending Analytics">
+    <BaseCard
+      title="Spending Analytics"
+      section-id="spending-analytics"
+      :collapsible="true"
+    >
       <SpendingAnalytics />
     </BaseCard>
 
-    <!-- Wishlist -->
-    <BaseCard title="Wishlist">
+    <BaseCard
+      title="Wishlist"
+      section-id="wishlist"
+      :collapsible="true"
+    >
       <Wishlist />
     </BaseCard>
   </div>
@@ -180,6 +246,17 @@ const wantsDelta = computed(() =>
   gap: 1rem;
 }
 
+/* ─── Group label dividers ─────────────────────────────────────── */
+.section-group-label {
+  margin: 0.5rem 0 -0.25rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted, #5a7a63);
+}
+
+/* ─── Stats row ────────────────────────────────────────────────── */
 .stats-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -198,6 +275,7 @@ const wantsDelta = computed(() =>
   }
 }
 
+/* ─── Two-column grid ──────────────────────────────────────────── */
 .two-col-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

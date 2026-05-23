@@ -110,6 +110,9 @@ export type TabId = 'dashboard' | 'schedule' | 'docs' | 'settings';
 /**
  * Volatile UI state — panel visibility, filter inputs, current month.
  * NOT persisted to localStorage; resets to defaults on page load.
+ *
+ * Exception: `collapsedSections` is persisted under STORAGE_KEYS.UI_PREFS
+ * so the user's collapse preferences survive a page reload.
  */
 export interface UiState {
   activeTab: TabId;
@@ -120,11 +123,17 @@ export interface UiState {
   scheduleViewYear: number;
   scheduleViewMonth: number;
   scheduleView: ScheduleView;
+  /**
+   * Set of dashboard section IDs that the user has collapsed.
+   * Persisted to `penny_ui_prefs` in localStorage.
+   */
+  collapsedSections: string[];
 }
 
 // ─── Storage keys (single source of truth) ───────────────────────
 
 export const STORAGE_KEYS = {
-  STATE: 'penny_state_v2',
-  THEME: 'penny_theme',
+  STATE:    'penny_state_v2',
+  THEME:    'penny_theme',
+  UI_PREFS: 'penny_ui_prefs',
 } as const;

@@ -11,6 +11,26 @@
 
 import { defineStore } from 'pinia';
 import type { UiState, AnalyticsFilters, ScheduleView, TabId } from '@/types/state';
+import { STORAGE_KEYS } from '@/types/state';
+
+// ─── Collapsed-sections persistence helpers ───────────────────────
+
+function loadCollapsedSections(): string[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.UI_PREFS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as { collapsedSections?: string[] };
+    return Array.isArray(parsed.collapsedSections) ? parsed.collapsedSections : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCollapsedSections(ids: string[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.UI_PREFS, JSON.stringify({ collapsedSections: ids }));
+  } catch { /* quota full — non-critical */ }
+}
 
 function makeInitialUiState(): UiState {
   const now = new Date();
@@ -21,15 +41,36 @@ function makeInitialUiState(): UiState {
     scheduleViewYear: now.getFullYear(),
     scheduleViewMonth: now.getMonth() + 1,
     scheduleView: 'list',
+    collapsedSections: loadCollapsedSections(),
   };
 }
 
 export const useUiStore = defineStore('ui', {
   state: (): UiState => makeInitialUiState(),
 
+  getters: {
+    isSectionCollapsed: (state) => (sectionId: string): boolean =>
+      state.collapsedSections.includes(sectionId),
+  },
+
   actions: {
     setActiveTab(tab: TabId): void {
       this.activeTab = tab;
+    },
+
+    toggleSection(sectionId: string): void {
+      const idx = this.collapsedSections.indexOf(sectionId);
+      if (idx === -1) {
+        this.collapsedSections = [...this.collapsedSections, sectionId];
+      } else {
+        this.collapsedSections = this.collapsedSections.filter(id => id !== sectionId);
+      }
+      saveCollapsedSections(this.collapsedSections);
+    },
+
+    expandSection(sectionId: string): void {
+      this.collapsedSections = this.collapsedSections.filter(id => id !== sectionId);
+      saveCollapsedSections(this.collapsedSections);
     },
 
     toggleAnalyticsPanel(): void {

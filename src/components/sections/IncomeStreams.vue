@@ -8,9 +8,10 @@
 -->
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
+import { useFormValidation, rules } from '@/composables/useFormValidation';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -54,18 +55,19 @@ function openEdit(id: string): void {
 function closeModal(): void {
   showModal.value = false;
   resetForm();
+  validation.reset();
 }
 
 // ─── Validation ───────────────────────────────────────────────────
-const formError = computed<string>(() => {
-  if (!form.name.trim())     return 'Name is required.';
-  if (form.amount <= 0)      return 'Amount must be greater than zero.';
-  return '';
-});
+const validation = useFormValidation(() => ({
+  name:   rules.required(form.name, 'Name'),
+  amount: rules.positiveNumber(form.amount, 'Amount'),
+}));
 
 // ─── CRUD ─────────────────────────────────────────────────────────
 function save(): void {
-  if (formError.value) return;
+  validation.touchAll();
+  if (!validation.isValid.value) return;
 
   if (editingId.value) {
     budget.updateIncomeStream(editingId.value, {
@@ -196,9 +198,17 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
             id="is-name"
             v-model="form.name"
             class="form-input"
+            :class="{ 'form-input--error': validation.errors.value.name }"
             type="text"
             placeholder="e.g. Paycheque"
+            @blur="validation.touch('name')"
           >
+          <p
+            v-if="validation.errors.value.name"
+            class="field-error"
+          >
+            {{ validation.errors.value.name }}
+          </p>
         </div>
 
         <div class="form-group">
@@ -210,12 +220,20 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
             id="is-amount"
             v-model.number="form.amount"
             class="form-input"
+            :class="{ 'form-input--error': validation.errors.value.amount }"
             type="number"
             inputmode="decimal"
             min="0"
             step="0.01"
             placeholder="0.00"
+            @blur="validation.touch('amount')"
           >
+          <p
+            v-if="validation.errors.value.amount"
+            class="field-error"
+          >
+            {{ validation.errors.value.amount }}
+          </p>
         </div>
 
         <label class="toggle-row">
@@ -229,13 +247,6 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
             class="toggle-checkbox"
           >
         </label>
-
-        <p
-          v-if="formError"
-          class="form-error"
-        >
-          {{ formError }}
-        </p>
       </div>
 
       <template #footer>
@@ -246,7 +257,6 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
           Cancel
         </BaseButton>
         <BaseButton
-          :disabled="!!formError"
           @click="save"
         >
           {{ editingId ? 'Update' : 'Add' }}
@@ -420,9 +430,18 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
   margin-top: 0.1rem;
 }
 
-.form-error {
-  font-size: 0.8rem;
+.form-input--error {
+  border-color: var(--danger);
+}
+
+.form-input--error:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+.field-error {
+  font-size: 0.78rem;
   color: var(--danger);
-  margin: 0;
+  margin: 0.15rem 0 0;
 }
 </style>

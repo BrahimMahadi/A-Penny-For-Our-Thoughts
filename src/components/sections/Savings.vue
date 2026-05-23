@@ -11,6 +11,7 @@
 import { ref, reactive, computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
+import { useFormValidation, rules } from '@/composables/useFormValidation';
 import { useAnalytics } from '@/composables/useAnalytics';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
@@ -87,14 +88,14 @@ function openEdit(id: string): void {
   showModal.value       = true;
 }
 
-const formError = computed<string>(() => {
-  if (!form.name.trim()) return 'Name is required.';
-  if (form.balance < 0)  return 'Balance must be ≥ 0.';
-  return '';
-});
+const validation = useFormValidation(() => ({
+  name:    rules.required(form.name, 'Account name'),
+  balance: rules.nonNegativeNumber(form.balance, 'Balance'),
+}));
 
 function save(): void {
-  if (formError.value) return;
+  validation.touchAll();
+  if (!validation.isValid.value) return;
   if (editingId.value) {
     budget.updateSavingsAccount(editingId.value, {
       name:             form.name.trim(),
@@ -113,6 +114,7 @@ function save(): void {
   }
   showModal.value = false;
   resetForm();
+  validation.reset();
 }
 
 function remove(id: string): void {
@@ -279,9 +281,17 @@ function saveAlloc(): void {
             id="sa-name"
             v-model="form.name"
             class="form-input"
+            :class="{ 'form-input--error': validation.errors.value.name }"
             type="text"
             placeholder="e.g. Emergency Fund"
+            @blur="validation.touch('name')"
           >
+          <p
+            v-if="validation.errors.value.name"
+            class="field-error"
+          >
+            {{ validation.errors.value.name }}
+          </p>
         </div>
 
         <div class="form-row-2">
@@ -294,11 +304,19 @@ function saveAlloc(): void {
               id="sa-balance"
               v-model.number="form.balance"
               class="form-input"
+              :class="{ 'form-input--error': validation.errors.value.balance }"
               type="number"
               inputmode="decimal"
               min="0"
               step="0.01"
+              @blur="validation.touch('balance')"
             >
+            <p
+              v-if="validation.errors.value.balance"
+              class="field-error"
+            >
+              {{ validation.errors.value.balance }}
+            </p>
           </div>
           <div class="form-group">
             <label
@@ -316,24 +334,16 @@ function saveAlloc(): void {
             >
           </div>
         </div>
-
-        <p
-          v-if="formError"
-          class="form-error"
-        >
-          {{ formError }}
-        </p>
       </div>
 
       <template #footer>
         <BaseButton
           variant="secondary"
-          @click="showModal = false; resetForm()"
+          @click="showModal = false; resetForm(); validation.reset()"
         >
           Cancel
         </BaseButton>
         <BaseButton
-          :disabled="!!formError"
           @click="save"
         >
           {{ editingId ? 'Update' : 'Add' }}
@@ -553,9 +563,18 @@ function saveAlloc(): void {
   .savings-stats { grid-template-columns: 1fr 1fr; }
 }
 
-.form-error {
-  font-size: 0.8rem;
+.form-input--error {
+  border-color: var(--danger);
+}
+
+.form-input--error:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+.field-error {
+  font-size: 0.78rem;
   color: var(--danger);
-  margin: 0;
+  margin: 0.15rem 0 0;
 }
 </style>

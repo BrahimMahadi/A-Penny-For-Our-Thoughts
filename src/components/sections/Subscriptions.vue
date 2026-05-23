@@ -10,6 +10,7 @@
 import { ref, reactive, computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
+import { useFormValidation, rules } from '@/composables/useFormValidation';
 import { useAnalytics } from '@/composables/useAnalytics';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
@@ -165,14 +166,14 @@ function openEdit(id: string): void {
   showModal.value = true;
 }
 
-const formError = computed<string>(() => {
-  if (!form.name.trim()) return 'Name is required.';
-  if (!form.date)        return 'Renewal date is required.';
-  return '';
-});
+const validation = useFormValidation(() => ({
+  name: rules.required(form.name, 'Name'),
+  date: rules.required(form.date, 'Renewal date'),
+}));
 
 function save(): void {
-  if (formError.value) return;
+  validation.touchAll();
+  if (!validation.isValid.value) return;
   const payload = {
     name:       form.name.trim(),
     amount:     form.amount,
@@ -191,6 +192,7 @@ function save(): void {
   }
   showModal.value = false;
   resetForm();
+  validation.reset();
 }
 
 function remove(id: string): void {
@@ -368,9 +370,17 @@ function remove(id: string): void {
               id="sub-name"
               v-model="form.name"
               class="form-input"
+              :class="{ 'form-input--error': validation.errors.value.name }"
               type="text"
               placeholder="e.g. Netflix"
+              @blur="validation.touch('name')"
             >
+            <p
+              v-if="validation.errors.value.name"
+              class="field-error"
+            >
+              {{ validation.errors.value.name }}
+            </p>
           </div>
           <div class="form-group">
             <label
@@ -418,8 +428,16 @@ function remove(id: string): void {
               id="sub-date"
               v-model="form.date"
               class="form-input"
+              :class="{ 'form-input--error': validation.errors.value.date }"
               type="date"
+              @blur="validation.touch('date')"
             >
+            <p
+              v-if="validation.errors.value.date"
+              class="field-error"
+            >
+              {{ validation.errors.value.date }}
+            </p>
           </div>
         </div>
 
@@ -465,24 +483,16 @@ function remove(id: string): void {
             </select>
           </div>
         </div>
-
-        <p
-          v-if="formError"
-          class="form-error"
-        >
-          {{ formError }}
-        </p>
       </div>
 
       <template #footer>
         <BaseButton
           variant="secondary"
-          @click="showModal = false; resetForm()"
+          @click="showModal = false; resetForm(); validation.reset()"
         >
           Cancel
         </BaseButton>
         <BaseButton
-          :disabled="!!formError"
           @click="save"
         >
           {{ editingId ? 'Update' : 'Add' }}
@@ -730,9 +740,18 @@ function remove(id: string): void {
   border-color: var(--accent);
 }
 
-.form-error {
-  font-size: 0.8rem;
+.form-input--error {
+  border-color: var(--danger);
+}
+
+.form-input--error:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+.field-error {
+  font-size: 0.78rem;
   color: var(--danger);
-  margin: 0;
+  margin: 0.15rem 0 0;
 }
 </style>
