@@ -2,61 +2,136 @@
   Module:   components/ui/SectionPicker.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Sprint 13)
-  Summary:  Dashboard section picker — a slide-in panel that lists every
-            dashboard section grouped by category. Clicking a section:
-              1. Emits 'close' so the parent dismisses the panel
-              2. Switches to the Dashboard tab (if not already there)
-              3. Smooth-scrolls to the section's HTML element
+  Updated:  May 2026 (Sprint 18) — drag-to-reorder, collapse toggle,
+            move up/down buttons (touch), reset order button
+  Summary:  Dashboard section manager — a slide-in panel that lets users:
+              • Jump to any section (click the section name)
+              • Collapse / expand any section (toggle button on the right)
+              • Reorder sections by dragging the ⠿ handle (desktop)
+              • Reorder sections via ↑ / ↓ buttons (touch / keyboard)
+              • Reset section order to the default arrangement
 
   Usage:
     <SectionPicker v-model:open="pickerOpen" />
 -->
 
 <script setup lang="ts">
-import { nextTick, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { useUiStore } from '@/stores/ui';
-import { DASHBOARD_SECTIONS, SECTION_GROUPS } from '@/constants/dashboardSections';
+import { SECTION_MAP, DEFAULT_SECTION_ORDER } from '@/constants/dashboardSections';
 
 defineProps<{ open: boolean }>();
 const emit = defineEmits<{ (e: 'update:open', value: boolean): void }>();
 
 const ui = useUiStore();
 
+// ─── Ordered section list (mirrors ui.sectionOrder) ──────────────
+
+const orderedSections = computed(() =>
+  ui.sectionOrder
+    .map(id => SECTION_MAP[id])
+    .filter(Boolean),
+);
+
+// ─── Jump to section ──────────────────────────────────────────────
+
 function close(): void {
   emit('update:open', false);
 }
 
-/** Group sections by their group label */
-const groupedSections = computed(() =>
-  SECTION_GROUPS.map(group => ({
-    group,
-    sections: DASHBOARD_SECTIONS.filter(s => s.group === group),
-  })),
-);
-
 function jumpTo(sectionId: string): void {
   close();
-  // Ensure we're on the Dashboard tab
-  if (ui.activeTab !== 'dashboard') {
-    ui.setActiveTab('dashboard');
-  }
-  // Expand the section if it is collapsed before scrolling
+  if (ui.activeTab !== 'dashboard') ui.setActiveTab('dashboard');
   ui.expandSection(sectionId);
-  // Wait for DOM to update (tab switch + expand), then scroll
   nextTick(() => {
     const el = document.getElementById(`section-${sectionId}`);
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 }
 
-/** Close on backdrop click */
+// ─── Collapse toggle ──────────────────────────────────────────────
+
+function toggleCollapse(sectionId: string): void {
+  ui.toggleSection(sectionId);
+}
+
+// ─── Reset order ─────────────────────────────────────────────────
+
+function resetOrder(): void {
+  ui.resetSectionOrder();
+}
+
+const isDefaultOrder = computed(
+  () => ui.sectionOrder.join(',') === DEFAULT_SECTION_ORDER.join(','),
+);
+
+// ─── Move up / down (touch-friendly) ─────────────────────────────
+
+function moveUp(sectionId: string): void {
+  ui.moveSectionUp(sectionId);
+}
+
+function moveDown(sectionId: string): void {
+  ui.moveSectionDown(sectionId);
+}
+
+// ─── Drag-and-drop (desktop) ──────────────────────────────────────
+
+const dragIndex  = ref<number>(-1);
+const dropIndex  = ref<number>(-1);
+
+function onPickerDragStart(event: DragEvent, index: number): void {
+  dragIndex.value = index;
+  event.dataTransfer?.setData('text/plain', String(index));
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+}
+
+function onPickerDragOver(event: DragEvent, index: number): void {
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+  dropIndex.value = index;
+}
+
+function onPickerDragleave(event: DragEvent, index: number): void {
+  const related = event.relatedTarget as HTMLElement | null;
+  const slot = event.currentTarget as HTMLElement;
+  if (!related || !slot.contains(related)) {
+    if (dropIndex.value === index) dropIndex.value = -1;
+  }
+}
+
+function onPickerDrop(event: DragEvent, targetIndex: number): void {
+  event.preventDefault();
+  const from = dragIndex.value;
+  if (from === -1 || from === targetIndex) {
+    pickerCleanup();
+    return;
+  }
+  const newOrder = [...ui.sectionOrder];
+  const [moved] = newOrder.splice(from, 1);
+  const insertAt = from < targetIndex ? targetIndex - 1 : targetIndex;
+  newOrder.splice(insertAt, 0, moved);
+  ui.setSectionOrder(newOrder);
+  pickerCleanup();
+}
+
+function onPickerDragEnd(): void {
+  pickerCleanup();
+}
+
+function pickerCleanup(): void {
+  dragIndex.value = -1;
+  dropIndex.value = -1;
+}
+
+// ─── Backdrop / keyboard close ────────────────────────────────────
+
 function onBackdropClick(event: MouseEvent): void {
   if ((event.target as HTMLElement).classList.contains('section-picker-backdrop')) {
     close();
   }
 }
 
-/** Close on Escape */
 function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') close();
 }
@@ -70,14 +145,14 @@ function onKeydown(event: KeyboardEvent): void {
         class="section-picker-backdrop"
         role="dialog"
         aria-modal="true"
-        aria-label="Jump to section"
+        aria-label="Manage sections"
         @click="onBackdropClick"
         @keydown="onKeydown"
       >
         <div class="section-picker-panel">
-          <!-- Header -->
+          <!-- ── Header ─────────────────────────────────────────── -->
           <div class="section-picker-header">
-            <span class="section-picker-title">Jump to section</span>
+            <span class="section-picker-title">Manage sections</span>
             <button
               class="section-picker-close"
               aria-label="Close section picker"
@@ -87,31 +162,115 @@ function onKeydown(event: KeyboardEvent): void {
             </button>
           </div>
 
-          <!-- Section list -->
+          <!-- ── Section list ───────────────────────────────────── -->
           <div class="section-picker-body">
-            <div
-              v-for="grp in groupedSections"
-              :key="grp.group"
-              class="section-picker-group"
+            <!-- Drag hint -->
+            <p class="section-picker-hint">
+              Drag ⠿ to reorder · click name to jump · ⊕/⊖ to collapse
+            </p>
+
+            <template
+              v-for="(section, index) in orderedSections"
+              :key="section.id"
             >
-              <p class="section-picker-group-label">
-                {{ grp.group }}
-              </p>
-              <button
-                v-for="section in grp.sections"
-                :key="section.id"
+              <!-- Drop indicator in picker -->
+              <div
+                v-if="
+                  dropIndex === index &&
+                  dragIndex !== -1 &&
+                  dragIndex !== index &&
+                  dragIndex !== index - 1
+                "
+                class="picker-drop-indicator"
+                aria-hidden="true"
+              />
+
+              <div
                 class="section-picker-item"
-                @click="jumpTo(section.id)"
+                :class="{
+                  'section-picker-item--dragging': dragIndex === index,
+                  'section-picker-item--drag-active': dragIndex !== -1,
+                }"
+                @dragover="onPickerDragOver($event, index)"
+                @dragleave="onPickerDragleave($event, index)"
+                @drop="onPickerDrop($event, index)"
+                @dragend="onPickerDragEnd"
               >
-                <span class="section-picker-item__icon">{{ section.icon }}</span>
-                <span class="section-picker-item__label">{{ section.label }}</span>
+                <!-- Drag handle -->
                 <span
-                  v-if="ui.isSectionCollapsed(section.id)"
-                  class="section-picker-item__collapsed-chip"
-                >collapsed</span>
-                <span class="section-picker-item__arrow">→</span>
-              </button>
-            </div>
+                  class="picker-drag-handle"
+                  draggable="true"
+                  title="Drag to reorder"
+                  aria-label="Drag to reorder"
+                  @dragstart="onPickerDragStart($event, index)"
+                  @click.stop
+                >⠿</span>
+
+                <!-- Jump-to button -->
+                <button
+                  class="picker-jump-btn"
+                  :title="`Jump to ${section.label}`"
+                  @click="jumpTo(section.id)"
+                >
+                  <span class="section-picker-item__icon">{{ section.icon }}</span>
+                  <span class="section-picker-item__label">{{ section.label }}</span>
+                </button>
+
+                <!-- Move up / down (touch / keyboard) -->
+                <div class="picker-move-btns">
+                  <button
+                    class="picker-move-btn"
+                    :disabled="index === 0"
+                    aria-label="Move up"
+                    title="Move up"
+                    @click.stop="moveUp(section.id)"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    class="picker-move-btn"
+                    :disabled="index === orderedSections.length - 1"
+                    aria-label="Move down"
+                    title="Move down"
+                    @click.stop="moveDown(section.id)"
+                  >
+                    ▼
+                  </button>
+                </div>
+
+                <!-- Collapse toggle -->
+                <button
+                  class="picker-collapse-btn"
+                  :title="ui.isSectionCollapsed(section.id) ? 'Expand section' : 'Collapse section'"
+                  :aria-label="ui.isSectionCollapsed(section.id) ? `Expand ${section.label}` : `Collapse ${section.label}`"
+                  @click.stop="toggleCollapse(section.id)"
+                >
+                  {{ ui.isSectionCollapsed(section.id) ? '⊕' : '⊖' }}
+                </button>
+              </div>
+            </template>
+
+            <!-- Drop indicator at end of list -->
+            <div
+              v-if="
+                dropIndex === orderedSections.length &&
+                dragIndex !== -1 &&
+                dragIndex !== orderedSections.length - 1
+              "
+              class="picker-drop-indicator"
+              aria-hidden="true"
+            />
+          </div>
+
+          <!-- ── Footer: reset order ─────────────────────────────── -->
+          <div class="section-picker-footer">
+            <button
+              class="picker-reset-btn"
+              :disabled="isDefaultOrder"
+              @click="resetOrder"
+            >
+              ↺ Reset to default order
+            </button>
           </div>
         </div>
       </div>
@@ -172,10 +331,7 @@ function onKeydown(event: KeyboardEvent): void {
   transition: color 0.15s;
 }
 
-.section-picker-close:hover {
-  color: var(--text, #e3e6ee);
-}
-
+.section-picker-close:hover { color: var(--text, #e3e6ee); }
 .section-picker-close:focus-visible {
   outline: 2px solid var(--accent, #4ade80);
   outline-offset: 2px;
@@ -185,54 +341,95 @@ function onKeydown(event: KeyboardEvent): void {
 .section-picker-body {
   overflow-y: auto;
   flex: 1;
-  padding: 0.5rem 0 1rem;
+  padding: 0.5rem 0.75rem 0.5rem;
 }
 
-/* ─── Group ──────────────────────────────────────────────────────── */
-.section-picker-group {
-  padding: 0 0.75rem;
-  margin-bottom: 0.25rem;
-}
-
-.section-picker-group-label {
+.section-picker-hint {
   font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--muted, #5a7a63);
-  margin: 0.85rem 0 0.3rem 0.5rem;
+  letter-spacing: 0.03em;
+  margin: 0.4rem 0 0.6rem 0.25rem;
 }
 
-/* ─── Item ───────────────────────────────────────────────────────── */
+/* ─── Drop indicator (picker) ────────────────────────────────────── */
+.picker-drop-indicator {
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent, #4ade80);
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
+  margin: 1px 0;
+}
+
+/* ─── Item row ───────────────────────────────────────────────────── */
 .section-picker-item {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  width: 100%;
-  background: transparent;
-  border: none;
+  gap: 0.3rem;
   border-radius: 7px;
-  padding: 0.5rem 0.6rem;
-  cursor: pointer;
-  text-align: left;
-  color: var(--text, #e3e6ee);
-  font-family: inherit;
-  font-size: 0.875rem;
-  transition: background 0.12s ease;
+  padding: 0.3rem 0.35rem;
+  transition: background 0.12s ease, opacity 0.12s ease;
+  min-height: 2.5rem;
 }
 
 .section-picker-item:hover {
   background: var(--surface2, #0f2018);
 }
 
-.section-picker-item:focus-visible {
+.section-picker-item--dragging {
+  opacity: 0.35;
+}
+
+/* ─── Drag handle ────────────────────────────────────────────────── */
+.picker-drag-handle {
+  flex-shrink: 0;
+  color: var(--muted, #5a7a63);
+  font-size: 1rem;
+  cursor: grab;
+  padding: 0.15rem 0.3rem;
+  border-radius: 4px;
+  line-height: 1;
+  user-select: none;
+  transition: color 0.12s;
+}
+
+.picker-drag-handle:hover {
+  color: var(--text, #e3e6ee);
+}
+
+.picker-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* ─── Jump button ────────────────────────────────────────────────── */
+.picker-jump-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  padding: 0.25rem 0.35rem;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text, #e3e6ee);
+  font-family: inherit;
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.picker-jump-btn:hover {
+  color: var(--accent, #4ade80);
+}
+
+.picker-jump-btn:focus-visible {
   outline: 2px solid var(--accent, #4ade80);
   outline-offset: -2px;
 }
 
 .section-picker-item__icon {
   font-size: 1rem;
-  width: 1.5rem;
+  width: 1.3rem;
   text-align: center;
   flex-shrink: 0;
 }
@@ -240,30 +437,102 @@ function onKeydown(event: KeyboardEvent): void {
 .section-picker-item__label {
   flex: 1;
   line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.section-picker-item__collapsed-chip {
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+/* ─── Move up/down buttons ───────────────────────────────────────── */
+.picker-move-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.picker-move-btn {
+  background: transparent;
+  border: none;
   color: var(--muted, #5a7a63);
-  background: var(--surface2, #0f2018);
-  border: 1px solid var(--border, #2a3041);
+  font-size: 0.6rem;
+  cursor: pointer;
+  padding: 0.1rem 0.25rem;
   border-radius: 3px;
-  padding: 0.1rem 0.35rem;
-  text-transform: uppercase;
+  line-height: 1;
+  transition: color 0.12s;
 }
 
-.section-picker-item__arrow {
+.picker-move-btn:hover:not(:disabled) {
+  color: var(--text, #e3e6ee);
+  background: var(--surface2, #0f2018);
+}
+
+.picker-move-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.picker-move-btn:focus-visible {
+  outline: 2px solid var(--accent, #4ade80);
+  outline-offset: 2px;
+}
+
+/* ─── Collapse toggle ────────────────────────────────────────────── */
+.picker-collapse-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--muted, #5a7a63);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 0.12s;
+}
+
+.picker-collapse-btn:hover {
+  color: var(--text, #e3e6ee);
+}
+
+.picker-collapse-btn:focus-visible {
+  outline: 2px solid var(--accent, #4ade80);
+  outline-offset: 2px;
+}
+
+/* ─── Footer ─────────────────────────────────────────────────────── */
+.section-picker-footer {
+  flex-shrink: 0;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border, #2a3041);
+}
+
+.picker-reset-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border, #2a3041);
+  border-radius: 6px;
   color: var(--muted, #5a7a63);
   font-size: 0.8rem;
-  flex-shrink: 0;
-  transition: transform 0.12s ease, color 0.12s ease;
+  cursor: pointer;
+  padding: 0.4rem 0.75rem;
+  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s;
 }
 
-.section-picker-item:hover .section-picker-item__arrow {
-  transform: translateX(3px);
-  color: var(--accent, #4ade80);
+.picker-reset-btn:hover:not(:disabled) {
+  color: var(--text, #e3e6ee);
+  border-color: var(--text, #e3e6ee);
+}
+
+.picker-reset-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.picker-reset-btn:focus-visible {
+  outline: 2px solid var(--accent, #4ade80);
+  outline-offset: 2px;
 }
 
 /* ─── Slide-in/out transition ────────────────────────────────────── */
@@ -291,7 +560,8 @@ function onKeydown(event: KeyboardEvent): void {
   .picker-enter-active,
   .picker-leave-active,
   .picker-enter-active .section-picker-panel,
-  .picker-leave-active .section-picker-panel {
+  .picker-leave-active .section-picker-panel,
+  .section-picker-item {
     transition: none;
   }
 }

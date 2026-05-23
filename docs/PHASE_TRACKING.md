@@ -394,7 +394,8 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 15 — Pay Period Schedule View | ✅ Complete | v1.9.0 |
 | Sprint 16 — Loans on Schedule Tab | ✅ Complete | v1.10.0 |
 | Sprint 17 — Custom-Days Subscriptions | ✅ Complete | v1.11.0 |
-| **Current** | **✅ v1.11.0 shipped** | **v1.11.0** |
+| Sprint 18 — Collapsible Sections & Drag-and-Drop Reorder | ✅ Complete | v1.12.0 |
+| **Current** | **✅ v1.12.0 shipped** | **v1.12.0** |
 
 ---
 
@@ -979,7 +980,89 @@ Items captured for future sprints — not yet scheduled. See individual option d
 
 ---
 
+## Sprint 18 — Collapsible Sections & Drag-and-Drop Reorder ⇅
+**Branch:** `feat/sprint-18`  
+**Version:** v1.12.0  
+**Status:** ✅ **COMPLETE**  
+**Goal:** Make all dashboard sections independently collapsible and freely reorderable via drag-and-drop handles and ▲/▼ controls in the Section Picker
+
+### Changes
+
+**`src/constants/dashboardSections.ts`**
+- `DashboardSection` interface: added `title: string` field (previously each component handled its own title display)
+- All 15 section entries updated with `title` field
+- `SECTION_MAP: Record<string, DashboardSection>` exported for O(1) section metadata lookup in `DashboardPage`
+- `DEFAULT_SECTION_ORDER: string[]` exported — canonical order derived from `DASHBOARD_SECTIONS.map(s => s.id)`
+
+**`src/types/state.ts`**
+- `UiState` interface: added `sectionOrder: string[]` — ordered list of section IDs persisted in `penny_ui_prefs`
+
+**`src/stores/ui.ts`**
+- `UiPrefs` interface extended: `{ collapsedSections?: string[]; sectionOrder?: string[] }`
+- `loadSectionOrder()` — loads + migrates `penny_ui_prefs.sectionOrder`: filters stale IDs, appends any newly added IDs in canonical order
+- `saveAll(collapsedSections, sectionOrder)` replaces `saveCollapsedSections()` — persists both preferences atomically
+- State: `sectionOrder` initialised via `loadSectionOrder()`
+- New actions: `setSectionOrder(order)`, `resetSectionOrder()`, `moveSectionUp(id)`, `moveSectionDown(id)`
+- `setSectionOrder` filters unknown IDs and appends any missing ones (future-proof against new sections)
+
+**`src/components/sections/SpendingTrendSection.vue`** *(new)*
+- Thin self-contained wrapper: calls `useAnalytics()` internally and passes `spendingTrend` to `SpendingTrendChart`
+- Required because `SpendingTrendChart` previously received data as a prop from `DashboardPage` — the dynamic component registry needs each section to be self-contained
+
+**`src/components/ui/BaseCard.vue`**
+- Added `draggable?: boolean` prop (default `false`)
+- Drag handle `⠿` rendered before the title slot when `draggable` is true; only the handle carries `draggable="true"` (not the whole card) — prevents drag conflicts with interactive content inside sections
+- `@click.stop` on handle prevents accidental collapse toggle
+- CSS: `.base-card__drag-handle { cursor: grab }` with hover and active states
+
+**`src/components/pages/DashboardPage.vue`**
+- `SECTION_COMPONENTS: Record<string, Component>` — registry mapping all 15 section IDs to their Vue SFCs; enables dynamic `<component :is="...">` rendering in a `v-for` loop
+- Removed the previous two-column grid layout (Loans+CreditCards, Savings+SavingsGoals side-by-side) in favour of full-width single-column cards — required for truly independent free-form reordering
+- DnD refs: `dragIndex = ref<number>(-1)`, `dropIndex = ref<number>(-1)`
+- Reorder logic in `onDrop`: `splice(from, 1)` then `insertAt = from < target ? target - 1 : target`
+- Template: `v-for="(sectionId, index) in ui.sectionOrder"` with animated drop-indicator line above `dropIndex` card
+- All BaseCards: `:collapsible="true"` `:draggable="true"`
+- Drop indicator: 3px green accent line with `drop-indicator-pulse` glow animation
+
+**`src/components/ui/SectionPicker.vue`**
+- Title changed to "Manage sections"; flat `orderedSections` computed from `ui.sectionOrder` (group labels removed — groups are semantically meaningless when sections can be freely reordered)
+- Each item: drag handle (⠿), jump-to button, ▲/▼ move buttons, ⊕/⊖ collapse toggle
+- Same HTML5 DnD pattern as DashboardPage — drag handles bubble events to item container drop targets
+- Footer: "↺ Reset to default order" button, disabled via `isDefaultOrder` computed when order is already canonical
+
+**BUG-015 — Subscriptions save silently blocked** *(fixed during Sprint 18)*
+- `Subscriptions.vue` validation thunk returned `''` (empty string) for "no error" on conditional fields — `useFormValidation.isValid` checks `=== null`, so `''` permanently blocked saves
+- Fixed: all "no error" returns changed to `null`
+- Regression tests added in `sections.spec.ts`
+- Root cause documented in `docs/BUGS.md` with prevention rule: "In `useFormValidation` thunks, 'no error' must always be `null`, never `''`"
+
+### Tests Added
+
+**`tests/stores/ui.spec.ts`** — 14 new tests (`sectionOrder` describe block):
+- Default order matches `DEFAULT_SECTION_ORDER` (15 IDs)
+- `setSectionOrder` updates store and persists to `penny_ui_prefs`
+- `setSectionOrder` filters unknown IDs and appends missing ones
+- `resetSectionOrder` restores canonical order and persists
+- `moveSectionUp` / `moveSectionDown` correctness and boundary behaviour (first/last item no-ops)
+- Persistence round-trip: store re-init reads saved order from `penny_ui_prefs`
+- Migration: stale IDs filtered out; newly added IDs appended to tail
+
+**`tests/components/sections/sections.spec.ts`** — 18 new tests in two describe blocks:
+- `DashboardPage — Sprint 18 collapsible + DnD` (8 tests): all 15 sections rendered, drag handles present, collapse chevrons present, drop zone slots present, collapsing hides body, reorder via `setSectionOrder` updates rendered order, drag-and-drop `onDrop` calls `setSectionOrder` with new order
+- `SectionPicker — Sprint 18 reorder` (10 tests): 15 items rendered, drag handles per item, ▲/▼ move buttons (30 total), collapse toggle buttons (15 total), clicking toggle calls `ui.toggleSection`, reset button disabled when order is default, reset button enabled after reorder and restores default, move-up disabled on first item, move-down disabled on last item
+
+**Test fix**: Added `localStorage.clear()` to `beforeEach` of both Sprint 18 describe blocks — `DashboardPage` tests called `ui.toggleSection` and `ui.setSectionOrder` which persisted to `penny_ui_prefs`; without clearing, `SectionPicker` tests (fresh Pinia but stale localStorage) failed `isSectionCollapsed` and `isDefaultOrder` assertions
+
+### Test Totals
+- **Total: 699 passing (↑37 from 662) across 23 spec files**
+- `vue-tsc --noEmit` clean · `eslint --max-warnings 0 src/` clean · `vite build` green (535 kB / 170 kB gzip)
+
+### Merge & Tag
+- ✅ Merged `feat/sprint-18` → `main`, tagged **v1.12.0**
+
+---
+
 **Last Updated**: May 2026  
-**Current Version**: v1.11.0 — Sprint 17 complete  
+**Current Version**: v1.12.0 — Sprint 18 complete  
 **Next Up**: TBD  
 **Current Branch**: `main`

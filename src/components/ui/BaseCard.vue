@@ -3,14 +3,18 @@
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 2)
   Modified: May 2026 (Sprint 13) — sectionId + collapsible support
+            May 2026 (Sprint 18) — draggable prop + drag handle
   Summary:  Surface container with optional title + actions slot.
             Replaces the legacy `.card` markup used across every section.
 
   Props:
-    sectionId  — When set, renders `id="section-{sectionId}"` on the root
-                 element so the SectionPicker can smooth-scroll to it.
+    sectionId   — When set, renders `id="section-{sectionId}"` on the root
+                  element so the SectionPicker can smooth-scroll to it.
     collapsible — When true (and sectionId is set), a toggle chevron appears
                   in the header. Collapsed state persists via the ui store.
+    draggable   — When true, a ⠿ drag handle appears on the left of the header.
+                  The handle is the only element with `draggable="true"` — it
+                  emits native dragstart/dragend events that bubble to the parent.
 -->
 
 <script setup lang="ts">
@@ -34,6 +38,12 @@ interface Props {
    * The collapsed state is persisted in the ui store.
    */
   collapsible?: boolean;
+  /**
+   * When true, a ⠿ drag handle is shown on the left of the header.
+   * The handle carries `draggable="true"` so drag events bubble to the parent
+   * container (DashboardPage) without making the whole card draggable.
+   */
+  draggable?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -42,6 +52,7 @@ const props = withDefaults(defineProps<Props>(), {
   compact: false,
   sectionId: '',
   collapsible: false,
+  draggable: false,
 });
 
 const ui = useUiStore();
@@ -62,11 +73,21 @@ function toggleCollapse(): void {
     v-bind="sectionId ? { id: `section-${sectionId}` } : {}"
   >
     <header
-      v-if="title || $slots.actions || $slots.header || collapsible"
+      v-if="title || $slots.actions || $slots.header || collapsible || draggable"
       class="base-card__header"
       :class="{ 'base-card__header--collapsible': collapsible && sectionId }"
       @click="collapsible && sectionId ? toggleCollapse() : undefined"
     >
+      <!-- Drag handle (far left — only visible when card is draggable) -->
+      <span
+        v-if="draggable"
+        class="base-card__drag-handle"
+        draggable="true"
+        aria-label="Drag to reorder section"
+        title="Drag to reorder"
+        @click.stop
+      >⠿</span>
+
       <slot name="header">
         <h3
           v-if="title"
@@ -156,6 +177,29 @@ function toggleCollapse(): void {
 .base-card__header--collapsible {
   cursor: pointer;
   user-select: none;
+}
+
+/* ─── Drag handle ──────────────────────────────────────────────── */
+.base-card__drag-handle {
+  flex-shrink: 0;
+  color: var(--muted, #5a7a63);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: grab;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  transition: color 0.12s ease, background 0.12s ease;
+  /* prevent the drag handle click from toggling collapse */
+  user-select: none;
+}
+
+.base-card__drag-handle:hover {
+  color: var(--text, #e3e6ee);
+  background: var(--surface2, #0f2018);
+}
+
+.base-card__drag-handle:active {
+  cursor: grabbing;
 }
 
 .base-card__header-right {

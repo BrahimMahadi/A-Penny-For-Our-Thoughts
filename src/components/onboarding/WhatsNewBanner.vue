@@ -19,15 +19,15 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '1.11.0';
+const APP_VERSION = '1.12.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📆', text: 'Custom-days frequency for subscriptions — mark a subscription as recurring on specific days of the week (e.g., parking Mon · Tue · Wed only)' },
-  { icon: '🗓️', text: 'Calendar and Pay Period views badge each occurrence on its exact day for custom-days subscriptions' },
-  { icon: '📋', text: 'List view collapses all custom-days occurrences into one row showing total count and monthly cost' },
-  { icon: '📤', text: 'CSV import/export fully supports the new custom-days frequency and day-of-week data' },
+  { icon: '⇅', text: 'All dashboard sections are now collapsible — click any section header to fold it out of the way and keep your workspace tidy' },
+  { icon: '⠿', text: 'Drag-and-drop reordering — grab the ⠿ handle on any section card and drop it wherever you want it on the dashboard' },
+  { icon: '▲▼', text: 'Section Picker (menu icon) now shows a reorderable flat list — use the ▲ / ▼ buttons or drag handles to rearrange without leaving the panel' },
+  { icon: '↺', text: 'Reset to default order with one click from the Section Picker whenever you want to restore the original layout' },
 ];
 
 const budget = useBudgetStore();

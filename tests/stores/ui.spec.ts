@@ -139,3 +139,152 @@ describe('ui store — pay-period offset', () => {
     expect(store.scheduleView).toBe('payperiod');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  sectionOrder — Sprint 18 (collapsible + drag-and-drop reorder)
+// ─────────────────────────────────────────────────────────────────
+import { DEFAULT_SECTION_ORDER } from '@/constants/dashboardSections';
+
+describe('ui store — sectionOrder', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it('initialises to the default section order', () => {
+    const store = useUiStore();
+    expect(store.sectionOrder).toEqual(DEFAULT_SECTION_ORDER);
+  });
+
+  it('sectionOrder contains all 15 known section IDs', () => {
+    const store = useUiStore();
+    expect(store.sectionOrder).toHaveLength(15);
+    expect(store.sectionOrder).toContain('income-streams');
+    expect(store.sectionOrder).toContain('subscriptions');
+    expect(store.sectionOrder).toContain('wishlist');
+  });
+
+  it('setSectionOrder updates the order and persists to localStorage', () => {
+    const store = useUiStore();
+    const newOrder = [...DEFAULT_SECTION_ORDER].reverse();
+    store.setSectionOrder(newOrder);
+    expect(store.sectionOrder[0]).toBe(DEFAULT_SECTION_ORDER[DEFAULT_SECTION_ORDER.length - 1]);
+
+    // Persisted?
+    const raw = localStorage.getItem('penny_ui_prefs');
+    expect(raw).not.toBeNull();
+    const parsed = JSON.parse(raw!);
+    expect(parsed.sectionOrder[0]).toBe(DEFAULT_SECTION_ORDER[DEFAULT_SECTION_ORDER.length - 1]);
+  });
+
+  it('setSectionOrder filters out unknown IDs', () => {
+    const store = useUiStore();
+    store.setSectionOrder(['income-streams', 'ghost-section-does-not-exist', 'loans']);
+    expect(store.sectionOrder).not.toContain('ghost-section-does-not-exist');
+  });
+
+  it('setSectionOrder appends missing IDs so no section is ever lost', () => {
+    const store = useUiStore();
+    // Pass an order that only contains 2 of the 15 sections
+    store.setSectionOrder(['income-streams', 'loans']);
+    expect(store.sectionOrder).toContain('wishlist');
+    expect(store.sectionOrder.length).toBe(15);
+    // The 2 provided sections come first
+    expect(store.sectionOrder[0]).toBe('income-streams');
+    expect(store.sectionOrder[1]).toBe('loans');
+  });
+
+  it('resetSectionOrder restores the canonical order and persists', () => {
+    const store = useUiStore();
+    store.setSectionOrder([...DEFAULT_SECTION_ORDER].reverse());
+    store.resetSectionOrder();
+    expect(store.sectionOrder).toEqual(DEFAULT_SECTION_ORDER);
+    const raw = localStorage.getItem('penny_ui_prefs');
+    const parsed = JSON.parse(raw!);
+    expect(parsed.sectionOrder).toEqual(DEFAULT_SECTION_ORDER);
+  });
+
+  it('moveSectionUp swaps a section with the one before it', () => {
+    const store = useUiStore();
+    const originalFirst = store.sectionOrder[0];
+    const originalSecond = store.sectionOrder[1];
+    store.moveSectionUp(originalSecond);
+    expect(store.sectionOrder[0]).toBe(originalSecond);
+    expect(store.sectionOrder[1]).toBe(originalFirst);
+  });
+
+  it('moveSectionUp does nothing when section is already first', () => {
+    const store = useUiStore();
+    const firstId = store.sectionOrder[0];
+    const orderBefore = [...store.sectionOrder];
+    store.moveSectionUp(firstId);
+    expect(store.sectionOrder).toEqual(orderBefore);
+  });
+
+  it('moveSectionDown swaps a section with the one after it', () => {
+    const store = useUiStore();
+    const originalFirst = store.sectionOrder[0];
+    const originalSecond = store.sectionOrder[1];
+    store.moveSectionDown(originalFirst);
+    expect(store.sectionOrder[0]).toBe(originalSecond);
+    expect(store.sectionOrder[1]).toBe(originalFirst);
+  });
+
+  it('moveSectionDown does nothing when section is already last', () => {
+    const store = useUiStore();
+    const lastId = store.sectionOrder[store.sectionOrder.length - 1];
+    const orderBefore = [...store.sectionOrder];
+    store.moveSectionDown(lastId);
+    expect(store.sectionOrder).toEqual(orderBefore);
+  });
+
+  it('sectionOrder survives a store re-init when persisted', () => {
+    // Write a custom order to localStorage first
+    const customOrder = [...DEFAULT_SECTION_ORDER].reverse();
+    localStorage.setItem('penny_ui_prefs', JSON.stringify({
+      collapsedSections: [],
+      sectionOrder: customOrder,
+    }));
+    // Create a fresh store — it should pick up the persisted order
+    setActivePinia(createPinia());
+    const store2 = useUiStore();
+    expect(store2.sectionOrder[0]).toBe(customOrder[0]);
+  });
+
+  it('migration: unknown IDs in stored order are filtered out on load', () => {
+    localStorage.setItem('penny_ui_prefs', JSON.stringify({
+      collapsedSections: [],
+      sectionOrder: ['income-streams', 'totally-fake-id', 'loans'],
+    }));
+    setActivePinia(createPinia());
+    const store2 = useUiStore();
+    expect(store2.sectionOrder).not.toContain('totally-fake-id');
+    expect(store2.sectionOrder.length).toBe(15);
+  });
+
+  it('migration: sections missing from stored order are appended on load', () => {
+    // Store only has 2 IDs persisted
+    localStorage.setItem('penny_ui_prefs', JSON.stringify({
+      collapsedSections: [],
+      sectionOrder: ['income-streams', 'loans'],
+    }));
+    setActivePinia(createPinia());
+    const store2 = useUiStore();
+    expect(store2.sectionOrder.length).toBe(15);
+    expect(store2.sectionOrder[0]).toBe('income-streams');
+    expect(store2.sectionOrder[1]).toBe('loans');
+  });
+
+  it('collapsedSections and sectionOrder are saved together in penny_ui_prefs', () => {
+    const store = useUiStore();
+    store.toggleSection('wishlist');
+    store.setSectionOrder([...DEFAULT_SECTION_ORDER].reverse());
+    const raw = JSON.parse(localStorage.getItem('penny_ui_prefs')!);
+    expect(raw.collapsedSections).toContain('wishlist');
+    expect(raw.sectionOrder[0]).toBe(DEFAULT_SECTION_ORDER[DEFAULT_SECTION_ORDER.length - 1]);
+  });
+});

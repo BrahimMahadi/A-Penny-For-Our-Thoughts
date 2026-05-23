@@ -133,6 +133,12 @@ export interface UiState {
    * Persisted to `penny_ui_prefs` in localStorage.
    */
   collapsedSections: string[];
+  /**
+   * Ordered list of dashboard section IDs — controls the display order
+   * on the dashboard. Persisted to `penny_ui_prefs` in localStorage.
+   * Defaults to the canonical order from dashboardSections.ts.
+   */
+  sectionOrder: string[];
 }
 
 // ─── Storage keys (single source of truth) ───────────────────────
