@@ -9,84 +9,85 @@
 
 1. [Getting Started](#getting-started)
 2. [Dashboard Overview](#dashboard-overview)
-3. [Income Setup](#income-setup)
+3. [Income Streams](#income-streams)
 4. [Budget Allocation](#budget-allocation)
 5. [Wants Tracker (Envelope)](#wants-tracker-envelope)
-6. [Spending Categories & Rules](#spending-categories--rules)
-7. [Budget Alerts](#budget-alerts)
+6. [Envelope Forecast](#envelope-forecast)
+7. [Spending Trend Chart](#spending-trend-chart)
 8. [Budget vs. Actual](#budget-vs-actual)
-9. [Spending Analytics](#spending-analytics)
-10. [Expense Cards](#expense-cards)
-11. [Expense Schedule](#expense-schedule)
-12. [Loans](#loans)
-13. [Credit Cards](#credit-cards)
-14. [Savings Accounts & Goals](#savings-accounts--goals)
-15. [Net Worth Tracker](#net-worth-tracker)
-16. [Subscriptions](#subscriptions)
-17. [Wishlist](#wishlist)
-18. [CSV Import & Export](#csv-import--export)
-19. [Keyboard Shortcuts](#keyboard-shortcuts)
-20. [Data & Privacy](#data--privacy)
+9. [MoM Stat Deltas](#mom-stat-deltas)
+10. [Spending Analytics](#spending-analytics)
+11. [Expense Cards](#expense-cards)
+12. [Recurring Schedule](#recurring-schedule)
+13. [Loans](#loans)
+14. [Credit Cards](#credit-cards)
+15. [Savings Accounts & Goals](#savings-accounts--goals)
+16. [Goals Timeline](#goals-timeline)
+17. [Net Worth Tracker](#net-worth-tracker)
+18. [Subscriptions](#subscriptions)
+19. [Wishlist](#wishlist)
+20. [Transaction Rules](#transaction-rules)
+21. [Budget Alerts](#budget-alerts)
+22. [Settings](#settings)
+23. [Onboarding & What's New](#onboarding--whats-new)
+24. [CSV Import & Export](#csv-import--export)
+25. [Keyboard Shortcuts](#keyboard-shortcuts)
+26. [Swipe Navigation](#swipe-navigation)
+27. [Data & Privacy](#data--privacy)
 
 ---
 
 ## Getting Started
 
-1. **Open `index.html`** in any modern browser (Chrome, Safari, Firefox, Edge).
-2. On first load, the app shows sample data so you can see it in action immediately.
-3. **Import your own data** using the [CSV Import](#csv-import--export) feature, or **start fresh** using the *Clear All Data* button in the header.
-4. All changes are saved automatically to your browser's `localStorage` — no internet connection needed.
+1. **Open the app** in any modern browser (Chrome, Safari, Firefox, Edge).
+2. On first launch, the **Onboarding Wizard** walks you through adding your first income stream, setting your pay period anchor, and reviewing your 50/30/20 split.
+3. If you have existing data, click **⬇ Import** in the header toolbar and select a `penny-*.csv` file.
+4. All changes are saved automatically to your browser's `localStorage` — no internet connection needed after the initial load.
 
-> **Tip:** Bookmark the file path so you can re-open the dashboard anytime.
+> **Tip:** Bookmark the app URL so you can return anytime. On mobile, use your browser's "Add to Home Screen" option for quick access.
 
 ---
 
 ## Dashboard Overview
 
-The dashboard has five tabs:
+The app has four tabs accessible via the bottom navigation bar (or keyboard shortcuts):
 
 | Tab | Purpose |
 |-----|---------|
-| **Dashboard** | Main view — income, wants, expenses, loans, credit cards, savings, goals, net worth, subscriptions, wishlist |
-| **Budget vs. Actual** | Compare planned vs. real spending by month |
-| **Analytics** | Spending history with charts and filters |
-| **Schedule** | Monthly bill forecast calendar |
-| **Rules** | Auto-category rules and budget alerts |
+| **Dashboard** | Main view — all financial sections from income to net worth |
+| **Schedule** | 6-month bill forecast and interactive calendar |
+| **Docs** | In-app user guide, release notes, FAQ, and CSV reference |
+| **Settings** | Pay period, transaction rules, budget alerts, data management |
 
-The **theme toggle** (🌙/☀️) in the top-right switches between dark and light mode.
+The **theme toggle** (🌙/☀️) in the top-right switches between dark and light mode. On mobile, swipe left/right to switch tabs.
 
 ---
 
-## Income Setup
+## Income Streams
 
-**Where:** Dashboard → *Income* card
+**Where:** Dashboard → *Income Streams* card
 
-Your total monthly income is the foundation of the 50/30/20 split.  
-You can have multiple income streams (salary, side gig, government benefits, etc.).
+Your total monthly income is the foundation of all 50/30/20 calculations.
 
 ### Adding a Stream
-
-1. Type the **name** and **monthly amount** into the inline form at the bottom of the Income card.
-2. Check **Bi-weekly** if you receive this payment every two weeks — the app doubles it for the monthly total.
-3. Click **+ Add**.
+1. Click **+ Add Stream**.
+2. Enter a **name** (e.g. "Salary") and a **monthly amount**.
+3. Toggle **Bi-weekly** if you receive this payment every two weeks — the amount is treated as a bi-weekly amount and the monthly total is calculated automatically.
+4. Click **Save**.
 
 ### Editing / Deleting
-
-- Click the **pencil icon** next to a stream to edit its name, amount, and frequency.
+- Click the **pencil icon** to edit a stream's name, amount, or frequency.
 - Click the **× icon** to remove it.
 
-### Monthly vs Bi-weekly Display
-
-Each budget category (Needs, Wants, Savings) has a **toggle button** in the Income card. Switching to *Bi-weekly* shows you how much of each envelope is filled per pay period — useful for cash-flow planning.
+The **Monthly Income** stat card at the top of the dashboard updates instantly and drives all budget calculations.
 
 ---
 
 ## Budget Allocation
 
-**Where:** Dashboard → *Income* card → *Edit Allocation* button
+**Where:** Dashboard → *Budget Allocation (50/30/20)* card
 
-The default split is **50% Needs · 30% Wants · 20% Savings**.  
-You can adjust these percentages freely — they must sum to exactly 100%.
+The default split is **50% Needs · 30% Wants · 20% Savings**. Click **Edit %** to adjust — percentages must always sum to 100%.
 
 | Category | What it covers |
 |----------|---------------|
@@ -94,123 +95,105 @@ You can adjust these percentages freely — they must sum to exactly 100%.
 | **Wants** | Discretionary spending (dining, entertainment, shopping) |
 | **Savings** | Long-term goals, investments, emergency fund |
 
-The income card displays how many dollars are allocated to each bucket this month.
+The coloured segmented bar at the bottom of the card shows your current split visually.
 
 ---
 
 ## Wants Tracker (Envelope)
 
-**Where:** Dashboard → *Wants* card
+**Where:** Dashboard → *Wants Tracker* card
 
-The Wants tracker is a **bi-weekly spending envelope**. At the start of each pay period you have a fresh budget. As you log purchases, the donut chart and remaining balance update in real time.
+A **bi-weekly spending envelope** — at the start of each pay period you have a fresh budget. As you log purchases, the donut chart and remaining balance update in real time.
 
 ### Logging a Purchase
-
-1. Type the **item name** in the purchase input. If a matching [Spending Rule](#spending-categories--rules) exists, the category preview appears below the field automatically.
+1. Enter the **item name**. If a matching Transaction Rule exists, the category auto-fills as you type.
 2. Enter the **amount**.
-3. Select a **category** (or let rules assign one automatically).
+3. Optionally change the **category** using the dropdown.
 4. Click **+ Add** or press **Enter**.
 
-### Resetting the Envelope
-
-Click **Reset** to archive the current period's purchases to your [Spending History](#spending-analytics) and start fresh. Each archived period appears in the Analytics tab.
+### Closing the Period
+Click **Close Period** to archive all current purchases to your Spending History and start a new envelope. Each archived period appears in the Spending Analytics section.
 
 ### Category Breakdown
+Colour-coded chips below the donut chart show spending by category. Click the badge on any purchase row to reassign its category.
 
-When you have purchases, a colour-coded breakdown by category appears below the purchase list. You can change any purchase's category inline using the dropdown badge on each row.
-
----
-
-## Spending Categories & Rules
-
-**Where:** Dashboard → *Spending Rules & Budget Alerts* card (left panel)  
-**or** → *Rules* tab
-
-The **Transaction Rules Engine (TRE)** automatically assigns categories to purchases as you type, based on keyword rules you define.
-
-### Match Types
-
-| Type | Behaviour |
-|------|-----------|
-| **Contains** | Matches if the rule pattern appears anywhere in the purchase name (e.g. `mcdonald` matches `"McDonald's"`) |
-| **Starts With** | Only matches at the start of the name (e.g. `tim` matches `"Tim Hortons"` but not `"Vitamin Tim"`) |
-| **Exact** | The entire name must match the pattern exactly (case-insensitive) |
-
-### Adding a Rule
-
-1. Click **+ Add Rule** in the Spending Rules panel.
-2. Enter a **pattern** (keyword or phrase), choose a **match type**, and select a **category**.
-3. Click **Save**.
-
-### Rule Priority
-
-Rules are evaluated **in order, top to bottom**. The first match wins. Drag to reorder (future feature) or delete and re-add to change priority.
-
-### Re-Apply to Current Purchases
-
-After adding new rules, click **Re-apply Rules** to retroactively categorise purchases in the current period.
-
-### Available Categories
-
-| Category | Colour |
-|----------|--------|
-| Food & Drink | Orange |
-| Groceries | Teal |
-| Entertainment | Purple |
-| Shopping | Blue |
-| Health & Fitness | Green |
-| Transportation | Yellow |
-| Other | Grey |
+### Subscription & Loan Deductions
+Subscriptions and loan payments that fall within the current bi-weekly period are automatically deducted from the envelope and shown as a "Sub/Loan deductions" line.
 
 ---
 
-## Budget Alerts
+## Envelope Forecast
 
-**Where:** Dashboard → *Spending Rules & Budget Alerts* card (right panel)
+**Where:** Dashboard → *Wants Tracker* card → below the progress bar
 
-Set **per-category spending thresholds**. When your spending in a category exceeds the threshold during the current period, an alert chip appears at the top of the Wants card.
+When there is spending data for the current period (after day 0), a colour-coded forecast chip appears:
 
-### Adding an Alert
+> "At this pace · **$X.XX** by end of period · N day(s) left · $Y.YY/day"
 
-1. Click **+ Add Alert**.
-2. Select a **category** and enter a **threshold amount**.
-3. Click **Save**.
+The forecast uses a linear extrapolation of your daily spend rate and projects it to the end of the 14-day period.
 
-Alerts are checked in real time as purchases are added. The ⚠ chip shows how much you've spent versus the threshold (e.g. "⚠ Food & Drink: $62.50 > $50.00").
+| Status | Colour | Meaning |
+|--------|--------|---------|
+| **On Track** | Green | Projected total is < 90% of your Wants budget |
+| **Caution** | Amber | Projected total is 90–99% of your Wants budget |
+| **Over Budget** | Red | Projected total meets or exceeds your Wants budget |
+
+---
+
+## Spending Trend Chart
+
+**Where:** Dashboard → *6-Month Spending Trend* card (above Income Streams)
+
+A stacked bar chart showing your actual Needs / Wants / Savings spending for each of the last 6 calendar months, with your total monthly income as a dashed reference line.
+
+- **Needs** — red bars
+- **Wants** — amber bars
+- **Savings** — green bars
+- **Income** — dashed line
+
+The current month's bars are shown at full opacity; past months are dimmed. Hover any bar for a tooltip showing the exact dollar breakdown.
+
+The chart is lazy-loaded — it renders when it scrolls into view.
 
 ---
 
 ## Budget vs. Actual
 
-**Where:** Budget vs. Actual tab
+**Where:** Dashboard → *Budget vs. Actual* card
 
-This section answers **"Am I on track this month?"** by comparing your planned budget to real spending.
-
-### Reading the Chart
-
-The grouped bar chart shows **Budgeted** (purple) vs. **Actual** (teal) for Needs, Wants, and Savings.
+Answers **"Am I on track this month?"** by comparing your planned budget to real spending.
 
 ### Variance Cards
-
-Below the chart, three variance cards show:
-- **Dollar variance** (+ = under budget, − = over budget)
+Three cards show the variance for Needs, Wants, and Savings:
+- **Dollar variance** (positive = under budget, negative = over budget)
 - **% of budget used**
-- **Status**: ✅ On Track / ⚠ Caution (100–110%) / 🔴 Over (>110%)
+- **Status**: ✅ On Track / ⚠ Caution (approaching limit) / 🔴 Over Budget
 
-### Month Selector
+### Grouped Bar Chart
+The `BudgetVsActualChart` shows Budgeted vs. Actual side-by-side for each category. The actual bars change colour — green when under, amber near limit, red when over.
 
-Use the month/year picker to review any historical month.
+---
+
+## MoM Stat Deltas
+
+**Where:** Dashboard → stat cards (Needs Budget, Wants Budget, Net Worth)
+
+Each stat card displays a small **▲/▼ delta chip** showing the change versus the prior calendar month:
+
+- **Needs / Wants** — positive delta (spent more) = **red**; negative (spent less) = **green**
+- **Net Worth** — positive delta (grew) = **green**; negative (shrank) = **red**
+
+The delta is only shown when there is data for the prior month (no chip appears for the first month of tracking).
 
 ---
 
 ## Spending Analytics
 
-**Where:** Analytics tab
+**Where:** Dashboard → *Spending Analytics* card (collapsible)
 
-Visualise your historical spending patterns.
+Visualise your historical spending patterns across all archived bi-weekly periods.
 
 ### Filters
-
 | Filter | Effect |
 |--------|--------|
 | **Start Date** | Show only periods on or after this date |
@@ -218,60 +201,47 @@ Visualise your historical spending patterns.
 | **Search** | Filter by purchase name keyword |
 
 ### Charts
-
-- **Spending Over Time** — Line chart of total spending per archived period.
-- **Top Categories** — Horizontal bar chart of top-10 categories by spend.
+- **Spending Over Time** — Line chart of total spend per archived period.
+- **Top Categories** — Horizontal bar of top categories by spend.
+- **Monthly Trends** — 6-month bar chart of Wants spending with the budget reference line; MoM insights auto-generated below.
 
 ### History List
-
-Every archived period is listed with:
-- Date range and total spend
-- Individual purchases (click the pencil icon to edit a historical purchase)
+Each archived period lists date range, total, and all purchases. Click the pencil icon on any purchase to edit it retroactively.
 
 ---
 
 ## Expense Cards
 
-**Where:** Dashboard → *Monthly Fixed Expenses* card
+**Where:** Dashboard → *Expense Cards* card
 
-Expense cards represent your payment methods or spending accounts (e.g. TD Debit, WS Credit Card). Each card contains **line items** — individual recurring bills.
+Model your fixed monthly bills by payment method. Each card (e.g. "BMO Debit", "Visa") holds line items for individual recurring bills.
 
-### Adding an Expense Card
-
-1. Click **+ Add Card**.
-2. Give it a label (e.g. "BMO Debit").
-3. Click **Save**.
+### Adding a Card
+1. Click **+ Add Card** and give it a label.
 
 ### Adding Items to a Card
-
 1. Expand a card and click **+ Add Item**.
 2. Enter the **name**, **amount**, and optionally a **due day** (1–31).
-3. Check **Bi-weekly** if the item occurs every two weeks (e.g. a bi-weekly insurance payment).
+3. Toggle **Bi-weekly** for expenses charged every two weeks.
 
-The card footer shows the **monthly total** for all items on that card.
-
-### Deleting Cards / Items
-
-- Click **× Delete Card** to remove the card and all its items.
-- Click the **× icon** next to an item to remove just that item.
+The card footer shows the **monthly total** for all its items.
 
 ---
 
-## Expense Schedule
+## Recurring Schedule
 
 **Where:** Schedule tab
 
-The Schedule tab shows a **monthly bill forecast** — all expense card items and subscriptions that are due in the selected month, sorted by due date.
+A 6-month forecast of all expense card items and subscriptions, with two view modes:
 
-### Navigation
+| View | What you see |
+|------|-------------|
+| **List** | Items sorted by due date; 6 month cards at top; forecast bar chart |
+| **Calendar** | Full month grid with bill badges on due dates |
 
-Use the **◀ Prev** and **Next ▶** buttons to browse months. The schedule shows:
+**Navigation:** Use ◀ Prev / Next ▶ to browse months. Click any of the 6-month summary cards to jump directly to that month.
 
-- **Dated bills** — sorted by due day, with a progress bar showing how far through the month each bill is.
-- **Undated bills** — items with no specific due day appear in a separate section.
-- **Summary bar** — total bills for the month, budgeted Needs amount, and the variance (surplus or deficit).
-
-> **Tip:** Set a due day on expense items to get a more accurate cashflow calendar.
+**Expensive days** are highlighted in amber when a day's total exceeds 12% of the Needs budget.
 
 ---
 
@@ -282,13 +252,10 @@ Use the **◀ Prev** and **Next ▶** buttons to browse months. The schedule sho
 Track outstanding loan balances for payoff planning.
 
 ### Adding a Loan
-
 1. Click **+ Add Loan**.
-2. Enter the **loan name**, **remaining balance**, and **original balance**.
-3. Click **Save**.
+2. Enter the **name**, **remaining balance**, **original balance**, **payment amount**, and **frequency**.
 
-The payoff progress bar shows how much of each loan has been paid off.  
-The total remaining balance rolls up into your **Net Worth** as a liability.
+The payoff progress bar shows how much of each loan has been paid off. All loan balances feed into **Net Worth** as liabilities.
 
 ---
 
@@ -296,59 +263,68 @@ The total remaining balance rolls up into your **Net Worth** as a liability.
 
 **Where:** Dashboard → *Credit Cards* card
 
-Track balances and utilisation for each credit card.
+Track balances and credit utilisation.
 
 ### Adding a Card
-
 1. Click **+ Add Credit Card**.
-2. Enter the **card name**, **current balance**, and **credit limit**.
-3. Click **Save**.
+2. Enter the **name**, **current balance**, and **credit limit**.
 
-The utilisation bar changes colour based on usage:
-- **Green** → < 30% utilised
-- **Amber** → 30–50% utilised
-- **Red** → > 50% utilised
+| Utilisation | Bar Colour |
+|-------------|-----------|
+| < 30% | Green |
+| 30–50% | Amber |
+| > 50% | Red |
 
-The stacked bar chart shows all cards side-by-side.  
-Credit card balances also flow into your **Net Worth** as liabilities.
+A 30% utilisation threshold marker is shown on each bar. Balances feed into **Net Worth** as liabilities.
 
 ---
 
 ## Savings Accounts & Goals
 
-**Where:** Dashboard → *Savings* card
+**Where:** Dashboard → *Savings Accounts* and *Savings Goals* cards
 
 ### Savings Accounts
-
 Each account tracks:
-- **Current balance** — what you have saved right now
-- **Monthly allocation** — how much you set aside per month (default or month-specific override)
+- **Balance** — current total in the account
+- **Monthly Allocation** — your default monthly contribution
 
 #### Adding an Account
-
 1. Click **+ Add Account**.
 2. Enter the **name**, **balance**, and **default monthly allocation**.
-3. Click **Save**.
 
-#### Month-Specific Allocation
-
-Inside each account's edit modal you can enter an **override allocation** for the current month — useful for months where you contribute more or less.
+#### Month-Specific Override
+Use **Allocate Savings** to set a different contribution amount for the current month only — useful for months where you contribute more or less. Only delta months are stored; other months use the default.
 
 ### Savings Goals
-
-For any savings account you can set a goal with a **target amount** and **target date** (month/year).
+Link a goal to any savings account with a **target amount** and **target date** (month/year).
 
 #### Adding a Goal
+1. Click **+ Add Goal** in the Savings Goals card.
+2. Select the **account**, enter a **target amount** and **target date**.
 
-1. Click **+ Add Goal** in the Savings section.
-2. Select the **account**, enter a **target amount**, and pick a **target date**.
-3. Click **Save**.
-
-Each goal card shows:
-- **Progress bar** — % of target reached
-- **Monthly savings needed** — how much you must save each month to hit the goal on time
-- **Time remaining** — months until the deadline
+Each goal shows:
+- Progress bar (% of target reached)
+- Monthly savings needed to hit the deadline
 - **Status**: ✅ On Track / ⚠ Caution / 🔴 Off Track / ✔ Complete / ✘ Missed
+
+Status is based on whether your current month's allocation meets the required monthly savings needed. Caution = ≥ 80% of needed.
+
+---
+
+## Goals Timeline
+
+**Where:** Dashboard → *Goals Timeline* card (below Savings Goals)
+
+A ranked projection card that answers **"When will each goal be complete?"**
+
+Each goal row shows:
+- Account name and target amount
+- Progress bar
+- **Target date** and **Projected completion date** (based on current allocation)
+- **Months late** — how many months past the deadline the projection falls (shown in red if late)
+- Status badge: On Track / Caution / Off Track / Complete / Missed
+
+Goals are sorted: active goals first (on-track before caution/off-track), then complete, then missed.
 
 ---
 
@@ -356,23 +332,22 @@ Each goal card shows:
 
 **Where:** Dashboard → *Net Worth* card
 
-Net Worth = **Total Assets** − **Total Liabilities**
+**Net Worth = Total Assets − Total Liabilities**
 
 | Assets (auto-tracked) | Liabilities (auto-tracked) |
 |-----------------------|---------------------------|
 | Savings account balances | Loan remaining balances |
-| Manual assets (investments, property, vehicles) | Credit card balances |
+| Manual assets (investments, property, vehicles, other) | Credit card balances |
 
 ### Adding a Manual Asset
+1. In the Net Worth card, find the asset category (Investments, Real Estate, Vehicles, Other).
+2. Click **+ Add** for that category.
+3. Enter the **name** and **current value**.
 
-1. Scroll to the Net Worth card.
-2. Find the asset category (Investments, Real Estate, Vehicles, Other).
-3. Click **+ Add** for that category.
-4. Enter the **name** and **current value**.
+### Monthly Snapshot History
+The line chart plots net worth month-by-month (up to 24 months). A snapshot is recorded automatically on each app load. Click **Record Snapshot** to save one manually.
 
-### Historical Chart
-
-The line chart plots net worth month-by-month (up to 24 months). A snapshot is recorded automatically each time you open the app.
+The MoM delta on the Net Worth stat card shows this month's change vs. last month's snapshot.
 
 ---
 
@@ -380,28 +355,21 @@ The line chart plots net worth month-by-month (up to 24 months). A snapshot is r
 
 **Where:** Dashboard → *Subscriptions* card
 
-Track recurring service fees (streaming, software, utilities).
+Track recurring service fees (streaming, software, memberships).
 
 ### Adding a Subscription
-
 1. Click **+ Add Subscription**.
-2. Enter:
-   - **Name** — e.g. "Netflix"
-   - **Amount** — cost per billing cycle
-   - **Frequency** — Monthly, Quarterly, or Annual
-   - **Next renewal date** — when the next charge hits
-   - **Category** — for spending classification
-   - **Budget Type** — Wants or Needs
+2. Enter the **name**, **amount**, **frequency** (weekly / bi-weekly / monthly / quarterly / yearly), **next renewal date**, **category**, and **budget type** (Needs or Wants).
 
 ### How Subscriptions Affect Your Budget
-
-- **Wants subscriptions** that renew during your current bi-weekly period are automatically deducted from your Wants envelope.
-- **Needs subscriptions** that renew this calendar month are added to your Actual Needs in the Budget vs. Actual view.
+- **Wants** subs renewing in the current bi-weekly period are deducted from the Wants envelope.
+- **Needs** subs renewing this calendar month are included in Actual Needs in the Budget vs. Actual card.
 - All subscriptions appear in the **Schedule** tab on their renewal date.
 
-### Sub-Period Deductions
+### Stats Header
+The card header shows: **Monthly Cost** / **Annual Total** / **% of Wants Budget** — with a colour-coded impact bar.
 
-The Wants card shows a "Sub deductions this period" line itemising which subscriptions renewed and their amounts.
+A renewal alert banner appears for any subscription renewing within 7 days.
 
 ---
 
@@ -409,32 +377,96 @@ The Wants card shows a "Sub deductions this period" line itemising which subscri
 
 **Where:** Dashboard → *Wishlist* card
 
-Keep track of items you want to purchase in the future. Each item has:
-- **Icon** (emoji)
-- **Name** (description)
-- **URL** (optional link to the product page)
+A simple list of future purchases to aspire to. Each item has an **emoji icon**, **name**, and optional **URL**.
 
-Click **+ Add Item** to add a new entry. Items can be edited or deleted inline.
+Click **+ Add Item** to add. Items can be edited or deleted inline. No budget calculations — purely a reference list.
+
+---
+
+## Transaction Rules
+
+**Where:** Settings tab → *Transaction Rules*
+
+Rules auto-categorise purchases in the Wants Tracker as you type the name.
+
+### Match Types
+| Type | Behaviour |
+|------|-----------|
+| **Contains** | Matches if the pattern appears anywhere in the name |
+| **Starts With** | Matches only at the beginning of the name |
+| **Exact** | The entire name must match exactly (case-insensitive) |
+
+### Adding a Rule
+1. Click **+ Add Rule**.
+2. Enter a **pattern**, choose a **match type**, and select a **category**.
+3. Click **Save**.
+
+Rules are evaluated in order — the first match wins. Use the **Test** field to verify a rule before saving.
+
+### Re-Apply to Current Purchases
+Click **Re-apply Rules** to retroactively categorise all purchases in the current period.
+
+---
+
+## Budget Alerts
+
+**Where:** Settings tab → *Budget Alerts*
+
+Set per-category spending thresholds. When spending in a category exceeds the threshold during the current period, an alert chip appears at the top of the Wants card.
+
+### Adding an Alert
+1. Click **+ Add Alert**.
+2. Select a **category** and enter a **threshold** amount.
+
+The alert chip shows: "⚠ Food & Drink: $62.50 / $50.00" in real time as purchases are added.
+
+---
+
+## Settings
+
+**Where:** Settings tab
+
+| Section | Purpose |
+|---------|---------|
+| **Pay Period Anchor** | Set a recent pay date; bi-weekly cycles repeat every 14 days from this anchor |
+| **Chequing Balance** | Optional manual balance for the "Funds Remaining" hint on Expense Cards |
+| **Transaction Rules** | Auto-categorise purchases (see above) |
+| **Budget Alerts** | Per-category spending alerts (see above) |
+| **Danger Zone** | Clear all data — irreversible; export a backup first |
+
+---
+
+## Onboarding & What's New
+
+### First-Run Wizard
+On your very first visit the app shows a 4-step guided setup:
+1. **Welcome** — app value proposition
+2. **Income** — add your first income stream
+3. **Pay Period** — set your bi-weekly anchor date
+4. **Budget Split** — review and optionally customise the 50/30/20 percentages
+
+Skip is available on any step after the first. Once completed (or skipped), the wizard never shows again.
+
+### What's New Banner
+When the app version changes, a dismissible banner appears at the top of the dashboard listing the key highlights for returning users. Click **×** to dismiss.
 
 ---
 
 ## CSV Import & Export
 
-Data is always stored locally, but CSV lets you **back up**, **restore**, and **share** your budget configuration.
+Data is always stored locally, but CSV lets you **back up**, **restore**, and **transfer** your budget configuration.
 
 ### Exporting
-
-Click the **Export CSV** button in the header. A file named `penny-YYYY-MM-DD.csv` is downloaded.
+Click **⬆ Export** in the header toolbar. A file named `penny-export.csv` is downloaded.
 
 The file contains every section of your data in a structured, human-readable format you can open in Excel or Google Sheets.
 
 ### Importing
+1. Click **⬇ Import** in the header toolbar.
+2. Select a `penny-*.csv` file.
+3. Confirm the overwrite prompt — import replaces all current data.
 
-1. Click **Import CSV** in the header.
-2. Select a previously exported `penny-*.csv` file.
-3. Confirm the overwrite prompt.
-
-> ⚠️ **Warning:** Import replaces all current data. Export first if you want to keep a backup.
+> ⚠️ **Warning:** Export a backup before importing. This cannot be undone.
 
 ### CSV Format
 
@@ -443,7 +475,8 @@ The file uses `SECTION:<name>` header rows to separate data types:
 ```
 SECTION:meta
 key,value
-exported,2026-05-13
+payStart,2026-05-01
+exportedAt,2026-05-22T10:00:00.000Z
 
 SECTION:allocation
 needs,wants,savings
@@ -455,29 +488,26 @@ abc123,Salary,3000,false
 ...
 ```
 
-All sections: `meta`, `allocation`, `budgetDisplayMode`, `incomeStreams`, `expenseCards`, `loans`, `creditCards`, `savingsAccounts`, `purchases`, `spendingHistory`, `goals`, `assets`, `netWorthHistory`, `subscriptions`, `wishlist`, `rules`, `budgetAlerts`.
+All 17 sections: `meta`, `allocation`, `budgetDisplayMode`, `incomeStreams`, `expenseCards`, `loans`, `creditCards`, `savingsAccounts`, `purchases`, `spendingHistory`, `goals`, `assets`, `netWorthHistory`, `subscriptions`, `wishlist`, `rules`, `budgetAlerts`.
 
 ---
 
 ## Keyboard Shortcuts
 
-Press **`?`** anywhere in the app (when not typing in a field) to open the shortcuts panel. All shortcuts are disabled while focus is inside an input, select, or textarea.
+Press **`?`** anywhere in the app (when not typing) to open the shortcuts panel. All shortcuts are disabled inside inputs, selects, and textareas.
 
 ### Navigation
 | Shortcut | Action |
 |----------|--------|
-| `Alt + 1` | Switch to Dashboard tab |
-| `Alt + 2` | Switch to Budget vs. Actual tab |
-| `Alt + 3` | Switch to Analytics tab |
-| `Alt + 4` | Switch to Schedule tab |
-| `Alt + 5` | Switch to Rules tab |
-| `Alt + 6` | Switch to Docs tab |
+| `1` | Switch to Dashboard tab |
+| `2` | Switch to Schedule tab |
+| `3` | Switch to Docs tab |
+| `4` | Switch to Settings tab |
 
 ### Actions
 | Shortcut | Action |
 |----------|--------|
-| `N` | Focus the add-purchase / add-income input |
-| `E` | Toggle CSV export |
+| `E` | Export CSV |
 | `T` | Toggle dark / light theme |
 | `?` | Open / close the keyboard shortcuts panel |
 
@@ -485,27 +515,26 @@ Press **`?`** anywhere in the app (when not typing in a field) to open the short
 | Shortcut | Action |
 |----------|--------|
 | `Escape` | Close open modal or shortcuts panel |
-| `Enter` | Confirm / save the open modal |
 
-> **Mobile:** The shortcuts panel and trigger button are hidden on mobile — use the bottom navigation and swipe gestures instead.
+> **Mobile:** Keyboard shortcuts are hidden on mobile — use the bottom navigation and swipe gestures instead.
+
+---
+
+## Swipe Navigation
+
+On touch devices, swipe **left** or **right** on the main content area to switch tabs. The minimum swipe distance is 50px; swiping inside a vertically-scrollable list does not trigger tab changes.
 
 ---
 
 ## Toast Notifications
 
-Every save, add, and delete action shows a brief **toast notification** in the bottom-right corner (above the mobile nav bar on phones). Toasts are colour-coded:
+Every save, add, and delete action shows a brief **toast notification** in the bottom-right corner. Toasts are colour-coded:
 
-- 🟢 **Green** — successful action (item added, saved, updated)
-- 🔴 **Red** — destructive action (item deleted)
-- 🔵 **Blue** — informational message
+- 🟢 **Green** — successful action (added, saved, updated)
+- 🔴 **Red** — destructive action (deleted)
+- 🔵 **Blue** — informational message (storage full, etc.)
 
 Toasts dismiss automatically after 2.5 seconds and are announced to screen readers via `aria-live`.
-
----
-
-## Empty States
-
-When a section has no data yet, an animated illustration appears with a brief hint explaining how to add the first record. These appear in: Income Streams, Purchases, Loans, Credit Cards, Savings Accounts, Goals, Subscriptions, Wishlist, Auto-categorisation Rules, and the purchase list within the Wants Tracker.
 
 ---
 
@@ -514,17 +543,15 @@ When a section has no data yet, an animated illustration appears with a brief hi
 - **All data is stored locally** in your browser's `localStorage` under the key `penny_state_v2`.
 - **Nothing is sent to any server.** The app works completely offline.
 - **Clearing browser data** (cookies/storage) will delete all your dashboard data — export a CSV backup regularly.
-- **Incognito / private mode** does not persist localStorage — do not use private browsing if you want your data to survive a tab close.
+- **Incognito / private mode** does not persist localStorage — do not use private browsing if you want data to survive a tab close.
 
 ### Backup Recommendations
-
 - Export a CSV after any significant data entry session.
 - Store backups in a cloud folder (iCloud Drive, Google Drive, Dropbox) for safety.
 
 ### Schema Version
-
-The app uses `penny_state_v2` as the localStorage key. Older data stored under `penny_state_v1` is automatically migrated on first load.
+The app uses `penny_state_v2` as the localStorage key. Older data stored under `penny_state_v1` is automatically migrated on first load. Unknown sections in imported CSV files are silently ignored for forward-compatibility.
 
 ---
 
-*Last updated: May 2026 · Version 2.4*
+*Last updated: May 2026 · Version 1.6.0 · Vue 3 + TypeScript + Pinia*

@@ -1,6 +1,6 @@
-# Architecture — A Penny For Our Thoughts (v1.2+)
+# Architecture — A Penny For Our Thoughts (v1.6+)
 
-> Last updated: May 2026 — reflects the completed Vue 3 + TypeScript migration (v1.0.0) and Sprint 7/8 additions (v1.1.0, v1.2.0).
+> Last updated: May 2026 — reflects v1.6.0 (Sprint 12): spending trend chart, goals timeline, envelope forecast, MoM stat deltas, onboarding flow, swipe navigation, GitHub Pages CI deploy.
 
 ---
 
@@ -12,8 +12,8 @@
 Browser
   └─ index.html  (Vite entry)
        └─ main.ts  (createApp + Pinia + Chart.js registration)
-            └─ App.vue  (root: header, tab nav, dynamic page component)
-                 ├─ DashboardPage.vue  ─→  13 section SFCs
+            └─ App.vue  (root: header, tab nav, swipe gesture, onboarding, What's New banner)
+                 ├─ DashboardPage.vue  ─→  15 section SFCs + SpendingTrendChart
                  ├─ SchedulePage.vue   ─→  RecurringCalendar
                  ├─ DocsPage.vue       ─→  5 static content sections
                  └─ SettingsPage.vue   ─→  PayStartDate, RulesEngine, BudgetAlerts
@@ -27,28 +27,36 @@ Browser
 src/
 │
 ├── main.ts                  Entry: createApp, Pinia, Chart.js, auto-persist
-├── App.vue                  Root SFC: header, tab bar, ToastContainer, BaseModal
+├── App.vue                  Root SFC: header, tab bar, ToastContainer, swipe gesture,
+│                            OnboardingModal (isFirstRun), WhatsNewBanner
 ├── env.d.ts                 Vite/TypeScript environment declarations
 │
 ├── types/
 │   ├── budget.ts            Entity interfaces (IncomeStream, Loan, Goal, Rule …)
-│   └── state.ts             BudgetState, UiState, STORAGE_KEYS, TabId, ScheduleView
+│   └── state.ts             BudgetState (+hasOnboarded, +dismissedVersion), UiState,
+│                            STORAGE_KEYS, TabId, ScheduleView
 │
 ├── stores/
 │   ├── budget.ts            Pinia: full CRUD + persistence + CSV + migrations
+│   │                        Actions: completeOnboarding(), dismissWhatsNew()
+│   │                        Getter: isFirstRun
 │   ├── ui.ts                Pinia: transient UI state (active tab, filters, schedule month)
 │   └── theme.ts             Pinia: dark/light mode with localStorage persistence
 │
 ├── composables/
-│   ├── useAnalytics.ts      Reactive computed wrappers around calculations.ts
+│   ├── useAnalytics.ts      Reactive computed wrappers — includes envelopeForecast,
+│   │                        prevMonthActuals, spendingTrend, goalsTimeline
 │   ├── useChartStyles.ts    CSS-variable reader — feeds Chart.js colour/font config
 │   ├── useInView.ts         IntersectionObserver — lazy-render charts on scroll
 │   ├── useKeyboard.ts       Global keyboard shortcut registry
 │   ├── useModal.ts          Scroll-lock + ESC-dismiss logic for BaseModal
+│   ├── useSwipe.ts          Touch gesture detector — left/right → tab navigation
 │   └── useToast.ts          Module-scoped toast queue (not inject/provide)
 │
 ├── utils/
-│   ├── calculations.ts      Pure analytics functions (~900 lines, fully typed)
+│   ├── calculations.ts      Pure analytics functions (~1,200 lines, fully typed)
+│   │                        Includes: getEnvelopeForecast, getPrevMonthActuals,
+│   │                        getSpendingTrend, getGoalsTimeline
 │   ├── csv.ts               Low-level CSV string parser
 │   ├── csvImportExport.ts   Full state ↔ CSV serialiser/parser (17 sections)
 │   ├── date.ts              ISO date helpers (today, month arithmetic)
@@ -61,7 +69,8 @@ src/
 │
 ├── components/
 │   ├── pages/
-│   │   ├── DashboardPage.vue    Hosts all 13 dashboard sections
+│   │   ├── DashboardPage.vue    Hosts 15 dashboard sections + SpendingTrendChart
+│   │   │                        MoM deltas wired to Needs/Wants/Net Worth stat cards
 │   │   ├── SchedulePage.vue     Hosts RecurringCalendar
 │   │   ├── DocsPage.vue         Static docs with sidebar + mobile dropdown nav
 │   │   └── SettingsPage.vue     Pay period, rules, alerts, balance, danger zone
@@ -72,6 +81,7 @@ src/
 │   │   ├── BudgetVsActual.vue
 │   │   ├── CreditCards.vue
 │   │   ├── ExpenseCards.vue
+│   │   ├── GoalsTimeline.vue    (Sprint 12) Ranked goal projections with completion dates
 │   │   ├── IncomeStreams.vue
 │   │   ├── Loans.vue
 │   │   ├── NetWorth.vue
@@ -82,7 +92,7 @@ src/
 │   │   ├── SavingsGoals.vue
 │   │   ├── SpendingAnalytics.vue
 │   │   ├── Subscriptions.vue
-│   │   ├── WantsTracker.vue
+│   │   ├── WantsTracker.vue     (Sprint 11) Envelope forecast chip
 │   │   └── Wishlist.vue
 │   │
 │   ├── charts/                 vue-chartjs wrappers — all lazy via useInView
@@ -93,7 +103,12 @@ src/
 │   │   ├── ForecastBar.vue
 │   │   ├── MoMTrend.vue
 │   │   ├── NetWorthChart.vue
+│   │   ├── SpendingTrendChart.vue  (Sprint 12) 6-month stacked bar + income line
 │   │   └── WantsDonut.vue
+│   │
+│   ├── onboarding/             First-run wizard and What's New banner (Sprint 10)
+│   │   ├── OnboardingModal.vue  4-step teleport modal; emits 'done'
+│   │   └── WhatsNewBanner.vue  Dismissible release-notes chip (APP_VERSION gated)
 │   │
 │   └── ui/                     Reusable primitives
 │       ├── BaseButton.vue
@@ -101,7 +116,7 @@ src/
 │       ├── BaseModal.vue
 │       ├── EmptyState.vue
 │       ├── ProgressBar.vue
-│       ├── StatCard.vue
+│       ├── StatCard.vue        delta/invertDelta props for MoM indicators
 │       └── ToastContainer.vue
 │
 ├── css/

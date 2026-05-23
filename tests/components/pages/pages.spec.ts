@@ -220,14 +220,14 @@ describe('DocsPage', () => {
     w.unmount();
   });
 
-  it('Release Notes section contains v3.0', async () => {
+  it('Release Notes section contains v1.6.0', async () => {
     const w = mountWith(DocsPage);
     await nextTick();
 
     await w.findAll('.docs-nav-btn').find(b => b.text().includes('Release Notes'))!.trigger('click');
     await nextTick();
 
-    expect(w.find('.docs-section').text()).toContain('v3.0');
+    expect(w.find('.docs-section').text()).toContain('v1.6.0');
     w.unmount();
   });
 });
