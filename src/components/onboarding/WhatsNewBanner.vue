@@ -19,15 +19,15 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '1.7.1';
+const APP_VERSION = '1.9.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📱', text: 'Mobile bottom nav — tabs now live at the bottom of the screen on phones' },
-  { icon: '✅', text: 'Form validation — inline field errors on every add/edit form' },
-  { icon: '💾', text: 'JSON backup & restore — export and import a full lossless state snapshot' },
-  { icon: '📅', text: 'Calendar scroll — FRI/SAT columns accessible via horizontal swipe' },
+  { icon: '📅', text: 'Pay Period view — new 14-day grid on the Schedule tab tracks bills by bi-weekly pay cycle' },
+  { icon: '🔄', text: 'PREV / NEXT in Pay Period view steps by 14 days; month navigation is unchanged in List & Calendar views' },
+  { icon: '📊', text: 'Pay period budget bar shows how much of your bi-weekly Needs budget is committed' },
+  { icon: '📝', text: 'Documentation rule added — release notes and version string now updated on every deployment' },
 ];
 
 const budget = useBudgetStore();

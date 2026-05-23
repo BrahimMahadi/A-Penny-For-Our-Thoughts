@@ -41,6 +41,7 @@ function makeInitialUiState(): UiState {
     scheduleViewYear: now.getFullYear(),
     scheduleViewMonth: now.getMonth() + 1,
     scheduleView: 'list',
+    schedulePayPeriodOffset: 0,
     collapsedSections: loadCollapsedSections(),
   };
 }
@@ -111,6 +112,16 @@ export const useUiStore = defineStore('ui', {
       const now = new Date();
       this.scheduleViewYear = now.getFullYear();
       this.scheduleViewMonth = now.getMonth() + 1;
+    },
+
+    /** Step the pay-period offset forward (+1) or backward (-1). */
+    stepPayPeriod(delta: number): void {
+      this.schedulePayPeriodOffset += delta;
+    },
+
+    /** Reset pay-period offset to the current period. */
+    resetToCurrentPayPeriod(): void {
+      this.schedulePayPeriodOffset = 0;
     },
   },
 });

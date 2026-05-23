@@ -832,3 +832,104 @@ describe('RecurringCalendar', () => {
     w.unmount();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  RecurringCalendar — Pay Period view
+// ─────────────────────────────────────────────────────────────────
+describe('RecurringCalendar — pay period view', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('renders the 2W toggle button', async () => {
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    const ppBtn = w.findAll('.view-toggle-btn').find(b =>
+      b.attributes('title')?.includes('Pay period'),
+    );
+    expect(ppBtn).toBeDefined();
+    w.unmount();
+  });
+
+  it('shows pay-period empty state when payStart is null', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = null;
+    const ui = useUiStore();
+    ui.setScheduleView('payperiod');
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    expect(w.text()).toContain('Settings');
+    w.unmount();
+  });
+
+  it('switches to payperiod view when 2W is clicked', async () => {
+    const ui = useUiStore();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    const ppBtn = w.findAll('.view-toggle-btn').find(b =>
+      b.attributes('title')?.includes('Pay period'),
+    );
+    await ppBtn!.trigger('click');
+    await nextTick();
+    expect(ui.scheduleView).toBe('payperiod');
+    w.unmount();
+  });
+
+  it('shows 14-day grid when payStart is configured and 2W clicked', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = '2026-05-19';
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    const ppBtn = w.findAll('.view-toggle-btn').find(b =>
+      b.attributes('title')?.includes('Pay period'),
+    );
+    await ppBtn!.trigger('click');
+    await nextTick();
+    expect(w.find('.cal-grid').exists()).toBe(true);
+    // 14 day cells + header cells + blanks, grid must be present
+    const cells = w.findAll('.cal-cell:not(.cal-blank)');
+    expect(cells.length).toBe(14);
+    w.unmount();
+  });
+
+  it('PREV in pay period view steps offset back', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = '2026-05-19';
+    const ui = useUiStore();
+    ui.setScheduleView('payperiod');
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    const prevBtn = w.findAll('button').find(b => b.text().includes('Prev'));
+    await prevBtn!.trigger('click');
+    await nextTick();
+    expect(ui.schedulePayPeriodOffset).toBe(-1);
+    // Month should NOT have changed (pay period navigation is independent)
+    w.unmount();
+  });
+
+  it('NEXT in pay period view steps offset forward', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = '2026-05-19';
+    const ui = useUiStore();
+    ui.setScheduleView('payperiod');
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    const nextBtn = w.findAll('button').find(b => b.text().includes('Next'));
+    await nextBtn!.trigger('click');
+    await nextTick();
+    expect(ui.schedulePayPeriodOffset).toBe(1);
+    w.unmount();
+  });
+
+  it('clicking a month card in payperiod view switches to list view', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = '2026-05-19';
+    const ui = useUiStore();
+    ui.setScheduleView('payperiod');
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    await w.find('.summary-card').trigger('click');
+    await nextTick();
+    expect(ui.scheduleView).toBe('list');
+    w.unmount();
+  });
+});

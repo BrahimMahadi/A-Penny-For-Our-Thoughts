@@ -391,7 +391,8 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 12 — Spending Trend Chart & Goals Timeline | ✅ Complete | v1.6.0 |
 | Sprint 13 — Dashboard Polish, Form Validation & JSON Backup | ✅ Complete | v1.7.0 |
 | Sprint 14 — Polish & Analytics | ✅ Complete | v1.8.0 |
-| **Current** | **✅ v1.8.0 shipped** | **v1.8.0** |
+| Sprint 15 — Pay Period Schedule View | ✅ Complete | v1.9.0 |
+| **Current** | **✅ v1.9.0 shipped** | **v1.9.0** |
 
 ---
 
@@ -803,7 +804,68 @@ Items captured for future sprints — not yet scheduled. See individual option d
 
 ---
 
+---
+
+## Sprint 15 — Pay Period Schedule View 📅
+**Status**: ✅ **COMPLETE** — May 2026  
+**Branch:** `feat/sprint-15`  
+**Version:** v1.9.0  
+**Goal**: Add a 14-day pay-period grid view as a third toggle option on the Schedule tab, alongside the existing List and Calendar month views
+
+### Delivered
+
+**New `ScheduleView` option: `'payperiod'`**
+- `src/types/state.ts` — `ScheduleView` union extended to `'list' | 'calendar' | 'payperiod'`
+- `UiState` gains `schedulePayPeriodOffset: number` (0 = current period, ±N = N periods forward/back)
+
+**UI store actions**
+- `stepPayPeriod(delta)` — increments/decrements `schedulePayPeriodOffset`
+- `resetToCurrentPayPeriod()` — resets offset to 0 (called automatically when entering pay period view)
+
+**Calculation layer (`calculations.ts`)**
+- `PayPeriodForecastItem` — extends `ForecastItem` with `periodDate: ISODate`
+- `PayPeriodForecast` interface — `periodStart`, `periodEnd`, `label`, `dated[]`, `undated[]`, `total`, `budgeted`, `variance`
+- `getPayPeriodForecast(state, offset, today)` — builds the 14-day forecast:
+  - Returns `null` when `payStart` is not configured
+  - Expense card items: placed by `dueDay` — only appear if that day falls within the 14-day window
+  - Expense card items without `dueDay`: placed in `undated` (biweekly = full amount, monthly = half)
+  - Subscriptions: uses `getRenewalDatesBetween` for exact renewal dates; excluded if not renewing in period
+  - Budgeted = monthly Needs income ÷ 2 (bi-weekly equivalent)
+  - Sorted chronologically by `periodDate`
+- `getPayPeriodDayMap(state, offset, today)` — `Map<ISODate, PayPeriodForecastItem[]>` for the grid
+
+**`useAnalytics` composable**
+- `payPeriodForecast` — reactive computed ref (`PayPeriodForecast | null`)
+- `payPeriodDayMap` — reactive computed ref (`Map<ISODate, PayPeriodForecastItem[]>`)
+
+**`RecurringCalendar.vue` — 14-day grid view**
+- Third toggle button **"2W"** added to the view switcher (title: "Pay period view (14-day grid)")
+- PREV/NEXT navigate by pay period (14 days) when in pay period mode; months when in list/calendar mode
+- Title changes to "Pay Period: May 19 – Jun 1" in pay period mode
+- Detail total shows `/period` suffix instead of `/mo`
+- 14-day grid: same 7-column DOW layout as calendar; cells show actual calendar dates
+- Month abbreviation shown on the 1st of any month crossing within the period (e.g., "Jun 1")
+- Items displayed per cell with same badge styling as calendar view (expense / subscription / +N overflow)
+- Budget bar above grid: committed total vs bi-weekly Needs budget, colour-coded green/red
+- `payPeriodForecast.undated` renders below the grid as "No fixed date this period"
+- Empty state for unconfigured `payStart`: "Set a start date in Settings → Pay Period"
+- Clicking a month summary card in pay period view auto-switches back to list view
+
+**CLAUDE.md** — Release process rules added; test count updated to 606
+
+### Tests
+- `tests/utils/calculations.spec.ts` — 13 new tests for `getPayPeriodForecast` (null payStart, period bounds, offsets, dated/undated item placement, subscription inclusion/exclusion, total, budget, label, sort order) + 2 for `getPayPeriodDayMap`
+- `tests/stores/ui.spec.ts` — 6 new tests for `stepPayPeriod`, `resetToCurrentPayPeriod`, `schedulePayPeriodOffset` initial state
+- `tests/components/sections/sections.spec.ts` — 7 new tests for pay period component (toggle renders, empty state, view switch, 14-cell grid, PREV/NEXT offset, month card reverts to list)
+- `tests/components/onboarding.spec.ts` — version updated to `'1.9.0'`
+- **Total: 606 passing (↑29 from 577) across 23 spec files**
+
+### Merge & Tag
+- ✅ Merged `feat/sprint-15` → `main`, tagged **v1.9.0**
+
+---
+
 **Last Updated**: May 2026  
-**Current Version**: v1.8.0 — Sprint 14 complete  
+**Current Version**: v1.9.0 — Sprint 15 complete  
 **Next Up**: TBD  
 **Current Branch**: `main`

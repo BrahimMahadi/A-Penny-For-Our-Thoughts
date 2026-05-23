@@ -95,3 +95,47 @@ describe('ui store — stepScheduleMonth date arithmetic', () => {
     expect(store.scheduleViewMonth).toBe(5);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  Pay-period offset actions
+// ─────────────────────────────────────────────────────────────────
+describe('ui store — pay-period offset', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+
+  it('schedulePayPeriodOffset initialises to 0', () => {
+    const store = useUiStore();
+    expect(store.schedulePayPeriodOffset).toBe(0);
+  });
+
+  it('stepPayPeriod(+1) increments offset', () => {
+    const store = useUiStore();
+    store.stepPayPeriod(1);
+    expect(store.schedulePayPeriodOffset).toBe(1);
+  });
+
+  it('stepPayPeriod(-1) decrements offset', () => {
+    const store = useUiStore();
+    store.stepPayPeriod(-1);
+    expect(store.schedulePayPeriodOffset).toBe(-1);
+  });
+
+  it('stepPayPeriod chains additively', () => {
+    const store = useUiStore();
+    store.stepPayPeriod(2);
+    store.stepPayPeriod(3);
+    expect(store.schedulePayPeriodOffset).toBe(5);
+  });
+
+  it('resetToCurrentPayPeriod sets offset to 0', () => {
+    const store = useUiStore();
+    store.stepPayPeriod(4);
+    store.resetToCurrentPayPeriod();
+    expect(store.schedulePayPeriodOffset).toBe(0);
+  });
+
+  it('setScheduleView payperiod is accepted', () => {
+    const store = useUiStore();
+    store.setScheduleView('payperiod');
+    expect(store.scheduleView).toBe('payperiod');
+  });
+});
