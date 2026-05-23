@@ -31,7 +31,7 @@ import { WANT_CATEGORIES, CATEGORY_COLOURS } from '@/data/categories';
 
 const budget = useBudgetStore();
 const toast  = useToast();
-const { totalMonthlyIncome } = useAnalytics();
+const { totalMonthlyIncome, envelopeForecast } = useAnalytics();
 
 const today = new Date();
 
@@ -300,6 +300,22 @@ function cardLabel(cardId: string | null): string | null {
         <p class="wants-pct-label">
           {{ usedPct.toFixed(0) }}% of bi-weekly budget used
         </p>
+
+        <!-- Envelope forecast (B1) -->
+        <div
+          v-if="envelopeForecast.hasData"
+          class="envelope-forecast"
+          :class="`envelope-forecast--${envelopeForecast.status}`"
+        >
+          <span class="envelope-forecast__label">At this pace</span>
+          <span class="envelope-forecast__value">
+            {{ fmt(envelopeForecast.projectedTotal) }} by end of period
+          </span>
+          <span class="envelope-forecast__detail">
+            {{ envelopeForecast.daysRemaining }} day{{ envelopeForecast.daysRemaining !== 1 ? 's' : '' }} left ·
+            {{ fmt(envelopeForecast.dailyRate) }}/day
+          </span>
+        </div>
       </div>
     </div>
 
@@ -662,6 +678,54 @@ function cardLabel(cardId: string | null): string | null {
   font-size: 0.72rem;
   color: var(--muted);
   margin: 0;
+}
+
+/* Envelope forecast (B1) */
+.envelope-forecast {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  border-left: 3px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  margin-top: 0.25rem;
+}
+
+.envelope-forecast--on-track {
+  border-left-color: var(--accent2);
+  background: rgba(52, 211, 153, 0.06);
+}
+.envelope-forecast--caution {
+  border-left-color: var(--warn);
+  background: rgba(251, 191, 36, 0.07);
+}
+.envelope-forecast--over {
+  border-left-color: var(--danger);
+  background: rgba(248, 113, 113, 0.07);
+}
+
+.envelope-forecast__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.envelope-forecast__value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.envelope-forecast--on-track .envelope-forecast__value { color: var(--accent2); }
+.envelope-forecast--caution  .envelope-forecast__value { color: var(--warn); }
+.envelope-forecast--over     .envelope-forecast__value { color: var(--danger); }
+
+.envelope-forecast__detail {
+  font-size: 0.7rem;
+  color: var(--muted);
 }
 
 /* Category chips */

@@ -30,6 +30,8 @@ import {
   getMomInsights,
   applyRulesToName,
   getTriggeredAlerts,
+  getPrevMonthActuals,
+  getEnvelopeForecast,
 } from '@/utils/calculations';
 import { makeBlankState } from '@/stores/budget';
 import type { BudgetState } from '@/types/state';
@@ -643,5 +645,147 @@ describe('getTriggeredAlerts', () => {
     const result = getTriggeredAlerts(state);
     expect(result.length).toBe(1);
     expect(result[0].spent).toBe(60);
+  });
+});
+
+// ─── getPrevMonthActuals ──────────────────────────────────────────
+
+describe('getPrevMonthActuals', () => {
+  it('returns zeros when there is no spending history and no purchases', () => {
+    const state = buildState();
+    const result = getPrevMonthActuals(state);
+    expect(result.needs).toBeGreaterThanOrEqual(0);
+    expect(result.wants).toBe(0);
+  });
+
+  it('sums spending-history periods from the previous calendar month', () => {
+    // Build a "today" in March 2026, previous month = February 2026
+    const today = new Date('2026-03-15T00:00:00');
+    const state = buildState({
+      spendingHistory: [
+        { id: 'H1', date: '2026-02-01', total: 200, items: [] },
+        { id: 'H2', date: '2026-02-14', total: 150, items: [] },
+        { id: 'H3', date: '2026-03-01', total: 999, items: [] }, // current month — excluded
+      ],
+    });
+    const result = getPrevMonthActuals(state, today);
+    expect(result.wants).toBe(350); // 200 + 150
+  });
+
+  it('does not include current-month purchases in previous-month actuals', () => {
+    const today = new Date('2026-03-15T00:00:00');
+    const state = buildState({
+      purchases: [
+        { id: 'p1', name: 'Coffee', amount: 10, category: 'Food & Drink', cardId: null, budgetType: 'wants' },
+      ],
+    });
+    // No spending history for Feb, purchases are in current (March) period
+    const result = getPrevMonthActuals(state, today);
+    expect(result.wants).toBe(0);
+  });
+});
+
+// ─── getEnvelopeForecast ──────────────────────────────────────────
+
+describe('getEnvelopeForecast', () => {
+  function baseState(payStart: string | null = null): ReturnType<typeof buildState> {
+    return buildState({
+      payStart,
+      incomeStreams: [{ id: 'i1', name: 'Salary', amount: 4000, biweekly: false }],
+      allocation: { needs: 50, wants: 30, savings: 20 },
+    });
+  }
+
+  it('hasData=false when payStart is not set', () => {
+    const result = getEnvelopeForecast(baseState(null));
+    expect(result.hasData).toBe(false);
+  });
+
+  it('hasData=false on day 0 of the period (no time elapsed)', () => {
+    const today = new Date('2026-05-01T00:00:00');
+    const state = baseState('2026-05-01');
+    const result = getEnvelopeForecast(state, today);
+    expect(result.hasData).toBe(false);
+    expect(result.daysElapsed).toBe(0);
+  });
+
+  it('hasData=false when there are no purchases yet (even if days elapsed)', () => {
+    const today = new Date('2026-05-05T00:00:00');
+    const state = baseState('2026-05-01'); // 4 days elapsed
+    const result = getEnvelopeForecast(state, today);
+    expect(result.hasData).toBe(false);
+    expect(result.daysElapsed).toBe(4);
+  });
+
+  it('projects correctly at mid-period with purchases', () => {
+    // Period started 2026-05-01, today is 2026-05-08 (day 7 of 14)
+    // Budget: income 4000 * 30% / 2 = $600 biweekly
+    // Spent: $210 in 7 days → $30/day → projected $420 for 14 days
+    const today = new Date('2026-05-08T00:00:00');
+    const state = baseState('2026-05-01');
+    state.purchases = [
+      { id: 'p1', name: 'Dinner', amount: 210, category: 'Food & Drink', cardId: null, budgetType: 'wants' },
+    ];
+
+    const result = getEnvelopeForecast(state, today);
+
+    expect(result.hasData).toBe(true);
+    expect(result.daysElapsed).toBe(7);
+    expect(result.daysRemaining).toBe(7);
+    expect(result.dailyRate).toBeCloseTo(30, 2);
+    expect(result.projectedTotal).toBeCloseTo(420, 2);
+    expect(result.status).toBe('on-track'); // 420 < 600
+  });
+
+  it('status is "caution" when projected total is 90–99% of budget', () => {
+    // Budget: $600. Spend $81 in 7 days → $11.57/day → projected ~$162 → wait, need to be at 90%
+    // 90% of 600 = 540. In 7 days, need to project $540 → daily rate = 540/14 = 38.57
+    // So spent in 7 days = 38.57 * 7 = 270
+    const today = new Date('2026-05-08T00:00:00');
+    const state = baseState('2026-05-01');
+    state.purchases = [
+      { id: 'p1', name: 'Shopping', amount: 270, category: 'Other', cardId: null, budgetType: 'wants' },
+    ];
+
+    const result = getEnvelopeForecast(state, today);
+
+    expect(result.hasData).toBe(true);
+    expect(result.projectedTotal).toBeCloseTo(540, 1);
+    expect(result.status).toBe('caution');
+  });
+
+  it('status is "over" when projected total exceeds the budget', () => {
+    // Budget: $600. Spend $500 in 7 days → $71.43/day → projected ~$1000
+    const today = new Date('2026-05-08T00:00:00');
+    const state = baseState('2026-05-01');
+    state.purchases = [
+      { id: 'p1', name: 'Everything', amount: 500, category: 'Other', cardId: null, budgetType: 'wants' },
+    ];
+
+    const result = getEnvelopeForecast(state, today);
+
+    expect(result.hasData).toBe(true);
+    expect(result.status).toBe('over');
+    expect(result.projectedTotal).toBeGreaterThan(600);
+  });
+
+  it('daysTotal is always 14', () => {
+    const result = getEnvelopeForecast(baseState(null));
+    expect(result.daysTotal).toBe(14);
+  });
+
+  it('excludes needs-type purchases from the total', () => {
+    const today = new Date('2026-05-08T00:00:00');
+    const state = baseState('2026-05-01');
+    state.purchases = [
+      { id: 'p1', name: 'Groceries', amount: 100, category: 'Food & Drink', cardId: null, budgetType: 'needs' },
+      { id: 'p2', name: 'Coffee',    amount: 50,  category: 'Food & Drink', cardId: null, budgetType: 'wants' },
+    ];
+
+    const result = getEnvelopeForecast(state, today);
+
+    // Only the $50 wants purchase should contribute
+    expect(result.dailyRate).toBeCloseTo(50 / 7, 4);
+    expect(result.projectedTotal).toBeCloseTo((50 / 7) * 14, 1);
   });
 });
