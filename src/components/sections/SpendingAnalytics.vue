@@ -101,6 +101,43 @@ function deleteHistoryPeriod(id: string): void {
   toast.show('Period deleted.', 'success');
 }
 
+// ─── Collapsible history periods ─────────────────────────────────
+const expandedPeriods = ref<Set<string>>(new Set());
+
+function togglePeriod(id: string): void {
+  const next = new Set(expandedPeriods.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  expandedPeriods.value = next;
+}
+
+function isPeriodExpanded(id: string): boolean {
+  return expandedPeriods.value.has(id);
+}
+
+// ─── Per-period category summary ─────────────────────────────────
+function periodCategorySummary(items: Array<{ category: string; amount: number }>): Array<[string, number]> {
+  const map: Record<string, number> = {};
+  items.forEach(item => {
+    const cat = item.category || 'Other';
+    map[cat] = (map[cat] || 0) + item.amount;
+  });
+  return Object.entries(map).sort(([, a], [, b]) => b - a);
+}
+
+// ─── Human-readable period label ─────────────────────────────────
+function periodDisplayLabel(period: { label?: string; date: string }): string {
+  if (period.label) return period.label;
+  // Fall back to formatting the ISO date nicely
+  try {
+    return new Date(period.date + 'T00:00:00').toLocaleDateString('en-CA', {
+      month: 'short', day: 'numeric', year: 'numeric',
+    });
+  } catch {
+    return period.date;
+  }
+}
+
 // ─── Panel toggle ─────────────────────────────────────────────────
 const panelOpen = computed(() => ui.analyticsPanelOpen);
 
@@ -349,40 +386,76 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
           v-for="period in [...filteredSpendingHistory].reverse()"
           :key="period.id"
           class="period-item"
+          :class="{ 'period-item--expanded': isPeriodExpanded(period.id) }"
         >
-          <div class="period-item__header">
+          <!-- Clickable header — toggles item list -->
+          <button
+            class="period-item__header"
+            :aria-expanded="isPeriodExpanded(period.id)"
+            :aria-controls="`period-items-${period.id}`"
+            @click="togglePeriod(period.id)"
+          >
             <div class="period-item__info">
-              <span class="period-item__label">{{ period.date }}</span>
+              <span class="period-item__chevron">{{ isPeriodExpanded(period.id) ? '▾' : '▸' }}</span>
+              <span class="period-item__label">{{ periodDisplayLabel(period) }}</span>
+              <span class="period-item__count">{{ (period.items || []).length }} item{{ (period.items || []).length !== 1 ? 's' : '' }}</span>
             </div>
             <div class="period-item__right">
               <span class="period-item__total">{{ fmt(period.total) }}</span>
+            </div>
+          </button>
+
+          <!-- Category summary chips (always visible) -->
+          <div
+            v-if="(period.items || []).length > 0"
+            class="period-item__cats"
+          >
+            <span
+              v-for="[cat, amt] in periodCategorySummary(period.items || [])"
+              :key="cat"
+              class="period-item__cat-chip"
+            >
+              {{ cat }}: {{ fmt(amt) }}
+            </span>
+          </div>
+
+          <!-- Expanded item list -->
+          <div
+            v-if="isPeriodExpanded(period.id)"
+            :id="`period-items-${period.id}`"
+            class="period-item__body"
+          >
+            <div
+              v-if="(period.items || []).length === 0"
+              class="period-item__empty"
+            >
+              No purchases in this period.
+            </div>
+            <div
+              v-else
+              class="period-item__purchases"
+            >
+              <div
+                v-for="(item, idx) in (period.items || [])"
+                :key="idx"
+                class="period-purchase-row"
+              >
+                <span class="period-purchase-name">{{ item.name }}</span>
+                <span
+                  v-if="item.category"
+                  class="period-purchase-cat"
+                >{{ item.category }}</span>
+                <span class="period-purchase-amt">{{ fmt(item.amount) }}</span>
+              </div>
+            </div>
+            <div class="period-item__footer">
               <BaseButton
                 size="xs"
                 variant="danger"
-                @click="deleteHistoryPeriod(period.id)"
+                @click.stop="deleteHistoryPeriod(period.id)"
               >
                 Delete Period
               </BaseButton>
-            </div>
-          </div>
-
-          <div
-            v-if="(period.items || []).length === 0"
-            class="period-item__empty"
-          >
-            No purchases in this period.
-          </div>
-          <div
-            v-else
-            class="period-item__purchases"
-          >
-            <div
-              v-for="(item, idx) in (period.items || [])"
-              :key="idx"
-              class="period-purchase-row"
-            >
-              <span class="period-purchase-name">{{ item.name }}</span>
-              <span class="period-purchase-amt">{{ fmt(item.amount) }}</span>
             </div>
           </div>
         </div>
@@ -593,14 +666,45 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
   overflow: hidden;
 }
 
+/* Header is now a button for a11y */
 .period-item__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
   padding: 0.6rem 0.75rem;
+  width: 100%;
+  background: transparent;
+  border: 0;
   border-bottom: 1px solid var(--border);
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
   flex-wrap: wrap;
+  transition: background 0.1s;
+}
+
+.period-item__header:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.period-item__header:focus-visible {
+  outline: 2px solid var(--accent, #4ade80);
+  outline-offset: -2px;
+}
+
+.period-item__info {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.period-item__chevron {
+  font-size: 0.75rem;
+  color: var(--muted);
+  flex-shrink: 0;
 }
 
 .period-item__label {
@@ -608,10 +712,17 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
   font-size: 0.875rem;
 }
 
+.period-item__count {
+  font-size: 0.72rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
 .period-item__right {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .period-item__total {
@@ -620,20 +731,56 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
   color: var(--accent2);
 }
 
+/* Category chips — always visible below the header */
+.period-item__cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.period-item--expanded .period-item__cats {
+  border-bottom: 1px solid var(--border);
+}
+
+.period-item__cat-chip {
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent, #4ade80) 10%, transparent);
+  color: var(--muted);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+}
+
+/* Expanded item list */
+.period-item__body {
+  padding: 0.25rem 0;
+}
+
 .period-item__empty {
   font-size: 0.78rem;
   color: var(--muted);
   padding: 0.5rem 0.75rem;
 }
 
-.period-item__purchases {
+.period-item__footer {
+  display: flex;
+  justify-content: flex-end;
   padding: 0.4rem 0.75rem;
+  border-top: 1px solid var(--border);
+  margin-top: 0.25rem;
+}
+
+.period-item__purchases {
+  padding: 0.25rem 0.75rem;
 }
 
 .period-purchase-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
   padding: 0.3rem 0;
   font-size: 0.8rem;
   border-bottom: 1px solid var(--border-light, rgba(42, 48, 65, 0.5));
@@ -652,10 +799,21 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
   white-space: nowrap;
 }
 
+.period-purchase-cat {
+  font-size: 0.68rem;
+  color: var(--muted);
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.05rem 0.35rem;
+  white-space: nowrap;
+}
+
 .period-purchase-amt {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
-  margin-left: 0.5rem;
+  margin-left: 0.25rem;
 }
 </style>

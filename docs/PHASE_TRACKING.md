@@ -390,7 +390,8 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 11 — Envelope Forecast & MoM Deltas | ✅ Complete | v1.5.0 |
 | Sprint 12 — Spending Trend Chart & Goals Timeline | ✅ Complete | v1.6.0 |
 | Sprint 13 — Dashboard Polish, Form Validation & JSON Backup | ✅ Complete | v1.7.0 |
-| **Current** | **✅ v1.7.0 shipped** | **v1.7.0** |
+| Sprint 14 — Polish & Analytics | ✅ Complete | v1.8.0 |
+| **Current** | **✅ v1.8.0 shipped** | **v1.8.0** |
 
 ---
 
@@ -753,7 +754,56 @@ Items captured for future sprints — not yet scheduled. See individual option d
 
 ---
 
+## Sprint 14 — Polish & Analytics 🎨
+**Status**: ✅ **COMPLETE** — May 2026  
+**Branch:** `feat/sprint-14`  
+**Version:** v1.8.0  
+**Goal**: Five targeted polish improvements — tab overflow, release notes, history UX, drilldown analytics, and savings runway
+
+### Delivered
+
+**Tab nav overflow fix**
+- `App.vue` `.app-tabs` base rule gains `overflow-x: auto; scrollbar-width: none` (+ webkit variant)
+- Tabs no longer clip at intermediate widths (800–1000px range); scrollable without a visible scrollbar
+
+**WhatsNewBanner — v1.7.1 release notes**
+- `WhatsNewBanner.vue` bumped to `APP_VERSION = '1.7.1'`
+- 4 release notes: Mobile bottom nav, Form validation, JSON backup & restore, Calendar scroll
+
+**Spending History — collapsible periods with category chips**
+- `SpendingAnalytics.vue` history list rewritten: period header is now a `<button>` toggle
+- Category breakdown chips always visible in the collapsed header row
+- Item list only rendered when period is expanded
+- Human-readable date label via `periodDisplayLabel()` (falls back to raw date string)
+- Delete button moved into the expanded footer (avoids accidental taps)
+
+**Budget vs. Actual — Wants category drilldown (A3)**
+- `getWantsCategoryActuals(state, today)` added to `calculations.ts`
+  - Aggregates live `state.purchases` (wants only) + current-month `spendingHistory` items by category
+- `wantsCategoryActuals` exposed as `computed` ref in `useAnalytics()`
+- `BudgetVsActual.vue` renders "Wants by Category" drilldown section when data exists:
+  - Horizontal bars (proportion of total wants spend), amount + % per row
+  - Responsive: bar hidden on ≤480px, name/amount/% remain
+
+**Savings Runway Calculator (B2)**
+- `GoalProgress` interface gains `monthlyAllocation: number` and `monthsAtCurrentRate: number | null`
+- `getGoalProgress()` computes runway: `Math.ceil(shortfall / monthlyAllocation)` months
+- `monthsAtCurrentRate` is `null` (not 0/Infinity) when allocation is 0 → safe template branch
+- `SavingsGoals.vue` renders per-goal runway chip:
+  - "At $X/mo you'll reach this goal in N month(s) — ahead/behind target"
+  - Fallback when allocation = 0: "No monthly allocation set — use Allocate in Savings Accounts"
+
+### Tests
+- `tests/utils/calculations.spec.ts` — 10 new tests: 5 for `getWantsCategoryActuals`, 5 for `GoalProgress` runway fields
+- `tests/components/onboarding.spec.ts` — 3 tests updated to match `APP_VERSION = '1.7.1'` and 4 release notes
+- **Total: 577 passing (↑11 from 566) across 23 spec files**
+
+### Merge & Tag
+- ✅ Merged `feat/sprint-14` → `main`, tagged **v1.8.0**
+
+---
+
 **Last Updated**: May 2026  
-**Current Version**: v1.7.0 — Sprint 13 complete  
-**Next Up**: UI polish & robustness sprint  
+**Current Version**: v1.8.0 — Sprint 14 complete  
+**Next Up**: TBD  
 **Current Branch**: `main`

@@ -485,7 +485,11 @@ useSwipe(
   display: flex;
   gap: 0.25rem;
   justify-content: center;
+  /* Prevent tab clipping at intermediate viewport widths */
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.app-tabs::-webkit-scrollbar { display: none; }
 
 .app-tab {
   display: inline-flex;

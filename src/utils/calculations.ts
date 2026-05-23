@@ -374,6 +374,39 @@ export function getMonthActuals(
   };
 }
 
+/**
+ * Per-category actual wants spending for the current calendar month.
+ * Aggregates purchases from the live list and from archived history periods.
+ * Returns a map of { category → total }.
+ */
+export function getWantsCategoryActuals(
+  state: BudgetState,
+  today: Date = new Date(),
+): Record<string, number> {
+  const monthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const map: Record<string, number> = {};
+
+  // Live period purchases (wants only)
+  state.purchases
+    .filter((p) => (p.budgetType || 'wants') !== 'needs')
+    .forEach((p) => {
+      const cat = p.category || 'Other';
+      map[cat] = (map[cat] || 0) + p.amount;
+    });
+
+  // Archived history items for this calendar month
+  state.spendingHistory
+    .filter((period) => period.date && period.date.substring(0, 7) === monthStr)
+    .forEach((period) => {
+      period.items.forEach((item) => {
+        const cat = item.category || 'Other';
+        map[cat] = (map[cat] || 0) + item.amount;
+      });
+    });
+
+  return map;
+}
+
 /** Budgeted amounts based on allocation percentages. */
 export function getMonthBudgeted(
   state: Pick<BudgetState, 'incomeStreams' | 'allocation'>,
@@ -425,6 +458,13 @@ export interface GoalProgress {
   progressPercent: number;
   monthsRemaining: number;
   monthlySavingsNeeded: number;
+  /** How much is currently allocated to this account per month. */
+  monthlyAllocation: number;
+  /**
+   * How many months it will take to hit the target at the current
+   * allocation rate. Null when goal is already met or allocation is 0.
+   */
+  monthsAtCurrentRate: number | null;
   isOnTrack: boolean;
   status: GoalStatus;
 }
@@ -463,6 +503,14 @@ export function getGoalProgress(
     status = 'off-track';
   }
 
+  // How long until goal is hit at the current allocation rate
+  const monthsAtCurrentRate: number | null =
+    currentAmount >= targetAmount
+      ? 0                                                // already met
+      : monthlyAllocation > 0
+        ? Math.ceil(shortfall / monthlyAllocation)       // optimistic ceiling
+        : null;                                          // no allocation → unknown
+
   return {
     accountId: goal.accountId,
     accountName: account.name,
@@ -472,6 +520,8 @@ export function getGoalProgress(
     progressPercent: Math.min(100, progressPercent),
     monthsRemaining: Math.max(0, monthsRemaining),
     monthlySavingsNeeded: Math.max(0, monthlySavingsNeeded),
+    monthlyAllocation,
+    monthsAtCurrentRate,
     isOnTrack: status === 'on-track',
     status,
   };

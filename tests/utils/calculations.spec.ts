@@ -34,6 +34,7 @@ import {
   getEnvelopeForecast,
   getSpendingTrend,
   getGoalsTimeline,
+  getWantsCategoryActuals,
 } from '@/utils/calculations';
 import { makeBlankState } from '@/stores/budget';
 import type { BudgetState } from '@/types/state';
@@ -945,5 +946,150 @@ describe('getGoalsTimeline', () => {
     expect(items[1].id).toBe('active_far');
     expect(items[2].id).toBe('complete');
     expect(items[3].id).toBe('missed');
+  });
+});
+
+// ─── getWantsCategoryActuals ─────────────────────────────────────
+
+describe('getWantsCategoryActuals', () => {
+  const today = new Date('2026-05-15T12:00:00');
+
+  it('returns empty object when there are no wants purchases', () => {
+    const state = buildState();
+    expect(getWantsCategoryActuals(state, today)).toEqual({});
+  });
+
+  it('aggregates current-period wants purchases by category', () => {
+    const state = buildState({
+      purchases: [
+        { id: '1', name: 'Coffee', amount: 10, category: 'Food & Drink', budgetType: 'wants', cardId: null },
+        { id: '2', name: 'Burger', amount: 15, category: 'Food & Drink', budgetType: 'wants', cardId: null },
+        { id: '3', name: 'Movie',  amount: 20, category: 'Entertainment', budgetType: 'wants', cardId: null },
+      ],
+    });
+    const result = getWantsCategoryActuals(state, today);
+    expect(result['Food & Drink']).toBe(25);
+    expect(result['Entertainment']).toBe(20);
+  });
+
+  it('excludes needs purchases', () => {
+    const state = buildState({
+      purchases: [
+        { id: '1', name: 'Rent', amount: 1000, category: 'Housing', budgetType: 'needs', cardId: null },
+        { id: '2', name: 'Coffee', amount: 5, category: 'Food & Drink', budgetType: 'wants', cardId: null },
+      ],
+    });
+    const result = getWantsCategoryActuals(state, today);
+    expect(result['Housing']).toBeUndefined();
+    expect(result['Food & Drink']).toBe(5);
+  });
+
+  it('includes archived history items for the current month', () => {
+    const state = buildState({
+      purchases: [],
+      spendingHistory: [
+        {
+          id: 'p1',
+          date: '2026-05-01',
+          total: 80,
+          items: [
+            { name: 'Netflix', amount: 17, category: 'Entertainment' },
+            { name: 'Spotify', amount: 10, category: 'Entertainment' },
+            { name: 'Bagel',   amount: 53, category: 'Food & Drink' },
+          ],
+        },
+      ],
+    });
+    const result = getWantsCategoryActuals(state, today);
+    expect(result['Entertainment']).toBe(27);
+    expect(result['Food & Drink']).toBe(53);
+  });
+
+  it('does not include history from a different month', () => {
+    const state = buildState({
+      purchases: [],
+      spendingHistory: [
+        {
+          id: 'p1',
+          date: '2026-04-15',  // April — not the current May month
+          total: 100,
+          items: [{ name: 'Old purchase', amount: 100, category: 'Shopping' }],
+        },
+      ],
+    });
+    expect(getWantsCategoryActuals(state, today)).toEqual({});
+  });
+
+  it('falls back to "Other" when category is missing', () => {
+    const state = buildState({
+      purchases: [
+        { id: '1', name: 'Mystery', amount: 30, category: '', budgetType: 'wants', cardId: null },
+      ],
+    });
+    const result = getWantsCategoryActuals(state, today);
+    expect(result['Other']).toBe(30);
+  });
+});
+
+// ─── GoalProgress — monthlyAllocation & monthsAtCurrentRate ──────
+
+describe('getGoalProgress — runway fields', () => {
+  const today = new Date('2026-05-15T12:00:00');
+
+  function makeAcc(id: string, balance: number, alloc: number) {
+    return {
+      id,
+      name: 'Test Account',
+      balance,
+      defaultAllocated: alloc,
+      monthlyAllocations: {} as Record<string, number>,
+    };
+  }
+
+  it('returns monthlyAllocation matching account defaultAllocated', () => {
+    const state = buildState({
+      savingsAccounts: [makeAcc('acc1', 0, 200)],
+    });
+    const goal = { id: 'g1', accountId: 'acc1', targetAmount: 1000, targetDate: '2027-05' };
+    const progress = getGoalProgress(state, goal, today);
+    expect(progress?.monthlyAllocation).toBe(200);
+  });
+
+  it('monthsAtCurrentRate = null when allocation is 0', () => {
+    const state = buildState({
+      savingsAccounts: [makeAcc('acc1', 0, 0)],
+    });
+    const goal = { id: 'g1', accountId: 'acc1', targetAmount: 1000, targetDate: '2027-05' };
+    const progress = getGoalProgress(state, goal, today);
+    expect(progress?.monthsAtCurrentRate).toBeNull();
+  });
+
+  it('monthsAtCurrentRate = 0 when goal is already met', () => {
+    const state = buildState({
+      savingsAccounts: [makeAcc('acc1', 1000, 100)],
+    });
+    const goal = { id: 'g1', accountId: 'acc1', targetAmount: 1000, targetDate: '2027-05' };
+    const progress = getGoalProgress(state, goal, today);
+    expect(progress?.monthsAtCurrentRate).toBe(0);
+  });
+
+  it('monthsAtCurrentRate = ceil(shortfall / allocation)', () => {
+    const state = buildState({
+      savingsAccounts: [makeAcc('acc1', 400, 100)],
+    });
+    const goal = { id: 'g1', accountId: 'acc1', targetAmount: 1000, targetDate: '2030-05' };
+    const progress = getGoalProgress(state, goal, today);
+    // shortfall = 600, allocation = 100 → 6 months
+    expect(progress?.monthsAtCurrentRate).toBe(6);
+  });
+
+  it('rounds up fractional months', () => {
+    const state = buildState({
+      savingsAccounts: [makeAcc('acc1', 0, 300)],
+    });
+    const goal = { id: 'g1', accountId: 'acc1', targetAmount: 1000, targetDate: '2030-05' };
+    const progress = getGoalProgress(state, goal, today);
+    // shortfall = 1000, allocation = 300 → ceil(3.33) = 4
+    expect(progress?.monthsAtCurrentRate).toBe(4);
   });
 });
