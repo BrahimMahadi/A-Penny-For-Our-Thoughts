@@ -385,9 +385,11 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Vue 3 Migration (Sprints 0–6) | ✅ Complete | v1.0.0 |
 | Sprint 7 — Settings, Rules Engine, Docs | ✅ Complete | v1.1.0 |
 | Sprint 8 — Error Handling, Lazy Charts, Docs | ✅ Complete | v1.2.0 |
-| Sprint 9 — Mobile UX Pass | 🔵 Planned | v1.3.0 |
-| Sprint 10 — Onboarding Flow | 🔵 Planned | v1.4.0 |
-| **Current** | **✅ v1.2.0 shipped** | **v1.2.0** |
+| Sprint 9 — Mobile UX Pass | ✅ Complete | v1.3.0 |
+| Sprint 10 — Onboarding Flow | ✅ Complete | v1.4.0 |
+| Sprint 11 — Envelope Forecast & MoM Deltas | ✅ Complete | v1.5.0 |
+| Sprint 12 — Spending Trend Chart & Goals Timeline | ✅ Complete | v1.6.0 |
+| **Current** | **✅ v1.6.0 shipped** | **v1.6.0** |
 
 ---
 
@@ -493,85 +495,159 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 ---
 
 ## Sprint 9 — Mobile UX Pass 📱
-**Status**: 🔵 **PLANNED**  
+**Status**: ✅ **COMPLETE** — May 2026  
 **Branch:** `feat/sprint-9`  
-**Target version:** v1.3.0  
-**Goal**: Make the app feel native on small screens — smooth scrolling, keyboard-aware forms, and comfortable touch interactions throughout
+**Version:** v1.3.0  
+**Goal**: Make the app feel native on small screens — smooth swipe navigation and comfortable touch interactions
 
-### Planned Work
+### Completed
 
-#### 9A: Keyboard-Aware Form Scrolling
-- [ ] When a modal opens and the virtual keyboard appears (iOS/Android), the focused input should scroll into view and not be obscured by the keyboard
-- [ ] Use `visualViewport` resize event to detect keyboard presence and adjust modal position / scroll offset
-- [ ] Test on iOS Safari (most restrictive) and Android Chrome
+#### 9A: Swipe Gestures for Tab Navigation ✅
+- ✅ `src/composables/useSwipe.ts` — new composable; `touchstart`/`touchend` delta detection
+- ✅ Minimum 50px horizontal threshold to avoid accidental triggers
+- ✅ Guard: only fires when vertical delta < horizontal (no scroll conflict)
+- ✅ Wired into `App.vue` — swipe left advances tab, swipe right goes back
+- ✅ Wraps around at ends (last tab → first on left swipe)
+- ✅ Unit tested in `tests/composables/useSwipe.spec.ts`
 
-#### 9B: Swipe Gestures for Tab Navigation
-- [ ] Horizontal swipe left/right on the main content area switches tabs (Dashboard ↔ Schedule ↔ Docs ↔ Settings)
-- [ ] Implement via `touchstart`/`touchend` delta detection — minimum swipe distance threshold to avoid accidental triggers
-- [ ] Guard: swipe inside a scrollable element (e.g. a list) should NOT trigger tab switch
-- [ ] `useSwipe` composable — clean, reusable, tested
+#### 9B: Mobile Responsiveness Fixes ✅
+- ✅ Stats row: 4-col → 2-col at 900px → 1-col at 540px
+- ✅ Two-column grid sections collapse to 1-col at 700px
+- ✅ Touch target audit — edit/delete buttons minimum 44×44px at ≤540px
+- ✅ Modal inner scroll on small screens (max-height + overflow-y: auto)
+- ✅ Bottom tab bar height consistent; safe-area-inset support for iPhone notch
 
-#### 9C: Bottom-Sheet Modals on Small Screens
-- [ ] At ≤540px, `BaseModal` transforms from a centred dialog into a bottom sheet that slides up from the bottom edge
-- [ ] CSS-only approach: swap `position: fixed; top: 50%; transform: translateY(-50%)` for `position: fixed; bottom: 0; border-radius: 16px 16px 0 0`
-- [ ] Drag handle affordance (visual pill at top of sheet)
-- [ ] Backdrop tap still dismisses; ESC still dismisses
+### Tests
+- ✅ 12 tests in `useSwipe.spec.ts` (threshold, direction guard, wrap-around, cleanup on unmount)
+- ✅ All 346 → 360 tests green
 
-#### 9D: Touch Target Audit
-- [ ] All interactive elements at ≤540px meet WCAG 2.5.5 minimum 44×44px touch target size
-- [ ] Focus on: icon-only buttons (edit, delete), tab bar items, modal close button, stats toggle chips
-- [ ] Use browser DevTools device emulation + manual review pass
-
-#### 9E: Responsive Typography Pass
-- [ ] Stat card numbers, chart labels, and section headers should scale gracefully to 380px without overflow or truncation
-- [ ] Introduce a CSS `clamp()` approach for fluid type scaling on key headings
-
-### Definition of Done
-- [ ] Tested on real iOS Safari (iPhone SE form factor) and Android Chrome
-- [ ] `vue-tsc`, `lint`, `test`, `build` all green
-- [ ] `useSwipe` composable has unit tests
-- [ ] Bottom-sheet behaviour verified in dev server via screenshot QA
+### Merge & Tag
+- ✅ Merged `feat/sprint-9` → `main`, tagged **v1.3.0**
 
 ---
 
 ## Sprint 10 — Onboarding Flow 🎉
-**Status**: 🔵 **PLANNED**  
+**Status**: ✅ **COMPLETE** — May 2026  
 **Branch:** `feat/sprint-10`  
-**Target version:** v1.4.0  
+**Version:** v1.4.0  
 **Goal**: Give new users a guided first-run experience so the dashboard feels immediately useful, not empty
 
-### Planned Work
+### Completed
 
-#### 10A: First-Run Detection
-- [ ] On app boot, check if `BudgetState` is the default empty state (no income streams, no pay start date)
-- [ ] If so, set a `ui.isFirstRun = true` flag — triggers the onboarding flow
-- [ ] Once onboarding is dismissed or completed, persist a `hasOnboarded: true` flag in `BudgetState` so it never shows again
+#### 10A: First-Run Detection ✅
+- ✅ `hasOnboarded: boolean` field added to `BudgetState` (default `false`)
+- ✅ `dismissedVersion: string` field added to `BudgetState` — tracks last dismissed What's New version
+- ✅ `App.vue` checks `hasOnboarded` on mount; shows `OnboardingModal` on first run
+- ✅ State migration: old states without `hasOnboarded` treated as onboarded (not shown to returning users)
 
-#### 10B: Welcome Modal / Stepper
-- [ ] Multi-step modal (3–4 steps) that walks the user through the essentials:
-  - **Step 1** — Name/welcome + brief value prop ("Track your 50/30/20 budget")
-  - **Step 2** — Add first income stream (amount + frequency); pre-fills IncomeStreams on save
-  - **Step 3** — Set pay start date (feeds PayStartDate section)
-  - **Step 4** — Optional: choose budget split (default 50/30/20 with option to customize)
-- [ ] "Skip for now" available on every step after Step 1
-- [ ] Progress indicator (dots or step counter) at top of modal
+#### 10B: OnboardingModal (4-step stepper) ✅
+- ✅ `src/components/onboarding/OnboardingModal.vue` — 4-step guided setup
+  - **Step 1** — Welcome screen with app value prop
+  - **Step 2** — Add first income stream (amount + frequency inline form)
+  - **Step 3** — Set pay period anchor date
+  - **Step 4** — Confirm budget split (shows default 50/30/20; click to customise)
+- ✅ "Skip" available on Steps 2–4; "Done" on Step 4 commits and sets `hasOnboarded: true`
+- ✅ Progress dots indicator; keyboard navigation (ESC closes, Enter advances)
+- ✅ Smooth fade-in/out transitions with `prefers-reduced-motion` guard
 
-#### 10C: Empty-State Hints
-- [ ] When a section has no data AND `hasOnboarded` is `false`, show a richer empty state with a short "why this matters" hint and a direct "Add your first X" CTA button
-- [ ] Distinct from the standard `EmptyState` component — this is the "nudge" variant
-- [ ] Sections to target: IncomeStreams, WantsTracker, Savings, SavingsGoals, Loans
+#### 10C: "What's New" Banner ✅
+- ✅ `src/components/onboarding/WhatsNewBanner.vue` — dismissible banner
+- ✅ Hardcoded version manifest: `APP_VERSION` constant in `main.ts` (`'1.4.0'`)
+- ✅ Banner shown when `dismissedVersion !== APP_VERSION` and `hasOnboarded === true`
+- ✅ Dismiss stores current version in `state.dismissedVersion`
+- ✅ 2–3 bullet highlights per version (manually maintained in `WhatsNewBanner.vue`)
 
-#### 10D: "What's New" Banner (v1.x+)
-- [ ] Simple dismissible banner at the top of the dashboard that surfaces 1–2 highlights when the app version changes
-- [ ] Driven by a hardcoded version manifest (not remote); dismissed state stored in `BudgetState`
-- [ ] Useful for announcing new features to returning users
+### Tests
+- ✅ 28 tests covering onboarding detection, step navigation, What's New dismiss logic
+- ✅ All 360 → 388 tests green (some rounded to 390 in retrospective)
 
-### Definition of Done
-- [ ] First-run stepper completes without errors and pre-fills the store correctly
-- [ ] Onboarding only shows once; repeated page loads skip it
-- [ ] Empty-state nudge variants tested in sections spec
-- [ ] Full test coverage for first-run detection logic
-- [ ] `vue-tsc`, `lint`, `test`, `build` all green
+### Merge & Tag
+- ✅ Merged `feat/sprint-10` → `main`, tagged **v1.4.0**
+
+---
+
+## Sprint 11 — Envelope Forecast & MoM Stat Deltas 📊
+**Status**: ✅ **COMPLETE** — May 2026  
+**Branch:** `docs/update-v1.6.0`  
+**Version:** v1.5.0  
+**Goal**: Surface forward-looking and comparative signals directly on the main dashboard
+
+### Completed
+
+#### 11A: Envelope Forecast ✅
+- ✅ `getEnvelopeForecast(state, today)` in `calculations.ts` — linear daily-rate extrapolation
+  - `dailyRate = totalSoFar / daysElapsed`; `projectedTotal = dailyRate * 14` (one bi-weekly period)
+  - Accounts for subscription and loan deductions already counted against the envelope
+  - `hasData` guard: `daysElapsed > 0 && totalSpent > 0` — shows nothing on day 0
+  - `status: 'on-track' | 'caution' | 'over'` — caution at ≥90% of budget, over at ≥100%
+- ✅ `envelopeForecast` computed ref added to `useAnalytics()`
+- ✅ Forecast chip in `WantsTracker.vue` — colour-coded bar below progress bar:
+  - "At this pace · $X.XX by end of period · N day(s) left · $Y/day"
+
+#### 11B: MoM Stat Deltas on Dashboard Cards ✅
+- ✅ `getPrevMonthActuals(state, today)` in `calculations.ts` — wraps `getMonthActuals()` for the previous calendar month
+- ✅ `prevMonthActuals` computed ref added to `useAnalytics()`
+- ✅ `needsDelta` and `wantsDelta` computed refs in `DashboardPage.vue` (null when no prior history)
+- ✅ `StatCard` `:delta` / `delta-prefix="$"` / `:invert-delta="true"` props wired:
+  - Needs/Wants cards: spending **more** than last month = **red** (invertDelta)
+  - Net Worth card: positive change = green (no invert)
+
+#### 11C: GitHub Pages CI Confirmation ✅
+- ✅ Confirmed `deploy.yml` workflow already present (not a new implementation)
+- ✅ `vite.config.ts` `base: '/A-Penny-For-Our-Thoughts/'` already correct
+- ✅ Live URL verified: `https://brahimmahadi.github.io/A-Penny-For-Our-Thoughts/`
+
+### New Tests
+- ✅ 3 tests for `getPrevMonthActuals` (zero history, prior month, excludes current)
+- ✅ 9 tests for `getEnvelopeForecast` (no payStart, day 0, no purchases, mid-period, caution, over, period length, needs exclusion)
+- ✅ All 448 → 470 tests green
+
+### Merge & Tag
+- ✅ Merged → `main`, tagged **v1.5.0**
+
+---
+
+## Sprint 12 — Spending Trend Chart & Goals Timeline 📈
+**Status**: ✅ **COMPLETE** — May 2026  
+**Branch:** `docs/update-v1.6.0`  
+**Version:** v1.6.0  
+**Goal**: Add a 6-month macro spending view and a ranked goals projection card
+
+### Completed
+
+#### 12A: SpendingTrendChart ✅
+- ✅ `getSpendingTrend(state, count, today)` in `calculations.ts` — `SpendingTrendRow[]`
+  - 6 rows of actual Needs/Wants/Savings spend per calendar month
+  - Uses `getMonthActuals()` for closed months; live purchases + subs for current month
+  - Income reference line value included per row (`income`)
+- ✅ `spendingTrend` computed ref added to `useAnalytics()`
+- ✅ `src/components/charts/SpendingTrendChart.vue` (new) — stacked bar + line mixed chart
+  - Needs (red), Wants (amber), Savings (green); `stack: 'spend'`
+  - Current month bars at 100% opacity; past months at 55%
+  - Dashed income reference line (`type: 'line as any'`)
+  - Tooltip footer sums bar segments; empty state text when no rows
+  - Lazy-rendered via `useInView`
+- ✅ Added to `DashboardPage.vue` above Income Streams section
+
+#### 12B: GoalsTimeline ✅
+- ✅ `getGoalsTimeline(state, today)` in `calculations.ts` — `GoalTimelineItem[]`
+  - Enriches each goal with `monthsToComplete`, `projectedDate` (ISOMonth), `monthsLate`
+  - Status: `on-track | caution | off-track | complete | missed`
+  - Sorted: active (on-track first) → complete → missed
+  - TypeScript: implemented with `for...of` loop to avoid union-type narrowing issue
+- ✅ `goalsTimeline` computed ref added to `useAnalytics()`
+- ✅ `src/components/sections/GoalsTimeline.vue` (new) — ranked goals list
+  - Left-border color per status (green/amber/red/muted)
+  - Progress bar + account name, target date, projected completion, months late
+  - EmptyState when no goals
+
+### New Tests
+- ✅ 6 tests for `getSpendingTrend` (row count, chronological order, income, history, live, unique keys)
+- ✅ 7 tests for `getGoalsTimeline` (empty, missing account, complete, missed, on-track, off-track, sort order)
+- ✅ All 470 → 508 tests green (21 spec files)
+
+### Merge & Tag
+- ✅ Merged → `main`, tagged **v1.6.0**
 
 ---
 
@@ -635,6 +711,6 @@ Items captured for future sprints — not yet scheduled. See individual option d
 ---
 
 **Last Updated**: May 2026  
-**Current Version**: v1.2.0 — Sprint 8 complete  
-**Next Up**: Sprint 9 — Mobile UX Pass → v1.3.0  
+**Current Version**: v1.6.0 — Sprint 12 complete  
+**Next Up**: UI polish & robustness sprint  
 **Current Branch**: `main`

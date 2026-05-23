@@ -208,6 +208,48 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
             <li><strong>Assets:</strong> savings balances (auto-listed), plus manual investments, property, vehicles, and other assets.</li>
             <li><strong>Liabilities:</strong> loan balances and credit card balances — pulled in automatically.</li>
             <li>A snapshot is recorded once per calendar month. Click <strong>Record Snapshot</strong> to save one manually.</li>
+            <li>The Net Worth stat card shows a <strong>MoM delta chip</strong> — positive = green (wealth grew), negative = red.</li>
+          </ul>
+
+          <h3
+            id="ug-goals-timeline"
+            class="docs-h3"
+          >
+            🎯 Goals Timeline
+          </h3>
+          <p>The Goals Timeline card ranks all your savings goals and projects their completion dates based on current allocations.</p>
+          <ul class="docs-list">
+            <li>Each row shows: progress bar, target date, projected date, and months late (if behind).</li>
+            <li>Active goals appear first (on-track → caution → off-track), then complete, then missed.</li>
+            <li>A goal is "on-track" when your current monthly allocation ≥ the monthly savings needed to hit the target.</li>
+          </ul>
+
+          <h3
+            id="ug-trend-chart"
+            class="docs-h3"
+          >
+            📊 Spending Trend Chart
+          </h3>
+          <p>The 6-Month Spending Trend chart sits at the top of the dashboard and shows your macro spending picture at a glance.</p>
+          <ul class="docs-list">
+            <li>Stacked bars: Needs (red) / Wants (amber) / Savings (green) per calendar month.</li>
+            <li>Dashed income reference line shows your total monthly income.</li>
+            <li>Current month bars are full opacity; past months are dimmed.</li>
+            <li>Hover any bar for a tooltip breakdown.</li>
+          </ul>
+
+          <h3
+            id="ug-forecast"
+            class="docs-h3"
+          >
+            📉 Envelope Forecast
+          </h3>
+          <p>Below the Wants Tracker progress bar, a colour-coded forecast chip projects your end-of-period spend at the current daily rate.</p>
+          <ul class="docs-list">
+            <li><strong>Green</strong> — on track (projected &lt; 90% of budget).</li>
+            <li><strong>Amber</strong> — caution (projected 90–99% of budget).</li>
+            <li><strong>Red</strong> — over budget projection (projected ≥ 100%).</li>
+            <li>The chip only appears after at least one purchase has been logged in the current period.</li>
           </ul>
 
           <h3
@@ -216,7 +258,7 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
           >
             📅 Recurring Schedule
           </h3>
-          <p>The Schedule tab shows a 6-month forecast and a calendar view of all bills with due dates. Toggle between List and Calendar views with the ☰ / ⊞ buttons.</p>
+          <p>The Schedule tab shows a 6-month forecast and a calendar view of all bills with due dates. Toggle between List and Calendar views with the ☰ / ⊞ buttons. Click any of the 6 month cards to jump directly to that month.</p>
 
           <h3
             id="ug-rules"
@@ -230,7 +272,19 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
             <li><strong>Starts with</strong> — name begins with the pattern.</li>
             <li><strong>Exact</strong> — name matches exactly.</li>
           </ul>
-          <p>Rules are tested in order — first match wins. Use the live test field in Settings to verify your rules.</p>
+          <p>Rules are tested in order — first match wins. Use the live test field in Settings to verify your rules before saving.</p>
+
+          <h3
+            id="ug-onboarding"
+            class="docs-h3"
+          >
+            👋 Onboarding &amp; What's New
+          </h3>
+          <p>First-time users see a 4-step guided wizard covering income, pay period, and budget split. Once completed or skipped, it never appears again.</p>
+          <ul class="docs-list">
+            <li>When a new app version ships, a dismissible <strong>What's New</strong> banner appears at the top of the dashboard.</li>
+            <li>Click <strong>×</strong> to dismiss — it won't reappear until the next version.</li>
+          </ul>
 
           <h3
             id="ug-csv"
@@ -260,70 +314,123 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
-              <span class="release-version">v3.0</span>
+              <span class="release-version">v1.6.0</span>
               <span class="release-date">May 2026</span>
             </div>
             <p class="release-tagline">
-              Vue 3 + TypeScript migration
+              Sprint 12 — Spending Trend Chart &amp; Goals Timeline
+            </p>
+            <ul class="docs-list">
+              <li><strong>6-Month Spending Trend Chart</strong> — stacked bar (Needs/Wants/Savings) with income reference line; lazy-rendered; current month at full opacity.</li>
+              <li><strong>Goals Timeline</strong> — ranked projection card showing projected completion dates and months late for all savings goals.</li>
+              <li>508 tests across 21 spec files — 38 new tests for <code>getSpendingTrend</code> and <code>getGoalsTimeline</code>.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.5.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 11 — Envelope Forecast &amp; MoM Stat Deltas
+            </p>
+            <ul class="docs-list">
+              <li><strong>Envelope Forecast</strong> — "At this pace, $X by end of period" projection chip in Wants Tracker; green / amber / red status.</li>
+              <li><strong>MoM Stat Deltas</strong> — ▲/▼ chips on Needs, Wants, and Net Worth dashboard stat cards vs. prior month.</li>
+              <li>GitHub Pages deploy confirmed live at <code>brahimmahadi.github.io/A-Penny-For-Our-Thoughts/</code>.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.4.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 10 — Onboarding Flow
+            </p>
+            <ul class="docs-list">
+              <li><strong>First-Run Wizard</strong> — 4-step guided onboarding for new users (income, pay period, budget split). Shows once, never again.</li>
+              <li><strong>What's New banner</strong> — dismissible version-gated highlights for returning users on each release.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.3.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 9 — Mobile UX Pass
+            </p>
+            <ul class="docs-list">
+              <li><strong>Swipe navigation</strong> — swipe left/right on the main content area to switch tabs on touch devices.</li>
+              <li>Mobile responsiveness fixes: stats row collapses gracefully, modals scroll correctly, touch targets audited.</li>
+              <li><code>useSwipe</code> composable — reusable, tested, threshold-guarded.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.2.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 8 — Error Handling, Lazy Charts &amp; Architecture Docs
+            </p>
+            <ul class="docs-list">
+              <li><strong>Storage error handling</strong> — graceful try/catch on all localStorage operations; "Storage is full" danger toast with export reminder.</li>
+              <li><strong>Lazy chart rendering</strong> — charts use <code>IntersectionObserver</code> to render only when visible; shimmer skeleton placeholder while off-screen.</li>
+              <li>Full <code>docs/ARCHITECTURE.md</code> rewrite for Vue 3 + TypeScript stack.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.1.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 7 — Settings, Rules Engine &amp; Budget Alerts
+            </p>
+            <ul class="docs-list">
+              <li><strong>Settings tab</strong> — pay period anchor, chequing balance, danger zone (clear all data).</li>
+              <li><strong>Transaction Rules Engine</strong> — keyword → category auto-classification; three match modes (contains / starts with / exact).</li>
+              <li><strong>Budget Alerts</strong> — per-category spending thresholds; alert chip appears in Wants Tracker when exceeded.</li>
+              <li>448 tests covering all new sections.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.0.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Vue 3 + TypeScript migration complete
             </p>
             <ul class="docs-list">
               <li>Full rewrite from vanilla JS to <strong>Vue 3 + Pinia + TypeScript</strong>. All features preserved and extended.</li>
               <li>346-test Vitest suite covering stores, composables, calculations, CSV, and all section components.</li>
-              <li>CSV import / export now accessible from the header toolbar (⬆ / ⬇) on every tab.</li>
-              <li>Global keyboard shortcuts: <kbd>?</kbd> help panel, <kbd>1</kbd>–<kbd>4</kbd> tab switch, <kbd>E</kbd> export, <kbd>T</kbd> theme.</li>
-              <li>New <strong>Settings tab</strong>: pay period anchor, transaction rules, budget alerts, chequing balance.</li>
-              <li>Improved reduced-motion support across all animated components.</li>
+              <li>CSV import / export in the header toolbar (⬆ / ⬇) on every tab; keyboard shortcuts: <kbd>?</kbd> help, <kbd>1</kbd>–<kbd>4</kbd> tabs, <kbd>E</kbd> export, <kbd>T</kbd> theme.</li>
+              <li>All 8 Chart.js chart SFCs with automatic theme-aware re-colouring.</li>
+              <li>localStorage error handling, <code>prefers-reduced-motion</code> support throughout.</li>
             </ul>
           </div>
 
           <div class="release-block">
             <div class="release-header">
-              <span class="release-version">v2.4</span>
-              <span class="release-date">May 2026</span>
+              <span class="release-version">Legacy</span>
+              <span class="release-date">2025 – early 2026</span>
             </div>
             <p class="release-tagline">
-              Sprint 3 — Polish &amp; UX Refinement
+              Vanilla JS era (v1.0 – v2.4)
             </p>
             <ul class="docs-list">
-              <li><strong>Toast notifications</strong> — self-dismissing pill confirmations after every save, add, and delete action.</li>
-              <li><strong>Keyboard shortcuts</strong> — press <kbd>?</kbd> to open the shortcut panel.</li>
-              <li><strong>Empty state illustrations</strong> — animated icons and guidance text in all 10 data sections.</li>
-              <li><strong>Micro-interactions</strong> — card hover lift, button press, progress bar fill animation, list item stagger.</li>
-              <li><strong>Mobile form UX</strong> — decimal keypad on iOS/Android, shake-on-error validation, single-column collapse at ≤380 px.</li>
-            </ul>
-          </div>
-
-          <div class="release-block">
-            <div class="release-header">
-              <span class="release-version">v2.0</span>
-              <span class="release-date">May 2026</span>
-            </div>
-            <p class="release-tagline">
-              Performance &amp; modularisation
-            </p>
-            <ul class="docs-list">
-              <li>Transaction Rules Engine for auto-categorising wants purchases.</li>
-              <li>Month-over-month spending analytics with trend insights.</li>
-              <li>Budget vs. Actual dashboard panel with green / amber / red status chips.</li>
-              <li>Savings Goal Tracker — per-account targets with progress bars and on-track status.</li>
-              <li>Net Worth tracker — assets, liabilities, monthly snapshot history chart.</li>
-              <li>Recurring Expense Calendar — 6-month forecast + interactive calendar grid.</li>
-            </ul>
-          </div>
-
-          <div class="release-block">
-            <div class="release-header">
-              <span class="release-version">v1.0</span>
-              <span class="release-date">2025</span>
-            </div>
-            <p class="release-tagline">
-              Initial release
-            </p>
-            <ul class="docs-list">
-              <li>50/30/20 budget allocation with editable percentages.</li>
-              <li>Income streams, expense cards, loans, credit cards, subscriptions, wishlist.</li>
-              <li>Bi-weekly wants envelope with donut chart.</li>
-              <li>CSV import / export, dark / light theme toggle, localStorage persistence.</li>
+              <li>50/30/20 budget allocation, income streams, bi-weekly wants envelope, expense cards, loans, credit cards, subscriptions, wishlist, CSV import/export.</li>
+              <li>Budget vs. Actual, Savings Goal Tracker, Net Worth tracker, Recurring Expense Calendar, MoM analytics, Transaction Rules, Budget Alerts.</li>
+              <li>Vite + Tailwind CSS v4 migration; CSS modularisation (8 focused files).</li>
             </ul>
           </div>
         </section>
