@@ -933,3 +933,95 @@ describe('RecurringCalendar — pay period view', () => {
     w.unmount();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  RecurringCalendar — Loan badges (Sprint 16)
+// ─────────────────────────────────────────────────────────────────
+describe('RecurringCalendar — loan badges', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  /** Helper: add a loan fixture that lands in May 2026 and force the ui to May 2026. */
+  function setupLoanInMay(loanOverrides: Record<string, unknown> = {}) {
+    const budget = useBudgetStore();
+    const ui = useUiStore();
+    budget.loans.push({
+      id: 'loan-sprint16',
+      name: 'Sprint16 Loan',
+      paymentAmount: 350,
+      date: '2026-05-15' as any,
+      frequency: 'monthly' as any,
+      budgetType: 'needs' as any,
+      cardId: null,
+      remaining: 5000,
+      original: 10000,
+      ...loanOverrides,
+    } as any);
+    // Pin the displayed month so the loan's date is definitely in scope
+    ui.scheduleViewYear = 2026;
+    ui.scheduleViewMonth = 5;
+    return { budget, ui };
+  }
+
+  it('list view shows a .bill-badge--loan for a monthly loan due this month', async () => {
+    const { ui } = setupLoanInMay();
+    ui.setScheduleView('list');
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    expect(w.find('.bill-badge--loan').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('list view loan badge text is "loan"', async () => {
+    const { ui } = setupLoanInMay();
+    ui.setScheduleView('list');
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    expect(w.find('.bill-badge--loan').text()).toBe('loan');
+    w.unmount();
+  });
+
+  it('calendar view shows a .cal-badge--loan on the correct day cell', async () => {
+    const { ui } = setupLoanInMay();
+    ui.setScheduleView('calendar');
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    expect(w.find('.cal-badge--loan').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('pay period view shows a .cal-badge--loan when loan falls in the window', async () => {
+    const budget = useBudgetStore();
+    const ui = useUiStore();
+    // Pay period: May 19 – Jun 1; loan on May 22 is inside the window
+    budget.payStart = '2026-05-19' as any;
+    budget.loans.push({
+      id: 'loan-pp',
+      name: 'PP Loan',
+      paymentAmount: 300,
+      date: '2026-05-22' as any,
+      frequency: 'monthly' as any,
+      budgetType: 'needs' as any,
+      cardId: null,
+      remaining: 3000,
+      original: 6000,
+    } as any);
+    ui.setScheduleView('payperiod');
+    ui.resetToCurrentPayPeriod();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    expect(w.find('.cal-badge--loan').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('loan badge does NOT appear when paymentAmount is 0', async () => {
+    setupLoanInMay({ paymentAmount: 0 });
+    const ui = useUiStore();
+    ui.setScheduleView('list');
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    // The loan with 0 payment should be filtered — only the default empty loans exist
+    expect(w.find('.bill-badge--loan').exists()).toBe(false);
+    w.unmount();
+  });
+});

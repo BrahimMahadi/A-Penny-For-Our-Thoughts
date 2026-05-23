@@ -1285,3 +1285,179 @@ describe('getPayPeriodDayMap', () => {
     expect(map.get('2026-05-25')![0].name).toBe('Hydro');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  Loans in getMonthForecast
+// ─────────────────────────────────────────────────────────────────
+describe('getMonthForecast — loans', () => {
+  function makeBasicLoan(overrides: Partial<{
+    id: string; name: string; paymentAmount: number; date: string;
+    frequency: string; budgetType: string; cardId: string | null;
+    remaining: number; original: number;
+  }> = {}) {
+    return {
+      id: 'loan1', name: 'Car Loan', paymentAmount: 350, date: '2026-05-15',
+      frequency: 'monthly', budgetType: 'needs', cardId: null,
+      remaining: 10000, original: 15000,
+      ...overrides,
+    };
+  }
+
+  function makeStateWithLoan(loanOverrides = {}) {
+    const s = makeBlankState() as BudgetState;
+    s.incomeStreams = [{ id: 'i1', name: 'Salary', amount: 3000, biweekly: false }];
+    s.allocation = { needs: 50, wants: 30, savings: 20 };
+    s.loans = [makeBasicLoan(loanOverrides) as any];
+    return s;
+  }
+
+  it('monthly loan with a date appears in dated list', () => {
+    const state = makeStateWithLoan();
+    const fc = getMonthForecast(state, 2026, 5);
+    expect(fc.dated.some(i => i.source === 'loan')).toBe(true);
+  });
+
+  it('loan dueDay matches the day of the date field', () => {
+    const state = makeStateWithLoan({ date: '2026-05-15' });
+    const fc = getMonthForecast(state, 2026, 5);
+    const loan = fc.dated.find(i => i.source === 'loan');
+    expect(loan?.dueDay).toBe(15);
+  });
+
+  it('loan totalForMonth equals paymentAmount', () => {
+    const state = makeStateWithLoan({ paymentAmount: 350 });
+    const fc = getMonthForecast(state, 2026, 5);
+    const loan = fc.dated.find(i => i.source === 'loan');
+    expect(loan?.totalForMonth).toBe(350);
+  });
+
+  it('loan is included even in different months (monthly cadence)', () => {
+    const state = makeStateWithLoan({ date: '2026-01-15', frequency: 'monthly' });
+    // June should also show the loan since it's monthly
+    const fc = getMonthForecast(state, 2026, 6);
+    expect(fc.dated.some(i => i.source === 'loan')).toBe(true);
+  });
+
+  it('loan without a date goes to undated', () => {
+    const state = makeStateWithLoan({ date: '' });
+    const fc = getMonthForecast(state, 2026, 5);
+    // No date → dueDay is null → undated
+    expect(fc.undated.some(i => i.source === 'loan')).toBe(true);
+    expect(fc.dated.some(i => i.source === 'loan')).toBe(false);
+  });
+
+  it('loan with paymentAmount 0 is skipped entirely', () => {
+    const state = makeStateWithLoan({ paymentAmount: 0 });
+    const fc = getMonthForecast(state, 2026, 5);
+    expect(fc.dated.some(i => i.source === 'loan')).toBe(false);
+    expect(fc.undated.some(i => i.source === 'loan')).toBe(false);
+  });
+
+  it('loan with a linked card shows card label', () => {
+    const state = makeStateWithLoan({ cardId: 'card1' }) as BudgetState;
+    state.expenseCards = [{ id: 'card1', label: 'Housing', items: [] }];
+    const fc = getMonthForecast(state, 2026, 5);
+    const loan = fc.dated.find(i => i.source === 'loan');
+    expect(loan?.cardLabel).toBe('Housing');
+  });
+
+  it('loan without a linked card shows "Loan" as cardLabel', () => {
+    const state = makeStateWithLoan({ cardId: null });
+    const fc = getMonthForecast(state, 2026, 5);
+    const loan = fc.dated.find(i => i.source === 'loan');
+    expect(loan?.cardLabel).toBe('Loan');
+  });
+
+  it('biweekly loan appears on its renewal dates in the month', () => {
+    // Anchor date: 2026-05-05; biweekly → renews again May 19
+    const state = makeStateWithLoan({ date: '2026-05-05', frequency: 'biweekly', paymentAmount: 200 });
+    const fc = getMonthForecast(state, 2026, 5);
+    const loanItems = fc.dated.filter(i => i.source === 'loan');
+    // Two biweekly payments in May: 5th and 19th
+    expect(loanItems).toHaveLength(2);
+    expect(loanItems[0].dueDay).toBe(5);
+    expect(loanItems[1].dueDay).toBe(19);
+  });
+
+  it('biweekly loan totalForMonth reflects each occurrence separately', () => {
+    const state = makeStateWithLoan({ date: '2026-05-05', frequency: 'biweekly', paymentAmount: 200 });
+    const fc = getMonthForecast(state, 2026, 5);
+    const loanItems = fc.dated.filter(i => i.source === 'loan');
+    // Each occurrence has its own row with occurrences=1
+    loanItems.forEach(item => expect(item.totalForMonth).toBe(200));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Loans in getPayPeriodForecast
+// ─────────────────────────────────────────────────────────────────
+describe('getPayPeriodForecast — loans', () => {
+  function makeStateWithLoanAndPayStart(overrides = {}) {
+    const s = makeBlankState() as BudgetState;
+    s.payStart = '2026-05-19';
+    s.incomeStreams = [{ id: 'i1', name: 'Salary', amount: 3000, biweekly: false }];
+    s.allocation = { needs: 50, wants: 30, savings: 20 };
+    s.loans = [{
+      id: 'loan1', name: 'Mortgage', paymentAmount: 1200, date: '2026-05-22',
+      frequency: 'monthly', budgetType: 'needs', cardId: null,
+      remaining: 200000, original: 300000,
+      ...overrides,
+    } as any];
+    return s;
+  }
+
+  it('monthly loan due within the 14-day window appears in dated', () => {
+    // Period: May 19 – Jun 1; May 22 is inside
+    const state = makeStateWithLoanAndPayStart({ date: '2026-05-22' });
+    const today = new Date('2026-05-19T12:00:00');
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    expect(fc.dated.some(i => i.source === 'loan')).toBe(true);
+  });
+
+  it('loan periodDate matches the actual renewal date', () => {
+    const state = makeStateWithLoanAndPayStart({ date: '2026-05-22' });
+    const today = new Date('2026-05-19T12:00:00');
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    const loan = fc.dated.find(i => i.source === 'loan');
+    expect(loan?.periodDate).toBe('2026-05-22');
+  });
+
+  it('loan due outside the 14-day window is excluded', () => {
+    // Due on the 5th → not in May 19 – Jun 1
+    const state = makeStateWithLoanAndPayStart({ date: '2026-05-05' });
+    const today = new Date('2026-05-19T12:00:00');
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    expect(fc.dated.some(i => i.source === 'loan')).toBe(false);
+  });
+
+  it('loan with paymentAmount 0 is skipped', () => {
+    const state = makeStateWithLoanAndPayStart({ paymentAmount: 0 });
+    const today = new Date('2026-05-19T12:00:00');
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    expect(fc.dated.some(i => i.source === 'loan')).toBe(false);
+  });
+
+  it('loan without date is skipped', () => {
+    const state = makeStateWithLoanAndPayStart({ date: '' });
+    const today = new Date('2026-05-19T12:00:00');
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    expect(fc.dated.some(i => i.source === 'loan')).toBe(false);
+  });
+
+  it('loan with linked card shows card label in pay period forecast', () => {
+    const state = makeStateWithLoanAndPayStart({ date: '2026-05-22', cardId: 'card1' });
+    state.expenseCards = [{ id: 'card1', label: 'Housing', items: [] }];
+    const today = new Date('2026-05-19T12:00:00');
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    const loan = fc.dated.find(i => i.source === 'loan');
+    expect(loan?.cardLabel).toBe('Housing');
+  });
+
+  it('loan without linked card shows "Loan" label', () => {
+    const state = makeStateWithLoanAndPayStart({ date: '2026-05-22', cardId: null });
+    const today = new Date('2026-05-19T12:00:00');
+    const fc = getPayPeriodForecast(state, 0, today)!;
+    const loan = fc.dated.find(i => i.source === 'loan');
+    expect(loan?.cardLabel).toBe('Loan');
+  });
+});
