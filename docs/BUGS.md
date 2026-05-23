@@ -11,6 +11,64 @@ for recurring patterns and a post-mortem trail for regressions.
 
 ---
 
+## BUG-015 — Subscriptions cannot be added or edited (save silently blocked)
+
+**Date:** May 2026
+**Branch:** `feat/sprint-17` / `main` (introduced in Sprint 17)
+**Severity:** Critical (entire subscription CRUD broken — add and edit both do nothing)
+
+### Symptom
+Clicking "Add" or "Update" in the subscription modal did nothing. No toast, no validation
+error shown, no state change — the form simply didn't submit.
+
+### Root Cause
+`useFormValidation` declares `isValid` as:
+```ts
+const isValid = computed(() =>
+  Object.values(allErrors.value).every(e => e === null),
+);
+```
+It considers a field valid **only when its error value is `null`**. An empty string `''` is NOT `null`, so any field returning `''` is treated as invalid.
+
+During Sprint 17, two conditional validation rules were added to `Subscriptions.vue` and incorrectly returned `''` (empty string) instead of `null` for the "no error" case:
+
+```ts
+// BUG: '' !== null → isValid always false
+date:      form.frequency !== 'custom-days' ? rules.required(...) : '',
+daysOfWeek: condition ? 'Select at least one day' : '',
+```
+
+Because `daysOfWeek` returned `''` for every non-custom-days subscription (the common case), `isValid` was permanently `false`. Every save attempt hit `if (!validation.isValid.value) return;` and silently exited.
+
+### Fix
+Changed both `''` returns to `null` in `Subscriptions.vue` (`useFormValidation` call, lines 229–237):
+
+```ts
+// Fixed: null = no error
+date:      form.frequency !== 'custom-days' ? rules.required(...) : null,
+daysOfWeek: condition ? 'Select at least one day' : null,
+```
+
+### Prevention
+**Rule:** In `useFormValidation` thunks, "no error" must always be expressed as `null`, never as `''` or `undefined`. The composable contract is `string | null` where `null` = valid. When writing conditional validation rules, always check: "what does the else branch return?" — it must be `null`.
+
+```ts
+// ✅ Correct pattern
+field: condition ? 'Error message' : null,
+// ❌ Wrong — '' blocks isValid
+field: condition ? 'Error message' : '',
+```
+
+A future improvement would be to update `isValid` to treat falsy values (including `''`) as passing:
+```ts
+const isValid = computed(() =>
+  Object.values(allErrors.value).every(e => !e),  // treats null AND '' as valid
+);
+```
+But the stricter `=== null` contract is intentional — it catches bugs where a rule accidentally returns `''` instead of `null`. Fix the call sites, not the composable.
+
+---
+
 ## BUG-014 — `docs.css` global import hides all DocsPage content
 
 **Date:** May 2026
@@ -563,5 +621,5 @@ filter object as an argument: `getFilteredSpendingHistory(filters)`.
 
 ---
 
-*Last updated: May 2026 — v1.2.0 (Sprint 8)*  
+*Last updated: May 2026 — v1.11.1 (BUG-015 hotfix)*  
 *See also: [PHASE_TRACKING.md](PHASE_TRACKING.md) for the full sprint history.*

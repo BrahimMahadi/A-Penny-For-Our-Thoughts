@@ -1168,3 +1168,180 @@ describe('RecurringCalendar — custom-days list view', () => {
     w.unmount();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  Subscriptions — BUG-015 regression (save silently blocked)
+//  Root cause: conditional validation returned '' instead of null
+//  for no-error cases, making isValid permanently false.
+// ─────────────────────────────────────────────────────────────────
+describe('Subscriptions — BUG-015 save regression', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  async function openAddModal(w: ReturnType<typeof mountWith>) {
+    const addBtn = w.findAll('button').find(b => b.text().includes('Add Subscription'));
+    await addBtn!.trigger('click');
+    await nextTick();
+  }
+
+  async function fillBasicForm(nameValue = 'Netflix', dateValue = '2026-12-01') {
+    const nameInput = document.body.querySelector('#sub-name') as HTMLInputElement;
+    const amountInput = document.body.querySelector('#sub-amount') as HTMLInputElement;
+    const dateInput = document.body.querySelector('#sub-date') as HTMLInputElement;
+    nameInput.value = nameValue;
+    nameInput.dispatchEvent(new Event('input'));
+    amountInput.value = '15';
+    amountInput.dispatchEvent(new Event('input'));
+    if (dateInput) {
+      dateInput.value = dateValue;
+      dateInput.dispatchEvent(new Event('input'));
+    }
+    await nextTick();
+  }
+
+  it('BUG-015: adding a standard monthly subscription calls addSubscription', async () => {
+    const budget = useBudgetStore();
+    const initialCount = budget.subscriptions.length;
+    const w = mountWith(Subscriptions);
+    await nextTick();
+
+    await openAddModal(w);
+    await fillBasicForm('Netflix', '2026-12-01');
+
+    // Click the Add / Update button inside the modal
+    const saveBtn = [...document.body.querySelectorAll('button')]
+      .find(b => b.textContent?.trim() === 'Add');
+    expect(saveBtn).toBeTruthy();
+    saveBtn!.dispatchEvent(new Event('click'));
+    await nextTick();
+
+    // Subscription should have been added
+    expect(budget.subscriptions.length).toBe(initialCount + 1);
+    expect(budget.subscriptions.at(-1)!.name).toBe('Netflix');
+    w.unmount();
+  });
+
+  it('BUG-015: editing an existing subscription calls updateSubscription', async () => {
+    const budget = useBudgetStore();
+    // Ensure a subscription exists to edit
+    if (budget.subscriptions.length === 0) {
+      budget.addSubscription({ name: 'Spotify', amount: 10, frequency: 'monthly', date: '2026-11-01', category: 'Entertainment', budgetType: 'wants', cardId: null, daysOfWeek: [] });
+    }
+    const sub = budget.subscriptions[0];
+    const w = mountWith(Subscriptions);
+    await nextTick();
+
+    // Click Edit on the first subscription
+    const editBtn = w.findAll('button').find(b => b.text().includes('Edit'));
+    await editBtn!.trigger('click');
+    await nextTick();
+
+    // Change the name field
+    const nameInput = document.body.querySelector('#sub-name') as HTMLInputElement;
+    nameInput.value = 'Spotify Updated';
+    nameInput.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    // Click Update button
+    const updateBtn = [...document.body.querySelectorAll('button')]
+      .find(b => b.textContent?.trim() === 'Update');
+    expect(updateBtn).toBeTruthy();
+    updateBtn!.dispatchEvent(new Event('click'));
+    await nextTick();
+
+    // Subscription name should have been updated
+    const updated = budget.subscriptions.find(s => s.id === sub.id);
+    expect(updated?.name).toBe('Spotify Updated');
+    w.unmount();
+  });
+
+  it('BUG-015: custom-days subscription with days selected can be saved', async () => {
+    const budget = useBudgetStore();
+    const initialCount = budget.subscriptions.length;
+    const w = mountWith(Subscriptions);
+    await nextTick();
+
+    await openAddModal(w);
+
+    // Set name and amount
+    const nameInput = document.body.querySelector('#sub-name') as HTMLInputElement;
+    const amountInput = document.body.querySelector('#sub-amount') as HTMLInputElement;
+    nameInput.value = 'Parking';
+    nameInput.dispatchEvent(new Event('input'));
+    amountInput.value = '8';
+    amountInput.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    // Switch to custom-days
+    const freqSelect = document.body.querySelector('#sub-freq') as HTMLSelectElement;
+    freqSelect.value = 'custom-days';
+    freqSelect.dispatchEvent(new Event('change'));
+    await nextTick();
+
+    // Click Monday button (index 1)
+    const dowBtns = document.body.querySelectorAll('.dow-btn');
+    expect(dowBtns.length).toBe(7); // 7 days
+    (dowBtns[1] as HTMLElement).click(); // Monday
+    await nextTick();
+
+    // Click Add
+    const saveBtn = [...document.body.querySelectorAll('button')]
+      .find(b => b.textContent?.trim() === 'Add');
+    saveBtn!.dispatchEvent(new Event('click'));
+    await nextTick();
+
+    expect(budget.subscriptions.length).toBe(initialCount + 1);
+    const added = budget.subscriptions.at(-1)!;
+    expect(added.name).toBe('Parking');
+    expect(added.frequency).toBe('custom-days');
+    w.unmount();
+  });
+
+  it('BUG-015: custom-days with no days selected fails validation (does not save)', async () => {
+    const budget = useBudgetStore();
+    const initialCount = budget.subscriptions.length;
+    const w = mountWith(Subscriptions);
+    await nextTick();
+
+    await openAddModal(w);
+
+    // Fill name, set custom-days, but select no days
+    const nameInput = document.body.querySelector('#sub-name') as HTMLInputElement;
+    nameInput.value = 'Parking';
+    nameInput.dispatchEvent(new Event('input'));
+    const freqSelect = document.body.querySelector('#sub-freq') as HTMLSelectElement;
+    freqSelect.value = 'custom-days';
+    freqSelect.dispatchEvent(new Event('change'));
+    await nextTick();
+
+    // Click Add without selecting any day
+    const saveBtn = [...document.body.querySelectorAll('button')]
+      .find(b => b.textContent?.trim() === 'Add');
+    saveBtn!.dispatchEvent(new Event('click'));
+    await nextTick();
+
+    // Should NOT have been added
+    expect(budget.subscriptions.length).toBe(initialCount);
+    // Error message should be visible
+    expect(document.body.textContent).toContain('Select at least one day');
+    w.unmount();
+  });
+
+  it('BUG-015: standard monthly sub fails validation when name is empty', async () => {
+    const budget = useBudgetStore();
+    const initialCount = budget.subscriptions.length;
+    const w = mountWith(Subscriptions);
+    await nextTick();
+
+    await openAddModal(w);
+    // Do NOT fill name — just click Add
+    const saveBtn = [...document.body.querySelectorAll('button')]
+      .find(b => b.textContent?.trim() === 'Add');
+    saveBtn!.dispatchEvent(new Event('click'));
+    await nextTick();
+
+    expect(budget.subscriptions.length).toBe(initialCount);
+    expect(document.body.textContent).toContain('required');
+    w.unmount();
+  });
+});

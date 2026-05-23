@@ -228,12 +228,12 @@ function openEdit(id: string): void {
 
 const validation = useFormValidation(() => ({
   name: rules.required(form.name, 'Name'),
-  // date is required only for non-custom-days frequencies
-  date: form.frequency !== 'custom-days' ? rules.required(form.date, 'Renewal date') : '',
-  // custom-days requires at least one day selected
+  // date is required only for non-custom-days frequencies; null = no error
+  date: form.frequency !== 'custom-days' ? rules.required(form.date, 'Renewal date') : null,
+  // custom-days requires at least one day selected; null = no error
   daysOfWeek: form.frequency === 'custom-days' && form.daysOfWeek.length === 0
     ? 'Select at least one day'
-    : '',
+    : null,
 }));
 
 function save(): void {
