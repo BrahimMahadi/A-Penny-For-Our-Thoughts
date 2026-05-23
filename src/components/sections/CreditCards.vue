@@ -10,6 +10,7 @@
 import { ref, reactive, computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
+import { useFormValidation, rules } from '@/composables/useFormValidation';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -52,15 +53,15 @@ function openEdit(id: string): void {
   showModal.value = true;
 }
 
-const formError = computed<string>(() => {
-  if (!form.name.trim())  return 'Name is required.';
-  if (form.limit <= 0)    return 'Credit limit must be greater than zero.';
-  if (form.balance < 0)   return 'Balance must be ≥ 0.';
-  return '';
-});
+const validation = useFormValidation(() => ({
+  name:    rules.required(form.name, 'Card name'),
+  limit:   rules.positiveNumber(form.limit, 'Credit limit'),
+  balance: rules.nonNegativeNumber(form.balance, 'Balance'),
+}));
 
 function save(): void {
-  if (formError.value) return;
+  validation.touchAll();
+  if (!validation.isValid.value) return;
   if (editingId.value) {
     budget.updateCreditCard(editingId.value, {
       name: form.name.trim(), balance: form.balance, limit: form.limit,
@@ -74,6 +75,7 @@ function save(): void {
   }
   showModal.value = false;
   resetForm();
+  validation.reset();
 }
 
 function remove(id: string): void {
@@ -215,9 +217,17 @@ function chipClass(balance: number, limit: number): string {
             id="cc-name"
             v-model="form.name"
             class="form-input"
+            :class="{ 'form-input--error': validation.errors.value.name }"
             type="text"
             placeholder="e.g. Visa"
+            @blur="validation.touch('name')"
           >
+          <p
+            v-if="validation.errors.value.name"
+            class="field-error"
+          >
+            {{ validation.errors.value.name }}
+          </p>
         </div>
 
         <div class="form-row-2">
@@ -230,11 +240,19 @@ function chipClass(balance: number, limit: number): string {
               id="cc-balance"
               v-model.number="form.balance"
               class="form-input"
+              :class="{ 'form-input--error': validation.errors.value.balance }"
               type="number"
               inputmode="decimal"
               min="0"
               step="0.01"
+              @blur="validation.touch('balance')"
             >
+            <p
+              v-if="validation.errors.value.balance"
+              class="field-error"
+            >
+              {{ validation.errors.value.balance }}
+            </p>
           </div>
           <div class="form-group">
             <label
@@ -245,31 +263,31 @@ function chipClass(balance: number, limit: number): string {
               id="cc-limit"
               v-model.number="form.limit"
               class="form-input"
+              :class="{ 'form-input--error': validation.errors.value.limit }"
               type="number"
               inputmode="numeric"
               min="1"
               step="1"
+              @blur="validation.touch('limit')"
             >
+            <p
+              v-if="validation.errors.value.limit"
+              class="field-error"
+            >
+              {{ validation.errors.value.limit }}
+            </p>
           </div>
         </div>
-
-        <p
-          v-if="formError"
-          class="form-error"
-        >
-          {{ formError }}
-        </p>
       </div>
 
       <template #footer>
         <BaseButton
           variant="secondary"
-          @click="showModal = false; resetForm()"
+          @click="showModal = false; resetForm(); validation.reset()"
         >
           Cancel
         </BaseButton>
         <BaseButton
-          :disabled="!!formError"
           @click="save"
         >
           {{ editingId ? 'Update' : 'Add' }}
@@ -444,9 +462,18 @@ function chipClass(balance: number, limit: number): string {
   .form-row-2 { grid-template-columns: 1fr; }
 }
 
-.form-error {
-  font-size: 0.8rem;
+.form-input--error {
+  border-color: var(--danger);
+}
+
+.form-input--error:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+.field-error {
+  font-size: 0.78rem;
   color: var(--danger);
-  margin: 0;
+  margin: 0.15rem 0 0;
 }
 </style>

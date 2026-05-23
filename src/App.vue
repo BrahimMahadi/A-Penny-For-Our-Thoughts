@@ -29,6 +29,7 @@ import DocsPage from '@/components/pages/DocsPage.vue';
 import SettingsPage from '@/components/pages/SettingsPage.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
 import BaseModal from '@/components/ui/BaseModal.vue';
+import SectionPicker from '@/components/ui/SectionPicker.vue';
 import OnboardingModal from '@/components/onboarding/OnboardingModal.vue';
 import WhatsNewBanner from '@/components/onboarding/WhatsNewBanner.vue';
 
@@ -71,8 +72,12 @@ function handleExport(): void {
   }
 }
 
+// ─── Section picker ───────────────────────────────────────────────────────────
+const sectionPickerOpen = ref(false);
+
 // ─── CSV import ───────────────────────────────────────────────────────────────
-const fileInputRef = ref<HTMLInputElement | null>(null);
+const fileInputRef    = ref<HTMLInputElement | null>(null);
+const jsonFileInputRef = ref<HTMLInputElement | null>(null);
 
 function openImportPicker(): void {
   fileInputRef.value?.click();
@@ -106,6 +111,49 @@ function handleFileChange(event: Event): void {
   reader.readAsText(file);
 }
 
+// ─── JSON export ──────────────────────────────────────────────────────────────
+function handleJSONExport(): void {
+  try {
+    budget.exportJSON();
+    toast.show('JSON backup downloaded.', 'success');
+  } catch (err) {
+    toast.show('Export failed: ' + (err instanceof Error ? err.message : String(err)), 'danger');
+  }
+}
+
+// ─── JSON import ──────────────────────────────────────────────────────────────
+function openJSONImportPicker(): void {
+  jsonFileInputRef.value?.click();
+}
+
+function handleJSONFileChange(event: Event): void {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const text = e.target?.result as string;
+      if (!window.confirm('Import this JSON backup? This will replace all current data.')) {
+        input.value = '';
+        return;
+      }
+      budget.importJSON(text);
+      toast.show('JSON backup imported successfully.', 'success');
+    } catch (err) {
+      toast.show('Import failed: ' + (err instanceof Error ? err.message : String(err)), 'danger');
+    } finally {
+      input.value = '';
+    }
+  };
+  reader.onerror = () => {
+    toast.show('Could not read the file.', 'danger');
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
 // ─── Keyboard shortcut help panel ─────────────────────────────────────────────
 const showShortcutHelp = ref(false);
 
@@ -115,6 +163,7 @@ const shortcuts = [
   { combo: '2',   description: 'Switch to Schedule' },
   { combo: '3',   description: 'Switch to Docs' },
   { combo: '4',   description: 'Switch to Settings' },
+  { combo: 'G',   description: 'Open section picker (jump to section)' },
   { combo: 'E',   description: 'Export CSV' },
   { combo: 'T',   description: 'Toggle light / dark theme' },
 ];
@@ -125,8 +174,9 @@ useKeyboard('1', () => { ui.setActiveTab('dashboard'); },                    { g
 useKeyboard('2', () => { ui.setActiveTab('schedule'); },                     { guardFromInputs: true });
 useKeyboard('3', () => { ui.setActiveTab('docs'); },                         { guardFromInputs: true });
 useKeyboard('4', () => { ui.setActiveTab('settings'); },                     { guardFromInputs: true });
-useKeyboard('e', () => { handleExport(); },                                   { guardFromInputs: true });
-useKeyboard('t', () => { theme.toggle(); },                                   { guardFromInputs: true });
+useKeyboard('e', () => { handleExport(); },                                          { guardFromInputs: true });
+useKeyboard('t', () => { theme.toggle(); },                                          { guardFromInputs: true });
+useKeyboard('g', () => { sectionPickerOpen.value = !sectionPickerOpen.value; },      { guardFromInputs: true });
 
 // ─── 9B: Swipe to change tab on mobile ────────────────────────────────────
 const TAB_ORDER: TabId[] = ['dashboard', 'schedule', 'docs', 'settings'];
@@ -183,6 +233,21 @@ useSwipe(
           >{{ tab.icon }}</span>
           <span class="app-tab__label">{{ tab.label }}</span>
         </button>
+
+        <!-- Section picker button — not a tab, opens jump-to panel -->
+        <button
+          class="app-tab app-tab--sections"
+          :class="{ 'app-tab--active': sectionPickerOpen }"
+          title="Jump to section (G)"
+          aria-label="Open section picker"
+          @click="sectionPickerOpen = !sectionPickerOpen"
+        >
+          <span
+            class="app-tab__icon"
+            aria-hidden="true"
+          >⊞</span>
+          <span class="app-tab__label">Sections</span>
+        </button>
       </nav>
 
       <!-- Toolbar: CSV + shortcuts + theme -->
@@ -211,7 +276,33 @@ useSwipe(
           ⬇
         </button>
 
-        <!-- Hidden file input (trigger via openImportPicker) -->
+        <!-- Divider -->
+        <span
+          class="app-toolbar-divider"
+          aria-hidden="true"
+        />
+
+        <!-- JSON export -->
+        <button
+          class="app-toolbar-btn"
+          title="Export full backup as JSON"
+          aria-label="Export JSON backup"
+          @click="handleJSONExport"
+        >
+          📦
+        </button>
+
+        <!-- JSON import -->
+        <button
+          class="app-toolbar-btn"
+          title="Restore from JSON backup"
+          aria-label="Import JSON backup"
+          @click="openJSONImportPicker"
+        >
+          📂
+        </button>
+
+        <!-- Hidden file input (CSV — trigger via openImportPicker) -->
         <input
           ref="fileInputRef"
           type="file"
@@ -220,6 +311,17 @@ useSwipe(
           aria-hidden="true"
           tabindex="-1"
           @change="handleFileChange"
+        >
+
+        <!-- Hidden file input (JSON — trigger via openJSONImportPicker) -->
+        <input
+          ref="jsonFileInputRef"
+          type="file"
+          accept=".json"
+          class="app-file-input"
+          aria-hidden="true"
+          tabindex="-1"
+          @change="handleJSONFileChange"
         >
 
         <!-- Shortcut help -->
@@ -257,6 +359,9 @@ useSwipe(
     </main>
 
     <ToastContainer />
+
+    <!-- 13: Section picker panel -->
+    <SectionPicker v-model:open="sectionPickerOpen" />
 
     <!-- 10B: First-run onboarding stepper -->
     <OnboardingModal
@@ -344,9 +449,18 @@ useSwipe(
   outline-offset: 2px;
 }
 
-/* Hide the real file input — triggered programmatically */
+/* Hide the real file inputs — triggered programmatically */
 .app-file-input {
   display: none;
+}
+
+.app-toolbar-divider {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  background: var(--border, #2a3041);
+  margin: 0 0.1rem;
+  flex-shrink: 0;
 }
 
 .app-header__brand {

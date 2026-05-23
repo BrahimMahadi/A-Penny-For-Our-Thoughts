@@ -7,9 +7,10 @@
 -->
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
+import { useFormValidation, rules } from '@/composables/useFormValidation';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
@@ -68,15 +69,15 @@ function openEdit(id: string): void {
   showModal.value    = true;
 }
 
-const formError = computed<string>(() => {
-  if (!form.name.trim())  return 'Name is required.';
-  if (form.remaining < 0) return 'Remaining must be ≥ 0.';
-  if (form.original < 0)  return 'Original must be ≥ 0.';
-  return '';
-});
+const validation = useFormValidation(() => ({
+  name:      rules.required(form.name, 'Name'),
+  remaining: rules.nonNegativeNumber(form.remaining, 'Remaining balance'),
+  original:  rules.nonNegativeNumber(form.original, 'Original balance'),
+}));
 
 function save(): void {
-  if (formError.value) return;
+  validation.touchAll();
+  if (!validation.isValid.value) return;
   const payload = {
     name:          form.name.trim(),
     remaining:     form.remaining,
@@ -255,9 +256,17 @@ const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'] as 
             id="loan-name"
             v-model="form.name"
             class="form-input"
+            :class="{ 'form-input--error': validation.errors.value.name }"
             type="text"
             placeholder="e.g. Car Loan"
+            @blur="validation.touch('name')"
           >
+          <p
+            v-if="validation.errors.value.name"
+            class="field-error"
+          >
+            {{ validation.errors.value.name }}
+          </p>
         </div>
 
         <div class="form-row-2">
@@ -270,11 +279,19 @@ const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'] as 
               id="loan-remaining"
               v-model.number="form.remaining"
               class="form-input"
+              :class="{ 'form-input--error': validation.errors.value.remaining }"
               type="number"
               inputmode="decimal"
               min="0"
               step="0.01"
+              @blur="validation.touch('remaining')"
             >
+            <p
+              v-if="validation.errors.value.remaining"
+              class="field-error"
+            >
+              {{ validation.errors.value.remaining }}
+            </p>
           </div>
           <div class="form-group">
             <label
@@ -285,11 +302,19 @@ const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'] as 
               id="loan-original"
               v-model.number="form.original"
               class="form-input"
+              :class="{ 'form-input--error': validation.errors.value.original }"
               type="number"
               inputmode="decimal"
               min="0"
               step="0.01"
+              @blur="validation.touch('original')"
             >
+            <p
+              v-if="validation.errors.value.original"
+              class="field-error"
+            >
+              {{ validation.errors.value.original }}
+            </p>
           </div>
         </div>
 
@@ -388,24 +413,16 @@ const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'] as 
             </select>
           </div>
         </div>
-
-        <p
-          v-if="formError"
-          class="form-error"
-        >
-          {{ formError }}
-        </p>
       </div>
 
       <template #footer>
         <BaseButton
           variant="secondary"
-          @click="showModal = false; resetForm()"
+          @click="showModal = false; resetForm(); validation.reset()"
         >
           Cancel
         </BaseButton>
         <BaseButton
-          :disabled="!!formError"
           @click="save"
         >
           {{ editingId ? 'Update' : 'Add' }}
@@ -582,9 +599,18 @@ const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'] as 
   }
 }
 
-.form-error {
-  font-size: 0.8rem;
+.form-input--error {
+  border-color: var(--danger);
+}
+
+.form-input--error:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+.field-error {
+  font-size: 0.78rem;
   color: var(--danger);
-  margin: 0;
+  margin: 0.15rem 0 0;
 }
 </style>

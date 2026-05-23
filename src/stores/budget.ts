@@ -13,6 +13,7 @@
 import { defineStore } from 'pinia';
 import { genId, deepClone } from '@/utils/id';
 import { exportStateToCSV, parseCSVToState, triggerCSVDownload } from '@/utils/csvImportExport';
+import { exportStateToJSON, parseJSONToState, triggerJSONDownload } from '@/utils/jsonBackup';
 import type {
   IncomeStream,
   ExpenseCard,
@@ -681,6 +682,27 @@ export const useBudgetStore = defineStore('budget', {
      */
     importCSV(text: string): void {
       const newState = parseCSVToState(text);
+      this.$state = newState;
+    },
+
+    /**
+     * Serialise the entire state to a lossless JSON backup and trigger
+     * a browser download. File is named `penny-backup-YYYY-MM-DD.json`.
+     */
+    exportJSON(): void {
+      const json = exportStateToJSON(this.$state);
+      triggerJSONDownload(json);
+    },
+
+    /**
+     * Parse a JSON backup string (produced by exportJSON) and replace
+     * the entire store state with the parsed result.
+     *
+     * @param text  Raw JSON text from the imported file.
+     * @throws      If the text cannot be parsed or the version is unsupported.
+     */
+    importJSON(text: string): void {
+      const newState = parseJSONToState(text);
       this.$state = newState;
     },
   },

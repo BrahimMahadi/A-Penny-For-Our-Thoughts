@@ -8,9 +8,10 @@
 -->
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
+import { useFormValidation, rules } from '@/composables/useFormValidation';
 import { useAnalytics } from '@/composables/useAnalytics';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
@@ -54,15 +55,15 @@ function openEdit(id: string): void {
   showModal.value   = true;
 }
 
-const formError = computed<string>(() => {
-  if (!form.accountId)       return 'Please select an account.';
-  if (form.targetAmount <= 0) return 'Target amount must be greater than zero.';
-  if (!form.targetDate)       return 'Target date is required.';
-  return '';
-});
+const validation = useFormValidation(() => ({
+  accountId:    rules.required(form.accountId, 'Account'),
+  targetAmount: rules.positiveNumber(form.targetAmount, 'Target amount'),
+  targetDate:   rules.futureMonth(form.targetDate, 'Target month'),
+}));
 
 function save(): void {
-  if (formError.value) return;
+  validation.touchAll();
+  if (!validation.isValid.value) return;
   if (editingId.value) {
     budget.updateGoal(editingId.value, {
       accountId:    form.accountId,
@@ -80,6 +81,7 @@ function save(): void {
   }
   showModal.value = false;
   resetForm();
+  validation.reset();
 }
 
 function remove(id: string): void {
@@ -244,6 +246,8 @@ const minDate = new Date().toISOString().slice(0, 7);
             id="goal-account"
             v-model="form.accountId"
             class="form-input"
+            :class="{ 'form-input--error': validation.errors.value.accountId }"
+            @blur="validation.touch('accountId')"
           >
             <option value="">
               — select account —
@@ -256,6 +260,12 @@ const minDate = new Date().toISOString().slice(0, 7);
               {{ acct.name }}
             </option>
           </select>
+          <p
+            v-if="validation.errors.value.accountId"
+            class="field-error"
+          >
+            {{ validation.errors.value.accountId }}
+          </p>
         </div>
 
         <div class="form-row-2">
@@ -268,11 +278,19 @@ const minDate = new Date().toISOString().slice(0, 7);
               id="goal-target"
               v-model.number="form.targetAmount"
               class="form-input"
+              :class="{ 'form-input--error': validation.errors.value.targetAmount }"
               type="number"
               inputmode="decimal"
               min="1"
               step="0.01"
+              @blur="validation.touch('targetAmount')"
             >
+            <p
+              v-if="validation.errors.value.targetAmount"
+              class="field-error"
+            >
+              {{ validation.errors.value.targetAmount }}
+            </p>
           </div>
           <div class="form-group">
             <label
@@ -283,29 +301,29 @@ const minDate = new Date().toISOString().slice(0, 7);
               id="goal-date"
               v-model="form.targetDate"
               class="form-input"
+              :class="{ 'form-input--error': validation.errors.value.targetDate }"
               type="month"
               :min="minDate"
+              @blur="validation.touch('targetDate')"
             >
+            <p
+              v-if="validation.errors.value.targetDate"
+              class="field-error"
+            >
+              {{ validation.errors.value.targetDate }}
+            </p>
           </div>
         </div>
-
-        <p
-          v-if="formError"
-          class="form-error"
-        >
-          {{ formError }}
-        </p>
       </div>
 
       <template #footer>
         <BaseButton
           variant="secondary"
-          @click="showModal = false; resetForm()"
+          @click="showModal = false; resetForm(); validation.reset()"
         >
           Cancel
         </BaseButton>
         <BaseButton
-          :disabled="!!formError"
           @click="save"
         >
           {{ editingId ? 'Update' : 'Add' }}
@@ -477,9 +495,18 @@ const minDate = new Date().toISOString().slice(0, 7);
   .form-row-2 { grid-template-columns: 1fr; }
 }
 
-.form-error {
-  font-size: 0.8rem;
+.form-input--error {
+  border-color: var(--danger);
+}
+
+.form-input--error:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+.field-error {
+  font-size: 0.78rem;
   color: var(--danger);
-  margin: 0;
+  margin: 0.15rem 0 0;
 }
 </style>
