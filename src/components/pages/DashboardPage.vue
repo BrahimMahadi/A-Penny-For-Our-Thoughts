@@ -7,6 +7,7 @@
 -->
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import BaseCard from '@/components/ui/BaseCard.vue';
 import StatCard from '@/components/ui/StatCard.vue';
 
@@ -32,8 +33,25 @@ const {
   totalMonthlyIncome,
   currentMonthBudgeted,
   currentMonthActuals,
+  prevMonthActuals,
   netWorth,
 } = useAnalytics();
+
+/**
+ * MoM delta helpers — positive delta on spending = spent more (bad),
+ * so we pass `invertDelta` to the StatCard to flip the colour logic.
+ * Net worth delta is the opposite: positive = wealth grew (good), no invert.
+ */
+const needsDelta = computed(() =>
+  prevMonthActuals.value.needs > 0
+    ? currentMonthActuals.value.needs - prevMonthActuals.value.needs
+    : null,
+);
+const wantsDelta = computed(() =>
+  prevMonthActuals.value.wants > 0
+    ? currentMonthActuals.value.wants - prevMonthActuals.value.wants
+    : null,
+);
 </script>
 
 <template>
@@ -49,16 +67,24 @@ const {
         label="Needs budget"
         :value="fmt(currentMonthBudgeted.needs)"
         :hint="`Spent: ${fmt(currentMonthActuals.needs)}`"
+        :delta="needsDelta"
+        delta-prefix="$"
+        :invert-delta="true"
       />
       <StatCard
         label="Wants budget"
         :value="fmt(currentMonthBudgeted.wants)"
         :hint="`Spent: ${fmt(currentMonthActuals.wants)}`"
+        :delta="wantsDelta"
+        delta-prefix="$"
+        :invert-delta="true"
       />
       <StatCard
         label="Net worth"
         :value="fmt(netWorth.netWorth)"
         :hint="`Assets: ${fmt(netWorth.totalAssets)} · Liabilities: ${fmt(netWorth.totalLiabilities)}`"
+        :delta="netWorth.momChange"
+        delta-prefix="$"
       />
     </div>
 

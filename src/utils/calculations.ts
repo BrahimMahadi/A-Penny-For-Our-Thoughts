@@ -872,6 +872,145 @@ export function getMomInsights(monthlyData: MonthlyWantsRow[]): MomInsight[] {
   return insights;
 }
 
+// ─── MoM stat deltas ────────────────────────────────────────────
+
+/**
+ * Actual needs + wants + savings for the calendar month immediately
+ * preceding `today`. Useful for month-over-month delta indicators
+ * on the dashboard stat cards.
+ */
+export function getPrevMonthActuals(
+  state: BudgetState,
+  today: Date = new Date(),
+): { needs: number; wants: number; savings: number } {
+  const prev = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  return getMonthActuals(state, prev.getFullYear(), prev.getMonth() + 1, today);
+}
+
+// ─── Envelope forecast ───────────────────────────────────────────
+
+export type ForecastStatus = 'on-track' | 'caution' | 'over';
+
+export interface EnvelopeForecast {
+  /** Days elapsed since the period start (0 if no pay start set). */
+  daysElapsed: number;
+  /** Total days in the period (14 for bi-weekly). */
+  daysTotal: number;
+  /** Days remaining in the period. */
+  daysRemaining: number;
+  /** Average spend per elapsed day (0 when daysElapsed === 0). */
+  dailyRate: number;
+  /** Projected total spend by end of period at the current daily rate. */
+  projectedTotal: number;
+  /** projectedTotal minus the envelope budget (negative = under budget). */
+  projectedOverage: number;
+  /** Green / amber / red status based on projected vs. budget. */
+  status: ForecastStatus;
+  /**
+   * True when there is enough data for a meaningful projection
+   * (payStart set AND at least 1 day elapsed AND at least 1 purchase).
+   */
+  hasData: boolean;
+}
+
+/**
+ * Linear envelope forecast: extrapolates the current spend rate to
+ * the end of the active bi-weekly wants period.
+ *
+ * Mirrors the same `totalSpent + deductionTotal` logic used in
+ * WantsTracker so the numbers are always consistent.
+ */
+export function getEnvelopeForecast(
+  state: Pick<
+    BudgetState,
+    'purchases' | 'payStart' | 'incomeStreams' | 'allocation' | 'subscriptions' | 'loans'
+  >,
+  today: Date = new Date(),
+): EnvelopeForecast {
+  const PERIOD_DAYS = 14;
+
+  const income = getTotalMonthlyIncome(state);
+  const wantsRatio = (state.allocation.wants || 0) / 100;
+  const budget = (income * wantsRatio) / 2;
+
+  const periodStartStr = getCurrentPeriodStart(state, today);
+
+  if (!periodStartStr || budget <= 0) {
+    return {
+      daysElapsed: 0,
+      daysTotal: PERIOD_DAYS,
+      daysRemaining: PERIOD_DAYS,
+      dailyRate: 0,
+      projectedTotal: 0,
+      projectedOverage: -budget,
+      status: 'on-track',
+      hasData: false,
+    };
+  }
+
+  const periodStart = new Date(periodStartStr + 'T00:00:00');
+  const todayNorm = new Date(today);
+  todayNorm.setHours(0, 0, 0, 0);
+
+  const daysElapsed = Math.max(
+    0,
+    Math.floor((todayNorm.getTime() - periodStart.getTime()) / 86_400_000),
+  );
+  const daysRemaining = Math.max(0, PERIOD_DAYS - daysElapsed);
+
+  // Purchases (wants only)
+  const totalSpent = state.purchases
+    .filter((p) => (p.budgetType || 'wants') === 'wants')
+    .reduce((s, p) => s + p.amount, 0);
+
+  // Subscriptions + loans deducted this period
+  const subTotal = getSubsDeductedThisPeriod(state, today).reduce(
+    (s, sub) => s + (+sub.amount || 0) * sub.renewalDates.length,
+    0,
+  );
+  const loanTotal = getLoansDeductedThisPeriod(state, today).reduce(
+    (s, loan) => s + (+loan.paymentAmount || 0) * loan.renewalDates.length,
+    0,
+  );
+  const totalSoFar = totalSpent + subTotal + loanTotal;
+
+  // Need ≥1 day elapsed AND some purchase activity for a useful projection
+  const hasData = daysElapsed > 0 && totalSpent > 0;
+
+  if (!hasData) {
+    const rawStatus: ForecastStatus =
+      totalSoFar >= budget ? 'over' : totalSoFar >= budget * 0.9 ? 'caution' : 'on-track';
+    return {
+      daysElapsed,
+      daysTotal: PERIOD_DAYS,
+      daysRemaining,
+      dailyRate: 0,
+      projectedTotal: totalSoFar,
+      projectedOverage: totalSoFar - budget,
+      status: rawStatus,
+      hasData: false,
+    };
+  }
+
+  const dailyRate = totalSoFar / daysElapsed;
+  const projectedTotal = dailyRate * PERIOD_DAYS;
+  const projectedOverage = projectedTotal - budget;
+
+  const status: ForecastStatus =
+    projectedTotal >= budget ? 'over' : projectedTotal >= budget * 0.9 ? 'caution' : 'on-track';
+
+  return {
+    daysElapsed,
+    daysTotal: PERIOD_DAYS,
+    daysRemaining,
+    dailyRate,
+    projectedTotal,
+    projectedOverage,
+    status,
+    hasData: true,
+  };
+}
+
 // ─── Rules engine & alerts ───────────────────────────────────────
 
 /** Match a purchase name against rules; returns category or null. */

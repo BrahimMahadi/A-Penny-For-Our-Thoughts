@@ -27,6 +27,8 @@ import {
   getMomInsights,
   getTriggeredAlerts,
   getGoalProgress,
+  getPrevMonthActuals,
+  getEnvelopeForecast,
   type GoalProgress,
   type NetWorthData,
   type MonthForecast,
@@ -35,6 +37,7 @@ import {
   type MonthlyWantsRow,
   type MomInsight,
   type TriggeredAlert,
+  type EnvelopeForecast,
 } from '@/utils/calculations';
 import type { Goal, SpendingHistoryPeriod } from '@/types/budget';
 
@@ -99,6 +102,14 @@ export function useAnalytics() {
     getTriggeredAlerts(budget.$state),
   );
 
+  // ─── MoM stat deltas ─────────────────────────────────────────
+  const prevMonthActuals = computed(() => getPrevMonthActuals(budget.$state));
+
+  // ─── Envelope forecast ───────────────────────────────────────
+  const envelopeForecast: ComputedRef<EnvelopeForecast> = computed(() =>
+    getEnvelopeForecast(budget.$state),
+  );
+
   // ─── Goal progress lookup ────────────────────────────────────
   /** Get progress data for a specific goal (returns null if account missing). */
   function progressForGoal(goal: Goal): GoalProgress | null {
@@ -111,6 +122,8 @@ export function useAnalytics() {
     grandTotalExpenses,
     currentMonthActuals,
     currentMonthBudgeted,
+    prevMonthActuals,
+    envelopeForecast,
     netWorth,
     monthForecast,
     calendarDayMap,
