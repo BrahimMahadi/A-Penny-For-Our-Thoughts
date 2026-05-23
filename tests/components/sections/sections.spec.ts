@@ -1345,3 +1345,273 @@ describe('Subscriptions — BUG-015 save regression', () => {
     w.unmount();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  DashboardPage — Sprint 18 (collapsible + drag-and-drop)
+// ─────────────────────────────────────────────────────────────────
+import DashboardPage from '@/components/pages/DashboardPage.vue';
+import SectionPicker from '@/components/ui/SectionPicker.vue';
+import { DEFAULT_SECTION_ORDER } from '@/constants/dashboardSections';
+
+describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('renders all 15 section cards in the default order', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    const cards = w.findAll('.base-card');
+    // 15 section cards + 4 stat cards = at least 15 sections present
+    // We check by looking for all section id attributes
+    DEFAULT_SECTION_ORDER.forEach(id => {
+      const el = w.find(`#section-${id}`);
+      expect(el.exists(), `section #section-${id} should exist`).toBe(true);
+    });
+    w.unmount();
+  });
+
+  it('every section card has a drag handle (⠿)', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    const handles = w.findAll('.base-card__drag-handle');
+    expect(handles.length).toBe(15);
+    w.unmount();
+  });
+
+  it('every section card has a collapse chevron', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    const chevrons = w.findAll('.base-card__collapse-btn');
+    expect(chevrons.length).toBe(15);
+    w.unmount();
+  });
+
+  it('each section slot is a drop zone (has dragover listener attribute region)', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    const slots = w.findAll('.section-slot');
+    expect(slots.length).toBe(15);
+    w.unmount();
+  });
+
+  it('collapsing a section hides its body', async () => {
+    const ui = useUiStore();
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    // Toggle income-streams collapsed
+    ui.toggleSection('income-streams');
+    await nextTick();
+    // The BaseCard body uses v-show so the element is in the DOM but hidden
+    const incomeCard = w.find('#section-income-streams');
+    const body = incomeCard.find('.base-card__body');
+    expect(body.isVisible()).toBe(false);
+    w.unmount();
+  });
+
+  it('reordering via setSectionOrder changes rendered card order', async () => {
+    const ui = useUiStore();
+    const w = mountWith(DashboardPage);
+    await nextTick();
+
+    // Move wishlist to first position
+    const withWishlistFirst = [
+      'wishlist',
+      ...DEFAULT_SECTION_ORDER.filter(id => id !== 'wishlist'),
+    ];
+    ui.setSectionOrder(withWishlistFirst);
+    await nextTick();
+
+    // First section slot should now contain the wishlist card
+    const slots = w.findAll('.section-slot');
+    const firstSlot = slots[0];
+    expect(firstSlot.find('#section-wishlist').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('drag-and-drop onDrop triggers setSectionOrder with new order', async () => {
+    const ui = useUiStore();
+    const w = mountWith(DashboardPage);
+    await nextTick();
+
+    const originalOrder = [...ui.sectionOrder];
+    const firstId = originalOrder[0];
+    const thirdId = originalOrder[2];
+
+    // Simulate: drag index 0 → drop on index 2
+    const slots = w.findAll('.section-slot');
+    const handle = slots[0].find('.base-card__drag-handle');
+    const targetSlot = slots[2];
+
+    // Fire dragstart from the handle of the first slot
+    await handle.trigger('dragstart', { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    await nextTick();
+
+    // Fire dragover + drop on the third slot
+    await targetSlot.trigger('dragover', { preventDefault: vi.fn(), dataTransfer: { dropEffect: '' } });
+    await targetSlot.trigger('drop', { preventDefault: vi.fn(), dataTransfer: {} });
+    await nextTick();
+
+    // The first section (index 0) should have moved before index 2
+    // After splice(0,1): [B,C,D,...], insertAt = 2-1 = 1 → [B,firstId,C,...]
+    expect(ui.sectionOrder).not.toEqual(originalOrder);
+    // firstId should no longer be at position 0
+    expect(ui.sectionOrder[0]).not.toBe(firstId);
+    // firstId should still be in the order (not lost)
+    expect(ui.sectionOrder).toContain(firstId);
+    expect(ui.sectionOrder).toContain(thirdId);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  SectionPicker — Sprint 18 (reorder, collapse, reset)
+// ─────────────────────────────────────────────────────────────────
+describe('SectionPicker — Sprint 18 reorder', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('renders one item per section (15 items)', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    const items = document.body.querySelectorAll('.section-picker-item');
+    expect(items.length).toBe(15);
+    w.unmount();
+  });
+
+  it('each item has a drag handle', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    const handles = document.body.querySelectorAll('.picker-drag-handle');
+    expect(handles.length).toBe(15);
+    w.unmount();
+  });
+
+  it('each item has move-up and move-down buttons', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    const moveBtns = document.body.querySelectorAll('.picker-move-btn');
+    // 2 buttons per item × 15 items = 30
+    expect(moveBtns.length).toBe(30);
+    w.unmount();
+  });
+
+  it('each item has a collapse toggle button', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    const collapseBtns = document.body.querySelectorAll('.picker-collapse-btn');
+    expect(collapseBtns.length).toBe(15);
+    w.unmount();
+  });
+
+  it('clicking collapse toggle calls ui.toggleSection', async () => {
+    const ui = useUiStore();
+    expect(ui.isSectionCollapsed('income-streams')).toBe(false);
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    // Click the first collapse button (for the first section in order)
+    const firstCollapseBtn = document.body.querySelectorAll('.picker-collapse-btn')[0] as HTMLElement;
+    firstCollapseBtn.click();
+    await nextTick();
+    // The first section in the default order should now be collapsed
+    expect(ui.isSectionCollapsed(DEFAULT_SECTION_ORDER[0])).toBe(true);
+    w.unmount();
+  });
+
+  it('reset button is disabled when order is already default', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    const resetBtn = document.body.querySelector('.picker-reset-btn') as HTMLButtonElement;
+    expect(resetBtn.disabled).toBe(true);
+    w.unmount();
+  });
+
+  it('reset button is enabled after a reorder and restores default order', async () => {
+    const ui = useUiStore();
+    ui.setSectionOrder([...DEFAULT_SECTION_ORDER].reverse());
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    const resetBtn = document.body.querySelector('.picker-reset-btn') as HTMLButtonElement;
+    expect(resetBtn.disabled).toBe(false);
+    resetBtn.click();
+    await nextTick();
+    expect(ui.sectionOrder).toEqual(DEFAULT_SECTION_ORDER);
+    w.unmount();
+  });
+
+  it('move-up button on first item is disabled', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    const firstMoveUpBtn = document.body.querySelectorAll('.picker-move-btn')[0] as HTMLButtonElement;
+    expect(firstMoveUpBtn.disabled).toBe(true);
+    w.unmount();
+  });
+
+  it('move-down button on last item is disabled', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    const allMoveBtns = document.body.querySelectorAll('.picker-move-btn');
+    const lastMoveDownBtn = allMoveBtns[allMoveBtns.length - 1] as HTMLButtonElement;
+    expect(lastMoveDownBtn.disabled).toBe(true);
+    w.unmount();
+  });
+
+  it('move-up button reorders the section upward', async () => {
+    const ui = useUiStore();
+    const secondId = DEFAULT_SECTION_ORDER[1];
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    // Move-up button for the second item (index 1): buttons pair [0]=up, [1]=down, [2]=up, [3]=down ...
+    const secondMoveUpBtn = document.body.querySelectorAll('.picker-move-btn')[2] as HTMLElement;
+    secondMoveUpBtn.click();
+    await nextTick();
+    expect(ui.sectionOrder[0]).toBe(secondId);
+    w.unmount();
+  });
+
+  it('renders sections in the order from ui.sectionOrder', async () => {
+    const ui = useUiStore();
+    // Move wishlist to first position
+    ui.moveSectionDown('wishlist'); // wishlist is last, this is a no-op
+    const customOrder = ['wishlist', ...DEFAULT_SECTION_ORDER.filter(id => id !== 'wishlist')];
+    ui.setSectionOrder(customOrder);
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    // The first jump button should have "Wishlist" text
+    const firstJumpBtn = document.body.querySelector('.picker-jump-btn') as HTMLElement;
+    expect(firstJumpBtn.textContent).toContain('Wishlist');
+    w.unmount();
+  });
+});
