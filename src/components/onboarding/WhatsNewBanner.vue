@@ -19,15 +19,15 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '1.10.0';
+const APP_VERSION = '1.11.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '💳', text: 'Loans on Schedule tab — loan payments now appear on the calendar, list, and pay-period grid on their due date' },
-  { icon: '🏦', text: 'Linked expense card shown as context badge alongside each loan payment in all three schedule views' },
-  { icon: '📅', text: 'Pay Period view — new 14-day grid on the Schedule tab tracks bills by bi-weekly pay cycle' },
-  { icon: '🔄', text: 'PREV / NEXT in Pay Period view steps by 14 days; month navigation unchanged in List & Calendar views' },
+  { icon: '📆', text: 'Custom-days frequency for subscriptions — mark a subscription as recurring on specific days of the week (e.g., parking Mon · Tue · Wed only)' },
+  { icon: '🗓️', text: 'Calendar and Pay Period views badge each occurrence on its exact day for custom-days subscriptions' },
+  { icon: '📋', text: 'List view collapses all custom-days occurrences into one row showing total count and monthly cost' },
+  { icon: '📤', text: 'CSV import/export fully supports the new custom-days frequency and day-of-week data' },
 ];
 
 const budget = useBudgetStore();

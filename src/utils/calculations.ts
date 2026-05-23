@@ -76,6 +76,8 @@ export function daysInMonth(year: number, month: number): number {
 interface DatedRecurringItem {
   date?: ISODate | '';
   frequency?: Frequency | string;
+  /** Only used when frequency === 'custom-days' */
+  daysOfWeek?: number[];
 }
 
 /**
@@ -173,6 +175,20 @@ export function getRenewalDatesBetween(
       const next = new Date(candidate.getTime() + 7 * 86400000);
       if (+next === +candidate) break;
       candidate = next;
+    }
+  } else if (frequency === 'custom-days') {
+    // Walk every calendar day in [max(startDate, anchor), endDate] and collect
+    // those whose day-of-week is in the subscription's daysOfWeek set.
+    const days = new Set(item.daysOfWeek ?? []);
+    if (days.size > 0) {
+      // Clamp start to the effective-from anchor date.
+      const clampedStart = baseDate > startDate ? baseDate : startDate;
+      const cur = new Date(clampedStart);
+      cur.setHours(0, 0, 0, 0);
+      while (cur <= endDate) {
+        if (days.has(cur.getDay())) results.push(toKey(cur));
+        cur.setDate(cur.getDate() + 1);
+      }
     }
   }
 
@@ -604,6 +620,12 @@ export interface ForecastItem {
   budgetType?: BudgetType;
   category?: string;
   frequency?: string;
+  /**
+   * Set only for `custom-days` subscription items. Contains the day-of-week
+   * pattern (0=Sun…6=Sat) so the list view can render a day-pattern badge and
+   * collapse multiple per-day items into a single summarised row.
+   */
+  daysOfWeek?: number[];
 }
 
 export interface MonthForecast {
@@ -653,6 +675,31 @@ export function getMonthForecast(
     const endOfMonth = new Date(year, month - 1, maxDay);
     startOfMonth.setHours(0, 0, 0, 0);
     endOfMonth.setHours(0, 0, 0, 0);
+
+    if (frequency === 'custom-days') {
+      // One ForecastItem per occurrence day so each calendar cell gets its badge.
+      // The list view collapses items sharing the same id into a single row.
+      const renewalDates = getRenewalDatesBetween(sub, startOfMonth, endOfMonth);
+      renewalDates.forEach((dateStr) => {
+        const day = Math.min(parseInt(dateStr.split('-')[2], 10), maxDay);
+        items.push({
+          id:           sub.id,
+          name:         sub.name,
+          amount:       sub.amount,
+          dueDay:       day,
+          source:       'subscription',
+          cardLabel:    'Subscriptions',
+          occurrences:  1,
+          totalForMonth: sub.amount,
+          biweekly:     false,
+          budgetType:   sub.budgetType,
+          category:     sub.category,
+          frequency:    sub.frequency,
+          daysOfWeek:   sub.daysOfWeek,
+        });
+      });
+      return; // handled — do not fall through to the generic branch
+    }
 
     const renewalDates =
       frequency !== 'monthly' ? getRenewalDatesBetween(sub, startOfMonth, endOfMonth) : [];
@@ -938,6 +985,30 @@ export function getPayPeriodForecast(
   state.subscriptions.forEach((sub) => {
     const renewalDates = getRenewalDatesBetween(sub, startDate, endDate);
     if (renewalDates.length === 0) return; // not renewing in this period
+
+    if ((sub.frequency || 'monthly') === 'custom-days') {
+      // One item per occurrence day so every matching day gets its grid badge.
+      renewalDates.forEach((dateStr) => {
+        const dueDay = parseInt(dateStr.split('-')[2], 10);
+        dated.push({
+          id:           sub.id,
+          name:         sub.name,
+          amount:       sub.amount,
+          dueDay,
+          source:       'subscription',
+          cardLabel:    'Subscriptions',
+          occurrences:  1,
+          totalForMonth: sub.amount,
+          biweekly:     false,
+          budgetType:   sub.budgetType,
+          category:     sub.category,
+          frequency:    sub.frequency,
+          daysOfWeek:   sub.daysOfWeek,
+          periodDate:   dateStr as ISODate,
+        });
+      });
+      return;
+    }
 
     const dueDay = parseInt(renewalDates[0].split('-')[2], 10);
     dated.push({

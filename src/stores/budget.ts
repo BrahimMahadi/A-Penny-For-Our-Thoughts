@@ -189,6 +189,8 @@ export function migrateState(raw: unknown): BudgetState {
       if (!sub.category) sub.category = 'Other';
       if (!sub.budgetType) sub.budgetType = 'wants';
       if (sub.cardId === undefined) sub.cardId = null;
+      // Sprint 17: custom-days support
+      if (!Array.isArray(sub.daysOfWeek)) sub.daysOfWeek = [];
     });
   }
 

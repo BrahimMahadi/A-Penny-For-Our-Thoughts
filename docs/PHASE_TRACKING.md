@@ -392,7 +392,9 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 13 — Dashboard Polish, Form Validation & JSON Backup | ✅ Complete | v1.7.0 |
 | Sprint 14 — Polish & Analytics | ✅ Complete | v1.8.0 |
 | Sprint 15 — Pay Period Schedule View | ✅ Complete | v1.9.0 |
-| **Current** | **✅ v1.9.0 shipped** | **v1.9.0** |
+| Sprint 16 — Loans on Schedule Tab | ✅ Complete | v1.10.0 |
+| Sprint 17 — Custom-Days Subscriptions | ✅ Complete | v1.11.0 |
+| **Current** | **✅ v1.11.0 shipped** | **v1.11.0** |
 
 ---
 
@@ -911,7 +913,73 @@ Items captured for future sprints — not yet scheduled. See individual option d
 
 ---
 
+## Sprint 17 — Custom-Days Frequency for Subscriptions 📆
+**Branch:** `feat/sprint-17`  
+**Version:** v1.11.0  
+**Status:** ✅ **COMPLETE**  
+**Goal:** Allow subscriptions to recur on specific days of the week (e.g., parking on Mon · Tue · Wed only), with full schedule integration across List, Calendar, and Pay Period views
+
+### Changes
+
+**`src/types/budget.ts`**
+- `Frequency` union extended: `'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom-days'`
+- `Subscription` interface gains `daysOfWeek?: number[]` (0=Sun…6=Sat; only used when `frequency === 'custom-days'`)
+
+**`src/utils/calculations.ts`**
+- `DatedRecurringItem` updated with `daysOfWeek?: number[]`
+- `ForecastItem` updated with `daysOfWeek?: number[]` field
+- `getRenewalDatesBetween()` — new `custom-days` branch: iterates day-by-day from `max(baseDate, startDate)` to `endDate`, emitting dates where `cur.getDay()` is in the `daysOfWeek` set
+- `getMonthForecast()` subscriptions — `custom-days` branch: pushes **one `ForecastItem` per occurrence day** (not one aggregate) so each day gets its own calendar badge
+- `getPayPeriodForecast()` subscriptions — same per-day pattern for pay-period grid
+
+**`src/stores/budget.ts`**
+- Migration block ensures `sub.daysOfWeek` is always an array on load (v1 compat)
+
+**`src/utils/csvImportExport.ts`**
+- Export header: added `daysOfWeek` column
+- Export row: `daysOfWeek` serialized as pipe-separated string (e.g. `"1|2|3"`)
+- Import parser: parses `vals[8]` as pipe-split integers, filters to 0–6 range
+
+**`src/components/sections/Subscriptions.vue`**
+- `'custom-days'` added to `FREQUENCIES_SUB`; `FREQ_DISPLAY`, `FREQ_LABEL`, `MO_RATE`, `YR_RATE` maps updated
+- `dayPatternLabel(days)` helper — formats day list as "Every Mon · Tue · Wed"
+- `subMonthlyAmount(sub)` — uses `AVG_PER_WEEKDAY = 365.25/12/7 ≈ 4.348` for custom-days cost estimation
+- `toggleDay(dow)` + `.dow-picker` / `.dow-btn` / `.dow-btn--active` day-of-week picker in modal
+- Validation: `daysOfWeek` requires ≥1 selection for custom-days; `date` field hidden (defaults to today)
+- `chipClass()` / `chipText()` return `chip-custom` / day-abbrev string for custom-days subs
+- `annualNote()` / `displayDate()` show "Every Mon · Tue · Wed" for custom-days entries
+- Renewal alert excludes custom-days subscriptions (no single renewal date)
+- CSS: `.chip-custom`, `.dow-picker`, `.dow-btn`, `.dow-btn--active`, `.form-hint`
+
+**`src/components/sections/RecurringCalendar.vue`**
+- `CollapsedCustomDay` interface + `listGrouped` computed: collapses multiple same-ID custom-days `ForecastItem`s into one row (accumulating `occurrences` and `totalForMonth`)
+- List view uses `listGrouped.dated` / `listGrouped.customDays` — custom-days entries render in a "Weekly recurring pattern" section with `.bill-badge--custom` and `×N this mo.` count
+- Calendar and Pay Period views continue to badge each occurrence on its exact day (unchanged; they consume `dated` directly via `getCalendarDayMap` / `getPayPeriodDayMap`)
+- CSS: `.bill-badge--custom`, `.bill-day--pattern`, `.bill-count`
+
+**`tests/utils/calculations.spec.ts`** — 21 new tests in 3 describe blocks:
+- `getRenewalDatesBetween — custom-days` (7): empty `daysOfWeek`, Mondays only, Mon+Tue+Wed, effective-from anchor, pay-period window, before-anchor exclusion, all 7 days
+- `getMonthForecast — custom-days subscriptions` (9): one item per day, amount, totalForMonth, daysOfWeek on item, frequency field, fc.total, empty daysOfWeek, effective-from date, not in undated
+- `getPayPeriodForecast — custom-days subscriptions` (5): items per window, occurrences=1, periodDate per day, daysOfWeek on item, empty daysOfWeek
+
+**`tests/utils/csvImportExport.spec.ts`** — 4 new tests: full round-trip of `daysOfWeek=[1,2,3]`, round-trip of empty `daysOfWeek`, raw CSV pipe-parsing, invalid-day filtering
+
+**`tests/components/sections/sections.spec.ts`** — 9 new tests:
+- `Subscriptions — custom-days` (5): day picker visible, hidden for monthly, chip-custom class, "Every Mon · Tue · Wed" text, renewal alert exclusion
+- `RecurringCalendar — custom-days list view` (4): "Weekly recurring pattern" label, `.bill-badge--custom`, `×12` count, `cal-badge--sub` in calendar view
+
+**`tests/utils/calculations.spec.ts`** (type fix)
+- Added `import type { Frequency } from '@/types/budget'` (required after vue-tsc flagged `Frequency` references in new test helpers)
+
+### Test Totals
+- **Total: 662 passing (↑34 from 628) across 23 spec files**
+
+### Merge & Tag
+- ✅ Merged `feat/sprint-17` → `main`, tagged **v1.11.0**
+
+---
+
 **Last Updated**: May 2026  
-**Current Version**: v1.10.0 — Sprint 16 complete  
+**Current Version**: v1.11.0 — Sprint 17 complete  
 **Next Up**: TBD  
 **Current Branch**: `main`
