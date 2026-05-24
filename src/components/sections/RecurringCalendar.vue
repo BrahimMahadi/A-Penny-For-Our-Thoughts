@@ -11,7 +11,7 @@
 -->
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch, onUnmounted } from 'vue';
 import { useUiStore } from '@/stores/ui';
 import { useAnalytics } from '@/composables/useAnalytics';
 import ForecastBar from '@/components/charts/ForecastBar.vue';
@@ -274,6 +274,187 @@ function ordinal(n: number): string {
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
+
+// ─── Day detail: hover popover + click slide panel ────────────────
+/** True when the device supports precise hover (not touch-primary). */
+const supportsHover = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+  ? window.matchMedia('(hover: hover)').matches
+  : false;
+
+/** Calendar view: which day number is currently selected (slide panel). */
+const selectedCalDay = ref<number | null>(null);
+/** Pay-period view: which ISO date is currently selected (slide panel). */
+const selectedPpDate = ref<string | null>(null);
+
+/** Desktop hover popover — which cal day is hovered. */
+const hoveredCalDay = ref<number | null>(null);
+/** Desktop hover popover — which pp ISO date is hovered. */
+const hoveredPpDate = ref<string | null>(null);
+
+/** Popover position (fixed coordinates). */
+const popoverPos   = ref({ top: 0, left: 0, flipLeft: false });
+const popoverVisible = ref(false);
+
+let _leaveTimer: ReturnType<typeof setTimeout> | null = null;
+function _clearLeave(): void {
+  if (_leaveTimer !== null) { clearTimeout(_leaveTimer); _leaveTimer = null; }
+}
+onUnmounted(() => _clearLeave());
+
+// ─── Shared data shape for the detail panel / popover ────────────
+interface DayDetailData {
+  label:    string;          // e.g. "Sat, May 3"
+  dayTotal: number;
+  items:    ForecastItem[];
+}
+
+function _buildCalDetail(day: number): DayDetailData | null {
+  const cd = calDays.value.find(c => c.day === day);
+  if (!cd || cd.items.length === 0) return null;
+  const date  = new Date(ui.scheduleViewYear, ui.scheduleViewMonth - 1, day);
+  const label = date.toLocaleString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
+  return { label, dayTotal: cd.dayTotal, items: cd.items };
+}
+
+function _buildPpDetail(isoDate: string): DayDetailData | null {
+  const pd = ppDays.value.find(d => d.isoDate === isoDate);
+  if (!pd || pd.items.length === 0) return null;
+  const date  = new Date(isoDate + 'T00:00:00');
+  const label = date.toLocaleString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
+  return { label, dayTotal: pd.dayTotal, items: pd.items };
+}
+
+const hoveredDayDetail = computed<DayDetailData | null>(() => {
+  if (hoveredCalDay.value !== null) return _buildCalDetail(hoveredCalDay.value);
+  if (hoveredPpDate.value !== null) return _buildPpDetail(hoveredPpDate.value);
+  return null;
+});
+
+const selectedDayDetail = computed<DayDetailData | null>(() => {
+  if (selectedCalDay.value !== null) return _buildCalDetail(selectedCalDay.value);
+  if (selectedPpDate.value !== null) return _buildPpDetail(selectedPpDate.value);
+  return null;
+});
+
+// ─── Popover positioning ─────────────────────────────────────────
+const POPOVER_W = 234;
+const POPOVER_H = 340;
+
+function _positionPopover(el: HTMLElement): void {
+  const rect     = el.getBoundingClientRect();
+  const flipLeft = rect.right + POPOVER_W + 8 > window.innerWidth - 8;
+  const left     = flipLeft ? rect.left - POPOVER_W - 4 : rect.right + 4;
+  let   top      = rect.top;
+  if (top + POPOVER_H > window.innerHeight - 8) {
+    top = Math.max(8, window.innerHeight - POPOVER_H - 8);
+  }
+  popoverPos.value = { top, left, flipLeft };
+}
+
+// ─── Calendar view event handlers ───────────────────────────────
+function onCalDayClick(day: number): void {
+  if (!calDays.value.find(c => c.day === day)?.items.length) return;
+  selectedCalDay.value = selectedCalDay.value === day ? null : day;
+  selectedPpDate.value = null;
+}
+
+function onCalDayEnter(day: number, event: MouseEvent): void {
+  if (!supportsHover) return;
+  _clearLeave();
+  const items = calDays.value.find(c => c.day === day)?.items ?? [];
+  if (items.length === 0) { popoverVisible.value = false; return; }
+  hoveredCalDay.value  = day;
+  hoveredPpDate.value  = null;
+  _positionPopover(event.currentTarget as HTMLElement);
+  popoverVisible.value = true;
+}
+
+function onCalDayLeave(): void {
+  if (!supportsHover) return;
+  _clearLeave();
+  _leaveTimer = setTimeout(() => {
+    hoveredCalDay.value  = null;
+    popoverVisible.value = false;
+  }, 150);
+}
+
+// ─── Pay-period view event handlers ─────────────────────────────
+function onPpDayClick(isoDate: string): void {
+  const items = ppDays.value.find(d => d.isoDate === isoDate)?.items ?? [];
+  if (!items.length) return;
+  selectedPpDate.value = selectedPpDate.value === isoDate ? null : isoDate;
+  selectedCalDay.value = null;
+}
+
+function onPpDayEnter(isoDate: string, event: MouseEvent): void {
+  if (!supportsHover) return;
+  _clearLeave();
+  const items = ppDays.value.find(d => d.isoDate === isoDate)?.items ?? [];
+  if (items.length === 0) { popoverVisible.value = false; return; }
+  hoveredPpDate.value  = isoDate;
+  hoveredCalDay.value  = null;
+  _positionPopover(event.currentTarget as HTMLElement);
+  popoverVisible.value = true;
+}
+
+function onPpDayLeave(): void {
+  if (!supportsHover) return;
+  _clearLeave();
+  _leaveTimer = setTimeout(() => {
+    hoveredPpDate.value  = null;
+    popoverVisible.value = false;
+  }, 150);
+}
+
+// ─── Popover self-hover (grace period) ──────────────────────────
+function onPopoverEnter(): void {
+  if (!supportsHover) return;
+  _clearLeave();
+}
+
+function onPopoverLeave(): void {
+  if (!supportsHover) return;
+  _clearLeave();
+  _leaveTimer = setTimeout(() => {
+    hoveredCalDay.value  = null;
+    hoveredPpDate.value  = null;
+    popoverVisible.value = false;
+  }, 150);
+}
+
+function closeDayDetail(): void {
+  selectedCalDay.value = null;
+  selectedPpDate.value = null;
+}
+
+// ─── Clear state on navigation ───────────────────────────────────
+watch(
+  [() => ui.scheduleView, () => ui.scheduleViewMonth, () => ui.scheduleViewYear, () => ui.schedulePayPeriodOffset],
+  () => {
+    selectedCalDay.value = null;
+    selectedPpDate.value = null;
+    hoveredCalDay.value  = null;
+    hoveredPpDate.value  = null;
+    popoverVisible.value = false;
+    _clearLeave();
+  },
+);
+
+// ─── Item type colour for slide panel left border ────────────────
+function itemBorderColor(item: ForecastItem): string {
+  if (item.source === 'subscription') return '#a78bfa';
+  if (item.source === 'loan')         return 'var(--warn, #f59e0b)';
+  return 'var(--accent2)';
+}
+
+function frequencyLabel(item: ForecastItem): string {
+  const map: Record<string, string> = {
+    monthly: 'monthly', weekly: 'weekly', 'bi-weekly': 'bi-weekly',
+    biyearly: 'every 6 mo', quarterly: 'quarterly', yearly: 'yearly',
+    'bi-monthly': 'bi-monthly', 'custom-days': 'recurring',
+  };
+  return (item.frequency && map[item.frequency]) || item.frequency || '';
+}
 </script>
 
 <template>
@@ -495,7 +676,12 @@ function ordinal(n: number): string {
                 'cal-today': calDay.isToday,
                 'cal-has-bills': calDay.items.length > 0,
                 'cal-heavy': calDay.isHeavy,
+                'cal-interactive': calDay.items.length > 0,
+                'cal-selected': selectedCalDay === calDay.day && calDay.items.length > 0,
               }"
+              @click="onCalDayClick(calDay.day)"
+              @mouseenter="onCalDayEnter(calDay.day, $event)"
+              @mouseleave="onCalDayLeave()"
             >
               <span class="cal-day-num">{{ calDay.day }}</span>
               <div
@@ -607,7 +793,12 @@ function ordinal(n: number): string {
                 'cal-today': ppDay.isToday,
                 'cal-has-bills': ppDay.items.length > 0,
                 'cal-heavy': ppDay.isHeavy,
+                'cal-interactive': ppDay.items.length > 0,
+                'cal-selected': selectedPpDate === ppDay.isoDate && ppDay.items.length > 0,
               }"
+              @click="onPpDayClick(ppDay.isoDate)"
+              @mouseenter="onPpDayEnter(ppDay.isoDate, $event)"
+              @mouseleave="onPpDayLeave()"
             >
               <span
                 class="cal-day-num"
@@ -690,8 +881,100 @@ function ordinal(n: number): string {
           >{{ fmt(payPeriodForecast.total) }}</span>
         </div>
       </template>
+
+      <!-- ── Day Detail Slide Panel ── -->
+      <!-- Shows when any calendar or pay-period day is clicked. -->
+      <Transition name="detail-slide">
+        <div
+          v-if="selectedDayDetail"
+          class="day-detail-panel"
+          data-testid="day-detail-panel"
+        >
+          <div class="day-detail-panel__header">
+            <div class="day-detail-panel__title">
+              <span class="day-detail-panel__date">{{ selectedDayDetail.label }}</span>
+              <span class="day-detail-panel__chip">{{ fmt(selectedDayDetail.dayTotal) }}</span>
+            </div>
+            <button
+              class="day-detail-panel__close"
+              title="Close"
+              aria-label="Close day detail"
+              @click="closeDayDetail"
+            >
+              ×
+            </button>
+          </div>
+
+          <div
+            v-for="(item, i) in selectedDayDetail.items"
+            :key="i"
+            class="day-detail-row"
+            :style="{ borderLeftColor: itemBorderColor(item) }"
+          >
+            <div class="day-detail-row__info">
+              <span class="day-detail-row__name">{{ item.name }}</span>
+              <div class="day-detail-row__badges">
+                <span
+                  class="bill-badge"
+                  :class="item.source === 'subscription' ? 'bill-badge--sub' : item.source === 'loan' ? 'bill-badge--loan' : 'bill-badge--expense'"
+                >{{ item.source }}</span>
+                <span
+                  v-if="item.cardLabel"
+                  class="bill-badge bill-badge--card"
+                >{{ item.cardLabel }}</span>
+                <span
+                  v-if="item.biweekly"
+                  class="bill-badge bill-badge--biweekly"
+                >bi-weekly</span>
+              </div>
+            </div>
+            <div class="day-detail-row__right">
+              <span class="day-detail-row__amt">{{ fmt(item.totalForMonth) }}</span>
+              <span
+                v-if="frequencyLabel(item)"
+                class="day-detail-row__freq"
+              >{{ frequencyLabel(item) }}</span>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </div>
   </div>
+
+  <!-- ── Hover Popover (desktop only, teleported to <body>) ── -->
+  <Teleport to="body">
+    <Transition name="popover-fade">
+      <div
+        v-if="popoverVisible && hoveredDayDetail"
+        class="day-popover"
+        :style="{ top: `${popoverPos.top}px`, left: `${popoverPos.left}px` }"
+        data-testid="day-popover"
+        @mouseenter="onPopoverEnter"
+        @mouseleave="onPopoverLeave"
+      >
+        <div class="day-popover__header">
+          <span class="day-popover__date">{{ hoveredDayDetail.label }}</span>
+          <span class="day-popover__total">{{ fmt(hoveredDayDetail.dayTotal) }}</span>
+        </div>
+        <div
+          v-for="(item, i) in hoveredDayDetail.items"
+          :key="i"
+          class="day-popover__row"
+        >
+          <span
+            class="day-popover__dot"
+            :style="{ background: itemBorderColor(item) }"
+          />
+          <span class="day-popover__name">{{ item.name }}</span>
+          <span
+            class="bill-badge"
+            :class="item.source === 'subscription' ? 'bill-badge--sub' : item.source === 'loan' ? 'bill-badge--loan' : 'bill-badge--expense'"
+          >{{ item.source === 'subscription' ? 'sub' : item.source }}</span>
+          <span class="day-popover__amt">{{ fmt(item.totalForMonth) }}</span>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -1086,4 +1369,250 @@ function ordinal(n: number): string {
   margin-top: auto;
   font-variant-numeric: tabular-nums;
 }
+
+/* Interactive cell states */
+.cal-interactive {
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.cal-interactive:hover {
+  border-color: rgba(96, 165, 250, 0.5);
+  background: rgba(96, 165, 250, 0.07);
+}
+
+.cal-selected {
+  border-color: var(--accent2) !important;
+  background: rgba(96, 165, 250, 0.1) !important;
+  box-shadow: 0 0 0 1px var(--accent2);
+}
+
+/* ── Day Detail Slide Panel ─────────────────────────────────── */
+.detail-slide-enter-active {
+  transition: max-height 0.26s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.18s ease;
+  max-height: 700px;
+  overflow: hidden;
+}
+
+.detail-slide-leave-active {
+  transition: max-height 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.14s ease;
+  max-height: 700px;
+  overflow: hidden;
+}
+
+.detail-slide-enter-from,
+.detail-slide-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.day-detail-panel {
+  border-top: 1px solid var(--border);
+  padding-top: 0.6rem;
+}
+
+.day-detail-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.day-detail-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.day-detail-panel__date {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.day-detail-panel__chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: rgba(96, 165, 250, 0.12);
+  color: var(--accent2);
+  border-radius: 20px;
+  padding: 2px 8px;
+}
+
+.day-detail-panel__close {
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.12s, color 0.12s;
+}
+
+.day-detail-panel__close:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.day-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  margin-bottom: 3px;
+  border-left: 3px solid transparent;
+  border-radius: 0 4px 4px 0;
+  background: var(--surface);
+  transition: background 0.1s;
+}
+
+.day-detail-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.day-detail-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.day-detail-row__name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.day-detail-row__badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.day-detail-row__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.day-detail-row__amt {
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.day-detail-row__freq {
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+</style>
+
+<!-- Teleported popover must be unscoped — it lives directly in <body> -->
+<style>
+.day-popover {
+  position: fixed;
+  z-index: 9999;
+  width: 234px;
+  background: var(--surface, #0a0f1a);
+  border: 1px solid var(--border, #1e2840);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  padding: 0.55rem 0.7rem;
+  font-size: 0.78rem;
+  color: var(--text, #e3e6ee);
+  pointer-events: auto;
+}
+
+.day-popover__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.45rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border, #1e2840);
+}
+
+.day-popover__date {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text, #e3e6ee);
+}
+
+.day-popover__total {
+  font-size: 0.8rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--danger, #f87171);
+}
+
+.day-popover__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(30, 40, 64, 0.5);
+}
+
+.day-popover__row:last-child {
+  border-bottom: none;
+}
+
+.day-popover__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.day-popover__name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text, #e3e6ee);
+}
+
+.day-popover__amt {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  margin-left: auto;
+  color: var(--text, #e3e6ee);
+}
+
+/* Popover transition */
+.popover-fade-enter-active,
+.popover-fade-leave-active {
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.popover-fade-enter-from,
+.popover-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.95) translateY(-2px);
+}
+
+/* badge styles for popover (mirror scoped ones) */
+.day-popover .bill-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.day-popover .bill-badge--expense { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+.day-popover .bill-badge--sub     { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
+.day-popover .bill-badge--loan    { background: rgba(251, 191, 36, 0.15);  color: #f59e0b; }
 </style>

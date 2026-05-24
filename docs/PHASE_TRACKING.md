@@ -396,7 +396,8 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 17 — Custom-Days Subscriptions | ✅ Complete | v1.11.0 |
 | Sprint 18 — Collapsible Sections & Drag-and-Drop Reorder | ✅ Complete | v1.12.0 |
 | Sprint 19 — Category Manager, Bi-Yearly Frequency & Chequing Balance Dashboard | ✅ Complete | v1.13.0 |
-| **Current** | **✅ v1.13.0 shipped** | **v1.13.0** |
+| Sprint 20 — Calendar Day Detail (Slide Panel + Hover Popover) | ✅ Complete | v1.14.0 |
+| **Current** | **✅ v1.14.0 shipped** | **v1.14.0** |
 
 ---
 
@@ -1113,7 +1114,60 @@ Items captured for future sprints — not yet scheduled. See individual option d
 
 ---
 
+## Sprint 20 — Calendar Day Detail (Slide Panel + Hover Popover) 📅
+
+**Version**: v1.14.0  
+**Date**: May 2026  
+**Branch**: `feat/sprint-20` → `main`
+
+### Features Delivered
+
+#### Calendar Day Detail — Slide Panel (click, all devices)
+- Click any calendar cell or pay-period cell that has bills → a smooth animated slide panel appears below the grid
+- Panel shows: date header with total amount chip, each bill as a colour-coded left-border row (blue=expense, purple=subscription, amber=loan), bill name + source badge + card label + biweekly tag, amount right-aligned, frequency label
+- Click the same cell again to dismiss, or use the `×` close button
+- Works in both month calendar view and 14-day pay-period view
+- Selection auto-clears on: month/pay-period navigation, view switching (list/calendar/payperiod)
+
+#### Calendar Day Detail — Hover Popover (desktop only)
+- Desktop hover (`window.matchMedia('(hover: hover)')`) shows a `position: fixed` popover anchored to the right side of the hovered cell
+- Smart flip logic: if cell is near the right viewport edge, popover flips to the left side
+- Viewport bottom clamping prevents overflow
+- 150ms grace period: moving the mouse from cell to popover keeps it open
+- Popover shows: date + day total header, coloured dot + bill name + source badge + amount per bill
+- Touch-primary devices (mobile) never trigger the popover (only slide panel)
+- Popover teleported to `<body>` via Vue `<Teleport>` for correct z-index and no overflow clipping
+
+#### Interactive Cell Styling
+- Cells with bills gain `.cal-interactive` (pointer cursor, blue hover glow)
+- Selected cell gains `.cal-selected` (blue accent ring + subtle background tint)
+- Cells without bills remain inert (no pointer, no selection ring)
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `src/components/sections/RecurringCalendar.vue` | Day detail logic + slide panel + popover + CSS |
+| `tests/components/sections/sections.spec.ts` | +24 new tests (slide panel + hover popover suites) |
+| `src/components/onboarding/WhatsNewBanner.vue` | Bumped to v1.14.0, updated release notes |
+| `tests/components/onboarding.spec.ts` | Updated version strings to v1.14.0 |
+| `CLAUDE.md` | Updated test count to 758 |
+| `docs/PHASE_TRACKING.md` | Added Sprint 20 row + this section |
+
+### Test Summary
+
+- **758 tests total** across 23 spec files (previously 734)
+- **+24 new tests** in `sections.spec.ts`:
+  - `RecurringCalendar — day detail slide panel` (20 tests): interactive class, click open, bill name, source badge, header chips, `.cal-selected`, toggle-off, × close, empty-day guard, month navigation, view switching, pay-period view, loan badge, frequency label, multiple bills
+  - `RecurringCalendar — day detail hover popover` (6 tests): absent by default, mouseenter shows popover, popover content, mouseleave with timer, empty-cell guard, navigation clears
+- `vue-tsc --noEmit` clean · `eslint` clean (0 errors) · `vite build` green (547 kB / 173 kB gzip)
+
+### Merge & Tag
+- ✅ Merged `feat/sprint-20` → `main`, tagged **v1.14.0**
+
+---
+
 **Last Updated**: May 2026  
-**Current Version**: v1.13.0 — Sprint 19 complete  
+**Current Version**: v1.14.0 — Sprint 20 complete  
 **Next Up**: TBD  
 **Current Branch**: `main`

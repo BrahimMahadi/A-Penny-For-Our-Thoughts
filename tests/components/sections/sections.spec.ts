@@ -1615,3 +1615,501 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     w.unmount();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  RecurringCalendar — Day Detail (Sprint 20)
+//  Slide panel (click, all devices) + hover popover (desktop only)
+// ─────────────────────────────────────────────────────────────────
+describe('RecurringCalendar — day detail slide panel', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => {
+    document.body.innerHTML = '';
+    // Remove any matchMedia mock so other tests aren't affected
+    if ((window as any).__matchMediaMocked) {
+      delete (window as any).matchMedia;
+      delete (window as any).__matchMediaMocked;
+    }
+  });
+
+  /** Seed a monthly subscription landing on May 7 and pin the view to calendar / May 2026.
+   *  Clears default subscriptions/loans so DEFAULT_STATE items don't interfere. */
+  function setupSubOnDay7() {
+    const budget = useBudgetStore();
+    const ui = useUiStore();
+    // Clear pre-populated DEFAULT_STATE items that would create other interactive cells
+    budget.subscriptions.splice(0);
+    budget.loans.splice(0);
+    budget.subscriptions.push({
+      id: 'detail-test-sub',
+      name: 'Detail Test Sub',
+      amount: 17,
+      frequency: 'monthly' as any,
+      date: '2026-05-07',
+      category: 'Entertainment',
+      budgetType: 'wants' as any,
+      cardId: null,
+      daysOfWeek: [],
+    } as any);
+    ui.scheduleViewYear = 2026;
+    ui.scheduleViewMonth = 5;
+    ui.setScheduleView('calendar');
+    return { budget, ui };
+  }
+
+  /** Enable hover-media mock so supportsHover = true inside setup(). */
+  function mockHoverMedia() {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
+    (window as any).__matchMediaMocked = true;
+  }
+
+  // ── interactive class ──────────────────────────────────────────
+  it('calendar cells with bills get .cal-interactive class', async () => {
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    expect(w.findAll('.cal-interactive').length).toBeGreaterThan(0);
+    w.unmount();
+  });
+
+  it('calendar cells WITHOUT bills do not get .cal-interactive', async () => {
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    // There should be plenty of days in May without the bill
+    const nonInteractiveDay = w.findAll('.cal-cell:not(.cal-blank):not(.cal-interactive)');
+    expect(nonInteractiveDay.length).toBeGreaterThan(0);
+    w.unmount();
+  });
+
+  // ── click opens panel ─────────────────────────────────────────
+  it('clicking a calendar day with bills opens the detail panel', async () => {
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    await w.find('.cal-interactive').trigger('click');
+    await nextTick();
+    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('slide panel shows the bill name', async () => {
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    await w.find('.cal-interactive').trigger('click');
+    await nextTick();
+    expect(w.find('[data-testid="day-detail-panel"]').text()).toContain('Detail Test Sub');
+    w.unmount();
+  });
+
+  it('slide panel shows a subscription source badge', async () => {
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    await w.find('.cal-interactive').trigger('click');
+    await nextTick();
+    const panel = w.find('[data-testid="day-detail-panel"]');
+    expect(panel.find('.bill-badge--sub').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('slide panel header has date label and total chip', async () => {
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    await w.find('.cal-interactive').trigger('click');
+    await nextTick();
+    const panel = w.find('[data-testid="day-detail-panel"]');
+    expect(panel.find('.day-detail-panel__date').exists()).toBe(true);
+    expect(panel.find('.day-detail-panel__chip').exists()).toBe(true);
+    // Chip should contain a currency-formatted value
+    expect(panel.find('.day-detail-panel__chip').text()).toMatch(/\$/);
+    w.unmount();
+  });
+
+  // ── selected cell state ───────────────────────────────────────
+  it('clicked cell gains .cal-selected class', async () => {
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    const cell = w.find('.cal-interactive');
+    await cell.trigger('click');
+    await nextTick();
+    expect(cell.classes()).toContain('cal-selected');
+    w.unmount();
+  });
+
+  // ── toggle off ────────────────────────────────────────────────
+  it('clicking the selected day again closes the panel', async () => {
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    const cell = w.find('.cal-interactive');
+    await cell.trigger('click');
+    await nextTick();
+    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(true);
+    await cell.trigger('click');
+    await nextTick();
+    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  // ── close button ──────────────────────────────────────────────
+  it('× close button dismisses the panel', async () => {
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    await w.find('.cal-interactive').trigger('click');
+    await nextTick();
+    await w.find('.day-detail-panel__close').trigger('click');
+    await nextTick();
+    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  // ── empty days don't open panel ───────────────────────────────
+  it('clicking a day with no bills does not open the panel', async () => {
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    // A non-interactive, non-blank cell has no bills
+    const emptyCell = w.findAll('.cal-cell:not(.cal-blank):not(.cal-interactive)')[0];
+    if (emptyCell) {
+      await emptyCell.trigger('click');
+      await nextTick();
+      expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(false);
+    }
+    w.unmount();
+  });
+
+  // ── navigation clears selection ───────────────────────────────
+  it('navigating to the next month clears the panel', async () => {
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    await w.find('.cal-interactive').trigger('click');
+    await nextTick();
+    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(true);
+    const nextBtn = w.findAll('button').find(b => b.text().includes('Next'));
+    await nextBtn!.trigger('click');
+    await nextTick();
+    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('switching to list view clears the panel', async () => {
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    await w.find('.cal-interactive').trigger('click');
+    await nextTick();
+    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(true);
+    const listBtn = w.findAll('.view-toggle-btn').find(b => b.attributes('title')?.includes('List'));
+    await listBtn!.trigger('click');
+    await nextTick();
+    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('switching to pay-period view clears the panel', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = '2026-05-19';
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    await w.find('.cal-interactive').trigger('click');
+    await nextTick();
+    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(true);
+    const ppBtn = w.findAll('.view-toggle-btn').find(b => b.attributes('title')?.includes('Pay period'));
+    await ppBtn!.trigger('click');
+    await nextTick();
+    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  // ── pay-period view ───────────────────────────────────────────
+  it('clicking a pay-period day with bills opens the panel', async () => {
+    const budget = useBudgetStore();
+    const ui = useUiStore();
+    budget.payStart = '2026-05-19';
+    budget.subscriptions.push({
+      id: 'pp-detail-test',
+      name: 'PP Detail Bill',
+      amount: 50,
+      frequency: 'monthly' as any,
+      date: '2026-05-21',
+      category: 'Bills',
+      budgetType: 'needs' as any,
+      cardId: null,
+      daysOfWeek: [],
+    } as any);
+    ui.setScheduleView('payperiod');
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    const cells = w.findAll('.cal-interactive');
+    if (cells.length > 0) {
+      await cells[0].trigger('click');
+      await nextTick();
+      expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(true);
+      expect(w.find('[data-testid="day-detail-panel"]').text()).toContain('PP Detail Bill');
+    }
+    w.unmount();
+  });
+
+  it('pay-period selected cell gets .cal-selected class', async () => {
+    const budget = useBudgetStore();
+    const ui = useUiStore();
+    budget.payStart = '2026-05-19';
+    budget.subscriptions.push({
+      id: 'pp-sel-test',
+      name: 'PP Sel Bill',
+      amount: 30,
+      frequency: 'monthly' as any,
+      date: '2026-05-22',
+      category: 'Bills',
+      budgetType: 'needs' as any,
+      cardId: null,
+      daysOfWeek: [],
+    } as any);
+    ui.setScheduleView('payperiod');
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    const cells = w.findAll('.cal-interactive');
+    if (cells.length > 0) {
+      await cells[0].trigger('click');
+      await nextTick();
+      expect(cells[0].classes()).toContain('cal-selected');
+    }
+    w.unmount();
+  });
+
+  // ── loan / expense source badges ──────────────────────────────
+  it('loan bill shows bill-badge--loan in the slide panel', async () => {
+    const budget = useBudgetStore();
+    const ui = useUiStore();
+    // Clear DEFAULT_STATE data so only our test loan is present
+    budget.subscriptions.splice(0);
+    budget.loans.splice(0);
+    budget.loans.push({
+      id: 'detail-loan-test',
+      name: 'Detail Car Loan',
+      paymentAmount: 350,
+      date: '2026-05-10' as any,
+      frequency: 'monthly' as any,
+      budgetType: 'needs' as any,
+      cardId: null,
+      remaining: 8000,
+      original: 20000,
+    } as any);
+    ui.scheduleViewYear = 2026;
+    ui.scheduleViewMonth = 5;
+    ui.setScheduleView('calendar');
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    const cells = w.findAll('.cal-interactive');
+    expect(cells.length).toBeGreaterThan(0);
+    await cells[0].trigger('click');
+    await nextTick();
+    const panel = w.find('[data-testid="day-detail-panel"]');
+    expect(panel.exists()).toBe(true);
+    expect(panel.find('.bill-badge--loan').exists()).toBe(true);
+    w.unmount();
+  });
+
+  // ── frequency label ───────────────────────────────────────────
+  it('panel shows frequency label for the bill', async () => {
+    setupSubOnDay7();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    await w.find('.cal-interactive').trigger('click');
+    await nextTick();
+    const panel = w.find('[data-testid="day-detail-panel"]');
+    expect(panel.find('.day-detail-row__freq').text()).toContain('monthly');
+    w.unmount();
+  });
+
+  // ── multiple bills on same day ────────────────────────────────
+  it('panel shows all bills when multiple land on the same day', async () => {
+    const budget = useBudgetStore();
+    const ui = useUiStore();
+    budget.subscriptions.splice(0);
+    budget.loans.splice(0);
+    budget.subscriptions.push(
+      {
+        id: 'multi-a',
+        name: 'Bill Alpha',
+        amount: 12,
+        frequency: 'monthly' as any,
+        date: '2026-05-15',
+        category: 'Entertainment',
+        budgetType: 'wants' as any,
+        cardId: null,
+        daysOfWeek: [],
+      } as any,
+      {
+        id: 'multi-b',
+        name: 'Bill Beta',
+        amount: 25,
+        frequency: 'monthly' as any,
+        date: '2026-05-15',
+        category: 'Entertainment',
+        budgetType: 'wants' as any,
+        cardId: null,
+        daysOfWeek: [],
+      } as any,
+    );
+    ui.scheduleViewYear = 2026;
+    ui.scheduleViewMonth = 5;
+    ui.setScheduleView('calendar');
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    await w.find('.cal-interactive').trigger('click');
+    await nextTick();
+    const panel = w.find('[data-testid="day-detail-panel"]');
+    expect(panel.text()).toContain('Bill Alpha');
+    expect(panel.text()).toContain('Bill Beta');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  RecurringCalendar — Day Detail hover popover (desktop, Sprint 20)
+// ─────────────────────────────────────────────────────────────────
+describe('RecurringCalendar — day detail hover popover', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => {
+    document.body.innerHTML = '';
+    vi.restoreAllMocks();
+    // Restore matchMedia if patched
+    delete (window as any).matchMedia;
+  });
+
+  function setupSubOnDay14() {
+    const budget = useBudgetStore();
+    const ui = useUiStore();
+    // Clear DEFAULT_STATE items so our bill is the only interactive cell
+    budget.subscriptions.splice(0);
+    budget.loans.splice(0);
+    budget.subscriptions.push({
+      id: 'hover-test-sub',
+      name: 'Hover Test Bill',
+      amount: 99,
+      frequency: 'monthly' as any,
+      date: '2026-05-14',
+      category: 'Entertainment',
+      budgetType: 'wants' as any,
+      cardId: null,
+      daysOfWeek: [],
+    } as any);
+    ui.scheduleViewYear = 2026;
+    ui.scheduleViewMonth = 5;
+    ui.setScheduleView('calendar');
+  }
+
+  it('popover is absent by default (no hover state)', async () => {
+    setupSubOnDay14();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    expect(document.body.querySelector('[data-testid="day-popover"]')).toBeNull();
+    w.unmount();
+  });
+
+  it('mouseenter on a bill cell shows the popover when hover is supported', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
+    setupSubOnDay14();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    const cell = w.find('.cal-interactive');
+    await cell.trigger('mouseenter');
+    await nextTick();
+    expect(document.body.querySelector('[data-testid="day-popover"]')).toBeTruthy();
+    w.unmount();
+  });
+
+  it('popover shows the bill name', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
+    setupSubOnDay14();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    await w.find('.cal-interactive').trigger('mouseenter');
+    await nextTick();
+    const popover = document.body.querySelector('[data-testid="day-popover"]') as HTMLElement;
+    expect(popover).toBeTruthy();
+    expect(popover.textContent).toContain('Hover Test Bill');
+    w.unmount();
+  });
+
+  it('mouseleave hides the popover after the grace-period timer', async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
+    setupSubOnDay14();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    const cell = w.find('.cal-interactive');
+    await cell.trigger('mouseenter');
+    await nextTick();
+    expect(document.body.querySelector('[data-testid="day-popover"]')).toBeTruthy();
+    await cell.trigger('mouseleave');
+    vi.advanceTimersByTime(200);
+    await nextTick();
+    expect(document.body.querySelector('[data-testid="day-popover"]')).toBeNull();
+    w.unmount();
+    vi.useRealTimers();
+  });
+
+  it('mouseenter on a cell with NO bills does not show the popover', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
+    setupSubOnDay14();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    // Find a non-interactive, non-blank day cell
+    const emptyCell = w.findAll('.cal-cell:not(.cal-blank):not(.cal-interactive)')[0];
+    if (emptyCell) {
+      await emptyCell.trigger('mouseenter');
+      await nextTick();
+      expect(document.body.querySelector('[data-testid="day-popover"]')).toBeNull();
+    }
+    w.unmount();
+  });
+
+  it('navigation clears the popover state', async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
+    setupSubOnDay14();
+    const w = mountWith(RecurringCalendar);
+    await nextTick();
+    await w.find('.cal-interactive').trigger('mouseenter');
+    await nextTick();
+    // Navigate away — watch should fire
+    const nextBtn = w.findAll('button').find(b => b.text().includes('Next'));
+    await nextBtn!.trigger('click');
+    await nextTick();
+    expect(document.body.querySelector('[data-testid="day-popover"]')).toBeNull();
+    w.unmount();
+    vi.useRealTimers();
+  });
+});

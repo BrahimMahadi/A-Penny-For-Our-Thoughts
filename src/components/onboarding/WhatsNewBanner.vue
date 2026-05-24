@@ -19,15 +19,15 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '1.13.0';
+const APP_VERSION = '1.14.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🏷️', text: 'Custom spending categories — add, rename (auto-migrates existing purchases), recolour, or delete categories in Settings → Spending Categories' },
-  { icon: '📅', text: 'New bi-yearly (every 6 months) frequency for subscriptions and loans' },
-  { icon: '🏦', text: 'Chequing Balance promoted to its own Dashboard section with a freshness indicator showing how recently you updated it' },
-  { icon: '🎨', text: 'Subscription category dropdown now visible in the form so you can tag subscriptions without needing to edit after saving' },
+  { icon: '📅', text: 'Calendar day detail — click any day with bills to see a slide panel with full bill info (name, type, amount, frequency)' },
+  { icon: '🖱️', text: 'Hover popover on desktop — hover over any day cell to preview its bills without leaving the calendar view' },
+  { icon: '✨', text: 'Works in both month calendar and 14-day pay-period views; selection clears automatically on navigation' },
+  { icon: '💡', text: 'Bill type colour-coding: blue for expenses, purple for subscriptions, amber for loans' },
 ];
 
 const budget = useBudgetStore();
