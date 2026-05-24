@@ -771,6 +771,103 @@ describe('SpendingAnalytics', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  SpendingAnalytics — history item tag editing
+// ─────────────────────────────────────────────────────────────────
+describe('SpendingAnalytics — history tag editing', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  /** Seed one closed period with two items and open the analytics panel. */
+  function setupWithHistory() {
+    const budget = useBudgetStore();
+    const ui = useUiStore();
+    budget.spendingHistory.push({
+      id: 'period-1',
+      date: '2026-05-01',
+      total: 20,
+      items: [
+        { name: 'Coffee', amount: 5, category: 'Food & Drink' },
+        { name: 'Movie',  amount: 15, category: 'Entertainment' },
+      ],
+    });
+    ui.analyticsPanelOpen = true;
+    return { budget, ui };
+  }
+
+  it('shows an edit button for each item in an expanded period', async () => {
+    setupWithHistory();
+    const w = mountWith(SpendingAnalytics);
+    await nextTick();
+    await w.find('.period-item__header').trigger('click');
+    await nextTick();
+    expect(w.findAll('[data-testid="tag-edit-btn"]')).toHaveLength(2);
+    w.unmount();
+  });
+
+  it('clicking an edit button shows the category select for that item', async () => {
+    setupWithHistory();
+    const w = mountWith(SpendingAnalytics);
+    await nextTick();
+    await w.find('.period-item__header').trigger('click');
+    await nextTick();
+    await w.findAll('[data-testid="tag-edit-btn"]')[0].trigger('click');
+    await nextTick();
+    expect(w.find('[data-testid="tag-select"]').exists()).toBe(true);
+    // The other item should still show an edit button, not a select
+    expect(w.findAll('[data-testid="tag-edit-btn"]')).toHaveLength(1);
+    w.unmount();
+  });
+
+  it('changing the select commits the new category to the store', async () => {
+    const { budget } = setupWithHistory();
+    const w = mountWith(SpendingAnalytics);
+    await nextTick();
+    await w.find('.period-item__header').trigger('click');
+    await nextTick();
+    await w.findAll('[data-testid="tag-edit-btn"]')[0].trigger('click');
+    await nextTick();
+    const select = w.find('[data-testid="tag-select"]');
+    (select.element as HTMLSelectElement).value = 'Entertainment';
+    await select.trigger('change');
+    await nextTick();
+    expect(budget.spendingHistory[0].items[0].category).toBe('Entertainment');
+    // Edit mode dismissed
+    expect(w.find('[data-testid="tag-select"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('blur on the select cancels editing without saving', async () => {
+    const { budget } = setupWithHistory();
+    const w = mountWith(SpendingAnalytics);
+    await nextTick();
+    await w.find('.period-item__header').trigger('click');
+    await nextTick();
+    await w.findAll('[data-testid="tag-edit-btn"]')[0].trigger('click');
+    await nextTick();
+    await w.find('[data-testid="tag-select"]').trigger('blur');
+    await nextTick();
+    expect(w.find('[data-testid="tag-select"]').exists()).toBe(false);
+    expect(budget.spendingHistory[0].items[0].category).toBe('Food & Drink');
+    w.unmount();
+  });
+
+  it('Escape key on the select cancels editing', async () => {
+    const { budget } = setupWithHistory();
+    const w = mountWith(SpendingAnalytics);
+    await nextTick();
+    await w.find('.period-item__header').trigger('click');
+    await nextTick();
+    await w.findAll('[data-testid="tag-edit-btn"]')[0].trigger('click');
+    await nextTick();
+    await w.find('[data-testid="tag-select"]').trigger('keydown', { key: 'Escape' });
+    await nextTick();
+    expect(w.find('[data-testid="tag-select"]').exists()).toBe(false);
+    expect(budget.spendingHistory[0].items[0].category).toBe('Food & Drink');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 //  14. RECURRING CALENDAR
 // ─────────────────────────────────────────────────────────────────
 describe('RecurringCalendar', () => {

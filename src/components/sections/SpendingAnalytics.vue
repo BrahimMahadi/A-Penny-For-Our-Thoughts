@@ -101,6 +101,30 @@ function deleteHistoryPeriod(id: string): void {
   toast.show('Period deleted.', 'success');
 }
 
+// ─── Category options for tag editing ────────────────────────────
+const categoryOptions = computed(() => budget.spendingCategories.map(c => c.name));
+
+// ─── Inline tag editing for history items ────────────────────────
+const editingTag = ref<{ periodId: string; idx: number } | null>(null);
+
+function isEditingTag(periodId: string, idx: number): boolean {
+  return editingTag.value?.periodId === periodId && editingTag.value?.idx === idx;
+}
+
+function startTagEdit(periodId: string, idx: number): void {
+  editingTag.value = { periodId, idx };
+}
+
+function commitTagEdit(periodId: string, idx: number, newCategory: string): void {
+  budget.updateHistoryItemCategory(periodId, idx, newCategory);
+  toast.show('Category updated.', 'success');
+  editingTag.value = null;
+}
+
+function cancelTagEdit(): void {
+  editingTag.value = null;
+}
+
 // ─── Collapsible history periods ─────────────────────────────────
 const expandedPeriods = ref<Set<string>>(new Set());
 
@@ -441,10 +465,41 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
                 class="period-purchase-row"
               >
                 <span class="period-purchase-name">{{ item.name }}</span>
-                <span
-                  v-if="item.category"
-                  class="period-purchase-cat"
-                >{{ item.category }}</span>
+
+                <!-- Inline category tag editor -->
+                <span class="period-purchase-tag-wrap">
+                  <select
+                    v-if="isEditingTag(period.id, idx)"
+                    :ref="(el) => { if (el) (el as HTMLSelectElement).focus(); }"
+                    class="period-purchase-cat-select"
+                    data-testid="tag-select"
+                    :value="item.category || 'Other'"
+                    @change="commitTagEdit(period.id, idx, ($event.target as HTMLSelectElement).value)"
+                    @blur="cancelTagEdit"
+                    @keydown.escape.stop="cancelTagEdit"
+                  >
+                    <!-- Preserve orphaned category that no longer exists in the list -->
+                    <option
+                      v-if="item.category && !categoryOptions.includes(item.category)"
+                      :value="item.category"
+                    >{{ item.category }}</option>
+                    <option
+                      v-for="cat in categoryOptions"
+                      :key="cat"
+                      :value="cat"
+                    >{{ cat }}</option>
+                  </select>
+                  <template v-else>
+                    <span class="period-purchase-cat">{{ item.category || 'Other' }}</span>
+                    <button
+                      class="period-tag-edit-btn"
+                      :aria-label="`Edit category for ${item.name}`"
+                      data-testid="tag-edit-btn"
+                      @click.stop="startTagEdit(period.id, idx)"
+                    >✏</button>
+                  </template>
+                </span>
+
                 <span class="period-purchase-amt">{{ fmt(item.amount) }}</span>
               </div>
             </div>
@@ -815,5 +870,55 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
   margin-left: 0.25rem;
+}
+
+/* ─── Inline tag editor ──────────────────────────────────────── */
+.period-purchase-tag-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+/* Edit pencil — visible on row hover / focus-within */
+.period-tag-edit-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.62rem;
+  color: var(--muted);
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.12s;
+  border-radius: 2px;
+}
+
+.period-purchase-row:hover .period-tag-edit-btn,
+.period-purchase-tag-wrap:focus-within .period-tag-edit-btn {
+  opacity: 1;
+}
+
+.period-tag-edit-btn:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+}
+
+/* Inline <select> that replaces the badge during editing */
+.period-purchase-cat-select {
+  background: var(--surface2);
+  border: 1px solid var(--accent2);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.72rem;
+  padding: 0.1rem 0.3rem;
+  outline: none;
+  cursor: pointer;
+  max-width: 130px;
+}
+
+.period-purchase-cat-select:focus {
+  border-color: var(--accent);
 }
 </style>

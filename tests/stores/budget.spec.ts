@@ -528,6 +528,60 @@ describe('budget store — spendingCategories (Sprint 19)', () => {
   });
 });
 
+// ─── History item tag editing ────────────────────────────────────────────────
+
+describe('budget store — updateHistoryItemCategory', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it('updates the category of an item in an archived period', () => {
+    const store = useBudgetStore();
+    store.addPurchase({ name: 'Coffee', amount: 5, category: 'Food & Drink', cardId: null, budgetType: 'wants' });
+    store.closeCurrentPeriod('2026-05-01');
+    const period = store.spendingHistory[0];
+    store.updateHistoryItemCategory(period.id, 0, 'Entertainment');
+    expect(store.spendingHistory[0].items[0].category).toBe('Entertainment');
+  });
+
+  it('is a no-op for an unknown period ID (does not throw)', () => {
+    const store = useBudgetStore();
+    expect(() => store.updateHistoryItemCategory('nonexistent-id', 0, 'Entertainment')).not.toThrow();
+  });
+
+  it('is a no-op for an out-of-bounds item index (does not throw)', () => {
+    const store = useBudgetStore();
+    store.addPurchase({ name: 'Coffee', amount: 5, category: 'Food & Drink', cardId: null, budgetType: 'wants' });
+    store.closeCurrentPeriod('2026-05-01');
+    const period = store.spendingHistory[0];
+    expect(() => store.updateHistoryItemCategory(period.id, 99, 'Entertainment')).not.toThrow();
+    expect(store.spendingHistory[0].items[0].category).toBe('Food & Drink');
+  });
+
+  it('does not affect other items in the same period', () => {
+    const store = useBudgetStore();
+    store.addPurchase({ name: 'Coffee', amount: 5, category: 'Food & Drink', cardId: null, budgetType: 'wants' });
+    store.addPurchase({ name: 'Movie', amount: 15, category: 'Entertainment', cardId: null, budgetType: 'wants' });
+    store.closeCurrentPeriod('2026-05-01');
+    const period = store.spendingHistory[0];
+    store.updateHistoryItemCategory(period.id, 0, 'Other');
+    expect(store.spendingHistory[0].items[0].category).toBe('Other');
+    expect(store.spendingHistory[0].items[1].category).toBe('Entertainment');
+  });
+
+  it('does not affect items in other archived periods', () => {
+    const store = useBudgetStore();
+    store.addPurchase({ name: 'Coffee', amount: 5, category: 'Food & Drink', cardId: null, budgetType: 'wants' });
+    store.closeCurrentPeriod('2026-05-01');
+    store.addPurchase({ name: 'Movie', amount: 15, category: 'Entertainment', cardId: null, budgetType: 'wants' });
+    store.closeCurrentPeriod('2026-05-15');
+    const period1 = store.spendingHistory[0];
+    store.updateHistoryItemCategory(period1.id, 0, 'Other');
+    expect(store.spendingHistory[0].items[0].category).toBe('Other');
+    expect(store.spendingHistory[1].items[0].category).toBe('Entertainment');
+  });
+});
+
 // ─── Sprint 19: migrateState — spendingCategories seeding ───────────────────
 
 describe('migrateState — spendingCategories migration (Sprint 19)', () => {

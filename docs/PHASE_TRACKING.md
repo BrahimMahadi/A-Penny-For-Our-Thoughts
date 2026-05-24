@@ -399,7 +399,8 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 20 — Calendar Day Detail (Slide Panel + Hover Popover) | ✅ Complete | v1.14.0 |
 | Sprint 21 — WantsDonut categoryColors & ProgressBar Label Bug Fixes | ✅ Complete | v1.15.0 |
 | Sprint 22 — Search, Sort & Filter for Purchases and Subscriptions | ✅ Complete | v1.15.0 |
-| **Current** | **✅ v1.15.0 shipped** | **v1.15.0** |
+| Sprint 23 — Retroactive Category Editing for Archived Purchases | ✅ Complete | v1.16.0 |
+| **Current** | **✅ v1.16.0 shipped** | **v1.16.0** |
 
 ---
 
@@ -1268,7 +1269,58 @@ Items captured for future sprints — not yet scheduled. See individual option d
 
 ---
 
+---
+
+## Sprint 23 — Retroactive Category Editing for Archived Purchases 🏷️
+**Status**: ✅ **COMPLETE** — May 2026
+**Version:** v1.16.0
+**Goal**: Allow users to correct the category tag on purchases that have already been archived into a closed spending period, without disrupting period totals or any other data.
+
+### Completed
+
+#### 23A: Store Action ✅
+- ✅ `updateHistoryItemCategory(periodId, itemIndex, newCategory)` added to `useBudgetStore`
+- ✅ Addresses history items by `[periodId, itemIndex]` — stable because closed periods are never reordered
+- ✅ No-op (with no throw) for unknown `periodId` or out-of-bounds `itemIndex` — safe for legacy data with no IDs
+- ✅ Period `total` is not recalculated — category changes are metadata-only
+
+#### 23B: UI — Inline Tag Editor in SpendingAnalytics ✅
+- ✅ Each row in an expanded history period now shows a ✏ edit button (visible on row hover)
+- ✅ Clicking ✏ replaces the category badge with an inline `<select>` populated from `spendingCategories`
+- ✅ Orphaned categories (deleted from the category list) are preserved as a first option so the user can see and change them
+- ✅ Selecting a new category commits immediately and dismisses the select
+- ✅ `blur` and `Escape` both cancel without saving
+- ✅ Auto-focus on the `<select>` via Vue template ref callback (`:ref="(el) => { if (el) el.focus(); }"`)
+- ✅ Toast confirmation on successful save ("Category updated.")
+- ✅ `categoryOptions` computed from live `budget.spendingCategories` — always reflects current category list
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `src/stores/budget.ts` | `updateHistoryItemCategory` action added |
+| `src/components/sections/SpendingAnalytics.vue` | Inline tag editor (script + template + CSS) |
+| `tests/stores/budget.spec.ts` | +5 new store tests for `updateHistoryItemCategory` |
+| `tests/components/sections/sections.spec.ts` | +5 new component tests: edit button, select appears, commit, blur cancel, Escape cancel |
+| `src/components/onboarding/WhatsNewBanner.vue` | Bumped to v1.16.0, updated release notes |
+| `CLAUDE.md` | Updated test count to 845 |
+| `docs/PHASE_TRACKING.md` | Added Sprint 23 row + this section |
+| `docs/USER_GUIDE.md` | Updated Spending Analytics → History List section |
+
+### Test Summary
+
+- **845 tests total** across 24 spec files (previously 835)
+- **+10 new tests** in Sprint 23:
+  - `budget store — updateHistoryItemCategory` (5 tests): valid update, unknown period no-op, out-of-bounds index no-op, other items unchanged, other periods unchanged
+  - `SpendingAnalytics — history tag editing` (5 tests): edit button per item, select appears on click, commit saves + dismisses, blur cancels, Escape cancels
+- `vue-tsc --noEmit` clean · `vite build` green
+
+### Merge & Tag
+- ✅ Merged `feat/sprint-23` → `main`, tagged **v1.16.0**
+
+---
+
 **Last Updated**: May 2026
-**Current Version**: v1.15.0 — Sprint 22 complete
+**Current Version**: v1.16.0 — Sprint 23 complete
 **Next Up**: TBD
 **Current Branch**: `main`

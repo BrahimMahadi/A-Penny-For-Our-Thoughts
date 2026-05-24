@@ -435,6 +435,19 @@ export const useBudgetStore = defineStore('budget', {
       this.purchases = this.purchases.filter((p) => p.id !== id);
     },
 
+    /**
+     * Update the spending-category tag on a single item inside an archived
+     * period. Addressed by [periodId, itemIndex] since history items lack
+     * guaranteed IDs. No-op when the period or index is not found.
+     */
+    updateHistoryItemCategory(periodId: string, itemIndex: number, newCategory: string): void {
+      const period = this.spendingHistory.find((p) => p.id === periodId);
+      if (!period) return;
+      const item = period.items[itemIndex];
+      if (!item) return;
+      item.category = newCategory;
+    },
+
     /** Close the current period: snapshot purchases → history, then clear. */
     closeCurrentPeriod(periodDate: ISODate): SpendingHistoryPeriod {
       const total = this.purchases.reduce((s, p) => s + p.amount, 0);

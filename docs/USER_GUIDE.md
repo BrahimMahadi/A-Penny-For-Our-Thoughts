@@ -206,7 +206,11 @@ Visualise your historical spending patterns across all archived bi-weekly period
 - **Monthly Trends** — 6-month bar chart of Wants spending with the budget reference line; MoM insights auto-generated below.
 
 ### History List
-Each archived period lists date range, total, and all purchases. Click the pencil icon on any purchase to edit it retroactively.
+Each archived period shows its date, total, and a category-breakdown chip strip. Click any period header to expand it and see the full purchase list.
+
+**Editing a category retroactively:** Every purchase row in an expanded period shows a ✏ pencil button (appears on hover). Clicking it replaces the category badge with an inline dropdown populated from your current spending categories. Select a new category to save immediately, or press **Escape** / click away to cancel. The period total is never affected — only the tag changes.
+
+> **Orphaned categories:** If a category was deleted after the purchase was archived, its original name is still shown as the first option in the dropdown so you can see it before reassigning.
 
 ---
 
