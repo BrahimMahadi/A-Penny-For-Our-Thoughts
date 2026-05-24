@@ -25,8 +25,9 @@ export type BudgetType = 'needs' | 'wants' | 'savings';
  * Payment frequency for recurring items (subscriptions, loans).
  * `'custom-days'` selects specific days of the week via the `daysOfWeek` field
  * on the owning entity (Subscription only — Loan uses the other variants).
+ * `'biyearly'` means every 6 months (semi-annual).
  */
-export type Frequency = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom-days';
+export type Frequency = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'biyearly' | 'yearly' | 'custom-days';
 
 /** Display granularity for the budget allocation cards */
 export type BudgetDisplayMode = 'biweekly' | 'monthly';
@@ -268,4 +269,18 @@ export interface AssetCategoryMeta {
   key: AssetCategoryKey;
   label: string;
   icon: string;
+}
+
+// ─── Spending categories ─────────────────────────────────────────
+
+/**
+ * A user-defined spending category for purchases and subscriptions.
+ * `id === 'other'` is the built-in fallback and cannot be deleted.
+ */
+export interface SpendingCategory {
+  /** Unique slug — `'other'` is reserved for the system fallback */
+  id: string;
+  name: string;
+  /** Hex colour string, e.g. '#ff8c42' */
+  color: string;
 }

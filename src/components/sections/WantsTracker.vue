@@ -27,7 +27,7 @@ import {
   applyRulesToName,
   getTriggeredAlerts,
 } from '@/utils/calculations';
-import { WANT_CATEGORIES, CATEGORY_COLOURS } from '@/data/categories';
+import { CATEGORY_FALLBACK_COLOR } from '@/data/categories';
 
 const budget = useBudgetStore();
 const toast  = useToast();
@@ -198,9 +198,13 @@ function closePeriod(): void {
 }
 
 // ─── Category colour helper ───────────────────────────────────────
+/** Look up the color for a category name from the user-defined list. */
 function catColour(cat: string): string {
-  return CATEGORY_COLOURS[cat] ?? '#8b95ad';
+  return budget.spendingCategories.find(c => c.name === cat)?.color ?? CATEGORY_FALLBACK_COLOR;
 }
+
+/** Ordered list of category names for dropdowns, with 'Other' always last. */
+const categoryOptions = computed(() => budget.spendingCategories.map(c => c.name));
 
 function cardLabel(cardId: string | null): string | null {
   if (!cardId) return null;
@@ -494,7 +498,7 @@ function cardLabel(cardId: string | null): string | null {
               class="form-input"
             >
               <option
-                v-for="cat in WANT_CATEGORIES"
+                v-for="cat in categoryOptions"
                 :key="cat"
                 :value="cat"
               >

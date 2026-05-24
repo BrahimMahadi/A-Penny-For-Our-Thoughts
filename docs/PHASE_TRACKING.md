@@ -395,7 +395,8 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 16 — Loans on Schedule Tab | ✅ Complete | v1.10.0 |
 | Sprint 17 — Custom-Days Subscriptions | ✅ Complete | v1.11.0 |
 | Sprint 18 — Collapsible Sections & Drag-and-Drop Reorder | ✅ Complete | v1.12.0 |
-| **Current** | **✅ v1.12.0 shipped** | **v1.12.0** |
+| Sprint 19 — Category Manager, Bi-Yearly Frequency & Chequing Balance Dashboard | ✅ Complete | v1.13.0 |
+| **Current** | **✅ v1.13.0 shipped** | **v1.13.0** |
 
 ---
 
@@ -1062,7 +1063,57 @@ Items captured for future sprints — not yet scheduled. See individual option d
 
 ---
 
+## Sprint 19 — Category Manager, Bi-Yearly Frequency & Chequing Balance Dashboard 🏷️
+**Status**: ✅ **COMPLETE** — May 2026  
+**Version**: v1.13.0  
+**Branch**: `feat/sprint-19`
+
+### Features Delivered
+
+#### 1. Spending Category Manager (Settings tab)
+- New `SpendingCategory` type (`id`, `name`, `color`) and `spendingCategories: SpendingCategory[]` field in `BudgetState`
+- `DEFAULT_SPENDING_CATEGORIES` (7 entries): Food & Drink, Groceries, Entertainment, Shopping, Health & Fitness, Transportation, Other
+- `CATEGORY_COLOR_PRESETS` — 10 hex colors for the colour picker
+- 3 new store actions:
+  - `addCategory(name, color)` — trims, rejects duplicates, returns `SpendingCategory | null`
+  - `updateCategory(id, name, color)` — renames; migrates matching category name in purchases, spendingHistory, subscriptions, rules, budgetAlerts
+  - `deleteCategory(id)` — guards 'other' (protected built-in); orphan strategy: deleted category name stays on existing purchases
+- `CategoryManager.vue` — CRUD list with color swatch, built-in badge, edit/delete buttons, modal form with duplicate/empty validation + 10-colour preset grid + live preview
+- Migration: seeds `DEFAULT_SPENDING_CATEGORIES` if field is missing or empty; ensures 'other' always present
+- WantsTracker, Subscriptions category dropdowns now driven by `budget.spendingCategories` instead of static array
+- CSV export/import: new `SECTION:spendingCategories` block (`id,name,color`)
+
+#### 2. Bi-Yearly Frequency (Every 6 Months)
+- Added `'biyearly'` to the `Frequency` union type
+- `getRenewalDatesBetween` handles `'biyearly'` stepping by 6 months (also backward-compat with legacy `'bi-yearly'` string)
+- `MO_RATE`, `YR_RATE`, `FREQ_LABEL`, `FREQ_DISPLAY` updated in Subscriptions.vue
+- `FREQUENCIES` updated in Loans.vue to include `'biyearly'`
+
+#### 3. Chequing Balance → Dashboard Section
+- `ChequingBalance.vue` — new dedicated dashboard section (moved from Settings):
+  - Large balance display with CAD currency formatting
+  - Freshness indicator dot: green ≤7 days, amber >7 days, muted/unknown if never updated
+  - Inline update form with Save/Cancel
+- `dashboardSections.ts` — added `'chequing-balance'` entry in new "Account Tracking" group
+- `DashboardPage.vue` — registered `ChequingBalance` in `SECTION_COMPONENTS`
+- `SettingsPage.vue` — removed old funds section; added `CategoryManager` in a new "Spending Categories" card
+
+### Testing
+- `tests/stores/budget.spec.ts` — 21 new tests: `addCategory` (add, duplicate reject, empty reject), `updateCategory` (name+color, purchase migration, subscription migration, budgetAlert migration), `deleteCategory` (removes user category, protects 'other', orphan strategy), `migrateState` (seeds on missing field, seeds on empty array, ensures 'other' present)
+- `tests/utils/calculations.spec.ts` — 4 new tests: biyearly 2-year window, short range, skip past, empty result
+- `tests/utils/csvImportExport.spec.ts` — updated section count (17→18), added `spendingCategories` to `buildSampleState`, added round-trip test, updated blank-defaults assertion
+- `tests/components/sections/settings.spec.ts` — 22 new tests: CategoryManager (renders list, built-in badge, hidden delete, add modal, add flow, empty-name error), ChequingBalance (renders balance, freshness classes, update form, save, cancel), SettingsPage layout (has CategoryManager, no chequing input)
+- `tests/components/pages/pages.spec.ts` — replaced 5 obsolete chequing-balance-in-settings tests with 2 Sprint-19 tests
+- Count corrections: section counts updated from 15→16 in `sections.spec.ts` and `ui.spec.ts` (32 move buttons, 16 drag handles, 16 collapse buttons, 16 section slots)
+- **Total: 734 passing (↑35 from 699) across 23 spec files**
+- `vue-tsc --noEmit` clean · `eslint --max-warnings 0 src/` clean · `vite build` green (542 kB / 172 kB gzip)
+
+### Merge & Tag
+- ✅ Merged `feat/sprint-19` → `main`, tagged **v1.13.0**
+
+---
+
 **Last Updated**: May 2026  
-**Current Version**: v1.12.0 — Sprint 18 complete  
+**Current Version**: v1.13.0 — Sprint 19 complete  
 **Next Up**: TBD  
 **Current Branch**: `main`

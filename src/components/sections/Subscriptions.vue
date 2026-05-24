@@ -27,9 +27,9 @@ const { totalMonthlyIncome } = useAnalytics();
 // ─── Frequency rate maps ──────────────────────────────────────────
 // custom-days rate is variable (depends on how many days are selected), so it
 // uses a per-occurrence sentinel of 1 here — actual cost is computed via helpers.
-const MO_RATE: Record<Frequency, number> = { weekly: 4.33, biweekly: 2.17, monthly: 1, quarterly: 1/3, yearly: 1/12, 'custom-days': 1 };
-const YR_RATE: Record<Frequency, number> = { weekly: 52,   biweekly: 26,   monthly: 12, quarterly: 4,   yearly: 1,   'custom-days': 1 };
-const FREQ_LABEL: Record<Frequency, string> = { weekly: '/wk', biweekly: '/2wk', monthly: '/mo', quarterly: '/qtr', yearly: '/yr', 'custom-days': '/day' };
+const MO_RATE: Record<Frequency, number> = { weekly: 4.33, biweekly: 2.17, monthly: 1, quarterly: 1/3, biyearly: 1/6, yearly: 1/12, 'custom-days': 1 };
+const YR_RATE: Record<Frequency, number> = { weekly: 52,   biweekly: 26,   monthly: 12, quarterly: 4,   biyearly: 2,   yearly: 1,   'custom-days': 1 };
+const FREQ_LABEL: Record<Frequency, string> = { weekly: '/wk', biweekly: '/2wk', monthly: '/mo', quarterly: '/qtr', biyearly: '/6mo', yearly: '/yr', 'custom-days': '/day' };
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 // ─── Day-of-week helpers ──────────────────────────────────────────
@@ -174,9 +174,9 @@ const form = reactive({
   daysOfWeek: [] as number[],
 });
 
-const FREQUENCIES_SUB: Frequency[] = ['monthly', 'quarterly', 'yearly', 'biweekly', 'weekly', 'custom-days'];
+const FREQUENCIES_SUB: Frequency[] = ['monthly', 'quarterly', 'biyearly', 'yearly', 'biweekly', 'weekly', 'custom-days'];
 const FREQ_DISPLAY: Record<Frequency, string> = {
-  monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly',
+  monthly: 'Monthly', quarterly: 'Quarterly', biyearly: 'Every 6 months', yearly: 'Yearly',
   biweekly: 'Bi-weekly', weekly: 'Weekly', 'custom-days': 'Custom days',
 };
 
@@ -555,6 +555,25 @@ function remove(id: string): void {
           <div class="form-group">
             <label
               class="form-label"
+              for="sub-category"
+            >Category</label>
+            <select
+              id="sub-category"
+              v-model="form.category"
+              class="form-input"
+            >
+              <option
+                v-for="cat in budget.spendingCategories"
+                :key="cat.id"
+                :value="cat.name"
+              >
+                {{ cat.name }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label
+              class="form-label"
               for="sub-budget-type"
             >Budget type</label>
             <select
@@ -570,6 +589,9 @@ function remove(id: string): void {
               </option>
             </select>
           </div>
+        </div>
+
+        <div class="form-row-2">
           <div class="form-group">
             <label
               class="form-label"

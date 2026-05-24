@@ -115,6 +115,15 @@ export const DASHBOARD_SECTIONS: DashboardSection[] = [
     group: 'Savings & Goals',
   },
 
+  // ── Account Tracking ─────────────────────────────────────────────
+  {
+    id: 'chequing-balance',
+    icon: '🏦',
+    label: 'Chequing Balance',
+    title: 'Chequing Balance',
+    group: 'Account Tracking',
+  },
+
   // ── Wealth & History ──────────────────────────────────────────────
   {
     id: 'net-worth',

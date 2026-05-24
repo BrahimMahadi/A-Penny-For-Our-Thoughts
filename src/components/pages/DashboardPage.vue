@@ -37,6 +37,7 @@ import BudgetVsActual      from '@/components/sections/BudgetVsActual.vue';
 import SpendingAnalytics   from '@/components/sections/SpendingAnalytics.vue';
 import Wishlist            from '@/components/sections/Wishlist.vue';
 import SpendingTrendSection from '@/components/sections/SpendingTrendSection.vue';
+import ChequingBalance      from '@/components/sections/ChequingBalance.vue';
 
 /** Registry: section id → its Vue component */
 const SECTION_COMPONENTS: Record<string, Component> = {
@@ -52,6 +53,7 @@ const SECTION_COMPONENTS: Record<string, Component> = {
   'savings-accounts':   Savings,
   'savings-goals':      SavingsGoals,
   'goals-timeline':     GoalsTimeline,
+  'chequing-balance':   ChequingBalance,
   'net-worth':          NetWorth,
   'spending-analytics': SpendingAnalytics,
   'wishlist':           Wishlist,

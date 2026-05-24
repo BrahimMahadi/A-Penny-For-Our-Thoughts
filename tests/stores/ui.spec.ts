@@ -160,9 +160,9 @@ describe('ui store — sectionOrder', () => {
     expect(store.sectionOrder).toEqual(DEFAULT_SECTION_ORDER);
   });
 
-  it('sectionOrder contains all 15 known section IDs', () => {
+  it('sectionOrder contains all 16 known section IDs', () => {
     const store = useUiStore();
-    expect(store.sectionOrder).toHaveLength(15);
+    expect(store.sectionOrder).toHaveLength(16);
     expect(store.sectionOrder).toContain('income-streams');
     expect(store.sectionOrder).toContain('subscriptions');
     expect(store.sectionOrder).toContain('wishlist');
@@ -189,10 +189,10 @@ describe('ui store — sectionOrder', () => {
 
   it('setSectionOrder appends missing IDs so no section is ever lost', () => {
     const store = useUiStore();
-    // Pass an order that only contains 2 of the 15 sections
+    // Pass an order that only contains 2 of the 16 sections
     store.setSectionOrder(['income-streams', 'loans']);
     expect(store.sectionOrder).toContain('wishlist');
-    expect(store.sectionOrder.length).toBe(15);
+    expect(store.sectionOrder.length).toBe(16);
     // The 2 provided sections come first
     expect(store.sectionOrder[0]).toBe('income-streams');
     expect(store.sectionOrder[1]).toBe('loans');
@@ -263,7 +263,7 @@ describe('ui store — sectionOrder', () => {
     setActivePinia(createPinia());
     const store2 = useUiStore();
     expect(store2.sectionOrder).not.toContain('totally-fake-id');
-    expect(store2.sectionOrder.length).toBe(15);
+    expect(store2.sectionOrder.length).toBe(16);
   });
 
   it('migration: sections missing from stored order are appended on load', () => {
@@ -274,7 +274,7 @@ describe('ui store — sectionOrder', () => {
     }));
     setActivePinia(createPinia());
     const store2 = useUiStore();
-    expect(store2.sectionOrder.length).toBe(15);
+    expect(store2.sectionOrder.length).toBe(16);
     expect(store2.sectionOrder[0]).toBe('income-streams');
     expect(store2.sectionOrder[1]).toBe('loans');
   });

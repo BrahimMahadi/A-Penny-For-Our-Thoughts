@@ -428,3 +428,129 @@ describe('loadStateFromStorage — error handling', () => {
     expect(loadStateFromStorage().allocation).toEqual({ needs: 40, wants: 40, savings: 20 });
   });
 });
+
+// ─── Sprint 19: Spending Category CRUD ──────────────────────────────────────
+
+describe('budget store — spendingCategories (Sprint 19)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+
+  it('initialises with DEFAULT_SPENDING_CATEGORIES (7 entries including "other")', () => {
+    const store = useBudgetStore();
+    expect(store.spendingCategories.length).toBeGreaterThanOrEqual(7);
+    expect(store.spendingCategories.some(c => c.id === 'other')).toBe(true);
+  });
+
+  it('addCategory adds a new category and returns it', () => {
+    const store = useBudgetStore();
+    const initial = store.spendingCategories.length;
+    const result = store.addCategory('Hobbies', '#ff0000');
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('Hobbies');
+    expect(result!.color).toBe('#ff0000');
+    expect(store.spendingCategories.length).toBe(initial + 1);
+  });
+
+  it('addCategory rejects duplicate name (case-insensitive)', () => {
+    const store = useBudgetStore();
+    store.addCategory('Hobbies', '#ff0000');
+    const result = store.addCategory('hobbies', '#00ff00');
+    expect(result).toBeNull();
+  });
+
+  it('addCategory rejects empty/whitespace name', () => {
+    const store = useBudgetStore();
+    const result = store.addCategory('   ', '#ff0000');
+    expect(result).toBeNull();
+  });
+
+  it('updateCategory changes name and color', () => {
+    const store = useBudgetStore();
+    const cat = store.addCategory('Fitness', '#123456')!;
+    store.updateCategory(cat.id, 'Health & Fitness', '#abcdef');
+    const updated = store.spendingCategories.find(c => c.id === cat.id)!;
+    expect(updated.name).toBe('Health & Fitness');
+    expect(updated.color).toBe('#abcdef');
+  });
+
+  it('updateCategory migrates category name in purchases', () => {
+    const store = useBudgetStore();
+    const cat = store.addCategory('OldCat', '#111111')!;
+    store.purchases.push({ id: 'p1', name: 'Coffee', amount: 5, category: 'OldCat', cardId: null, budgetType: 'wants' });
+    store.updateCategory(cat.id, 'NewCat', '#111111');
+    expect(store.purchases[0].category).toBe('NewCat');
+  });
+
+  it('updateCategory migrates category name in subscriptions', () => {
+    const store = useBudgetStore();
+    const cat = store.addCategory('OldSub', '#222222')!;
+    store.subscriptions.push({
+      id: 's1', name: 'Netflix', amount: 17, frequency: 'monthly',
+      date: '2026-01-01', category: 'OldSub', budgetType: 'wants', cardId: null,
+    });
+    store.updateCategory(cat.id, 'NewSub', '#222222');
+    expect(store.subscriptions[store.subscriptions.length - 1].category).toBe('NewSub');
+  });
+
+  it('updateCategory migrates category name in budgetAlerts', () => {
+    const store = useBudgetStore();
+    const cat = store.addCategory('OldAlert', '#333333')!;
+    store.budgetAlerts.push({ id: 'ba1', category: 'OldAlert', threshold: 50 });
+    store.updateCategory(cat.id, 'NewAlert', '#333333');
+    expect(store.budgetAlerts[store.budgetAlerts.length - 1].category).toBe('NewAlert');
+  });
+
+  it('deleteCategory removes a user-defined category', () => {
+    const store = useBudgetStore();
+    const cat = store.addCategory('Temp', '#ff0000')!;
+    const initial = store.spendingCategories.length;
+    store.deleteCategory(cat.id);
+    expect(store.spendingCategories.length).toBe(initial - 1);
+    expect(store.spendingCategories.find(c => c.id === cat.id)).toBeUndefined();
+  });
+
+  it('deleteCategory is a no-op for the protected "other" category', () => {
+    const store = useBudgetStore();
+    const initial = store.spendingCategories.length;
+    store.deleteCategory('other');
+    expect(store.spendingCategories.length).toBe(initial);
+    expect(store.spendingCategories.some(c => c.id === 'other')).toBe(true);
+  });
+
+  it('deleteCategory leaves orphaned purchases intact (orphan strategy)', () => {
+    const store = useBudgetStore();
+    const cat = store.addCategory('Orphan', '#deadbe')!;
+    store.purchases.push({ id: 'p2', name: 'Gadget', amount: 99, category: 'Orphan', cardId: null, budgetType: 'wants' });
+    store.deleteCategory(cat.id);
+    expect(store.purchases.find(p => p.id === 'p2')!.category).toBe('Orphan');
+  });
+});
+
+// ─── Sprint 19: migrateState — spendingCategories seeding ───────────────────
+
+describe('migrateState — spendingCategories migration (Sprint 19)', () => {
+  it('seeds DEFAULT_SPENDING_CATEGORIES when field is missing', () => {
+    const raw = makeDefaultState() as unknown as Record<string, unknown>;
+    delete raw.spendingCategories;
+    const migrated = migrateState(raw as Parameters<typeof migrateState>[0]);
+    expect(Array.isArray(migrated.spendingCategories)).toBe(true);
+    expect((migrated.spendingCategories as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  it('seeds DEFAULT_SPENDING_CATEGORIES when field is empty array', () => {
+    const raw = { ...makeDefaultState(), spendingCategories: [] };
+    const migrated = migrateState(raw);
+    expect((migrated.spendingCategories as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  it('ensures "other" is always present after migration', () => {
+    const raw = {
+      ...makeDefaultState(),
+      spendingCategories: [{ id: 'custom1', name: 'Custom', color: '#fff' }],
+    };
+    const migrated = migrateState(raw);
+    expect((migrated.spendingCategories as Array<{id:string}>).some(c => c.id === 'other')).toBe(true);
+  });
+});

@@ -1374,7 +1374,7 @@ describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
     const w = mountWith(DashboardPage);
     await nextTick();
     const handles = w.findAll('.base-card__drag-handle');
-    expect(handles.length).toBe(15);
+    expect(handles.length).toBe(16);
     w.unmount();
   });
 
@@ -1382,7 +1382,7 @@ describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
     const w = mountWith(DashboardPage);
     await nextTick();
     const chevrons = w.findAll('.base-card__collapse-btn');
-    expect(chevrons.length).toBe(15);
+    expect(chevrons.length).toBe(16);
     w.unmount();
   });
 
@@ -1390,7 +1390,7 @@ describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
     const w = mountWith(DashboardPage);
     await nextTick();
     const slots = w.findAll('.section-slot');
-    expect(slots.length).toBe(15);
+    expect(slots.length).toBe(16);
     w.unmount();
   });
 
@@ -1470,14 +1470,14 @@ describe('SectionPicker — Sprint 18 reorder', () => {
   beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('renders one item per section (15 items)', async () => {
+  it('renders one item per section (16 items)', async () => {
     const w = mount(SectionPicker, {
       props: { open: true },
       attachTo: document.body,
     });
     await nextTick();
     const items = document.body.querySelectorAll('.section-picker-item');
-    expect(items.length).toBe(15);
+    expect(items.length).toBe(16);
     w.unmount();
   });
 
@@ -1488,7 +1488,7 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const handles = document.body.querySelectorAll('.picker-drag-handle');
-    expect(handles.length).toBe(15);
+    expect(handles.length).toBe(16);
     w.unmount();
   });
 
@@ -1499,8 +1499,8 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const moveBtns = document.body.querySelectorAll('.picker-move-btn');
-    // 2 buttons per item × 15 items = 30
-    expect(moveBtns.length).toBe(30);
+    // 2 buttons per item × 16 items = 32
+    expect(moveBtns.length).toBe(32);
     w.unmount();
   });
 
@@ -1511,7 +1511,7 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const collapseBtns = document.body.querySelectorAll('.picker-collapse-btn');
-    expect(collapseBtns.length).toBe(15);
+    expect(collapseBtns.length).toBe(16);
     w.unmount();
   });
 

@@ -134,7 +134,11 @@ function linkedCardLabel(cardId: string | null): string | null {
   return budget.expenseCards.find(c => c.id === cardId)?.label ?? null;
 }
 
-const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'] as const;
+const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'biyearly', 'yearly'] as const;
+const FREQ_DISPLAY: Record<string, string> = {
+  weekly: 'Weekly', biweekly: 'Bi-weekly', monthly: 'Monthly',
+  quarterly: 'Quarterly', biyearly: 'Every 6 months', yearly: 'Yearly',
+};
 </script>
 
 <template>
@@ -353,7 +357,7 @@ const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'] as 
                 :key="f"
                 :value="f"
               >
-                {{ f }}
+                {{ FREQ_DISPLAY[f] ?? f }}
               </option>
             </select>
           </div>

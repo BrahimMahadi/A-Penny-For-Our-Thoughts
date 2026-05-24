@@ -273,69 +273,21 @@ describe('SettingsPage', () => {
     w.unmount();
   });
 
-  it('renders Chequing Balance card with current balance', async () => {
-    // DEFAULT_STATE.fundsRemaining = 0 — just verify the card renders
+  it('renders Spending Categories section (Sprint 19 — CategoryManager)', async () => {
+    // The chequing balance section was moved to the Dashboard in Sprint 19 and
+    // replaced in Settings with the new CategoryManager.
     const w = mountWith(SettingsPage);
     await nextTick();
-    // The balance label should be present
-    expect(w.find('.settings-funds__label').exists()).toBe(true);
-    expect(w.find('.settings-funds__label').text()).toContain('Current balance');
+    // CategoryManager renders a .cat-manager wrapper
+    expect(w.find('.cat-manager').exists()).toBe(true);
     w.unmount();
   });
 
-  it('shows Update Balance button when not editing', async () => {
+  it('does NOT render chequing balance section in Settings (moved to Dashboard in Sprint 19)', async () => {
     const w = mountWith(SettingsPage);
     await nextTick();
-    const btn = w.findAll('button').find(b => b.text().includes('Update Balance'));
-    expect(btn).toBeDefined();
-    w.unmount();
-  });
-
-  it('opens balance edit form when Update Balance is clicked', async () => {
-    const w = mountWith(SettingsPage);
-    await nextTick();
-    await w.findAll('button').find(b => b.text().includes('Update Balance'))!.trigger('click');
-    await nextTick();
-    expect(w.find('.settings-funds__form').exists()).toBe(true);
-    expect(w.find('.settings-funds__input').exists()).toBe(true);
-    w.unmount();
-  });
-
-  it('saves the balance when Save is clicked', async () => {
-    const budget = useBudgetStore();
-    const w = mountWith(SettingsPage);
-    await nextTick();
-
-    await w.findAll('button').find(b => b.text().includes('Update Balance'))!.trigger('click');
-    await nextTick();
-
-    const input = w.find('.settings-funds__input');
-    await input.setValue(3500);
-    await nextTick();
-
-    const saveBtn = w.findAll('button').find(b => b.text() === 'Save');
-    await saveBtn!.trigger('click');
-    await nextTick();
-
-    expect(budget.fundsRemaining).toBe(3500);
-    expect(w.find('.settings-funds__form').exists()).toBe(false);
-    w.unmount();
-  });
-
-  it('cancels balance edit without saving', async () => {
-    const budget = useBudgetStore();
-    const initialBalance = budget.fundsRemaining;
-    const w = mountWith(SettingsPage);
-    await nextTick();
-
-    await w.findAll('button').find(b => b.text().includes('Update Balance'))!.trigger('click');
-    await nextTick();
-
-    const cancelBtn = w.findAll('button').find(b => b.text() === 'Cancel');
-    await cancelBtn!.trigger('click');
-    await nextTick();
-
-    expect(budget.fundsRemaining).toBe(initialBalance);
+    // The old settings-funds CSS class should be gone
+    expect(w.find('.settings-funds__label').exists()).toBe(false);
     expect(w.find('.settings-funds__form').exists()).toBe(false);
     w.unmount();
   });
