@@ -203,6 +203,16 @@ function catColour(cat: string): string {
   return budget.spendingCategories.find(c => c.name === cat)?.color ?? CATEGORY_FALLBACK_COLOR;
 }
 
+/**
+ * Reactive map of category name → color, passed to WantsDonut so the chart
+ * always reflects any user-defined recolours / renames from Category Manager.
+ */
+const categoryColorMap = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {};
+  budget.spendingCategories.forEach(c => { map[c.name] = c.color; });
+  return map;
+});
+
 /** Ordered list of category names for dropdowns, with 'Other' always last. */
 const categoryOptions = computed(() => budget.spendingCategories.map(c => c.name));
 
@@ -255,6 +265,7 @@ function cardLabel(cardId: string | null): string | null {
           :category-spending="categorySpending"
           :remaining="Math.max(0, remaining)"
           :used-pct="usedPct"
+          :category-colors="categoryColorMap"
         />
       </div>
 

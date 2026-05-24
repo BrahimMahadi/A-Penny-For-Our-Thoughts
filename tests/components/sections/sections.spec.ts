@@ -35,6 +35,9 @@ vi.mock('chart.js', () => ({
   registerables: [],
 }));
 
+// ─── Chart sub-components (direct tests) ─────────────────────────
+import WantsDonut        from '@/components/charts/WantsDonut.vue';
+
 // ─── Section SFCs under test ──────────────────────────────────────
 import IncomeStreams      from '@/components/sections/IncomeStreams.vue';
 import BudgetAllocation  from '@/components/sections/BudgetAllocation.vue';
@@ -2111,5 +2114,177 @@ describe('RecurringCalendar — day detail hover popover', () => {
     expect(document.body.querySelector('[data-testid="day-popover"]')).toBeNull();
     w.unmount();
     vi.useRealTimers();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  WantsDonut — categoryColors prop (BUG-FIX Sprint 21)
+// ─────────────────────────────────────────────────────────────────
+describe('WantsDonut — categoryColors prop (BUG-FIX Sprint 21)', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('renders without throwing when categoryColors is not provided (default)', async () => {
+    const w = mount(WantsDonut as Parameters<typeof mount>[0], {
+      attachTo: document.body,
+      props: {
+        categorySpending: {},
+        remaining: 100,
+        usedPct: 0,
+      },
+    });
+    // One tick so wrapperRef watch fires → isInView = true (IO unavailable in jsdom)
+    await nextTick();
+    expect(w.exists()).toBe(true);
+    // Doughnut is mocked — canvas stub should render
+    expect(w.find('[data-testid="chart-doughnut"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders without throwing when categoryColors is provided with real entries', async () => {
+    const w = mount(WantsDonut as Parameters<typeof mount>[0], {
+      attachTo: document.body,
+      props: {
+        categorySpending: { 'Food & Drink': 120, Groceries: 80 },
+        remaining: 400,
+        usedPct: 50,
+        categoryColors: { 'Food & Drink': '#ff8c42', Groceries: '#00d4aa' },
+      },
+    });
+    await nextTick();
+    expect(w.find('[data-testid="chart-doughnut"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders the centre pct label in the default (accent) colour at normal percent', async () => {
+    const w = mount(WantsDonut as Parameters<typeof mount>[0], {
+      attachTo: document.body,
+      props: { categorySpending: {}, remaining: 500, usedPct: 40, categoryColors: {} },
+    });
+    await nextTick();
+    const centre = w.find('.wants-donut-centre');
+    expect(centre.exists()).toBe(true);
+    expect(centre.text()).toBe('40%');
+    expect(centre.classes()).not.toContain('wants-donut-centre--warn');
+    expect(centre.classes()).not.toContain('wants-donut-centre--over');
+    w.unmount();
+  });
+
+  it('applies warn class to centre label when 80 ≤ usedPct < 100', async () => {
+    const w = mount(WantsDonut as Parameters<typeof mount>[0], {
+      attachTo: document.body,
+      props: { categorySpending: {}, remaining: 20, usedPct: 85, categoryColors: {} },
+    });
+    await nextTick();
+    const centre = w.find('.wants-donut-centre');
+    expect(centre.classes()).toContain('wants-donut-centre--warn');
+    expect(centre.text()).toBe('85%');
+    w.unmount();
+  });
+
+  it('applies over class to centre label when usedPct ≥ 100', async () => {
+    const w = mount(WantsDonut as Parameters<typeof mount>[0], {
+      attachTo: document.body,
+      props: {
+        categorySpending: { Shopping: 600 },
+        remaining: 0,
+        usedPct: 120,
+        categoryColors: { Shopping: '#60a5fa' },
+      },
+    });
+    await nextTick();
+    const centre = w.find('.wants-donut-centre');
+    expect(centre.classes()).toContain('wants-donut-centre--over');
+    expect(centre.text()).toBe('120%');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  WantsTracker → WantsDonut integration (BUG-FIX Sprint 21)
+//  Verifies that categoryColorMap is correctly derived from
+//  budget.spendingCategories and passed as categoryColors to WantsDonut.
+// ─────────────────────────────────────────────────────────────────
+describe('WantsTracker — categoryColorMap integration (BUG-FIX Sprint 21)', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('passes categoryColors prop to WantsDonut reflecting spendingCategories', async () => {
+    const budget = useBudgetStore();
+    // Verify DEFAULT_SPENDING_CATEGORIES are present
+    expect(budget.spendingCategories.length).toBeGreaterThan(0);
+
+    const w = mountWith(WantsTracker);
+    await nextTick();
+
+    const donut = w.findComponent(WantsDonut);
+    expect(donut.exists()).toBe(true);
+
+    // categoryColors must be an object, not undefined
+    const colors = donut.props('categoryColors') as Record<string, string>;
+    expect(typeof colors).toBe('object');
+
+    // Every spendingCategory must appear in categoryColors with its correct color
+    budget.spendingCategories.forEach(cat => {
+      expect(colors[cat.name]).toBe(cat.color);
+    });
+
+    w.unmount();
+  });
+
+  it('categoryColors prop updates reactively when a category is recolored', async () => {
+    const budget = useBudgetStore();
+    const cat = budget.spendingCategories[0];
+
+    const w = mountWith(WantsTracker);
+    await nextTick();
+
+    // Before recolor
+    const colorsBefore = { ...(w.findComponent(WantsDonut).props('categoryColors') as Record<string, string>) };
+    expect(colorsBefore[cat.name]).toBe(cat.color);
+
+    // Recolor the first category
+    const newColor = '#abcdef';
+    budget.updateCategory(cat.id, cat.name, newColor);
+    await nextTick();
+
+    const colorsAfter = w.findComponent(WantsDonut).props('categoryColors') as Record<string, string>;
+    expect(colorsAfter[cat.name]).toBe(newColor);
+
+    w.unmount();
+  });
+
+  it('categoryColors prop updates when a new category is added', async () => {
+    const budget = useBudgetStore();
+    const initialCount = budget.spendingCategories.length;
+
+    const w = mountWith(WantsTracker);
+    await nextTick();
+
+    // Add a new category
+    budget.addCategory('Hobbies', '#ff1234');
+    await nextTick();
+
+    const colors = w.findComponent(WantsDonut).props('categoryColors') as Record<string, string>;
+    expect(Object.keys(colors).length).toBe(initialCount + 1);
+    expect(colors['Hobbies']).toBe('#ff1234');
+
+    w.unmount();
+  });
+
+  it('categoryColors prop removes deleted category', async () => {
+    const budget = useBudgetStore();
+    const cat = budget.spendingCategories[0];
+
+    const w = mountWith(WantsTracker);
+    await nextTick();
+
+    budget.deleteCategory(cat.id);
+    await nextTick();
+
+    const colors = w.findComponent(WantsDonut).props('categoryColors') as Record<string, string>;
+    expect(colors[cat.name]).toBeUndefined();
+
+    w.unmount();
   });
 });

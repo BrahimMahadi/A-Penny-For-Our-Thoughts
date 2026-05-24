@@ -13,7 +13,7 @@ import { computed, ref } from 'vue';
 import { Doughnut } from 'vue-chartjs';
 import { useChartStyles } from '@/composables/useChartStyles';
 import { useInView } from '@/composables/useInView';
-import { CATEGORY_COLOURS } from '@/utils/calculations';
+import { CATEGORY_FALLBACK_COLOR } from '@/data/categories';
 import { fmt } from '@/utils/format';
 
 // ─── Props ───────────────────────────────────────────────────────
@@ -24,9 +24,17 @@ interface Props {
   remaining: number;
   /** Percentage of envelope used (0-100+), drives centre-text colour. */
   usedPct: number;
+  /**
+   * Live map of category name → hex color, built from budget.spendingCategories.
+   * Passed by the parent so the chart always reflects user-defined colours
+   * (including renames and recolours from the Category Manager).
+   */
+  categoryColors?: Record<string, string>;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  categoryColors: () => ({}),
+});
 
 // ─── Lazy render ─────────────────────────────────────────────────
 const wrapperRef = ref<HTMLElement | null>(null);
@@ -46,7 +54,7 @@ const chartData = computed(() => {
   const labels  = entries.map(([cat]) => cat);
   const data    = entries.map(([, v]) => v);
   const colors  = entries.map(([cat]) =>
-    cat === 'Subscriptions' ? SUBS_COLOUR : (CATEGORY_COLOURS[cat] ?? '#8b95ad'),
+    cat === 'Subscriptions' ? SUBS_COLOUR : (props.categoryColors[cat] ?? CATEGORY_FALLBACK_COLOR),
   );
 
   // Remaining arc (absent when overspent)

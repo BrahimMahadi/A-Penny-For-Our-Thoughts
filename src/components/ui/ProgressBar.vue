@@ -17,7 +17,11 @@ interface Props {
   percent: number;
   /** Override the auto-status (computed from percent otherwise) */
   status?: Status;
-  /** Visible label e.g. "$1,234 of $5,000 (24.6%)" */
+  /**
+   * Visible label rendered BELOW the track (e.g. "$1,234 / $5,000").
+   * Rendered in normal document flow so it is never clipped by the
+   * track's overflow:hidden and always readable regardless of fill %.
+   */
   label?: string;
   /** Visually hidden accessible label */
   ariaLabel?: string;
@@ -42,6 +46,11 @@ const computedStatus = computed<Status>(() => {
 </script>
 
 <template>
+  <!--
+    Outer wrapper: flex column so the label renders naturally BELOW the
+    track. Never put the label inside the overflow:hidden track — it clips
+    the text and makes it unreadable against the colored fill.
+  -->
   <div
     class="base-progress-bar"
     :class="[`base-progress-bar--${size}`]"
@@ -51,20 +60,35 @@ const computedStatus = computed<Status>(() => {
     aria-valuemin="0"
     aria-valuemax="100"
   >
+    <!-- The track: overflow:hidden clips the fill's rounded edges cleanly -->
+    <div class="base-progress-bar__track">
+      <div
+        class="base-progress-bar__fill"
+        :class="`base-progress-bar__fill--${computedStatus}`"
+        :style="{ width: `${clamped}%` }"
+      />
+    </div>
+
+    <!-- Label sits below the track in normal flow — always fully visible -->
     <div
-      class="base-progress-bar__fill"
-      :class="`base-progress-bar__fill--${computedStatus}`"
-      :style="{ width: `${clamped}%` }"
-    />
-    <span
       v-if="label"
       class="base-progress-bar__label"
-    >{{ label }}</span>
+    >
+      {{ label }}
+    </div>
   </div>
 </template>
 
 <style scoped>
+/* Wrapper: flex column so label stacks below the track */
 .base-progress-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* The actual coloured track (overflow:hidden clips fill border-radius) */
+.base-progress-bar__track {
   position: relative;
   background: var(--surface2, #0f2018);
   border-radius: 999px;
@@ -72,15 +96,10 @@ const computedStatus = computed<Status>(() => {
   border: 1px solid var(--border, #2a3041);
 }
 
-.base-progress-bar--sm {
-  height: 6px;
-}
-.base-progress-bar--md {
-  height: 10px;
-}
-.base-progress-bar--lg {
-  height: 16px;
-}
+/* Height lives on the track, sized via modifier on the wrapper */
+.base-progress-bar--sm .base-progress-bar__track { height: 6px; }
+.base-progress-bar--md .base-progress-bar__track { height: 10px; }
+.base-progress-bar--lg .base-progress-bar__track { height: 16px; }
 
 .base-progress-bar__fill {
   height: 100%;
@@ -94,26 +113,18 @@ const computedStatus = computed<Status>(() => {
   }
 }
 
-.base-progress-bar__fill--on-track {
-  background: var(--accent, #4ade80);
-}
-.base-progress-bar__fill--caution {
-  background: var(--warn, #fbbf24);
-}
-.base-progress-bar__fill--over {
-  background: var(--danger, #f87171);
-}
+.base-progress-bar__fill--on-track { background: var(--accent, #4ade80); }
+.base-progress-bar__fill--caution  { background: var(--warn, #fbbf24); }
+.base-progress-bar__fill--over     { background: var(--danger, #f87171); }
 
+/* Label: normal flow below track — no clipping, no text-shadow hack needed */
 .base-progress-bar__label {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   font-size: 0.72rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--text, #e3e6ee);
-  text-shadow: 0 0 4px var(--surface, #0a1810);
-  pointer-events: none;
+  color: var(--muted, #6b7a99);
+  text-align: center;
+  line-height: 1;
+  white-space: nowrap;
 }
 </style>
