@@ -845,3 +845,257 @@ describe('SettingsPage — Sprint 19 layout', () => {
     w.unmount();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  BUG FIX: RulesEngine category dropdown reflects spendingCategories
+//  (Sprint 21 — was hardcoded to WANT_CATEGORIES static list)
+// ─────────────────────────────────────────────────────────────────
+describe('RulesEngine — live category dropdown (BUG-FIX Sprint 21)', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  /** Open the Add Rule modal. */
+  async function openAddModal(w: ReturnType<typeof mountWith>) {
+    const btn = w.findAll('button').find(b => b.text().includes('Add Rule'));
+    await btn!.trigger('click');
+    await nextTick();
+  }
+
+  it('category select contains all default spending categories', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(RulesEngine);
+    await nextTick();
+    await openAddModal(w);
+
+    const select = document.body.querySelector<HTMLSelectElement>('#rule-category');
+    expect(select).toBeTruthy();
+    const opts = Array.from(select!.options).map(o => o.value);
+    // All 7 default categories should appear
+    expect(opts).toContain('Food & Drink');
+    expect(opts).toContain('Entertainment');
+    expect(opts).toContain('Other');
+    expect(opts).toHaveLength(budget.spendingCategories.length);
+    w.unmount();
+  });
+
+  it('adding a custom category makes it appear in the dropdown', async () => {
+    const budget = useBudgetStore();
+    budget.addCategory('Hobbies', '#ff0000');
+    const w = mountWith(RulesEngine);
+    await nextTick();
+    await openAddModal(w);
+
+    const select = document.body.querySelector<HTMLSelectElement>('#rule-category');
+    const opts = Array.from(select!.options).map(o => o.value);
+    expect(opts).toContain('Hobbies');
+    w.unmount();
+  });
+
+  it('renaming a category updates the dropdown reactively', async () => {
+    const budget = useBudgetStore();
+    const catId = budget.spendingCategories.find(c => c.name === 'Shopping')!.id;
+    budget.updateCategory(catId, 'Online Shopping', '#60a5fa');
+    const w = mountWith(RulesEngine);
+    await nextTick();
+    await openAddModal(w);
+
+    const select = document.body.querySelector<HTMLSelectElement>('#rule-category');
+    const opts = Array.from(select!.options).map(o => o.value);
+    expect(opts).toContain('Online Shopping');
+    expect(opts).not.toContain('Shopping');
+    w.unmount();
+  });
+
+  it('deleting a category removes it from the dropdown', async () => {
+    const budget = useBudgetStore();
+    const cat = budget.spendingCategories.find(c => c.name === 'Health & Fitness')!;
+    budget.deleteCategory(cat.id);
+    const w = mountWith(RulesEngine);
+    await nextTick();
+    await openAddModal(w);
+
+    const select = document.body.querySelector<HTMLSelectElement>('#rule-category');
+    const opts = Array.from(select!.options).map(o => o.value);
+    expect(opts).not.toContain('Health & Fitness');
+    w.unmount();
+  });
+
+  it('form defaults to the first live category on open', async () => {
+    const budget = useBudgetStore();
+    const firstCat = budget.spendingCategories[0].name;
+    const w = mountWith(RulesEngine);
+    await nextTick();
+    await openAddModal(w);
+
+    const select = document.body.querySelector<HTMLSelectElement>('#rule-category');
+    expect(select!.value).toBe(firstCat);
+    w.unmount();
+  });
+
+  it('orphaned rule category still displays in the list row even if deleted from categories', async () => {
+    const budget = useBudgetStore();
+    // Add a rule for a category we are about to delete
+    budget.addRule({ pattern: 'yoga', matchType: 'contains', category: 'Health & Fitness' });
+    const cat = budget.spendingCategories.find(c => c.name === 'Health & Fitness')!;
+    budget.deleteCategory(cat.id);
+
+    const w = mountWith(RulesEngine);
+    await nextTick();
+    // The rule row should still display the orphaned name
+    expect(w.find('.rules-engine__category').text()).toBe('Health & Fitness');
+    w.unmount();
+  });
+
+  it('saving a new rule uses the selected live category', async () => {
+    const budget = useBudgetStore();
+    budget.addCategory('Gaming', '#a78bfa');
+    const w = mountWith(RulesEngine);
+    await nextTick();
+    await openAddModal(w);
+
+    // Fill pattern
+    const patternInput = document.body.querySelector<HTMLInputElement>('#rule-pattern');
+    patternInput!.value = 'steam';
+    patternInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    // Select the custom category
+    const select = document.body.querySelector<HTMLSelectElement>('#rule-category');
+    select!.value = 'Gaming';
+    select!.dispatchEvent(new Event('change'));
+    await nextTick();
+
+    const saveBtn = Array.from(document.body.querySelectorAll('button'))
+      .find(b => b.textContent?.trim() === 'Add Rule' && !b.classList.contains('rules-engine__icon-btn'));
+    saveBtn!.click();
+    await nextTick();
+
+    expect(budget.rules.at(-1)?.category).toBe('Gaming');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  BUG FIX: BudgetAlerts category dropdown reflects spendingCategories
+//  (Sprint 21 — was hardcoded to WANT_CATEGORIES static list)
+// ─────────────────────────────────────────────────────────────────
+describe('BudgetAlerts — live category dropdown (BUG-FIX Sprint 21)', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  async function openAddModal(w: ReturnType<typeof mountWith>) {
+    const btn = w.findAll('button').find(b => b.text().includes('Add Alert'));
+    await btn!.trigger('click');
+    await nextTick();
+  }
+
+  it('category select contains all default spending categories', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(BudgetAlerts);
+    await nextTick();
+    await openAddModal(w);
+
+    const select = document.body.querySelector<HTMLSelectElement>('#alert-category');
+    expect(select).toBeTruthy();
+    const opts = Array.from(select!.options).map(o => o.value);
+    expect(opts).toContain('Food & Drink');
+    expect(opts).toContain('Entertainment');
+    expect(opts).toContain('Other');
+    expect(opts).toHaveLength(budget.spendingCategories.length);
+    w.unmount();
+  });
+
+  it('adding a custom category makes it appear in the dropdown', async () => {
+    const budget = useBudgetStore();
+    budget.addCategory('Pets', '#f472b6');
+    const w = mountWith(BudgetAlerts);
+    await nextTick();
+    await openAddModal(w);
+
+    const select = document.body.querySelector<HTMLSelectElement>('#alert-category');
+    const opts = Array.from(select!.options).map(o => o.value);
+    expect(opts).toContain('Pets');
+    w.unmount();
+  });
+
+  it('renaming a category updates the dropdown reactively', async () => {
+    const budget = useBudgetStore();
+    const catId = budget.spendingCategories.find(c => c.name === 'Groceries')!.id;
+    budget.updateCategory(catId, 'Supermarket', '#00d4aa');
+    const w = mountWith(BudgetAlerts);
+    await nextTick();
+    await openAddModal(w);
+
+    const select = document.body.querySelector<HTMLSelectElement>('#alert-category');
+    const opts = Array.from(select!.options).map(o => o.value);
+    expect(opts).toContain('Supermarket');
+    expect(opts).not.toContain('Groceries');
+    w.unmount();
+  });
+
+  it('deleting a category removes it from the dropdown', async () => {
+    const budget = useBudgetStore();
+    const cat = budget.spendingCategories.find(c => c.name === 'Transportation')!;
+    budget.deleteCategory(cat.id);
+    const w = mountWith(BudgetAlerts);
+    await nextTick();
+    await openAddModal(w);
+
+    const select = document.body.querySelector<HTMLSelectElement>('#alert-category');
+    const opts = Array.from(select!.options).map(o => o.value);
+    expect(opts).not.toContain('Transportation');
+    w.unmount();
+  });
+
+  it('form defaults to the first live category on open', async () => {
+    const budget = useBudgetStore();
+    const firstCat = budget.spendingCategories[0].name;
+    const w = mountWith(BudgetAlerts);
+    await nextTick();
+    await openAddModal(w);
+
+    const select = document.body.querySelector<HTMLSelectElement>('#alert-category');
+    expect(select!.value).toBe(firstCat);
+    w.unmount();
+  });
+
+  it('orphaned alert category still displays in list row even if deleted from categories', async () => {
+    const budget = useBudgetStore();
+    budget.addBudgetAlert({ category: 'Transportation', threshold: 100 });
+    const cat = budget.spendingCategories.find(c => c.name === 'Transportation')!;
+    budget.deleteCategory(cat.id);
+
+    const w = mountWith(BudgetAlerts);
+    await nextTick();
+    expect(w.find('.budget-alerts__category').text()).toBe('Transportation');
+    w.unmount();
+  });
+
+  it('saving a new alert uses the selected live category', async () => {
+    const budget = useBudgetStore();
+    budget.addCategory('Pets', '#f472b6');
+    const w = mountWith(BudgetAlerts);
+    await nextTick();
+    await openAddModal(w);
+
+    // Select the custom category
+    const select = document.body.querySelector<HTMLSelectElement>('#alert-category');
+    select!.value = 'Pets';
+    select!.dispatchEvent(new Event('change'));
+    await nextTick();
+
+    // Set threshold
+    const thresholdInput = document.body.querySelector<HTMLInputElement>('#alert-threshold');
+    thresholdInput!.value = '75';
+    thresholdInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    const saveBtn = Array.from(document.body.querySelectorAll('button'))
+      .find(b => b.textContent?.trim() === 'Add Alert' && !b.classList.contains('budget-alerts__icon-btn'));
+    saveBtn!.click();
+    await nextTick();
+
+    expect(budget.budgetAlerts.at(-1)?.category).toBe('Pets');
+    w.unmount();
+  });
+});

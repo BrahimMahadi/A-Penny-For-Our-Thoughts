@@ -16,13 +16,15 @@ import { useToast } from '@/composables/useToast';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
-import { WANT_CATEGORIES } from '@/data/categories';
 import { fmt } from '@/utils/format';
 import type { BudgetAlert } from '@/types/budget';
 
 const budget  = useBudgetStore();
 const toast   = useToast();
 const { triggeredAlerts } = useAnalytics();
+
+// ─── Live category list from store (reflects user-defined categories) ─────────
+const categoryNames = computed(() => budget.spendingCategories.map(c => c.name));
 
 const alerts = computed(() => budget.budgetAlerts);
 
@@ -31,13 +33,13 @@ const showModal = ref(false);
 const editingId = ref<string | null>(null);
 
 const form = reactive({
-  category:  WANT_CATEGORIES[0] as string,
+  category:  budget.spendingCategories[0]?.name ?? '',
   threshold: 0,
 });
 
 function openAdd(): void {
   editingId.value   = null;
-  form.category     = WANT_CATEGORIES[0];
+  form.category     = categoryNames.value[0] ?? '';
   form.threshold    = 0;
   showModal.value   = true;
 }
@@ -157,7 +159,7 @@ function isFiring(alertId: string): boolean {
             class="alerts-modal__select"
           >
             <option
-              v-for="cat in WANT_CATEGORIES"
+              v-for="cat in categoryNames"
               :key="cat"
               :value="cat"
             >

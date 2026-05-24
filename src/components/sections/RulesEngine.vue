@@ -15,7 +15,6 @@ import { useToast } from '@/composables/useToast';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
-import { WANT_CATEGORIES } from '@/data/categories';
 import type { Rule, RuleMatchType } from '@/types/budget';
 
 const budget = useBudgetStore();
@@ -27,6 +26,9 @@ const MATCH_TYPES: { value: RuleMatchType; label: string }[] = [
   { value: 'exact',       label: 'Exact match' },
 ];
 
+// ─── Live category list from store (reflects user-defined categories) ─────────
+const categoryNames = computed(() => budget.spendingCategories.map(c => c.name));
+
 // ─── Sorted rules (display order = array order = priority) ────────────────────
 const rules = computed(() => budget.rules);
 
@@ -37,14 +39,14 @@ const editingId = ref<string | null>(null);
 const form = reactive({
   pattern:   '',
   matchType: 'contains' as RuleMatchType,
-  category:  WANT_CATEGORIES[0] as string,
+  category:  budget.spendingCategories[0]?.name ?? '',
 });
 
 function openAdd(): void {
   editingId.value = null;
   form.pattern   = '';
   form.matchType = 'contains';
-  form.category  = WANT_CATEGORIES[0];
+  form.category  = categoryNames.value[0] ?? '';
   showModal.value = true;
 }
 
@@ -238,7 +240,7 @@ const testResult = computed(() => {
             class="rules-modal__select"
           >
             <option
-              v-for="cat in WANT_CATEGORIES"
+              v-for="cat in categoryNames"
               :key="cat"
               :value="cat"
             >
