@@ -397,7 +397,9 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 18 — Collapsible Sections & Drag-and-Drop Reorder | ✅ Complete | v1.12.0 |
 | Sprint 19 — Category Manager, Bi-Yearly Frequency & Chequing Balance Dashboard | ✅ Complete | v1.13.0 |
 | Sprint 20 — Calendar Day Detail (Slide Panel + Hover Popover) | ✅ Complete | v1.14.0 |
-| **Current** | **✅ v1.14.0 shipped** | **v1.14.0** |
+| Sprint 21 — WantsDonut categoryColors & ProgressBar Label Bug Fixes | ✅ Complete | v1.15.0 |
+| Sprint 22 — Search, Sort & Filter for Purchases and Subscriptions | ✅ Complete | v1.15.0 |
+| **Current** | **✅ v1.15.0 shipped** | **v1.15.0** |
 
 ---
 
@@ -1167,7 +1169,106 @@ Items captured for future sprints — not yet scheduled. See individual option d
 
 ---
 
-**Last Updated**: May 2026  
-**Current Version**: v1.14.0 — Sprint 20 complete  
-**Next Up**: TBD  
+## Sprint 21 — WantsDonut categoryColors & ProgressBar Label Bug Fixes 🐛
+
+**Version**: v1.15.0 (bundled with Sprint 22)
+**Date**: May 2026
+**Branch**: `feat/sprint-21` → `main`
+
+### Features Delivered
+
+#### WantsDonut — categoryColors prop (BUG-FIX)
+- `WantsDonut.vue` previously used a static hard-coded colour map for donut segments; colours never updated when the user added/renamed/recoloured categories
+- Fix: `WantsTracker.vue` now computes a `categoryColors` prop (`Record<string, string>`) from `budget.spendingCategories` and passes it down to `WantsDonut` reactively
+- `WantsDonut` reads from the prop (not a static map) so segment colours always reflect the live category configuration
+
+#### ProgressBar — label outside overflow:hidden (BUG-FIX)
+- `ProgressBar.vue` previously rendered `.base-progress-bar__label` inside the `.base-progress-bar__track` container, which has `overflow: hidden`; long label text was clipped
+- Fix: Restructured template so `.base-progress-bar__label` is a sibling of `.base-progress-bar__track` (child of the root wrapper), completely outside the overflow container
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `src/components/charts/WantsDonut.vue` | Reads colours from `categoryColors` prop instead of static map |
+| `src/components/sections/WantsTracker.vue` | Computes + passes `categoryColors` prop to `WantsDonut` |
+| `src/components/ui/ProgressBar.vue` | Moved label outside overflow:hidden track |
+| `tests/components/sections/sections.spec.ts` | +9 new tests: WantsDonut categoryColors (5) + WantsTracker integration (4) |
+| `tests/components/ui/ProgressBar.spec.ts` | **New file** — 25 tests for DOM structure, fill clamping, status classes, size modifiers, ARIA |
+| `CLAUDE.md` | Updated test count |
+| `docs/PHASE_TRACKING.md` | Added Sprint 21 row + this section |
+
+### Test Summary
+
+- **835 tests total** across 24 spec files
+- **+34 new tests** in Sprint 21:
+  - `WantsDonut — categoryColors prop` (5 tests): renders without throwing, default prop, provided prop, centre warn/over class thresholds
+  - `WantsTracker — categoryColorMap integration` (4 tests): mirrors spendingCategories, reacts to add/update/delete
+  - `ProgressBar` (25 tests): DOM structure (label sibling), fill width clamping, status auto-derivation, explicit status override, size modifiers, ARIA attributes
+
+### Merge & Tag
+- ✅ Merged `feat/sprint-21` → `main`, tagged **v1.15.0** (combined with Sprint 22)
+
+---
+
+## Sprint 22 — Search, Sort & Filter for Purchases and Subscriptions 🔍
+
+**Version**: v1.15.0
+**Date**: May 2026
+**Branch**: `feat/sprint-22` → `main`
+
+### Features Delivered
+
+#### `useListFilter` Composable (new)
+- Generic composable shared by WantsTracker and Subscriptions
+- Exposes: `search`, `catFilter`, `typeFilter`, `cardFilter`, `sortKey`, `drawerOpen` (refs)
+- Computed: `activeFilterCount` (badge value), `isFiltered` (boolean)
+- Actions: `clearFilters()`, `toggleDrawer()`, `applyFilters<T>(items)` (generic, never mutates)
+- Card filter resolves `cardId → label` via `budget.expenseCards` internally; callers stay decoupled
+
+#### WantsTracker — Option B Filter Toolbar
+- Search input (always visible), Filters badge button (count of active filters), Sort dropdown
+- Expandable drawer (CSS `grid-template-rows: 0fr → 1fr` smooth animation, no max-height hack)
+- Three drawer selects: Category, Budget Type, Expense Card
+- Result count row visible when any filter is active
+- "No matching purchases" empty state with Clear Filters CTA
+- Toolbar hidden entirely when no purchases exist
+- Sort options: Newest, Oldest, Amount ↓, Amount ↑, Name A–Z
+- Full mobile support: search takes full width at ≤ 480 px; filter groups stack vertically
+
+#### Subscriptions — Option B Filter Toolbar
+- Identical Option B drawer structure with subscription-specific sort
+- Sort options: Renewal Date, Monthly Cost ↓, Amount ↓, Name A–Z
+- Monthly cost sort uses `subMonthlyAmount()` helper (normalises weekly/biweekly/etc.)
+- Toolbar hidden when no subscriptions exist
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `src/composables/useListFilter.ts` | **New file** — generic search/filter/sort composable |
+| `src/components/sections/WantsTracker.vue` | Option B filter toolbar + `filteredPurchases` computed + CSS |
+| `src/components/sections/Subscriptions.vue` | Option B filter toolbar + `filteredSubs` computed + CSS |
+| `tests/components/sections/sections.spec.ts` | +25 new tests: WantsTracker toolbar (13) + Subscriptions toolbar (12) |
+| `src/components/onboarding/WhatsNewBanner.vue` | Bumped to v1.15.0, updated release notes |
+| `CLAUDE.md` | Updated test count to 835 |
+| `docs/PHASE_TRACKING.md` | Added Sprint 21 + 22 rows + these sections |
+| `src/components/pages/DocsPage.vue` | Added v1.7.0–v1.15.0 release blocks |
+
+### Test Summary
+
+- **835 tests total** across 24 spec files (previously 806)
+- **+25 new tests** in Sprint 22:
+  - `WantsTracker — filter toolbar` (13 tests): hidden when empty, appears on purchase add, search, case-insensitive search, category filter, budget type filter, card filters (no card + by label), active filter count badge, result count row, no-results empty state, Clear resets all, drawer toggle, sort by amount + name, combined AND filter
+  - `Subscriptions — filter toolbar` (12 tests): hidden when empty, appears on sub add, search, category filter, budget type filter, card no-card filter, active filter count badge, result count row, no-results empty state, Clear resets all, drawer toggle, sort by name and monthly cost
+- `vue-tsc --noEmit` clean
+
+### Merge & Tag
+- ✅ Merged `feat/sprint-22` → `main`, tagged **v1.15.0**
+
+---
+
+**Last Updated**: May 2026
+**Current Version**: v1.15.0 — Sprint 22 complete
+**Next Up**: TBD
 **Current Branch**: `main`

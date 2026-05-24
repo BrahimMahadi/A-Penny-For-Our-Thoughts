@@ -13,12 +13,14 @@ import { ref, reactive, computed, watch } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useAnalytics } from '@/composables/useAnalytics';
+import { useListFilter } from '@/composables/useListFilter';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import WantsDonut from '@/components/charts/WantsDonut.vue';
 import { fmt } from '@/utils/format';
+import type { Purchase } from '@/types/budget';
 import {
   getCategorySpending,
   getCurrentPeriodStart,
@@ -220,6 +222,57 @@ function cardLabel(cardId: string | null): string | null {
   if (!cardId) return null;
   return budget.expenseCards.find(c => c.id === cardId)?.label ?? null;
 }
+
+// ─── Search / Sort / Filter (Option B — expandable drawer) ───────
+const {
+  search:         pSearch,
+  catFilter:      pCatFilter,
+  typeFilter:     pTypeFilter,
+  cardFilter:     pCardFilter,
+  sortKey:        pSortKey,
+  drawerOpen:     pDrawerOpen,
+  activeFilterCount: pActiveFilterCount,
+  isFiltered:     pIsFiltered,
+  clearFilters:   pClearFilters,
+  toggleDrawer:   pToggleDrawer,
+  applyFilters:   pApplyFilters,
+} = useListFilter('newest');
+
+function sortPurchases(items: Purchase[]): Purchase[] {
+  const arr = [...items];
+  switch (pSortKey.value) {
+    case 'newest':
+      return arr.sort((a, b) => {
+        if (!a.date && !b.date) return 0;
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return b.date.localeCompare(a.date);
+      });
+    case 'oldest':
+      return arr.sort((a, b) => {
+        if (!a.date && !b.date) return 0;
+        if (!a.date) return -1;
+        if (!b.date) return 1;
+        return a.date.localeCompare(b.date);
+      });
+    case 'amtHigh':
+      return arr.sort((a, b) => b.amount - a.amount);
+    case 'amtLow':
+      return arr.sort((a, b) => a.amount - b.amount);
+    case 'nameAZ':
+      return arr.sort((a, b) => a.name.localeCompare(b.name));
+    default:
+      return arr;
+  }
+}
+
+const filteredPurchases = computed(() =>
+  sortPurchases(pApplyFilters(budget.purchases)),
+);
+
+const filteredTotal = computed(() =>
+  filteredPurchases.value.reduce((s, p) => s + p.amount, 0),
+);
 </script>
 
 <template>
@@ -383,6 +436,135 @@ function cardLabel(cardId: string | null): string | null {
       </BaseButton>
     </div>
 
+    <!-- Search / Sort / Filter toolbar (Option B — expandable drawer) -->
+    <div
+      v-if="budget.purchases.length > 0"
+      class="filter-toolbar"
+      data-testid="purchase-filter-toolbar"
+    >
+      <!-- Top row: search · Filters button · Sort -->
+      <div class="filter-toolbar__top">
+        <div class="filter-toolbar__search-wrap">
+          <svg class="filter-toolbar__search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input
+            id="p-search"
+            v-model="pSearch"
+            class="filter-toolbar__search"
+            type="text"
+            placeholder="Search purchases…"
+            autocomplete="off"
+            aria-label="Search purchases"
+          >
+        </div>
+        <button
+          class="filter-toolbar__filter-btn"
+          :class="{ 'filter-toolbar__filter-btn--active': pDrawerOpen || pActiveFilterCount > 0 }"
+          :aria-expanded="pDrawerOpen"
+          aria-controls="p-filter-drawer"
+          @click="pToggleDrawer"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
+          Filters
+          <span
+            v-if="pActiveFilterCount > 0"
+            class="filter-toolbar__badge"
+            aria-label="`${pActiveFilterCount} filters active`"
+          >{{ pActiveFilterCount }}</span>
+        </button>
+        <select
+          id="p-sort"
+          v-model="pSortKey"
+          class="filter-toolbar__sort"
+          aria-label="Sort purchases"
+        >
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="amtHigh">Amount ↓</option>
+          <option value="amtLow">Amount ↑</option>
+          <option value="nameAZ">Name A–Z</option>
+        </select>
+      </div>
+
+      <!-- Expandable filter drawer -->
+      <div
+        id="p-filter-drawer"
+        class="filter-toolbar__drawer-wrap"
+        :class="{ 'filter-toolbar__drawer-wrap--open': pDrawerOpen }"
+      >
+        <div class="filter-toolbar__drawer-inner">
+          <div class="filter-toolbar__drawer">
+            <div class="filter-toolbar__filter-group">
+              <label class="filter-toolbar__filter-label" for="p-filter-cat">
+                <span v-if="pCatFilter" class="filter-active-dot" />
+                Category
+              </label>
+              <select
+                id="p-filter-cat"
+                v-model="pCatFilter"
+                class="filter-toolbar__filter-select"
+                :class="{ 'filter-toolbar__filter-select--active': pCatFilter }"
+              >
+                <option value="">All categories</option>
+                <option
+                  v-for="cat in categoryOptions"
+                  :key="cat"
+                  :value="cat"
+                >{{ cat }}</option>
+              </select>
+            </div>
+            <div class="filter-toolbar__filter-group">
+              <label class="filter-toolbar__filter-label" for="p-filter-type">
+                <span v-if="pTypeFilter" class="filter-active-dot" />
+                Budget type
+              </label>
+              <select
+                id="p-filter-type"
+                v-model="pTypeFilter"
+                class="filter-toolbar__filter-select"
+                :class="{ 'filter-toolbar__filter-select--active': pTypeFilter }"
+              >
+                <option value="">All types</option>
+                <option value="wants">Wants</option>
+                <option value="needs">Needs</option>
+              </select>
+            </div>
+            <div class="filter-toolbar__filter-group">
+              <label class="filter-toolbar__filter-label" for="p-filter-card">
+                <span v-if="pCardFilter" class="filter-active-dot" />
+                Card
+              </label>
+              <select
+                id="p-filter-card"
+                v-model="pCardFilter"
+                class="filter-toolbar__filter-select"
+                :class="{ 'filter-toolbar__filter-select--active': pCardFilter }"
+              >
+                <option value="">All cards</option>
+                <option
+                  v-for="card in budget.expenseCards"
+                  :key="card.id"
+                  :value="card.label"
+                >{{ card.label }}</option>
+                <option value="none">No card</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Result count -->
+      <div
+        v-if="pIsFiltered"
+        class="filter-toolbar__count"
+        data-testid="purchase-filter-count"
+        aria-live="polite"
+      >
+        Showing <strong>{{ filteredPurchases.length }}</strong> of {{ budget.purchases.length }}
+        · <strong>{{ fmt(filteredTotal) }}</strong> filtered total
+        <button class="filter-toolbar__clear" @click="pClearFilters">Clear</button>
+      </div>
+    </div>
+
     <!-- Empty state for purchases (nudge variant for first-run) -->
     <EmptyState
       v-if="budget.purchases.length === 0"
@@ -401,13 +583,30 @@ function cardLabel(cardId: string | null): string | null {
       </BaseButton>
     </EmptyState>
 
+    <!-- Filtered empty state -->
+    <EmptyState
+      v-else-if="filteredPurchases.length === 0"
+      icon="🔍"
+      title="No purchases match your filters"
+      hint="Try adjusting your search or filters."
+      data-testid="purchase-no-results"
+    >
+      <BaseButton
+        size="sm"
+        variant="secondary"
+        @click="pClearFilters"
+      >
+        Clear filters
+      </BaseButton>
+    </EmptyState>
+
     <!-- Purchase list -->
     <ul
       v-else
       class="purchase-list"
     >
       <li
-        v-for="p in budget.purchases"
+        v-for="p in filteredPurchases"
         :key="p.id"
         class="purchase-item"
       >
@@ -807,6 +1006,225 @@ function cardLabel(cardId: string | null): string | null {
   font-variant-numeric: tabular-nums;
   color: var(--danger);
   margin-left: auto;
+}
+
+/* ─── Filter toolbar (Option B — expandable drawer) ────────────── */
+.filter-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.filter-toolbar__top {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.filter-toolbar__search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 140px;
+}
+
+.filter-toolbar__search-icon {
+  position: absolute;
+  left: 0.55rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.filter-toolbar__search {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.65rem 0.4rem 1.9rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.filter-toolbar__search::placeholder { color: var(--muted); }
+.filter-toolbar__search:focus { border-color: var(--accent2); }
+
+.filter-toolbar__filter-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.filter-toolbar__filter-btn:hover,
+.filter-toolbar__filter-btn--active {
+  border-color: var(--accent2);
+  color: var(--accent2);
+  background: rgba(96, 165, 250, 0.08);
+}
+
+.filter-toolbar__badge {
+  background: var(--accent2);
+  color: #0a0f1a;
+  font-size: 0.6rem;
+  font-weight: 700;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.filter-toolbar__sort {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.8rem;
+  padding: 0.4rem 1.8rem 0.4rem 0.65rem;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7a99'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+
+.filter-toolbar__sort:focus { outline: none; border-color: var(--accent2); }
+
+/* Drawer: grid-template-rows transition for smooth height animation */
+.filter-toolbar__drawer-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+  overflow: hidden;
+}
+
+.filter-toolbar__drawer-wrap--open {
+  grid-template-rows: 1fr;
+}
+
+.filter-toolbar__drawer-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.filter-toolbar__drawer {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: var(--surface);
+  margin-top: 0.45rem;
+}
+
+.filter-toolbar__filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1;
+  min-width: 120px;
+}
+
+.filter-toolbar__filter-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.filter-active-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent2);
+  flex-shrink: 0;
+}
+
+.filter-toolbar__filter-select {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.8rem;
+  padding: 0.38rem 1.8rem 0.38rem 0.65rem;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7a99'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.filter-toolbar__filter-select:focus { outline: none; border-color: var(--accent2); }
+
+.filter-toolbar__filter-select--active {
+  border-color: var(--accent2);
+  color: var(--accent2);
+}
+
+/* Result count + inline clear link */
+.filter-toolbar__count {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.filter-toolbar__count strong { color: var(--text); }
+
+.filter-toolbar__clear {
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-family: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.75;
+  transition: opacity 0.12s;
+}
+
+.filter-toolbar__clear:hover { opacity: 1; }
+
+/* Mobile: search takes full width on its own row */
+@media (max-width: 480px) {
+  .filter-toolbar__search-wrap { flex: 0 0 100%; }
+  .filter-toolbar__filter-group { min-width: 100%; }
 }
 
 /* Purchase list */

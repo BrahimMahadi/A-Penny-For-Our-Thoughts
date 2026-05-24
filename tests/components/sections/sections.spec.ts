@@ -2288,3 +2288,398 @@ describe('WantsTracker — categoryColorMap integration (BUG-FIX Sprint 21)', ()
     w.unmount();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  WantsTracker — Search / Sort / Filter toolbar (Sprint 22)
+// ─────────────────────────────────────────────────────────────────
+describe('WantsTracker — filter toolbar (Sprint 22)', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  /** Seed two purchases with distinct properties for filter assertions. */
+  function seedPurchases() {
+    const budget = useBudgetStore();
+    budget.addPurchase({ name: 'Coffee',   amount: 5,  category: 'Food & Drink',  budgetType: 'wants', cardId: null,     date: '2026-05-20' });
+    budget.addPurchase({ name: 'Pharmacy', amount: 18, category: 'Health & Fitness', budgetType: 'needs', cardId: null, date: '2026-05-19' });
+    return budget;
+  }
+
+  it('filter toolbar hidden when no purchases exist', async () => {
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    expect(w.find('[data-testid="purchase-filter-toolbar"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('filter toolbar appears once purchases are added', async () => {
+    seedPurchases();
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    expect(w.find('[data-testid="purchase-filter-toolbar"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('search narrows the purchase list by name', async () => {
+    seedPurchases();
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    const search = w.find('#p-search');
+    await search.setValue('coffee');
+    await nextTick();
+    const items = w.findAll('.purchase-item');
+    expect(items.length).toBe(1);
+    expect(items[0].text()).toContain('Coffee');
+    w.unmount();
+  });
+
+  it('search is case-insensitive', async () => {
+    seedPurchases();
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    await w.find('#p-search').setValue('PHARM');
+    await nextTick();
+    expect(w.findAll('.purchase-item').length).toBe(1);
+    w.unmount();
+  });
+
+  it('category filter narrows the list', async () => {
+    seedPurchases();
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    // Open drawer first
+    await w.find('.filter-toolbar__filter-btn').trigger('click');
+    await nextTick();
+    await w.find('#p-filter-cat').setValue('Food & Drink');
+    await nextTick();
+    const items = w.findAll('.purchase-item');
+    expect(items.length).toBe(1);
+    expect(items[0].text()).toContain('Coffee');
+    w.unmount();
+  });
+
+  it('budget type filter shows only Needs purchases', async () => {
+    seedPurchases();
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    await w.find('.filter-toolbar__filter-btn').trigger('click');
+    await nextTick();
+    await w.find('#p-filter-type').setValue('needs');
+    await nextTick();
+    const items = w.findAll('.purchase-item');
+    expect(items.length).toBe(1);
+    expect(items[0].text()).toContain('Pharmacy');
+    w.unmount();
+  });
+
+  it('card filter for "No card" shows only unlinked purchases', async () => {
+    const budget = useBudgetStore();
+    // Add a card and link one purchase to it
+    const card = budget.addExpenseCard('Visa');
+    budget.addPurchase({ name: 'Coffee',   amount: 5,  category: 'Food & Drink',  budgetType: 'wants', cardId: card!.id, date: '2026-05-20' });
+    budget.addPurchase({ name: 'Pharmacy', amount: 18, category: 'Health & Fitness', budgetType: 'needs', cardId: null, date: '2026-05-19' });
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    await w.find('.filter-toolbar__filter-btn').trigger('click');
+    await nextTick();
+    await w.find('#p-filter-card').setValue('none');
+    await nextTick();
+    const items = w.findAll('.purchase-item');
+    expect(items.length).toBe(1);
+    expect(items[0].text()).toContain('Pharmacy');
+    w.unmount();
+  });
+
+  it('card filter by label shows only matching card purchases', async () => {
+    const budget = useBudgetStore();
+    const visa = budget.addExpenseCard('Visa');
+    const debit = budget.addExpenseCard('Debit');
+    budget.addPurchase({ name: 'Coffee',   amount: 5,  category: 'Food & Drink',  budgetType: 'wants', cardId: visa!.id,  date: '2026-05-20' });
+    budget.addPurchase({ name: 'Pharmacy', amount: 18, category: 'Health & Fitness', budgetType: 'needs', cardId: debit!.id, date: '2026-05-19' });
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    await w.find('.filter-toolbar__filter-btn').trigger('click');
+    await nextTick();
+    await w.find('#p-filter-card').setValue('Visa');
+    await nextTick();
+    expect(w.findAll('.purchase-item').length).toBe(1);
+    expect(w.find('.purchase-item').text()).toContain('Coffee');
+    w.unmount();
+  });
+
+  it('active filter count badge shows number of active filters', async () => {
+    seedPurchases();
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    await w.find('.filter-toolbar__filter-btn').trigger('click');
+    await nextTick();
+    await w.find('#p-filter-cat').setValue('Food & Drink');
+    await w.find('#p-filter-type').setValue('wants');
+    await nextTick();
+    expect(w.find('.filter-toolbar__badge').text()).toBe('2');
+    w.unmount();
+  });
+
+  it('result count row appears when any filter is active', async () => {
+    seedPurchases();
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    expect(w.find('[data-testid="purchase-filter-count"]').exists()).toBe(false);
+    await w.find('#p-search').setValue('x');
+    await nextTick();
+    expect(w.find('[data-testid="purchase-filter-count"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('shows no-results empty state when filters produce 0 matches', async () => {
+    seedPurchases();
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    await w.find('#p-search').setValue('zzznomatch');
+    await nextTick();
+    expect(w.find('[data-testid="purchase-no-results"]').exists()).toBe(true);
+    expect(w.find('.purchase-list').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('Clear button resets all filters and shows full list', async () => {
+    seedPurchases();
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    await w.find('#p-search').setValue('coffee');
+    await nextTick();
+    expect(w.findAll('.purchase-item').length).toBe(1);
+    await w.find('.filter-toolbar__clear').trigger('click');
+    await nextTick();
+    expect(w.findAll('.purchase-item').length).toBe(2);
+    expect(w.find('[data-testid="purchase-filter-count"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('drawer toggles open/closed on Filters button click', async () => {
+    seedPurchases();
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    const drawer = w.find('#p-filter-drawer');
+    expect(drawer.classes()).not.toContain('filter-toolbar__drawer-wrap--open');
+    await w.find('.filter-toolbar__filter-btn').trigger('click');
+    await nextTick();
+    expect(drawer.classes()).toContain('filter-toolbar__drawer-wrap--open');
+    await w.find('.filter-toolbar__filter-btn').trigger('click');
+    await nextTick();
+    expect(drawer.classes()).not.toContain('filter-toolbar__drawer-wrap--open');
+    w.unmount();
+  });
+
+  it('sort by amount descending orders purchases correctly', async () => {
+    seedPurchases();
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    await w.find('#p-sort').setValue('amtHigh');
+    await nextTick();
+    const names = w.findAll('.purchase-item__name').map(el => el.text());
+    expect(names[0]).toBe('Pharmacy'); // $18 > $5
+    expect(names[1]).toBe('Coffee');
+    w.unmount();
+  });
+
+  it('sort by name A-Z orders alphabetically', async () => {
+    seedPurchases();
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    await w.find('#p-sort').setValue('nameAZ');
+    await nextTick();
+    const names = w.findAll('.purchase-item__name').map(el => el.text());
+    expect(names[0]).toBe('Coffee');
+    expect(names[1]).toBe('Pharmacy');
+    w.unmount();
+  });
+
+  it('combined search + category filter applies AND logic', async () => {
+    const budget = useBudgetStore();
+    budget.addPurchase({ name: 'Coffee Latte',  amount: 6,  category: 'Food & Drink',     budgetType: 'wants', cardId: null, date: '2026-05-20' });
+    budget.addPurchase({ name: 'Coffee Beans',  amount: 14, category: 'Groceries',         budgetType: 'wants', cardId: null, date: '2026-05-19' });
+    budget.addPurchase({ name: 'Pharmacy',      amount: 18, category: 'Health & Fitness',  budgetType: 'needs', cardId: null, date: '2026-05-18' });
+    const w = mountWith(WantsTracker);
+    await nextTick();
+    await w.find('#p-search').setValue('coffee');
+    await w.find('.filter-toolbar__filter-btn').trigger('click');
+    await nextTick();
+    await w.find('#p-filter-cat').setValue('Food & Drink');
+    await nextTick();
+    // Only "Coffee Latte" matches both search="coffee" AND category="Food & Drink"
+    expect(w.findAll('.purchase-item').length).toBe(1);
+    expect(w.find('.purchase-item__name').text()).toBe('Coffee Latte');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Subscriptions — Search / Sort / Filter toolbar (Sprint 22)
+// ─────────────────────────────────────────────────────────────────
+describe('Subscriptions — filter toolbar (Sprint 22)', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  function seedSubs() {
+    const budget = useBudgetStore();
+    budget.subscriptions.splice(0); // clear DEFAULT_STATE sub
+    budget.addSubscription({ name: 'Netflix',  amount: 18, frequency: 'monthly', date: '2026-06-01', category: 'Entertainment', budgetType: 'wants', cardId: null, daysOfWeek: [] });
+    budget.addSubscription({ name: 'Gym',      amount: 55, frequency: 'monthly', date: '2026-06-15', category: 'Health & Fitness', budgetType: 'needs', cardId: null, daysOfWeek: [] });
+    return budget;
+  }
+
+  it('filter toolbar hidden when no subscriptions exist', async () => {
+    const budget = useBudgetStore();
+    budget.subscriptions.splice(0);
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    expect(w.find('[data-testid="sub-filter-toolbar"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('filter toolbar appears when subscriptions exist', async () => {
+    seedSubs();
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    expect(w.find('[data-testid="sub-filter-toolbar"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('search narrows the subscription list by name', async () => {
+    seedSubs();
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    await w.find('#sub-search').setValue('netflix');
+    await nextTick();
+    expect(w.findAll('.sub-item').length).toBe(1);
+    expect(w.find('.sub-name').text()).toBe('Netflix');
+    w.unmount();
+  });
+
+  it('category filter narrows the list', async () => {
+    seedSubs();
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    await w.find('.filter-toolbar__filter-btn').trigger('click');
+    await nextTick();
+    await w.find('#sub-filter-cat').setValue('Entertainment');
+    await nextTick();
+    expect(w.findAll('.sub-item').length).toBe(1);
+    expect(w.find('.sub-name').text()).toBe('Netflix');
+    w.unmount();
+  });
+
+  it('budget type filter shows only Needs subscriptions', async () => {
+    seedSubs();
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    await w.find('.filter-toolbar__filter-btn').trigger('click');
+    await nextTick();
+    await w.find('#sub-filter-type').setValue('needs');
+    await nextTick();
+    expect(w.findAll('.sub-item').length).toBe(1);
+    expect(w.find('.sub-name').text()).toBe('Gym');
+    w.unmount();
+  });
+
+  it('card filter "No card" shows only unlinked subscriptions', async () => {
+    const budget = useBudgetStore();
+    budget.subscriptions.splice(0);
+    const card = budget.addExpenseCard('Visa');
+    budget.addSubscription({ name: 'Netflix', amount: 18, frequency: 'monthly', date: '2026-06-01', category: 'Entertainment', budgetType: 'wants', cardId: card!.id, daysOfWeek: [] });
+    budget.addSubscription({ name: 'Gym',     amount: 55, frequency: 'monthly', date: '2026-06-15', category: 'Health & Fitness', budgetType: 'needs', cardId: null, daysOfWeek: [] });
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    await w.find('.filter-toolbar__filter-btn').trigger('click');
+    await nextTick();
+    await w.find('#sub-filter-card').setValue('none');
+    await nextTick();
+    expect(w.findAll('.sub-item').length).toBe(1);
+    expect(w.find('.sub-name').text()).toBe('Gym');
+    w.unmount();
+  });
+
+  it('active filter count badge reflects number of active filters', async () => {
+    seedSubs();
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    await w.find('.filter-toolbar__filter-btn').trigger('click');
+    await nextTick();
+    await w.find('#sub-filter-cat').setValue('Entertainment');
+    await nextTick();
+    expect(w.find('.filter-toolbar__badge').text()).toBe('1');
+    w.unmount();
+  });
+
+  it('result count row appears when any filter is active', async () => {
+    seedSubs();
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    expect(w.find('[data-testid="sub-filter-count"]').exists()).toBe(false);
+    await w.find('#sub-search').setValue('net');
+    await nextTick();
+    expect(w.find('[data-testid="sub-filter-count"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('shows no-results empty state when filters produce 0 matches', async () => {
+    seedSubs();
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    await w.find('#sub-search').setValue('zzznomatch');
+    await nextTick();
+    expect(w.find('[data-testid="sub-no-results"]').exists()).toBe(true);
+    expect(w.find('.subs-list').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('Clear button resets all filters and shows full list', async () => {
+    seedSubs();
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    await w.find('#sub-search').setValue('netflix');
+    await nextTick();
+    expect(w.findAll('.sub-item').length).toBe(1);
+    await w.find('.filter-toolbar__clear').trigger('click');
+    await nextTick();
+    expect(w.findAll('.sub-item').length).toBe(2);
+    w.unmount();
+  });
+
+  it('drawer toggles open/closed', async () => {
+    seedSubs();
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    const drawer = w.find('#sub-filter-drawer');
+    expect(drawer.classes()).not.toContain('filter-toolbar__drawer-wrap--open');
+    await w.find('.filter-toolbar__filter-btn').trigger('click');
+    await nextTick();
+    expect(drawer.classes()).toContain('filter-toolbar__drawer-wrap--open');
+    w.unmount();
+  });
+
+  it('sort by name A-Z orders subscriptions alphabetically', async () => {
+    seedSubs();
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    await w.find('#sub-sort').setValue('nameAZ');
+    await nextTick();
+    const names = w.findAll('.sub-name').map(el => el.text());
+    expect(names[0]).toBe('Gym');
+    expect(names[1]).toBe('Netflix');
+    w.unmount();
+  });
+
+  it('sort by monthly cost descending orders by computed cost', async () => {
+    seedSubs();
+    const w = mountWith(Subscriptions);
+    await nextTick();
+    await w.find('#sub-sort').setValue('moCostHigh');
+    await nextTick();
+    const names = w.findAll('.sub-name').map(el => el.text());
+    // Gym $55/mo > Netflix $18/mo
+    expect(names[0]).toBe('Gym');
+    expect(names[1]).toBe('Netflix');
+    w.unmount();
+  });
+});

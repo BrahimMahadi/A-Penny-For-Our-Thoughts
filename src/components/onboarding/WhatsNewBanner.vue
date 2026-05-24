@@ -19,15 +19,16 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '1.14.0';
+const APP_VERSION = '1.15.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📅', text: 'Calendar day detail — click any day with bills to see a slide panel with full bill info (name, type, amount, frequency)' },
-  { icon: '🖱️', text: 'Hover popover on desktop — hover over any day cell to preview its bills without leaving the calendar view' },
-  { icon: '✨', text: 'Works in both month calendar and 14-day pay-period views; selection clears automatically on navigation' },
-  { icon: '💡', text: 'Bill type colour-coding: blue for expenses, purple for subscriptions, amber for loans' },
+  { icon: '🔍', text: 'Search, sort & filter for Purchases — live search by name, filter by category / budget type / expense card, sort by date, amount or name' },
+  { icon: '📋', text: 'Search, sort & filter for Subscriptions — same expandable-drawer toolbar; sort by renewal date, monthly cost, amount or name' },
+  { icon: '🎛️', text: 'Expandable filter drawer (Option B) — Filters badge shows how many are active; drawer slides open smoothly on demand' },
+  { icon: '🐛', text: 'Bug fix: WantsDonut chart now reads colours live from your custom spending categories instead of a stale hard-coded map' },
+  { icon: '🐛', text: 'Bug fix: Progress bar labels no longer get clipped by the overflow:hidden track container' },
 ];
 
 const budget = useBudgetStore();

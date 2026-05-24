@@ -314,6 +314,140 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v1.15.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 21–22 — Search, Sort &amp; Filter for Purchases and Subscriptions
+            </p>
+            <ul class="docs-list">
+              <li><strong>Purchase filter toolbar</strong> — live search, expandable filter drawer (category / budget type / expense card), sort by date, amount or name; active filter count badge; animated drawer; "no results" empty state; hidden when no purchases exist.</li>
+              <li><strong>Subscription filter toolbar</strong> — identical Option B toolbar; sort by renewal date, monthly cost, amount or name; same animated filter drawer pattern.</li>
+              <li><strong><code>useListFilter</code> composable</strong> — shared search/filter/sort state (search, catFilter, typeFilter, cardFilter, sortKey, drawerOpen) extracted into a generic, reusable composable.</li>
+              <li><strong>Bug fix</strong> — WantsDonut chart now reads colours live from <code>budget.spendingCategories</code> instead of a stale hard-coded map; custom category colours are reflected immediately.</li>
+              <li><strong>Bug fix</strong> — ProgressBar labels rendered as siblings of the track, no longer inside the <code>overflow:hidden</code> container that was clipping long label text.</li>
+              <li>835 tests across 24 spec files — +29 new tests (13 WantsTracker toolbar, 12 Subscriptions toolbar, 4 WantsDonut/categoryColors integration).</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.14.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 20 — Calendar Day Detail (Slide Panel &amp; Hover Popover)
+            </p>
+            <ul class="docs-list">
+              <li><strong>Slide panel</strong> — click any calendar or pay-period cell with bills to reveal an animated panel showing bill name, type, amount, frequency, and card; colour-coded by type (blue/purple/amber).</li>
+              <li><strong>Hover popover</strong> — on desktop, hovering a cell shows a fixed popover with a bill preview; 150 ms grace period keeps it open while moving the mouse to it.</li>
+              <li>Touch devices use only the slide panel; popover is suppressed on <code>hover: none</code> media.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.13.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 19 — Category Manager, Bi-Yearly Frequency &amp; Chequing Balance
+            </p>
+            <ul class="docs-list">
+              <li><strong>Category Manager</strong> — create, rename, recolour and delete custom spending categories used across purchases, subscriptions and the donut chart.</li>
+              <li><strong>Bi-Yearly frequency</strong> — subscriptions and loans can now recur every 6 months in addition to monthly, weekly, etc.</li>
+              <li><strong>Chequing balance dashboard card</strong> — shows current chequing balance as a standalone stat alongside income and savings.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.12.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 18 — Collapsible Sections &amp; Drag-and-Drop Reorder
+            </p>
+            <ul class="docs-list">
+              <li><strong>Collapsible sections</strong> — every dashboard section can be collapsed to a header bar to reduce clutter; state persists between sessions.</li>
+              <li><strong>Drag-and-drop reorder</strong> — drag section cards to reorder them to your preference; order persists via <code>ui.sectionOrder</code>.</li>
+              <li><strong>Section Picker</strong> — settings panel with move-up/move-down buttons and a reset-to-default option for accessibility-first reordering.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.11.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 17 — Custom-Days Subscriptions
+            </p>
+            <ul class="docs-list">
+              <li><strong>Custom-days frequency</strong> — subscriptions can now be set to repeat on specific days of the week (e.g., every Mon &amp; Wed).</li>
+              <li>Recurring Calendar correctly maps custom-day subscriptions to all matching days in the month and pay-period views.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.10.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 16 — Loans on the Schedule Tab
+            </p>
+            <ul class="docs-list">
+              <li><strong>Loans in the Recurring Calendar</strong> — loan payments now appear as bill entries in the calendar alongside subscriptions and fixed expenses.</li>
+              <li>Loan bills show an amber <code>bill-badge--loan</code> colour band and the correct frequency label in the slide panel.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.9.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 15 — Pay-Period Schedule View
+            </p>
+            <ul class="docs-list">
+              <li><strong>14-day pay-period view</strong> — a compact calendar covering the current pay period showing all bills due within it; controlled by your pay-anchor date.</li>
+              <li>Bills in the period deducted from the Wants envelope to give an accurate remaining-budget forecast.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.8.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 14 — Dashboard Polish &amp; Analytics
+            </p>
+            <ul class="docs-list">
+              <li>Visual polish pass across all sections — tighter spacing, improved typography hierarchy, and consistent card shadows.</li>
+              <li>Analytics enhancements: category breakdown table, spending velocity indicator, and improved tooltip formatting on all Chart.js instances.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.7.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 13 — Dashboard Polish, Form Validation &amp; JSON Backup
+            </p>
+            <ul class="docs-list">
+              <li><strong>JSON backup / restore</strong> — export a full <code>.json</code> snapshot of your state and re-import it on any device.</li>
+              <li><strong>Form validation</strong> — inline real-time validation with error messages on all add/edit forms; invalid submissions are blocked.</li>
+              <li>Improved number formatting and edge-case handling throughout (zero-income guard, overspend badges).</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v1.6.0</span>
               <span class="release-date">May 2026</span>
             </div>
