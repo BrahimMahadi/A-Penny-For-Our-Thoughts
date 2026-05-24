@@ -19,15 +19,15 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '1.12.0';
+const APP_VERSION = '1.13.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '⇅', text: 'All dashboard sections are now collapsible — click any section header to fold it out of the way and keep your workspace tidy' },
-  { icon: '⠿', text: 'Drag-and-drop reordering — grab the ⠿ handle on any section card and drop it wherever you want it on the dashboard' },
-  { icon: '▲▼', text: 'Section Picker (menu icon) now shows a reorderable flat list — use the ▲ / ▼ buttons or drag handles to rearrange without leaving the panel' },
-  { icon: '↺', text: 'Reset to default order with one click from the Section Picker whenever you want to restore the original layout' },
+  { icon: '🏷️', text: 'Custom spending categories — add, rename (auto-migrates existing purchases), recolour, or delete categories in Settings → Spending Categories' },
+  { icon: '📅', text: 'New bi-yearly (every 6 months) frequency for subscriptions and loans' },
+  { icon: '🏦', text: 'Chequing Balance promoted to its own Dashboard section with a freshness indicator showing how recently you updated it' },
+  { icon: '🎨', text: 'Subscription category dropdown now visible in the form so you can tag subscriptions without needing to edit after saving' },
 ];
 
 const budget = useBudgetStore();

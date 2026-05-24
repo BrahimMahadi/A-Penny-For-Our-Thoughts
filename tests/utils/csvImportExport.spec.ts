@@ -108,19 +108,24 @@ function buildSampleState(): BudgetState {
     { id: 'alert1', category: 'Food', threshold: 80 },
   ];
 
+  s.spendingCategories = [
+    { id: 'cat1', name: 'Food & Drink', color: '#f59e0b' },
+    { id: 'cat2', name: 'Transport',   color: '#3b82f6' },
+  ];
+
   return s;
 }
 
 // ─── Export tests ─────────────────────────────────────────────────────────────
 
 describe('exportStateToCSV', () => {
-  it('produces all 17 SECTION: markers', () => {
+  it('produces all 18 SECTION: markers', () => {
     const csv = exportStateToCSV(buildSampleState());
     const sections = [
       'meta', 'allocation', 'budgetDisplayMode', 'incomeStreams', 'expenseCards',
       'purchases', 'spendingHistory', 'loans', 'creditCards', 'subscriptions',
       'wishlist', 'savingsAccounts', 'goals', 'assets', 'netWorthHistory',
-      'rules', 'budgetAlerts',
+      'rules', 'budgetAlerts', 'spendingCategories',
     ];
     for (const section of sections) {
       expect(csv).toContain(`SECTION:${section}`);
@@ -306,6 +311,8 @@ describe('parseCSVToState', () => {
     expect(state.rules).toEqual([]);
     expect(state.budgetAlerts).toEqual([]);
     expect(state.payStart).toBeNull();
+    // spendingCategories falls back to blank default (seeded from DEFAULT_SPENDING_CATEGORIES)
+    expect(Array.isArray(state.spendingCategories)).toBe(true);
   });
 });
 
@@ -435,6 +442,14 @@ describe('round-trip: exportStateToCSV → parseCSVToState', () => {
     const state = buildSampleState();
     const parsed = parseCSVToState(exportStateToCSV(state));
     expect(parsed.budgetAlerts[0]).toMatchObject({ id: 'alert1', category: 'Food', threshold: 80 });
+  });
+
+  it('preserves spendingCategories', () => {
+    const state = buildSampleState();
+    const parsed = parseCSVToState(exportStateToCSV(state));
+    expect(parsed.spendingCategories).toHaveLength(2);
+    expect(parsed.spendingCategories[0]).toMatchObject({ id: 'cat1', name: 'Food & Drink', color: '#f59e0b' });
+    expect(parsed.spendingCategories[1]).toMatchObject({ id: 'cat2', name: 'Transport', color: '#3b82f6' });
   });
 
   it('preserves special characters (commas and quotes) in entity names', () => {

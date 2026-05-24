@@ -33,11 +33,13 @@ import type {
   BudgetAllocation,
   BudgetDisplayModes,
   BudgetType,
+  SpendingCategory,
   ISODate,
   ISOMonth,
 } from '@/types/budget';
 import type { BudgetState } from '@/types/state';
 import { STORAGE_KEYS } from '@/types/state';
+import { DEFAULT_SPENDING_CATEGORIES } from '@/data/categories';
 
 // ─── Factory: DEFAULT_STATE (matches legacy state.js exactly) ───
 
@@ -89,6 +91,7 @@ export function makeDefaultState(): BudgetState {
     fundsRemainingUpdated: '',
     hasOnboarded: false,
     dismissedVersion: null,
+    spendingCategories: DEFAULT_SPENDING_CATEGORIES.map(c => ({ ...c })),
   };
 }
 
@@ -121,6 +124,7 @@ export function makeBlankState(): BudgetState {
     fundsRemainingUpdated: '',
     hasOnboarded: false,
     dismissedVersion: null,
+    spendingCategories: DEFAULT_SPENDING_CATEGORIES.map(c => ({ ...c })),
   };
 }
 
@@ -234,6 +238,25 @@ export function migrateState(raw: unknown): BudgetState {
   if (s.fundsRemainingUpdated === undefined) s.fundsRemainingUpdated = '';
   if (s.hasOnboarded === undefined) s.hasOnboarded = false;
   if (s.dismissedVersion === undefined) s.dismissedVersion = null;
+
+  // ── Sprint 19: user-editable spending categories ──
+  if (!Array.isArray(s.spendingCategories) || s.spendingCategories.length === 0) {
+    s.spendingCategories = DEFAULT_SPENDING_CATEGORIES.map((c: SpendingCategory) => ({ ...c }));
+  } else {
+    // Ensure the protected 'other' entry always exists
+    const hasOther = s.spendingCategories.some((c: SpendingCategory) => c.id === 'other');
+    if (!hasOther) {
+      const seed = DEFAULT_SPENDING_CATEGORIES.find(c => c.id === 'other')!;
+      s.spendingCategories.push({ ...seed });
+    }
+    // Ensure every entry has all required fields
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    s.spendingCategories = s.spendingCategories.map((c: any) => ({
+      id:    c.id    || genId(),
+      name:  c.name  || 'Other',
+      color: c.color || '#8b95ad',
+    }));
+  }
 
   return s as BudgetState;
 }
@@ -633,6 +656,69 @@ export const useBudgetStore = defineStore('budget', {
 
     deleteBudgetAlert(id: string): void {
       this.budgetAlerts = this.budgetAlerts.filter((a) => a.id !== id);
+    },
+
+    // ─── Spending categories ──────────────────────────────────
+
+    /**
+     * Add a new user-defined spending category.
+     * The name is trimmed; duplicate names are rejected (returns null).
+     */
+    addCategory(name: string, color: string): SpendingCategory | null {
+      const trimmed = name.trim();
+      if (!trimmed) return null;
+      const exists = this.spendingCategories.some(
+        (c) => c.name.toLowerCase() === trimmed.toLowerCase(),
+      );
+      if (exists) return null;
+      const item: SpendingCategory = { id: genId(), name: trimmed, color };
+      this.spendingCategories.push(item);
+      return item;
+    },
+
+    /**
+     * Update a category's name and/or color.
+     * When the name changes, all existing purchases and subscriptions that
+     * used the old name are migrated to the new name automatically.
+     */
+    updateCategory(id: string, name: string, color: string): void {
+      const target = this.spendingCategories.find((c) => c.id === id);
+      if (!target) return;
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      const oldName = target.name;
+      target.name  = trimmed;
+      target.color = color;
+      // Migrate purchases that used the old name
+      if (oldName !== trimmed) {
+        this.purchases.forEach((p) => {
+          if (p.category === oldName) p.category = trimmed;
+        });
+        this.spendingHistory.forEach((period) => {
+          period.items.forEach((item) => {
+            if (item.category === oldName) item.category = trimmed;
+          });
+        });
+        this.subscriptions.forEach((sub) => {
+          if (sub.category === oldName) sub.category = trimmed;
+        });
+        this.rules.forEach((rule) => {
+          if (rule.category === oldName) rule.category = trimmed;
+        });
+        this.budgetAlerts.forEach((alert) => {
+          if (alert.category === oldName) alert.category = trimmed;
+        });
+      }
+    },
+
+    /**
+     * Delete a spending category by id.
+     * The built-in 'other' category is protected and cannot be deleted.
+     * Existing purchases keep their category name (orphan strategy).
+     */
+    deleteCategory(id: string): void {
+      if (id === 'other') return; // protected
+      this.spendingCategories = this.spendingCategories.filter((c) => c.id !== id);
     },
 
     // ─── Misc fields ──────────────────────────────────────────

@@ -135,7 +135,7 @@ export function getRenewalDatesBetween(
       if (+next === +candidate) break;
       candidate = next;
     }
-  } else if (frequency === 'bi-yearly') {
+  } else if (frequency === 'biyearly' || frequency === 'bi-yearly') {
     let candidate = new Date(baseDate);
     const monthsDiff =
       (startDate.getFullYear() - baseDate.getFullYear()) * 12 +

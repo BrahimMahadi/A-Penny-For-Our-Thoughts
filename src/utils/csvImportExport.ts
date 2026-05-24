@@ -196,6 +196,13 @@ export function exportStateToCSV(state: BudgetState): string {
   );
   rows.push('');
 
+  // ── spendingCategories ──
+  rows.push('SECTION:spendingCategories', 'id,name,color');
+  (state.spendingCategories ?? []).forEach((c) =>
+    rows.push(`${e(c.id)},${e(c.name)},${e(c.color)}`),
+  );
+  rows.push('');
+
   return rows.join('\n');
 }
 
@@ -470,6 +477,17 @@ export function parseCSVToState(text: string): BudgetState {
         });
         break;
 
+      case 'spendingCategories':
+        if (!parsed.spendingCategories) parsed.spendingCategories = [];
+        if (vals[0] && vals[1] && vals[2]) {
+          parsed.spendingCategories.push({
+            id:    vals[0],
+            name:  vals[1],
+            color: vals[2],
+          });
+        }
+        break;
+
       // Unknown section — silently skip
       default:
         break;
@@ -497,6 +515,10 @@ export function parseCSVToState(text: string): BudgetState {
   if (!parsed.budgetAlerts)      parsed.budgetAlerts       = [];
   if (parsed.fundsRemaining === undefined) parsed.fundsRemaining = 0;
   if (!parsed.fundsRemainingUpdated)       parsed.fundsRemainingUpdated = '';
+  // spendingCategories — fall back to defaults when not present in CSV
+  if (!parsed.spendingCategories || parsed.spendingCategories.length === 0) {
+    parsed.spendingCategories = blank.spendingCategories;
+  }
 
   return parsed as BudgetState;
 }

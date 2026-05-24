@@ -24,6 +24,7 @@ import type {
   NetWorthSnapshot,
   Rule,
   BudgetAlert,
+  SpendingCategory,
   ISODate,
 } from './budget';
 
@@ -87,6 +88,13 @@ export interface BudgetState {
    * banner. Null means the banner has never been dismissed.
    */
   dismissedVersion: string | null;
+
+  /**
+   * User-defined spending categories for wants purchases and subscriptions.
+   * Seeded from WANT_CATEGORIES defaults on first run.
+   * The `'other'` id is always present and cannot be deleted.
+   */
+  spendingCategories: SpendingCategory[];
 }
 
 // ─── UI-only state (transient, not persisted) ────────────────────

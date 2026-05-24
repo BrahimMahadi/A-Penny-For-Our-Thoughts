@@ -1692,3 +1692,31 @@ describe('getPayPeriodForecast — custom-days subscriptions', () => {
     expect(fc!.dated.filter(i => i.id === 'sub-pp')).toHaveLength(0);
   });
 });
+
+// ─── Sprint 19: getRenewalDatesBetween — biyearly ───────────────────────────
+
+describe('getRenewalDatesBetween — biyearly (every 6 months)', () => {
+  it('finds renewals every 6 months within a 2-year window', () => {
+    const item = { date: '2026-01-15', frequency: 'biyearly' };
+    const dates = getRenewalDatesBetween(item, new Date(2026, 0, 1), new Date(2027, 11, 31));
+    expect(dates).toEqual(['2026-01-15', '2026-07-15', '2027-01-15', '2027-07-15']);
+  });
+
+  it('returns a single renewal when range spans less than 6 months', () => {
+    const item = { date: '2026-03-01', frequency: 'biyearly' };
+    const dates = getRenewalDatesBetween(item, new Date(2026, 2, 1), new Date(2026, 4, 31));
+    expect(dates).toEqual(['2026-03-01']);
+  });
+
+  it('skips renewal that falls before range start', () => {
+    const item = { date: '2026-01-01', frequency: 'biyearly' };
+    const dates = getRenewalDatesBetween(item, new Date(2026, 5, 15), new Date(2026, 11, 31));
+    expect(dates).toEqual(['2026-07-01']);
+  });
+
+  it('returns empty array when date is after range end', () => {
+    const item = { date: '2027-01-01', frequency: 'biyearly' };
+    const dates = getRenewalDatesBetween(item, new Date(2026, 0, 1), new Date(2026, 11, 31));
+    expect(dates).toEqual([]);
+  });
+});

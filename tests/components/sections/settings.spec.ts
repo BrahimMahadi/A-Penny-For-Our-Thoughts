@@ -609,3 +609,239 @@ describe('WantsTracker — Sprint 7', () => {
     w.unmount();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  Sprint 19: CategoryManager
+// ─────────────────────────────────────────────────────────────────
+import CategoryManager from '@/components/sections/CategoryManager.vue';
+import ChequingBalance from '@/components/sections/ChequingBalance.vue';
+import SettingsPage    from '@/components/pages/SettingsPage.vue';
+
+describe('CategoryManager (Sprint 19)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('mounts without throwing', () => {
+    expect(() => mountWith(CategoryManager)).not.toThrow();
+  });
+
+  it('renders the default spending categories', () => {
+    const w = mountWith(CategoryManager);
+    // DEFAULT_SPENDING_CATEGORIES has 7 entries; each name rendered as .cat-name
+    const names = w.findAll('.cat-name').map(el => el.text());
+    expect(names.length).toBeGreaterThanOrEqual(7);
+    expect(names.some(n => n.toLowerCase().includes('other'))).toBe(true);
+    w.unmount();
+  });
+
+  it('shows "built-in" badge for the "other" category', () => {
+    const w = mountWith(CategoryManager);
+    const badges = w.findAll('.cat-badge');
+    expect(badges.length).toBe(1);
+    expect(badges[0].text()).toBe('built-in');
+    w.unmount();
+  });
+
+  it('hides Delete button for the "other" category', async () => {
+    const w = mountWith(CategoryManager);
+    // Find the list item containing "Other" text
+    const items = w.findAll('.cat-item');
+    const otherItem = items.find(li => li.text().toLowerCase().includes('other'));
+    expect(otherItem).toBeDefined();
+    const buttons = otherItem!.findAll('button');
+    const deleteBtn = buttons.find(b => b.text() === 'Delete');
+    expect(deleteBtn).toBeUndefined();
+    w.unmount();
+  });
+
+  it('opens add-category modal on "+ Add Category" click', async () => {
+    const w = mountWith(CategoryManager);
+    const addBtn = w.findAll('button').find(b => b.text().includes('Add Category'));
+    expect(addBtn).toBeDefined();
+    await addBtn!.trigger('click');
+    await nextTick();
+    expect(document.body.querySelector('.base-modal')).not.toBeNull();
+    w.unmount();
+  });
+
+  it('adds a new category via the modal form', async () => {
+    const store = useBudgetStore();
+    const initialCount = store.spendingCategories.length;
+    const w = mountWith(CategoryManager);
+
+    // Open modal
+    const addBtn = w.findAll('button').find(b => b.text().includes('Add Category'));
+    await addBtn!.trigger('click');
+    await nextTick();
+
+    // Fill name input
+    const nameInput = document.body.querySelector<HTMLInputElement>('#cat-name');
+    expect(nameInput).not.toBeNull();
+    nameInput!.value = 'Hobbies';
+    nameInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    // Click Add
+    const footer = document.body.querySelector('.base-modal__footer');
+    const submitBtn = Array.from(footer?.querySelectorAll('button') ?? []).find(b => b.textContent?.trim() === 'Add');
+    expect(submitBtn).not.toBeNull();
+    submitBtn!.click();
+    await nextTick();
+
+    expect(store.spendingCategories.length).toBe(initialCount + 1);
+    expect(store.spendingCategories.some(c => c.name === 'Hobbies')).toBe(true);
+    w.unmount();
+  });
+
+  it('shows an error if the name field is empty on submit', async () => {
+    const w = mountWith(CategoryManager);
+    const addBtn = w.findAll('button').find(b => b.text().includes('Add Category'));
+    await addBtn!.trigger('click');
+    await nextTick();
+
+    // Submit without filling name
+    const footer = document.body.querySelector('.base-modal__footer');
+    const submitBtn = Array.from(footer?.querySelectorAll('button') ?? []).find(b => b.textContent?.trim() === 'Add');
+    submitBtn!.click();
+    await nextTick();
+
+    // Modal remains open (no submission) and store is unchanged
+    expect(document.body.querySelector('.base-modal')).not.toBeNull();
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Sprint 19: ChequingBalance
+// ─────────────────────────────────────────────────────────────────
+describe('ChequingBalance (Sprint 19)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('mounts without throwing', () => {
+    expect(() => mountWith(ChequingBalance)).not.toThrow();
+  });
+
+  it('displays the current chequing balance', () => {
+    const store = useBudgetStore();
+    store.fundsRemaining = 1234.56;
+    const w = mountWith(ChequingBalance);
+    expect(w.find('.chq-amount').text()).toContain('1,234.56');
+    w.unmount();
+  });
+
+  it('shows freshness--unknown class when fundsRemainingUpdated is empty', () => {
+    const store = useBudgetStore();
+    store.fundsRemainingUpdated = '';
+    const w = mountWith(ChequingBalance);
+    expect(w.find('.freshness').classes()).toContain('freshness--unknown');
+    w.unmount();
+  });
+
+  it('shows freshness--fresh class when updated today', () => {
+    const store = useBudgetStore();
+    const today = new Date().toISOString().split('T')[0];
+    store.fundsRemainingUpdated = today;
+    const w = mountWith(ChequingBalance);
+    expect(w.find('.freshness').classes()).toContain('freshness--fresh');
+    w.unmount();
+  });
+
+  it('shows freshness--stale class when updated more than 7 days ago', () => {
+    const store = useBudgetStore();
+    const old = new Date(Date.now() - 10 * 86_400_000).toISOString().split('T')[0];
+    store.fundsRemainingUpdated = old;
+    const w = mountWith(ChequingBalance);
+    expect(w.find('.freshness').classes()).toContain('freshness--stale');
+    w.unmount();
+  });
+
+  it('shows "Update Balance" button when not editing', () => {
+    const w = mountWith(ChequingBalance);
+    expect(w.find('.chq-update-btn').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('opens the edit form when "Update Balance" is clicked', async () => {
+    const w = mountWith(ChequingBalance);
+    await w.find('.chq-update-btn').trigger('click');
+    await nextTick();
+    expect(w.find('.chq-form').exists()).toBe(true);
+    expect(w.find('.chq-input').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('saves a new balance when Save is clicked', async () => {
+    const store = useBudgetStore();
+    store.fundsRemaining = 500;
+    const w = mountWith(ChequingBalance);
+
+    await w.find('.chq-update-btn').trigger('click');
+    await nextTick();
+
+    const input = w.find<HTMLInputElement>('.chq-input');
+    await input.setValue(1500);
+    await nextTick();
+
+    const saveBtn = w.findAll('button').find(b => b.text() === 'Save');
+    expect(saveBtn).toBeDefined();
+    await saveBtn!.trigger('click');
+    await nextTick();
+
+    expect(store.fundsRemaining).toBe(1500);
+    expect(w.find('.chq-form').exists()).toBe(false); // form closed after save
+    w.unmount();
+  });
+
+  it('cancels editing without changing the balance', async () => {
+    const store = useBudgetStore();
+    store.fundsRemaining = 500;
+    const w = mountWith(ChequingBalance);
+
+    await w.find('.chq-update-btn').trigger('click');
+    await nextTick();
+
+    const cancelBtn = w.findAll('button').find(b => b.text() === 'Cancel');
+    await cancelBtn!.trigger('click');
+    await nextTick();
+
+    expect(store.fundsRemaining).toBe(500);
+    expect(w.find('.chq-form').exists()).toBe(false);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Sprint 19: SettingsPage — no longer has chequing balance section
+// ─────────────────────────────────────────────────────────────────
+describe('SettingsPage — Sprint 19 layout', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('mounts without throwing', () => {
+    expect(() => mountWith(SettingsPage)).not.toThrow();
+  });
+
+  it('renders the Spending Categories section (CategoryManager)', () => {
+    const w = mountWith(SettingsPage);
+    // The BaseCard title "Spending Categories" should be present
+    expect(w.html()).toContain('Spending Categories');
+    w.unmount();
+  });
+
+  it('does NOT render a chequing balance input directly in settings', () => {
+    const w = mountWith(SettingsPage);
+    // The chequing balance section was moved to the dashboard
+    expect(w.html()).not.toContain('chq-input');
+    w.unmount();
+  });
+});
