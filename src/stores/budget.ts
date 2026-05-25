@@ -14,6 +14,9 @@ import { defineStore } from 'pinia';
 import { genId, deepClone } from '@/utils/id';
 import { exportStateToCSV, parseCSVToState, triggerCSVDownload } from '@/utils/csvImportExport';
 import { exportStateToJSON, parseJSONToState, triggerJSONDownload } from '@/utils/jsonBackup';
+import { isSupabaseConfigured, DEV_USER_ID } from '@/lib/supabase';
+import { db, fetchAllUserData, upsertProfile } from '@/lib/db';
+import { migrateIfNeeded } from '@/lib/migrateLocalStorage';
 import type {
   IncomeStream,
   ExpenseCard,
@@ -298,6 +301,23 @@ export function saveStateToStorage(state: BudgetState): boolean {
 
 // ─── Pinia store definition ─────────────────────────────────────
 
+// ─── Module-level DB helpers ─────────────────────────────────────
+// _userId is set by initStore() on app boot. During Sprint 23 it defaults
+// to DEV_USER_ID; Sprint 24 will replace it with auth.uid().
+
+let _userId: string = DEV_USER_ID;
+
+/**
+ * Fire-and-forget Supabase write. Logs errors but never throws — the local
+ * state is already updated optimistically so the user sees no interruption.
+ */
+function syncDb(op: () => Promise<void>, ctx: string): void {
+  if (!isSupabaseConfigured()) return;
+  op().catch(err => console.error(`[penny] db sync (${ctx}):`, err));
+}
+
+// ─────────────────────────────────────────────────────────────────
+
 export const useBudgetStore = defineStore('budget', {
   state: (): BudgetState => makeDefaultState(),
 
@@ -337,7 +357,47 @@ export const useBudgetStore = defineStore('budget', {
   },
 
   actions: {
-    // ─── Persistence ───────────────────────────────────────────
+    // ─── Persistence & init ────────────────────────────────────
+
+    /**
+     * Primary init — called once on app boot (replaces raw loadFromStorage).
+     * When Supabase is configured, fetches from the DB and migrates any
+     * existing localStorage data for first-time cloud users.
+     * Falls back to localStorage silently when Supabase is not configured or
+     * the network call fails.
+     *
+     * @param userId  Dev: DEV_USER_ID. Sprint 24: auth.uid().
+     */
+    async initStore(userId: string = DEV_USER_ID): Promise<void> {
+      _userId = userId;
+
+      if (!isSupabaseConfigured()) {
+        this.loadFromStorage();
+        return;
+      }
+
+      try {
+        const data = await fetchAllUserData(userId);
+
+        if (data) {
+          // Supabase has data — use it as source of truth
+          Object.assign(this.$state, data);
+        } else {
+          // No profile row yet — try one-time localStorage → Supabase migration
+          const migrated = await migrateIfNeeded(userId);
+          if (migrated) {
+            const refreshed = await fetchAllUserData(userId);
+            if (refreshed) Object.assign(this.$state, refreshed);
+          } else {
+            // Brand-new user — keep default state (or localStorage fallback)
+            this.loadFromStorage();
+          }
+        }
+      } catch (err) {
+        console.warn('[penny] Supabase init failed, falling back to localStorage:', err);
+        this.loadFromStorage();
+      }
+    },
 
     /** Replace entire state from localStorage (with migrations). */
     loadFromStorage(): void {
@@ -360,26 +420,33 @@ export const useBudgetStore = defineStore('budget', {
     addIncomeStream(stream: Omit<IncomeStream, 'id'>): IncomeStream {
       const item: IncomeStream = { ...stream, id: genId() };
       this.incomeStreams.push(item);
+      syncDb(() => db.incomeStreams.insert(_userId, item), 'addIncomeStream');
       return item;
     },
 
     updateIncomeStream(id: string, patch: Partial<IncomeStream>): void {
       const target = this.incomeStreams.find((s) => s.id === id);
-      if (target) Object.assign(target, patch);
+      if (target) {
+        Object.assign(target, patch);
+        syncDb(() => db.incomeStreams.update(_userId, target), 'updateIncomeStream');
+      }
     },
 
     deleteIncomeStream(id: string): void {
       this.incomeStreams = this.incomeStreams.filter((s) => s.id !== id);
+      syncDb(() => db.incomeStreams.delete(_userId, id), 'deleteIncomeStream');
     },
 
     // ─── Budget allocation ────────────────────────────────────
 
     setAllocation(allocation: BudgetAllocation): void {
       this.allocation = allocation;
+      syncDb(() => upsertProfile(_userId, { allocation }), 'setAllocation');
     },
 
     setBudgetDisplayMode(modes: Partial<BudgetDisplayModes>): void {
       this.budgetDisplayMode = { ...this.budgetDisplayMode, ...modes };
+      syncDb(() => upsertProfile(_userId, { budgetDisplayMode: this.budgetDisplayMode }), 'setBudgetDisplayMode');
     },
 
     // ─── Expense cards (+ nested items) ───────────────────────
@@ -387,16 +454,21 @@ export const useBudgetStore = defineStore('budget', {
     addExpenseCard(label: string): ExpenseCard {
       const card: ExpenseCard = { id: genId(), label, items: [] };
       this.expenseCards.push(card);
+      syncDb(() => db.expenseCards.insert(_userId, card), 'addExpenseCard');
       return card;
     },
 
     renameExpenseCard(id: string, label: string): void {
       const target = this.expenseCards.find((c) => c.id === id);
-      if (target) target.label = label;
+      if (target) {
+        target.label = label;
+        syncDb(() => db.expenseCards.update(_userId, target), 'renameExpenseCard');
+      }
     },
 
     deleteExpenseCard(id: string): void {
       this.expenseCards = this.expenseCards.filter((c) => c.id !== id);
+      syncDb(() => db.expenseCards.delete(_userId, id), 'deleteExpenseCard');
     },
 
     addExpenseItem(cardId: string, item: Omit<ExpenseItem, 'id'>): ExpenseItem | null {
@@ -404,18 +476,25 @@ export const useBudgetStore = defineStore('budget', {
       if (!card) return null;
       const newItem: ExpenseItem = { ...item, id: genId() };
       card.items.push(newItem);
+      syncDb(() => db.expenseItems.insert(_userId, cardId, newItem), 'addExpenseItem');
       return newItem;
     },
 
     updateExpenseItem(cardId: string, itemId: string, patch: Partial<ExpenseItem>): void {
       const card = this.expenseCards.find((c) => c.id === cardId);
       const item = card?.items.find((i) => i.id === itemId);
-      if (item) Object.assign(item, patch);
+      if (item) {
+        Object.assign(item, patch);
+        syncDb(() => db.expenseItems.update(_userId, item), 'updateExpenseItem');
+      }
     },
 
     deleteExpenseItem(cardId: string, itemId: string): void {
       const card = this.expenseCards.find((c) => c.id === cardId);
-      if (card) card.items = card.items.filter((i) => i.id !== itemId);
+      if (card) {
+        card.items = card.items.filter((i) => i.id !== itemId);
+        syncDb(() => db.expenseItems.delete(_userId, itemId), 'deleteExpenseItem');
+      }
     },
 
     // ─── Purchases ────────────────────────────────────────────
@@ -423,16 +502,21 @@ export const useBudgetStore = defineStore('budget', {
     addPurchase(purchase: Omit<Purchase, 'id'>): Purchase {
       const item: Purchase = { ...purchase, id: genId() };
       this.purchases.push(item);
+      syncDb(() => db.purchases.insert(_userId, item), 'addPurchase');
       return item;
     },
 
     updatePurchase(id: string, patch: Partial<Purchase>): void {
       const target = this.purchases.find((p) => p.id === id);
-      if (target) Object.assign(target, patch);
+      if (target) {
+        Object.assign(target, patch);
+        syncDb(() => db.purchases.update(_userId, target), 'updatePurchase');
+      }
     },
 
     deletePurchase(id: string): void {
       this.purchases = this.purchases.filter((p) => p.id !== id);
+      syncDb(() => db.purchases.delete(_userId, id), 'deletePurchase');
     },
 
     /**
@@ -464,6 +548,7 @@ export const useBudgetStore = defineStore('budget', {
       };
       this.spendingHistory.push(period);
       this.purchases = [];
+      syncDb(() => db.spendingHistory.insertPeriod(_userId, period), 'closeCurrentPeriod');
       return period;
     },
 
@@ -472,16 +557,21 @@ export const useBudgetStore = defineStore('budget', {
     addLoan(loan: Omit<Loan, 'id'>): Loan {
       const item: Loan = { ...loan, id: genId() };
       this.loans.push(item);
+      syncDb(() => db.loans.insert(_userId, item), 'addLoan');
       return item;
     },
 
     updateLoan(id: string, patch: Partial<Loan>): void {
       const target = this.loans.find((l) => l.id === id);
-      if (target) Object.assign(target, patch);
+      if (target) {
+        Object.assign(target, patch);
+        syncDb(() => db.loans.update(_userId, target), 'updateLoan');
+      }
     },
 
     deleteLoan(id: string): void {
       this.loans = this.loans.filter((l) => l.id !== id);
+      syncDb(() => db.loans.delete(_userId, id), 'deleteLoan');
     },
 
     // ─── Credit cards ─────────────────────────────────────────
@@ -489,16 +579,21 @@ export const useBudgetStore = defineStore('budget', {
     addCreditCard(card: Omit<CreditCard, 'id'>): CreditCard {
       const item: CreditCard = { ...card, id: genId() };
       this.creditCards.push(item);
+      syncDb(() => db.creditCards.insert(_userId, item), 'addCreditCard');
       return item;
     },
 
     updateCreditCard(id: string, patch: Partial<CreditCard>): void {
       const target = this.creditCards.find((c) => c.id === id);
-      if (target) Object.assign(target, patch);
+      if (target) {
+        Object.assign(target, patch);
+        syncDb(() => db.creditCards.update(_userId, target), 'updateCreditCard');
+      }
     },
 
     deleteCreditCard(id: string): void {
       this.creditCards = this.creditCards.filter((c) => c.id !== id);
+      syncDb(() => db.creditCards.delete(_userId, id), 'deleteCreditCard');
     },
 
     // ─── Subscriptions ────────────────────────────────────────
@@ -506,16 +601,21 @@ export const useBudgetStore = defineStore('budget', {
     addSubscription(sub: Omit<Subscription, 'id'>): Subscription {
       const item: Subscription = { ...sub, id: genId() };
       this.subscriptions.push(item);
+      syncDb(() => db.subscriptions.insert(_userId, item), 'addSubscription');
       return item;
     },
 
     updateSubscription(id: string, patch: Partial<Subscription>): void {
       const target = this.subscriptions.find((s) => s.id === id);
-      if (target) Object.assign(target, patch);
+      if (target) {
+        Object.assign(target, patch);
+        syncDb(() => db.subscriptions.update(_userId, target), 'updateSubscription');
+      }
     },
 
     deleteSubscription(id: string): void {
       this.subscriptions = this.subscriptions.filter((s) => s.id !== id);
+      syncDb(() => db.subscriptions.delete(_userId, id), 'deleteSubscription');
     },
 
     // ─── Wishlist ─────────────────────────────────────────────
@@ -523,16 +623,21 @@ export const useBudgetStore = defineStore('budget', {
     addWishlistItem(item: Omit<WishlistItem, 'id'>): WishlistItem {
       const newItem: WishlistItem = { ...item, id: genId() };
       this.wishlist.push(newItem);
+      syncDb(() => db.wishlist.insert(_userId, newItem), 'addWishlistItem');
       return newItem;
     },
 
     updateWishlistItem(id: string, patch: Partial<WishlistItem>): void {
       const target = this.wishlist.find((w) => w.id === id);
-      if (target) Object.assign(target, patch);
+      if (target) {
+        Object.assign(target, patch);
+        syncDb(() => db.wishlist.update(_userId, target), 'updateWishlistItem');
+      }
     },
 
     deleteWishlistItem(id: string): void {
       this.wishlist = this.wishlist.filter((w) => w.id !== id);
+      syncDb(() => db.wishlist.delete(_userId, id), 'deleteWishlistItem');
     },
 
     // ─── Savings accounts ─────────────────────────────────────
@@ -540,24 +645,32 @@ export const useBudgetStore = defineStore('budget', {
     addSavingsAccount(acct: Omit<SavingsAccount, 'id'>): SavingsAccount {
       const item: SavingsAccount = { ...acct, id: genId() };
       this.savingsAccounts.push(item);
+      syncDb(() => db.savingsAccounts.insert(_userId, item), 'addSavingsAccount');
       return item;
     },
 
     updateSavingsAccount(id: string, patch: Partial<SavingsAccount>): void {
       const target = this.savingsAccounts.find((a) => a.id === id);
-      if (target) Object.assign(target, patch);
+      if (target) {
+        Object.assign(target, patch);
+        syncDb(() => db.savingsAccounts.update(_userId, target), 'updateSavingsAccount');
+      }
     },
 
     deleteSavingsAccount(id: string): void {
       this.savingsAccounts = this.savingsAccounts.filter((a) => a.id !== id);
       // Cascade: remove any goals tied to this account
       this.goals = this.goals.filter((g) => g.accountId !== id);
+      syncDb(() => db.savingsAccounts.delete(_userId, id), 'deleteSavingsAccount');
     },
 
     /** Set the per-month override for an account's allocation. */
     setSavingsAccountAllocation(accountId: string, month: ISOMonth, amount: number): void {
       const target = this.savingsAccounts.find((a) => a.id === accountId);
-      if (target) target.monthlyAllocations = { ...target.monthlyAllocations, [month]: amount };
+      if (target) {
+        target.monthlyAllocations = { ...target.monthlyAllocations, [month]: amount };
+        syncDb(() => db.savingsAccounts.update(_userId, target), 'setSavingsAccountAllocation');
+      }
     },
 
     // ─── Goals ────────────────────────────────────────────────
@@ -565,16 +678,21 @@ export const useBudgetStore = defineStore('budget', {
     addGoal(goal: Omit<Goal, 'id'>): Goal {
       const item: Goal = { ...goal, id: genId() };
       this.goals.push(item);
+      syncDb(() => db.goals.insert(_userId, item), 'addGoal');
       return item;
     },
 
     updateGoal(id: string, patch: Partial<Goal>): void {
       const target = this.goals.find((g) => g.id === id);
-      if (target) Object.assign(target, patch);
+      if (target) {
+        Object.assign(target, patch);
+        syncDb(() => db.goals.update(_userId, target), 'updateGoal');
+      }
     },
 
     deleteGoal(id: string): void {
       this.goals = this.goals.filter((g) => g.id !== id);
+      syncDb(() => db.goals.delete(_userId, id), 'deleteGoal');
     },
 
     // ─── Assets (net worth manual entries) ────────────────────
@@ -582,16 +700,21 @@ export const useBudgetStore = defineStore('budget', {
     addAsset(asset: Omit<Asset, 'id'>): Asset {
       const item: Asset = { ...asset, id: genId() };
       this.assets.push(item);
+      syncDb(() => db.assets.insert(_userId, item), 'addAsset');
       return item;
     },
 
     updateAsset(id: string, patch: Partial<Asset>): void {
       const target = this.assets.find((a) => a.id === id);
-      if (target) Object.assign(target, patch);
+      if (target) {
+        Object.assign(target, patch);
+        syncDb(() => db.assets.update(_userId, target), 'updateAsset');
+      }
     },
 
     deleteAsset(id: string): void {
       this.assets = this.assets.filter((a) => a.id !== id);
+      syncDb(() => db.assets.delete(_userId, id), 'deleteAsset');
     },
 
     // ─── Net worth history ────────────────────────────────────
@@ -601,10 +724,12 @@ export const useBudgetStore = defineStore('budget', {
       const existing = this.netWorthHistory.find((h) => h.date === snapshot.date);
       if (existing) {
         Object.assign(existing, snapshot);
+        syncDb(() => db.netWorthHistory.insert(_userId, existing), 'upsertNetWorthSnapshot:update');
         return existing;
       }
       const item: NetWorthSnapshot = { ...snapshot, id: genId() };
       this.netWorthHistory.push(item);
+      syncDb(() => db.netWorthHistory.insert(_userId, item), 'upsertNetWorthSnapshot:insert');
       return item;
     },
 
@@ -642,16 +767,21 @@ export const useBudgetStore = defineStore('budget', {
     addRule(rule: Omit<Rule, 'id'>): Rule {
       const item: Rule = { ...rule, id: genId() };
       this.rules.push(item);
+      syncDb(() => db.rules.insert(_userId, item), 'addRule');
       return item;
     },
 
     updateRule(id: string, patch: Partial<Rule>): void {
       const target = this.rules.find((r) => r.id === id);
-      if (target) Object.assign(target, patch);
+      if (target) {
+        Object.assign(target, patch);
+        syncDb(() => db.rules.update(_userId, target), 'updateRule');
+      }
     },
 
     deleteRule(id: string): void {
       this.rules = this.rules.filter((r) => r.id !== id);
+      syncDb(() => db.rules.delete(_userId, id), 'deleteRule');
     },
 
     // ─── Budget alerts ────────────────────────────────────────
@@ -659,16 +789,21 @@ export const useBudgetStore = defineStore('budget', {
     addBudgetAlert(alert: Omit<BudgetAlert, 'id'>): BudgetAlert {
       const item: BudgetAlert = { ...alert, id: genId() };
       this.budgetAlerts.push(item);
+      syncDb(() => db.budgetAlerts.insert(_userId, item), 'addBudgetAlert');
       return item;
     },
 
     updateBudgetAlert(id: string, patch: Partial<BudgetAlert>): void {
       const target = this.budgetAlerts.find((a) => a.id === id);
-      if (target) Object.assign(target, patch);
+      if (target) {
+        Object.assign(target, patch);
+        syncDb(() => db.budgetAlerts.update(_userId, target), 'updateBudgetAlert');
+      }
     },
 
     deleteBudgetAlert(id: string): void {
       this.budgetAlerts = this.budgetAlerts.filter((a) => a.id !== id);
+      syncDb(() => db.budgetAlerts.delete(_userId, id), 'deleteBudgetAlert');
     },
 
     // ─── Spending categories ──────────────────────────────────
@@ -686,6 +821,7 @@ export const useBudgetStore = defineStore('budget', {
       if (exists) return null;
       const item: SpendingCategory = { id: genId(), name: trimmed, color };
       this.spendingCategories.push(item);
+      syncDb(() => db.spendingCategories.insert(_userId, item), 'addCategory');
       return item;
     },
 
@@ -702,10 +838,16 @@ export const useBudgetStore = defineStore('budget', {
       const oldName = target.name;
       target.name  = trimmed;
       target.color = color;
+      // Sync the category row itself
+      syncDb(() => db.spendingCategories.update(_userId, target), 'updateCategory');
+
       // Migrate purchases that used the old name
       if (oldName !== trimmed) {
         this.purchases.forEach((p) => {
-          if (p.category === oldName) p.category = trimmed;
+          if (p.category === oldName) {
+            p.category = trimmed;
+            syncDb(() => db.purchases.update(_userId, p), 'updateCategory:purchase');
+          }
         });
         this.spendingHistory.forEach((period) => {
           period.items.forEach((item) => {
@@ -713,13 +855,22 @@ export const useBudgetStore = defineStore('budget', {
           });
         });
         this.subscriptions.forEach((sub) => {
-          if (sub.category === oldName) sub.category = trimmed;
+          if (sub.category === oldName) {
+            sub.category = trimmed;
+            syncDb(() => db.subscriptions.update(_userId, sub), 'updateCategory:subscription');
+          }
         });
         this.rules.forEach((rule) => {
-          if (rule.category === oldName) rule.category = trimmed;
+          if (rule.category === oldName) {
+            rule.category = trimmed;
+            syncDb(() => db.rules.update(_userId, rule), 'updateCategory:rule');
+          }
         });
         this.budgetAlerts.forEach((alert) => {
-          if (alert.category === oldName) alert.category = trimmed;
+          if (alert.category === oldName) {
+            alert.category = trimmed;
+            syncDb(() => db.budgetAlerts.update(_userId, alert), 'updateCategory:alert');
+          }
         });
       }
     },
@@ -732,17 +883,20 @@ export const useBudgetStore = defineStore('budget', {
     deleteCategory(id: string): void {
       if (id === 'other') return; // protected
       this.spendingCategories = this.spendingCategories.filter((c) => c.id !== id);
+      syncDb(() => db.spendingCategories.delete(_userId, id), 'deleteCategory');
     },
 
     // ─── Misc fields ──────────────────────────────────────────
 
     setPayStart(date: ISODate | null): void {
       this.payStart = date;
+      syncDb(() => upsertProfile(_userId, { payStart: date }), 'setPayStart');
     },
 
     setFundsRemaining(amount: number, asOf: ISODate | '' = ''): void {
       this.fundsRemaining = amount;
       this.fundsRemainingUpdated = asOf;
+      syncDb(() => upsertProfile(_userId, { fundsRemaining: amount, fundsRemainingUpdated: asOf }), 'setFundsRemaining');
     },
 
     // ─── Onboarding & version ─────────────────────────────────
@@ -753,6 +907,7 @@ export const useBudgetStore = defineStore('budget', {
      */
     completeOnboarding(): void {
       this.hasOnboarded = true;
+      syncDb(() => upsertProfile(_userId, { hasOnboarded: true }), 'completeOnboarding');
     },
 
     /**
@@ -761,6 +916,7 @@ export const useBudgetStore = defineStore('budget', {
      */
     dismissWhatsNew(version: string): void {
       this.dismissedVersion = version;
+      syncDb(() => upsertProfile(_userId, { dismissedVersion: version }), 'dismissWhatsNew');
     },
 
     // ─── CSV import / export ──────────────────────────────────

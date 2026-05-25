@@ -314,6 +314,40 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v1.17.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 24 — Supabase DB Integration
+            </p>
+            <ul class="docs-list">
+              <li><strong>Supabase Postgres backend</strong> — all 18 data tables (income, purchases, subscriptions, expense cards, loans, credit cards, savings, goals, assets, net worth, rules, alerts, categories) now persist to a real database, replacing localStorage as the primary store.</li>
+              <li><strong>One-time localStorage → Supabase migration</strong> — <code>migrateIfNeeded()</code> runs once on first load, reading the existing <code>penny_state_v2</code> blob and inserting every entity into Supabase in FK-dependency order; sets a <code>penny_migrated_to_supabase</code> flag so it never re-runs.</li>
+              <li><strong>Optimistic update pattern</strong> — every CRUD action updates local Pinia state instantly, then fires a background <code>syncDb()</code> call; UI never waits for the network.</li>
+              <li><strong>Graceful offline fallback</strong> — <code>initStore()</code> falls back to <code>loadFromStorage()</code> if Supabase is unconfigured or returns an error; localStorage remains fully functional as a standalone offline mode.</li>
+              <li><strong>camelCase ↔ snake_case adapter layer</strong> — <code>src/lib/db.ts</code> maps all domain types to/from Postgres column names; no snake_case ever leaks into components or the Pinia store.</li>
+              <li><strong>26 new unit tests</strong> — <code>tests/lib/db.spec.ts</code> (13 tests: fetch mapping, insert payloads, update/delete, upsertProfile) and <code>tests/lib/migrateLocalStorage.spec.ts</code> (13 tests: skip conditions, success, flag behaviour, per-entity migration). 871 tests total across 26 spec files.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.16.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 23 — Retroactive Category Editing on Archived Purchases
+            </p>
+            <ul class="docs-list">
+              <li><strong>Inline category editor on spending history</strong> — hover any line item in a closed spending period and click the ✏ pencil icon to reassign its category without altering the period total or any other data.</li>
+              <li><strong>Live category colour sync</strong> — the spending history donut chart immediately reflects the updated category assignment, pulling from your custom <code>spendingCategories</code> palette.</li>
+              <li><strong>Keyboard accessible</strong> — the inline edit control is fully reachable via Tab and operable with Enter/Space.</li>
+              <li>871 tests across 26 spec files.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v1.15.0</span>
               <span class="release-date">May 2026</span>
             </div>

@@ -19,16 +19,16 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '1.16.0';
+const APP_VERSION = '1.17.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🏷️', text: 'Edit category tags on archived purchases — hover any item in a past spending period and click ✏ to reassign its category without touching the period total' },
-  { icon: '🔍', text: 'Search, sort & filter for Purchases — live search by name, filter by category / budget type / expense card, sort by date, amount or name' },
-  { icon: '📋', text: 'Search, sort & filter for Subscriptions — same expandable-drawer toolbar; sort by renewal date, monthly cost, amount or name' },
-  { icon: '🐛', text: 'Bug fix: WantsDonut chart now reads colours live from your custom spending categories instead of a stale hard-coded map' },
-  { icon: '🐛', text: 'Bug fix: Progress bar labels no longer get clipped by the overflow:hidden track container' },
+  { icon: '🗄️', text: 'Supabase DB integration — your data now syncs to a Postgres database in real time, with localStorage kept as an automatic offline fallback' },
+  { icon: '🔄', text: 'One-time localStorage → Supabase migration — existing data is automatically moved to the database on first login, no manual steps required' },
+  { icon: '⚡', text: 'Optimistic updates — every add / edit / delete updates the UI instantly while the database write happens in the background' },
+  { icon: '🔌', text: 'Graceful offline fallback — if Supabase is unavailable the app falls back to localStorage and continues working without errors' },
+  { icon: '🏗️', text: 'Database schema — 18 normalised tables covering all data types, with full camelCase ↔ snake_case mapping so no DB naming leaks into the UI' },
 ];
 
 const budget = useBudgetStore();

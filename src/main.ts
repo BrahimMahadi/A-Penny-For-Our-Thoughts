@@ -49,8 +49,11 @@ app.use(pinia);
 const budgetStore = useBudgetStore();
 const themeStore = useThemeStore();
 
-// Hydrate from localStorage with v1 migrations applied
-budgetStore.loadFromStorage();
+// Hydrate state: Supabase if configured, otherwise localStorage fallback.
+// initStore() is async but we don't await it here — the app mounts with
+// default state and Vue's reactivity updates the UI once the fetch resolves.
+// This avoids blocking the first paint for users with fast localStorage data.
+budgetStore.initStore();
 themeStore.init();
 
 // Auto-persist budget mutations.

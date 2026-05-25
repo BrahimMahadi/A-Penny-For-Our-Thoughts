@@ -400,7 +400,8 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 21 — WantsDonut categoryColors & ProgressBar Label Bug Fixes | ✅ Complete | v1.15.0 |
 | Sprint 22 — Search, Sort & Filter for Purchases and Subscriptions | ✅ Complete | v1.15.0 |
 | Sprint 23 — Retroactive Category Editing for Archived Purchases | ✅ Complete | v1.16.0 |
-| **Current** | **✅ v1.16.0 shipped** | **v1.16.0** |
+| Sprint 24 — Supabase DB Integration | ✅ Complete | v1.17.0 |
+| **Current** | **✅ main** | **v1.17.0** |
 
 ---
 
@@ -1272,55 +1273,106 @@ Items captured for future sprints — not yet scheduled. See individual option d
 ---
 
 ## Sprint 23 — Retroactive Category Editing for Archived Purchases 🏷️
-**Status**: ✅ **COMPLETE** — May 2026
-**Version:** v1.16.0
-**Goal**: Allow users to correct the category tag on purchases that have already been archived into a closed spending period, without disrupting period totals or any other data.
 
-### Completed
+**Version**: v1.16.0
+**Date**: May 2026
+**Status**: ✅ COMPLETE
 
-#### 23A: Store Action ✅
-- ✅ `updateHistoryItemCategory(periodId, itemIndex, newCategory)` added to `useBudgetStore`
-- ✅ Addresses history items by `[periodId, itemIndex]` — stable because closed periods are never reordered
-- ✅ No-op (with no throw) for unknown `periodId` or out-of-bounds `itemIndex` — safe for legacy data with no IDs
-- ✅ Period `total` is not recalculated — category changes are metadata-only
-
-#### 23B: UI — Inline Tag Editor in SpendingAnalytics ✅
-- ✅ Each row in an expanded history period now shows a ✏ edit button (visible on row hover)
-- ✅ Clicking ✏ replaces the category badge with an inline `<select>` populated from `spendingCategories`
-- ✅ Orphaned categories (deleted from the category list) are preserved as a first option so the user can see and change them
-- ✅ Selecting a new category commits immediately and dismisses the select
-- ✅ `blur` and `Escape` both cancel without saving
-- ✅ Auto-focus on the `<select>` via Vue template ref callback (`:ref="(el) => { if (el) el.focus(); }"`)
-- ✅ Toast confirmation on successful save ("Category updated.")
-- ✅ `categoryOptions` computed from live `budget.spendingCategories` — always reflects current category list
-
-### Files Modified
-
-| File | Change |
-|------|--------|
-| `src/stores/budget.ts` | `updateHistoryItemCategory` action added |
-| `src/components/sections/SpendingAnalytics.vue` | Inline tag editor (script + template + CSS) |
-| `tests/stores/budget.spec.ts` | +5 new store tests for `updateHistoryItemCategory` |
-| `tests/components/sections/sections.spec.ts` | +5 new component tests: edit button, select appears, commit, blur cancel, Escape cancel |
-| `src/components/onboarding/WhatsNewBanner.vue` | Bumped to v1.16.0, updated release notes |
-| `CLAUDE.md` | Updated test count to 845 |
-| `docs/PHASE_TRACKING.md` | Added Sprint 23 row + this section |
-| `docs/USER_GUIDE.md` | Updated Spending Analytics → History List section |
-
-### Test Summary
-
-- **845 tests total** across 24 spec files (previously 835)
-- **+10 new tests** in Sprint 23:
-  - `budget store — updateHistoryItemCategory` (5 tests): valid update, unknown period no-op, out-of-bounds index no-op, other items unchanged, other periods unchanged
-  - `SpendingAnalytics — history tag editing` (5 tests): edit button per item, select appears on click, commit saves + dismisses, blur cancels, Escape cancels
-- `vue-tsc --noEmit` clean · `vite build` green
-
-### Merge & Tag
+- Added `updateHistoryItemCategory(periodId, itemIndex, newCategory)` to the budget store
+- Inline ✏ tag editor in SpendingAnalytics history list (select replaces badge on click; blur/Escape cancel; auto-focus)
+- Orphaned categories preserved as first option so users can see and change stale tags
+- +10 new tests (5 store, 5 component)
 - ✅ Merged `feat/sprint-23` → `main`, tagged **v1.16.0**
 
 ---
 
+## Sprint 24 — Supabase DB Integration 🗄️
+
+**Version**: v1.17.0
+**Date**: May 2026
+**Branch**: `feat/sprint-23-supabase-db` → `main`
+**Status**: ✅ Complete
+
+### Goal
+Replace `localStorage` as the primary data store with Supabase Postgres while keeping the app fully functional throughout. Auth comes in Sprint 25. For this sprint, a service-role key + fixed `DEV_USER_ID` env var are used so RLS is bypassed during development.
+
+### Features Delivered
+
+#### `src/lib/supabase.ts` (new)
+- Typed Supabase client singleton (service key for Sprint 24, anon key for Sprint 25)
+- `isSupabaseConfigured()` guard — app falls back to localStorage when env vars are absent
+- `DEV_USER_ID` constant from `VITE_DEV_USER_ID` env var
+
+#### `supabase/migrations/001_initial_schema.sql` (new)
+- 18 Postgres tables covering every entity: `profiles`, `income_streams`, `expense_cards`, `expense_items`, `purchases`, `spending_history_periods`, `spending_history_items`, `loans`, `credit_cards`, `subscriptions`, `wishlist_items`, `savings_accounts`, `goals`, `assets`, `net_worth_snapshots`, `rules`, `budget_alerts`, `spending_categories`
+- `user_id uuid` FK + `updated_at` trigger on every table
+- RLS enabled on all tables; policies written but commented out (enabled in Sprint 25)
+- `expense_items` split from nested array in `ExpenseCard`; `spending_history_items` split from nested `SpendingHistoryPeriod.items`
+
+#### `src/types/database.ts` (new)
+- Full TypeScript row types for all 18 tables
+- `Insert` / `Update` helper types (omit auto-set columns)
+- `Database` root type passed to `createClient<Database>()`
+
+#### `src/lib/db.ts` (new)
+- `fetchAllUserData(userId)` — parallelised fetch of all 18 tables, returns partial `BudgetState` or `null`
+- camelCase ↔ snake_case mappers: no DB naming leaks into the store/component layer
+- `db.*` CRUD helpers (insert/update/delete) for every entity
+- `upsertProfile()` for scalar profile fields
+
+#### `src/lib/migrateLocalStorage.ts` (new)
+- One-time migration: reads `penny_state_v2`, bulk-inserts into Supabase in dependency order
+- Sets `penny_migrated_to_supabase = 'true'` flag after success (never re-runs)
+- Silent no-op when already migrated, no localStorage data, or JSON is unparseable
+- Does not set flag on failure — allows retry on next load
+
+#### `src/stores/budget.ts` (major refactor)
+- `initStore(userId)` action: Supabase fetch → localStorage migration if needed → localStorage fallback on error
+- `syncDb(op, ctx)` module-level helper: fire-and-forget DB writes; logs errors but never throws
+- All 35 CRUD actions now call `syncDb(db.*.action())` after the optimistic local update
+- `main.ts` updated: `loadFromStorage()` → `initStore()`
+
+### Files Modified
+
+| File | Status | Change |
+|------|--------|--------|
+| `src/lib/supabase.ts` | 🆕 New | Supabase client singleton |
+| `src/lib/db.ts` | 🆕 New | DB adapter + mappers |
+| `src/lib/migrateLocalStorage.ts` | 🆕 New | One-time localStorage → Supabase migration |
+| `src/types/database.ts` | 🆕 New | Postgres row types |
+| `supabase/migrations/001_initial_schema.sql` | 🆕 New | Full schema + RLS |
+| `.env.example` | 🆕 New | Supabase env var template |
+| `tests/lib/db.spec.ts` | 🆕 New | 13 tests: mapper functions, insert/update/delete |
+| `tests/lib/migrateLocalStorage.spec.ts` | 🆕 New | 13 tests: migration lifecycle, flag, error handling |
+| `src/stores/budget.ts` | ✏️ Refactor | initStore + syncDb calls on all 35 actions |
+| `src/main.ts` | ✏️ Minor | loadFromStorage → initStore |
+| `CLAUDE.md` | ✏️ Updated | Test count → 871 across 26 spec files |
+| `docs/PHASE_TRACKING.md` | ✏️ Updated | Sprint 24 row + this section |
+
+### Test Summary
+
+- **871 tests total** across 26 spec files (previously 845)
+- **+26 new tests** in Sprint 24:
+  - `db.spec.ts` (13): fetchAllUserData null/profile/purchase/subscription/expense card mapping, throws on error; purchases insert/update/delete; subscriptions daysOfWeek mapping; loans paymentAmount mapping; upsertProfile snake_case + throws
+  - `migrateLocalStorage.spec.ts` (13): skip when flagged, skip when no data, skip on bad JSON, success path, sets flag, migrates income/purchases/subscriptions/categories, error does not set flag, scalar profile fields
+- `vue-tsc --noEmit` clean
+
+### Prerequisites (user must complete before testing)
+- [ ] Create Supabase project at supabase.com
+- [ ] Run `supabase/migrations/001_initial_schema.sql` in the Supabase SQL editor
+- [ ] Copy URL + service role key into `.env.local`
+- [ ] Set `VITE_DEV_USER_ID` to any valid UUID
+
+### Merge & Tag
+- ✅ `.env.local` configured (URL corrected, service key + real auth-user UUID for DEV_USER_ID)
+- ✅ Visual QA in dev server — Supabase connected, onboarding writes land with zero console errors
+- ✅ Production build clean (`vue-tsc --noEmit` + `vite build` both pass)
+- ✅ 871/871 tests passing across 26 spec files
+- ✅ Merged `feat/sprint-23-supabase-db` → `main`, tagged **v1.17.0**
+
+---
+
 **Last Updated**: May 2026
-**Current Version**: v1.16.0 — Sprint 23 complete
-**Next Up**: TBD
+**Current Version**: v1.17.0
+**Next Up**: Sprint 25 — Auth (Supabase Auth, login/signup UI, swap service key → anon key, enable RLS policies)
 **Current Branch**: `main`
