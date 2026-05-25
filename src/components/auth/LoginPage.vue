@@ -26,6 +26,21 @@ const googling = ref(false);
 
 const emailValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value));
 
+/**
+ * Maps raw Supabase error messages to friendlier copy.
+ * Falls back to the original message for anything unrecognised.
+ */
+const friendlyError = computed((): string => {
+  const msg = (auth.error ?? '').toLowerCase();
+  if (msg.includes('rate limit') || msg.includes('too many'))
+    return 'Too many sign-in emails sent — please wait a few minutes, then try again. You can also sign in with Google right now.';
+  if (msg.includes('invalid email'))
+    return 'That doesn\'t look like a valid email address. Please double-check and try again.';
+  if (msg.includes('network') || msg.includes('fetch'))
+    return 'Network error — check your connection and try again.';
+  return auth.error ?? '';
+});
+
 async function handleMagicLink(): Promise<void> {
   if (!emailValid.value || sending.value) return;
   sending.value = true;
@@ -179,7 +194,7 @@ function handleKeydown(e: KeyboardEvent): void {
           class="login-error"
           role="alert"
         >
-          {{ auth.error }}
+          {{ friendlyError }}
         </p>
       </template>
     </div>
