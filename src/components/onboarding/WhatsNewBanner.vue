@@ -19,16 +19,16 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '1.17.0';
+const APP_VERSION = '1.18.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🗄️', text: 'Supabase DB integration — your data now syncs to a Postgres database in real time, with localStorage kept as an automatic offline fallback' },
-  { icon: '🔄', text: 'One-time localStorage → Supabase migration — existing data is automatically moved to the database on first login, no manual steps required' },
-  { icon: '⚡', text: 'Optimistic updates — every add / edit / delete updates the UI instantly while the database write happens in the background' },
-  { icon: '🔌', text: 'Graceful offline fallback — if Supabase is unavailable the app falls back to localStorage and continues working without errors' },
-  { icon: '🏗️', text: 'Database schema — 18 normalised tables covering all data types, with full camelCase ↔ snake_case mapping so no DB naming leaks into the UI' },
+  { icon: '🔐', text: 'Supabase Auth — sign in with a magic link or Google OAuth; your data is private and accessible from any device' },
+  { icon: '🔒', text: 'Row Level Security enabled — every Supabase table is now protected so users can only read and write their own data' },
+  { icon: '📬', text: 'Magic link flow — enter your email, receive a one-click sign-in link; no password to forget or manage' },
+  { icon: '🟢', text: 'Google OAuth — one-click "Sign in with Google" for a frictionless login experience' },
+  { icon: '👤', text: 'User menu — your initial appears as an avatar chip in the toolbar; click to see your email and sign out from anywhere' },
 ];
 
 const budget = useBudgetStore();

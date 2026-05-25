@@ -401,7 +401,8 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 22 — Search, Sort & Filter for Purchases and Subscriptions | ✅ Complete | v1.15.0 |
 | Sprint 23 — Retroactive Category Editing for Archived Purchases | ✅ Complete | v1.16.0 |
 | Sprint 24 — Supabase DB Integration | ✅ Complete | v1.17.0 |
-| **Current** | **✅ main** | **v1.17.0** |
+| Sprint 25 — Supabase Auth (Magic Link + Google OAuth) | ✅ Complete | v1.18.0 |
+| **Current** | **✅ main** | **v1.18.0** |
 
 ---
 
@@ -1372,7 +1373,121 @@ Replace `localStorage` as the primary data store with Supabase Postgres while ke
 
 ---
 
+## Sprint 25 — Supabase Auth (Magic Link + Google OAuth) 🔐
+
+**Version**: v1.18.0
+**Date**: May 2026
+**Branch**: `feat/sprint-25-auth` → `main`
+**Status**: ✅ Complete
+
+### Goal
+Add real user authentication using Supabase Auth. Swap the Sprint 24 service-role key + fixed `DEV_USER_ID` for the anon key. Enable Row Level Security so every user only sees their own data.
+
+### Features Delivered
+
+#### `src/stores/auth.ts` (new)
+- Pinia store managing the Supabase `User | null` state and `loading` flag
+- `init()` — registers `onAuthStateChange`; fires immediately with current session (no separate `getSession()` needed); bridges to `useBudgetStore.initStore(userId)` on sign-in and `resetStore()` on sign-out
+- `signInWithMagicLink(email)` — wraps `supabase.auth.signInWithOtp()`; sets `magicLinkSent = true` on success
+- `signInWithGoogle()` — wraps `supabase.auth.signInWithOAuth({ provider: 'google' })`
+- `signOut()` — wraps `supabase.auth.signOut()`; session cleared by `onAuthStateChange`
+- Getters: `isAuthenticated`, `userEmail`, `userInitial` (first letter for avatar)
+- When Supabase is not configured: immediately calls `initStore('')` and sets `loading = false`
+
+#### `src/lib/supabase.ts` (updated)
+- Removed service-role key and `DEV_USER_ID`; switched to anon key only (`VITE_SUPABASE_ANON_KEY`)
+- `persistSession: true`, `autoRefreshToken: true`
+- `isSupabaseConfigured()` checks URL + anon key presence
+
+#### `src/stores/budget.ts` (updated)
+- Removed `DEV_USER_ID` import; `_userId` starts as `''`
+- `initStore(userId = '')` — no longer defaults to a fixed dev UUID
+- `resetStore()` action — clears state, resets `_userId`, wipes localStorage (called on sign-out)
+
+#### `src/components/auth/LoginPage.vue` (new)
+- Full-page branded login screen (dark theme, 💸 logo, tagline)
+- Magic link flow: email input → "Send magic link" → 📬 "Check your inbox" confirmation state
+- Google OAuth button with official SVG logo (correct brand colours)
+- Error banner for sign-in failures
+- Theme toggle always accessible (top-right corner)
+
+#### `src/components/ui/UserMenu.vue` (new)
+- Avatar chip: green circle, user initial, 34 × 34 px
+- Dropdown: user email + "Sign out" button
+- Click-outside detection via `document.addEventListener('mousedown', …)`
+- Keyboard dismiss on Escape
+- CSS Transition `user-menu-drop` (fade + slide)
+
+#### `src/App.vue` (updated)
+- Hard auth gate:
+  - `auth.loading` → centered spinner
+  - `!auth.user` (Supabase configured) → `<LoginPage />`
+  - Otherwise → full app shell
+- `<UserMenu>` shown in toolbar when `supabaseEnabled && auth.user`
+
+#### `src/components/pages/SettingsPage.vue` (updated)
+- New "Account" BaseCard (shown only when `supabaseEnabled && auth.user`): email + "Sign out" button
+
+#### `.env.example` (updated)
+- Removed `VITE_SUPABASE_SERVICE_KEY` and `VITE_DEV_USER_ID`; only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` remain
+
+#### `supabase/migrations/002_enable_rls.sql` (new)
+- Enables RLS policies on all 18 tables
+- `profiles`: 4 separate policies (select / insert / update / delete) using `id = auth.uid()`
+- All other 17 tables: `for all` policy using `user_id = auth.uid()`
+
+### Tests
+
+#### `tests/stores/auth.spec.ts` (new — 16 tests)
+- `init()`: registers `onAuthStateChange`, sets user + calls `initStore` on session, clears loading after auth resolves, calls `resetStore` on null session, localStorage-only path when Supabase not configured
+- `signInWithMagicLink()`: calls `signInWithOtp` with email + `redirectTo`, sets `magicLinkSent`, sets error on failure
+- `signInWithGoogle()`: calls `signInWithOAuth` with google provider + `redirectTo`, sets error on failure
+- `signOut()`: calls `supabase.auth.signOut`
+- `clearError()`: resets `error` + `magicLinkSent`
+- Getters: `isAuthenticated`, `userInitial` (uppercase first char), `userEmail`, null-user fallbacks
+
+#### `tests/components/App.spec.ts` (updated)
+- Added `@/lib/supabase` mock returning `isSupabaseConfigured = false` so the auth gate is bypassed and the existing toolbar / keyboard-shortcut tests continue to pass
+
+### Files Modified
+
+| File | Status | Change |
+|------|--------|--------|
+| `src/stores/auth.ts` | 🆕 New | Auth Pinia store |
+| `src/components/auth/LoginPage.vue` | 🆕 New | Full-page login UI |
+| `src/components/ui/UserMenu.vue` | 🆕 New | Avatar + sign-out dropdown |
+| `supabase/migrations/002_enable_rls.sql` | 🆕 New | RLS policies for all 18 tables |
+| `tests/stores/auth.spec.ts` | 🆕 New | 16 auth store tests |
+| `src/lib/supabase.ts` | ✏️ Updated | Anon key, removed service key |
+| `src/stores/budget.ts` | ✏️ Updated | resetStore(), no DEV_USER_ID |
+| `src/main.ts` | ✏️ Updated | authStore.init() instead of budgetStore.initStore() |
+| `src/App.vue` | ✏️ Updated | Auth gate + UserMenu |
+| `src/components/pages/SettingsPage.vue` | ✏️ Updated | Account card + sign-out |
+| `.env.example` | ✏️ Updated | Anon key only |
+| `tests/components/App.spec.ts` | ✏️ Updated | isSupabaseConfigured mock |
+| `CLAUDE.md` | ✏️ Updated | Test count → 887 |
+| `docs/PHASE_TRACKING.md` | ✏️ Updated | Sprint 25 row + this section |
+
+### Test Summary
+
+- **887 tests total** across 27 spec files (previously 871)
+- **+16 new tests** in Sprint 25: `auth.spec.ts` (16)
+- `vue-tsc --noEmit` clean · `eslint --max-warnings 0` clean · `vite build` green
+
+### Prerequisites (user must complete before testing)
+- [ ] Copy anon key from Supabase dashboard → `.env.local` (`VITE_SUPABASE_ANON_KEY`)
+- [ ] Run `supabase/migrations/002_enable_rls.sql` in Supabase SQL Editor
+- [ ] Configure Google OAuth: Supabase → Auth → Providers → Google (Client ID + Secret)
+- [ ] Add `https://your-project.supabase.co/auth/v1/callback` and `https://brahimmahadi.github.io/A-Penny-For-Our-Thoughts/` to Supabase Auth URL Configuration
+
+### Merge & Tag
+- ✅ All 887 tests passing across 27 spec files
+- ✅ Production build clean (`vue-tsc --noEmit` + `vite build` both pass)
+- ✅ Merged `feat/sprint-25-auth` → `main`, tagged **v1.18.0**
+
+---
+
 **Last Updated**: May 2026
-**Current Version**: v1.17.0
-**Next Up**: Sprint 25 — Auth (Supabase Auth, login/signup UI, swap service key → anon key, enable RLS policies)
+**Current Version**: v1.18.0
+**Next Up**: TBD
 **Current Branch**: `main`

@@ -314,6 +314,24 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v1.18.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 25 — Supabase Auth (Magic Link + Google OAuth)
+            </p>
+            <ul class="docs-list">
+              <li><strong>Magic link authentication</strong> — enter your email and receive a one-click sign-in link; no password required. The Supabase client handles the PKCE token exchange automatically when you return to the app.</li>
+              <li><strong>Google OAuth</strong> — one-click "Sign in with Google" using the official OAuth 2.0 PKCE flow via Supabase; redirects back to the app and sets a persistent session.</li>
+              <li><strong>Hard auth gate</strong> — when Supabase is configured, the full app shell is only shown after a verified session is established; unauthenticated visitors see only the <code>LoginPage</code>.</li>
+              <li><strong>Row Level Security</strong> — all 18 Supabase tables now enforce RLS policies (<code>auth.uid() = user_id</code>); the anon key replaces the service key so each user can only read and write their own rows.</li>
+              <li><strong>User menu &amp; Settings sign-out</strong> — an avatar chip in the toolbar and a "Sign out" button in Settings both call <code>auth.signOut()</code>, which triggers the <code>onAuthStateChange</code> handler that resets the budget store and clears localStorage.</li>
+              <li><strong>887 tests</strong> across 27 spec files — +16 in <code>tests/stores/auth.spec.ts</code> (init, magic link, Google OAuth, sign-out, clearError, getters).</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v1.17.0</span>
               <span class="release-date">May 2026</span>
             </div>
