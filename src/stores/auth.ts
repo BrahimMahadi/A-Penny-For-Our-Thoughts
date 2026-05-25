@@ -66,11 +66,12 @@ export const useAuthStore = defineStore('auth', {
      * Bootstrap auth. Must be called once on app startup (main.ts).
      *
      * When Supabase is configured:
-     *   - Registers onAuthStateChange which fires immediately with the
-     *     current session (INITIAL_SESSION event), so no separate
-     *     getSession() call is required.
+     *   - Registers onAuthStateChange which fires (usually immediately) with
+     *     the current session (INITIAL_SESSION event).
      *   - On SIGNED_IN  → sets user, triggers budgetStore.initStore(userId)
      *   - On SIGNED_OUT → clears user, triggers budgetStore.resetStore()
+     *   - A 10-second safety timer forces loading=false if Supabase never
+     *     responds (e.g. network is down or the token-refresh request hangs).
      *
      * When Supabase is NOT configured (no env vars):
      *   - Budget store is initialised from localStorage immediately.
@@ -85,10 +86,28 @@ export const useAuthStore = defineStore('auth', {
         return;
       }
 
-      // onAuthStateChange always fires synchronously on subscription with
-      // the INITIAL_SESSION event, making it the single source of truth
-      // for both the initial state and all subsequent transitions.
+      // Safety net: Supabase's onAuthStateChange fires *after* it finishes
+      // resolving / refreshing the stored session.  If that network request
+      // hangs (server unreachable, cold-start timeout, flaky Wi-Fi) the
+      // callback never runs and auth.loading stays true forever, showing a
+      // permanent loading spinner.
+      //
+      // This timer gives Supabase 10 seconds.  If loading is still true at
+      // that point we fall back to localStorage so the app is usable.
+      // When Supabase eventually responds the callback will still fire,
+      // update auth.user, and re-hydrate data from the cloud.
+      const safetyTimer = setTimeout(() => {
+        if (!this.loading) return; // resolved normally — nothing to do
+        console.warn(
+          '[penny] Auth init timed out after 10 s — ' +
+          'falling back to localStorage. Supabase may be unreachable.',
+        );
+        useBudgetStore().loadFromStorage();
+        this.loading = false;
+      }, 10_000);
+
       supabase.auth.onAuthStateChange(async (_event, session) => {
+        clearTimeout(safetyTimer); // session resolved in time — cancel fallback
         const budgetStore = useBudgetStore();
 
         try {

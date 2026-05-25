@@ -402,6 +402,8 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 23 — Retroactive Category Editing for Archived Purchases | ✅ Complete | v1.16.0 |
 | Sprint 24 — Supabase DB Integration | ✅ Complete | v1.17.0 |
 | Sprint 25 — Supabase Auth (Magic Link + Google OAuth) | ✅ Complete | v1.18.0 |
+| HF-1 — Toolbar Cleanup (Import/Export → Settings) | ✅ Complete | v1.18.0 |
+| HF-2 — Auth Loading Hang Fix (safety timer + fetch timeout) | ✅ Complete | v1.18.0 |
 | **Current** | **✅ main** | **v1.18.0** |
 
 ---
@@ -1484,6 +1486,55 @@ Add real user authentication using Supabase Auth. Swap the Sprint 24 service-rol
 - ✅ All 887 tests passing across 27 spec files
 - ✅ Production build clean (`vue-tsc --noEmit` + `vite build` both pass)
 - ✅ Merged `feat/sprint-25-auth` → `main`, tagged **v1.18.0**
+
+---
+
+## Post-Sprint 25 — Hotfixes (v1.18.x)
+
+### HF-1 — Toolbar Cleanup (no version bump)
+
+Moved all CSV/JSON import-export buttons out of the top navigation bar
+and into **Settings → Data Management** card. Toolbar now shows only:
+keyboard-shortcut help (`?`), theme toggle, and UserMenu.
+
+**Files changed**: `src/App.vue`, `src/components/pages/SettingsPage.vue`,
+`tests/components/App.spec.ts` (3 tests updated), `CLAUDE.md` (test count 887 → 885).
+
+---
+
+### HF-2 — Auth Loading Hang Fix
+
+**Bug**: After deploying with valid Supabase env vars, the app could
+hang permanently on the loading spinner (💸 / "Loading…"). The user
+never reached the login page or the app shell.
+
+**Root cause**: Supabase's `onAuthStateChange` fires the `INITIAL_SESSION`
+event *after* the library finishes resolving the stored session — including
+a token-refresh network request if the cached token is expired. The browser's
+`fetch()` has no built-in timeout, so a stalled refresh request (slow
+network, Supabase cold start, dropped packet) caused the callback to
+never fire and `auth.loading` to stay `true` forever.
+
+A second failure mode: even when `onAuthStateChange` did fire, the
+subsequent `fetchAllUserData()` in `initStore` fires 18 parallel
+Supabase queries in a `Promise.all`. A hung query in that group would
+also block `auth.loading` from clearing.
+
+**Fix**:
+1. **`src/stores/auth.ts`** — 10-second safety timer in `init()`. If
+   `onAuthStateChange` has not fired by then, `loadFromStorage()` is
+   called and `loading` is set to `false`. When Supabase eventually
+   responds the callback still fires and syncs the cloud state.
+2. **`src/stores/budget.ts`** — `withTimeout()` helper wraps each
+   `fetchAllUserData()` call in a `Promise.race` against an 8-second
+   deadline, rejecting into the existing `catch` branch which falls back
+   to localStorage.
+
+**Tests**: Existing 885 tests still pass; no new tests added (the timer
+is hard to test deterministically without fake timers — tracked for
+future sprint).
+
+**Files changed**: `src/stores/auth.ts`, `src/stores/budget.ts`.
 
 ---
 

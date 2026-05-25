@@ -377,8 +377,18 @@ export const useBudgetStore = defineStore('budget', {
         return;
       }
 
+      // Wrap a Supabase fetch in a race against an 8-second deadline.
+      // The browser's fetch() has no built-in timeout; without this a
+      // stalled network request keeps auth.loading = true indefinitely.
+      function withTimeout<T>(promise: Promise<T>, ms = 8_000): Promise<T> {
+        const deadline = new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`[penny] DB fetch timed out after ${ms} ms`)), ms),
+        );
+        return Promise.race([promise, deadline]);
+      }
+
       try {
-        const data = await fetchAllUserData(userId);
+        const data = await withTimeout(fetchAllUserData(userId));
 
         if (data) {
           // Supabase has data — use it as source of truth
@@ -387,7 +397,7 @@ export const useBudgetStore = defineStore('budget', {
           // No profile row yet — try one-time localStorage → Supabase migration
           const migrated = await migrateIfNeeded(userId);
           if (migrated) {
-            const refreshed = await fetchAllUserData(userId);
+            const refreshed = await withTimeout(fetchAllUserData(userId));
             if (refreshed) Object.assign(this.$state, refreshed);
           } else {
             // Brand-new user — keep default state (or localStorage fallback)
