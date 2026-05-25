@@ -209,13 +209,31 @@ export const useAuthStore = defineStore('auth', {
     },
 
     /**
-     * Sign the current user out. Supabase clears the session; the
-     * onAuthStateChange handler resets the budget store.
+     * Sign the current user out.
+     *
+     * Optimistic: local state is cleared immediately so the UI transitions
+     * to the login screen without any network delay.  The Supabase session
+     * revocation is fired non-blocking — if it fails we log it but the user
+     * is already "signed out" locally.
+     *
+     * Clearing _syncedForUserId + calling budgetStore.resetStore() (which
+     * sets _userId = '') before the network call also suppresses the
+     * "cloud sync failed" toast that would otherwise appear when the
+     * in-flight initStore fetch is rejected because the session was revoked.
      */
-    async signOut(): Promise<void> {
-      const { error } = await supabase.auth.signOut();
-      if (error) console.warn('[penny] Sign-out error:', error.message);
-      // onAuthStateChange → SIGNED_OUT handles user/budget store reset
+    signOut(): void {
+      // 1. Clear local auth state immediately
+      this.user  = null;
+      this.error = null;
+      _syncedForUserId = null;
+
+      // 2. Clear budget state immediately (also sets _userId = '')
+      useBudgetStore().resetStore();
+
+      // 3. Revoke the Supabase session in the background
+      supabase.auth.signOut().catch((err: Error) =>
+        console.warn('[penny] Sign-out error:', err.message),
+      );
     },
 
     clearError(): void {

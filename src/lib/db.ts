@@ -162,6 +162,48 @@ function toSpendingCategory(r: SpendingCategoryRow): SpendingCategory {
   return { id: r.id, name: r.name, color: r.color };
 }
 
+// ─── Delete all user data ──────────────────────────────────────────
+
+/**
+ * Deletes every data row for `userId` across all tables in parallel.
+ *
+ * Parent tables have CASCADE DELETE configured in the schema, so child
+ * rows are removed automatically:
+ *   expense_cards   → expense_items
+ *   spending_history_periods → spending_history_items
+ *   savings_accounts → goals
+ *
+ * Used before a full re-import (CSV or JSON) so the new state completely
+ * replaces the old one rather than merging.
+ *
+ * @throws If any individual delete query fails.
+ */
+export async function deleteAllUserData(userId: string): Promise<void> {
+  const tables = [
+    'income_streams',
+    'expense_cards',            // cascade → expense_items
+    'purchases',
+    'spending_history_periods', // cascade → spending_history_items
+    'loans',
+    'credit_cards',
+    'subscriptions',
+    'wishlist_items',
+    'savings_accounts',         // cascade → goals
+    'assets',
+    'net_worth_snapshots',
+    'rules',
+    'budget_alerts',
+    'spending_categories',
+  ] as const;
+
+  await Promise.all(
+    tables.map(async (table) => {
+      const { error } = await sb.from(table).delete().eq('user_id', userId);
+      assertNoError(error, `deleteAll:${table}`);
+    }),
+  );
+}
+
 // ─── Fetch all user data ───────────────────────────────────────────
 
 /**

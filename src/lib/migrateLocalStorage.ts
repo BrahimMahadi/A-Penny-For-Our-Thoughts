@@ -70,7 +70,16 @@ export function isMigrated(): boolean {
 
 // ─── Migration runner ──────────────────────────────────────────────
 
-async function runMigration(userId: string, state: BudgetState): Promise<void> {
+/**
+ * Insert all entities from `state` into Supabase for `userId`.
+ *
+ * Exported so the budget store can call it after a CSV/JSON import
+ * (preceded by deleteAllUserData) to push the entire imported state
+ * to the cloud in one shot.
+ *
+ * @throws If any individual insert fails.
+ */
+export async function runMigration(userId: string, state: BudgetState): Promise<void> {
   // 1. Profile (scalar fields)
   await upsertProfile(userId, {
     allocation:              state.allocation,

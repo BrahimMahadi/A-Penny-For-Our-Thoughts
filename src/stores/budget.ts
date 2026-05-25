@@ -15,9 +15,9 @@ import { genId, deepClone } from '@/utils/id';
 import { exportStateToCSV, parseCSVToState, triggerCSVDownload } from '@/utils/csvImportExport';
 import { exportStateToJSON, parseJSONToState, triggerJSONDownload } from '@/utils/jsonBackup';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { db, fetchAllUserData, upsertProfile } from '@/lib/db';
+import { db, fetchAllUserData, upsertProfile, deleteAllUserData } from '@/lib/db';
 import { useToast } from '@/composables/useToast';
-import { migrateIfNeeded } from '@/lib/migrateLocalStorage';
+import { migrateIfNeeded, runMigration } from '@/lib/migrateLocalStorage';
 import type {
   IncomeStream,
   ExpenseCard,
@@ -335,6 +335,34 @@ function syncDb(op: () => Promise<void>, ctx: string): void {
   op().catch(err => console.error(`[penny] db sync (${ctx}):`, err));
 }
 
+/**
+ * Replace all Supabase data for the current user with the contents of `state`.
+ *
+ * Called fire-and-forget after a CSV or JSON import replaces the local store.
+ * The UI stays responsive while the cloud push runs in the background.
+ * If the push fails, the user sees a toast and can reload to retry.
+ *
+ * Flow: deleteAllUserData (parallel deletes) → runMigration (sequential inserts).
+ * Child rows (expense_items, spending_history_items, goals) are removed
+ * automatically via CASCADE DELETE when their parent rows are deleted.
+ */
+async function pushImportedState(state: BudgetState): Promise<void> {
+  if (!_userId || !isSupabaseConfigured()) return;
+
+  try {
+    await deleteAllUserData(_userId);
+    await runMigration(_userId, state);
+    console.info('[penny] import: Supabase sync complete ✓');
+  } catch (err) {
+    console.error('[penny] import: Supabase sync failed —', err);
+    useToast().show(
+      '⚠ Import saved locally but cloud sync failed. Refresh to retry.',
+      'warning',
+      7_000,
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────
 
 export const useBudgetStore = defineStore('budget', {
@@ -474,12 +502,19 @@ export const useBudgetStore = defineStore('budget', {
         // Local data is already showing (loaded above).  Warn visibly so
         // the user knows the cloud sync failed and can take action.
         console.warn('[penny] Supabase sync failed, using localStorage:', err);
-        useToast().show(
-          '⚠ Cloud sync failed — showing local backup. ' +
-          'Check your Supabase project status and refresh to retry.',
-          'warning',
-          7_000,
-        );
+
+        // _userId is '' when the user signed out mid-sync (resetStore was
+        // called optimistically).  In that case the network failure is
+        // expected (the session was revoked); showing a toast would be
+        // confusing and alarm the user unnecessarily.
+        if (_userId) {
+          useToast().show(
+            '⚠ Cloud sync failed — showing local backup. ' +
+            'Check your Supabase project status and refresh to retry.',
+            'warning',
+            7_000,
+          );
+        }
       }
 
       } finally {
@@ -1033,12 +1068,17 @@ export const useBudgetStore = defineStore('budget', {
      * Parse a raw CSV string (produced by exportCSV) and replace the entire
      * store state with the parsed result.
      *
+     * After updating local state the full imported dataset is pushed to
+     * Supabase (delete-all + re-insert) fire-and-forget so the cloud stays
+     * in sync with the import.
+     *
      * @param text  Raw CSV text from the imported file.
      * @throws      If the text cannot be parsed.
      */
     importCSV(text: string): void {
       const newState = parseCSVToState(text);
       this.$state = newState;
+      void pushImportedState(newState);
     },
 
     /**
@@ -1054,12 +1094,17 @@ export const useBudgetStore = defineStore('budget', {
      * Parse a JSON backup string (produced by exportJSON) and replace
      * the entire store state with the parsed result.
      *
+     * After updating local state the full imported dataset is pushed to
+     * Supabase (delete-all + re-insert) fire-and-forget so the cloud stays
+     * in sync with the import.
+     *
      * @param text  Raw JSON text from the imported file.
      * @throws      If the text cannot be parsed or the version is unsupported.
      */
     importJSON(text: string): void {
       const newState = parseJSONToState(text);
       this.$state = newState;
+      void pushImportedState(newState);
     },
   },
 });
