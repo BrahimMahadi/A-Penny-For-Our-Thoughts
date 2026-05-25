@@ -32,6 +32,7 @@ import './css/extras.css';
 
 // ─── Stores & composables ─────────────────────────────────────────
 import { useBudgetStore, saveStateToStorage } from './stores/budget';
+import { useAuthStore } from './stores/auth';
 import { useThemeStore } from './stores/theme';
 // useToast is module-scoped (not component-scoped), so it's safe to call
 // here in main.ts before the Vue app mounts. Toasts queued before mount
@@ -46,14 +47,15 @@ app.use(pinia);
 
 // Stores must be created AFTER pinia is mounted, but BEFORE mount() so
 // initial render sees hydrated state.
+const authStore  = useAuthStore();
 const budgetStore = useBudgetStore();
 const themeStore = useThemeStore();
 
-// Hydrate state: Supabase if configured, otherwise localStorage fallback.
-// initStore() is async but we don't await it here — the app mounts with
-// default state and Vue's reactivity updates the UI once the fetch resolves.
-// This avoids blocking the first paint for users with fast localStorage data.
-budgetStore.initStore();
+// Auth init: establishes the onAuthStateChange listener which in turn
+// calls budgetStore.initStore(userId) once the session resolves.
+// In localStorage-only mode (no Supabase env vars) this falls through
+// to loadFromStorage() immediately and sets loading = false.
+authStore.init();
 themeStore.init();
 
 // Auto-persist budget mutations.

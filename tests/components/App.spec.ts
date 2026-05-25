@@ -24,6 +24,17 @@ vi.mock('@/components/pages/SchedulePage.vue',  () => ({ default: { template: '<
 vi.mock('@/components/pages/DocsPage.vue',       () => ({ default: { template: '<div data-testid="docs-page" />' } }));
 vi.mock('@/components/pages/SettingsPage.vue',   () => ({ default: { template: '<div data-testid="settings-page" />' } }));
 
+// Return false so the auth gate is bypassed and the app shell always renders.
+// These tests pre-date Sprint 25 auth and only cover toolbar/keyboard UX.
+vi.mock('@/lib/supabase', () => ({
+  isSupabaseConfigured: vi.fn().mockReturnValue(false),
+  supabase: {
+    auth: {
+      onAuthStateChange: vi.fn(),
+    },
+  },
+}));
+
 import App from '@/App.vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useUiStore } from '@/stores/ui';

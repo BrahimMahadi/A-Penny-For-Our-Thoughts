@@ -1,19 +1,14 @@
 /**
  * Module:   lib/supabase.ts
  * Project:  A Penny For Our Thoughts
- * Created:  May 2026 (Sprint 23 — Supabase DB Integration)
+ * Created:  May 2026 (Sprint 24 — Supabase DB Integration)
+ * Modified: May 2026 — Sprint 25 (Auth): anon key, session persistence on,
+ *           DEV_USER_ID removed (user_id now comes from auth.uid()).
  * Summary:  Typed Supabase client singleton.
  *
- *           Sprint 23 (DB only, no auth):
- *             - Uses the service-role key so RLS is bypassed during dev.
- *             - DEV_USER_ID is a fixed UUID from .env.local that is written
- *               to every row's `user_id` column so the schema is correct
- *               from day one.
- *
- *           Sprint 24 (auth):
- *             - Replace VITE_SUPABASE_SERVICE_KEY → VITE_SUPABASE_ANON_KEY.
- *             - Remove DEV_USER_ID; derive user_id from auth.uid() instead.
- *             - Enable RLS policies in Supabase dashboard.
+ *           The anon key is safe to expose in client-side code — Supabase's
+ *           Row Level Security policies (enabled in Sprint 25 migration 002)
+ *           ensure each user can only access their own rows.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -22,15 +17,7 @@ import type { Database } from '@/types/database';
 // ─── Env vars ──────────────────────────────────────────────────────
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-
-/**
- * Sprint 23 dev: service key bypasses RLS.
- * Sprint 24: swap to VITE_SUPABASE_ANON_KEY.
- */
-const SUPABASE_KEY = (
-  import.meta.env.VITE_SUPABASE_SERVICE_KEY ??
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-) as string;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.warn(
@@ -47,26 +34,17 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
  * Never create a second instance — always use this singleton.
  */
 export const supabase = createClient<Database>(
-  SUPABASE_URL  ?? 'https://placeholder.supabase.co',
-  SUPABASE_KEY  ?? 'placeholder',
+  SUPABASE_URL ?? 'https://placeholder.supabase.co',
+  SUPABASE_KEY ?? 'placeholder',
   {
     auth: {
-      // Sprint 23: no session persistence needed (no real auth yet)
-      persistSession: false,
-      autoRefreshToken: false,
+      // Session is stored in localStorage so the user stays signed in
+      // across page refreshes and browser restarts.
+      persistSession:   true,
+      autoRefreshToken: true,
     },
   },
 );
-
-// ─── Dev user ID ───────────────────────────────────────────────────
-
-/**
- * Fixed UUID used as `user_id` for every row during Sprint 23 dev.
- * Will be replaced by `(await supabase.auth.getUser()).data.user?.id`
- * once Sprint 24 auth is wired up.
- */
-export const DEV_USER_ID: string =
-  import.meta.env.VITE_DEV_USER_ID ?? '00000000-0000-0000-0000-000000000000';
 
 // ─── Helpers ───────────────────────────────────────────────────────
 
@@ -74,6 +52,6 @@ export const DEV_USER_ID: string =
 export function isSupabaseConfigured(): boolean {
   return (
     !!import.meta.env.VITE_SUPABASE_URL &&
-    !!(import.meta.env.VITE_SUPABASE_SERVICE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY)
+    !!import.meta.env.VITE_SUPABASE_ANON_KEY
   );
 }

@@ -30,13 +30,20 @@ import SettingsPage from '@/components/pages/SettingsPage.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import SectionPicker from '@/components/ui/SectionPicker.vue';
+import UserMenu from '@/components/ui/UserMenu.vue';
 import OnboardingModal from '@/components/onboarding/OnboardingModal.vue';
 import WhatsNewBanner from '@/components/onboarding/WhatsNewBanner.vue';
+import LoginPage from '@/components/auth/LoginPage.vue';
+import { useAuthStore } from '@/stores/auth';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 const theme  = useThemeStore();
 const ui     = useUiStore();
 const budget = useBudgetStore();
+const auth   = useAuthStore();
 const toast  = useToast();
+
+const supabaseEnabled = isSupabaseConfigured();
 
 // ─── Tabs ────────────────────────────────────────────────────────────────────
 interface Tab {
@@ -198,7 +205,28 @@ useSwipe(
 </script>
 
 <template>
-  <div class="app-shell">
+  <!-- Auth loading — brief spinner while Supabase resolves the session -->
+  <div
+    v-if="supabaseEnabled && auth.loading"
+    class="auth-loading"
+    aria-label="Loading"
+    role="status"
+  >
+    <span
+      class="auth-loading__emoji"
+      aria-hidden="true"
+    >💸</span>
+    <span class="auth-loading__text">Loading…</span>
+  </div>
+
+  <!-- Login page — shown when Supabase is configured but no session -->
+  <LoginPage v-else-if="supabaseEnabled && !auth.user" />
+
+  <!-- Main app shell -->
+  <div
+    v-else
+    class="app-shell"
+  >
     <header class="app-header">
       <!-- Brand -->
       <div class="app-header__brand">
@@ -343,6 +371,9 @@ useSwipe(
         >
           {{ theme.isDark ? '🌙' : '☀️' }}
         </button>
+
+        <!-- User menu (only when signed in via Supabase) -->
+        <UserMenu v-if="supabaseEnabled && auth.user" />
       </div>
     </header>
 
@@ -391,10 +422,24 @@ useSwipe(
         </tbody>
       </table>
     </BaseModal>
-  </div>
+  </div><!-- end v-else app-shell -->
 </template>
 
 <style scoped>
+/* ─── Auth loading overlay ────────────────────────────────────────── */
+.auth-loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: var(--bg, #0d1117);
+  color: var(--muted, #6b7a99);
+}
+.auth-loading__emoji { font-size: 2.5rem; }
+.auth-loading__text  { font-size: 0.9rem; letter-spacing: 0.05em; }
+
 .app-shell {
   min-height: 100vh;
   background: var(--bg, #0d1117);

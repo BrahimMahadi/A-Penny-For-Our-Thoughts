@@ -15,7 +15,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
+import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import BaseCard from '@/components/ui/BaseCard.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import PayStartDate from '@/components/sections/PayStartDate.vue';
@@ -24,7 +26,9 @@ import BudgetAlerts from '@/components/sections/BudgetAlerts.vue';
 import CategoryManager from '@/components/sections/CategoryManager.vue';
 
 const budget = useBudgetStore();
+const auth   = useAuthStore();
 const toast  = useToast();
+const supabaseEnabled = isSupabaseConfigured();
 
 // ─── Danger zone ─────────────────────────────────────────────────────────────
 const confirmClear = ref(false);
@@ -62,6 +66,25 @@ function handleClearAll(): void {
       <BudgetAlerts />
     </BaseCard>
 
+    <!-- Account ─────────────────────────────────────────────────────── -->
+    <BaseCard
+      v-if="supabaseEnabled && auth.user"
+      title="Account"
+    >
+      <div class="settings-account">
+        <p class="settings-account__email">
+          Signed in as <strong>{{ auth.userEmail }}</strong>
+        </p>
+        <BaseButton
+          variant="secondary"
+          size="sm"
+          @click="auth.signOut()"
+        >
+          Sign out
+        </BaseButton>
+      </div>
+    </BaseCard>
+
     <!-- Danger Zone ────────────────────────────────────────────────── -->
     <BaseCard title="Danger Zone">
       <div class="settings-danger">
@@ -95,6 +118,23 @@ function handleClearAll(): void {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+/* ─── Account ────────────────────────────────────────────────────── */
+.settings-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.settings-account__email {
+  margin: 0;
+  font-size: 0.87rem;
+  color: var(--muted);
+}
+.settings-account__email strong {
+  color: var(--text);
 }
 
 /* ─── Danger zone ────────────────────────────────────────────────── */

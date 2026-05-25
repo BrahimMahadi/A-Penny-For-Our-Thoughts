@@ -14,7 +14,7 @@ import { defineStore } from 'pinia';
 import { genId, deepClone } from '@/utils/id';
 import { exportStateToCSV, parseCSVToState, triggerCSVDownload } from '@/utils/csvImportExport';
 import { exportStateToJSON, parseJSONToState, triggerJSONDownload } from '@/utils/jsonBackup';
-import { isSupabaseConfigured, DEV_USER_ID } from '@/lib/supabase';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import { db, fetchAllUserData, upsertProfile } from '@/lib/db';
 import { migrateIfNeeded } from '@/lib/migrateLocalStorage';
 import type {
@@ -302,10 +302,10 @@ export function saveStateToStorage(state: BudgetState): boolean {
 // ─── Pinia store definition ─────────────────────────────────────
 
 // ─── Module-level DB helpers ─────────────────────────────────────
-// _userId is set by initStore() on app boot. During Sprint 23 it defaults
-// to DEV_USER_ID; Sprint 24 will replace it with auth.uid().
+// _userId is set by initStore() after auth resolves (auth.uid()).
+// Empty string = Supabase not in use; syncDb() is a no-op in that case.
 
-let _userId: string = DEV_USER_ID;
+let _userId = '';
 
 /**
  * Fire-and-forget Supabase write. Logs errors but never throws — the local
@@ -366,9 +366,10 @@ export const useBudgetStore = defineStore('budget', {
      * Falls back to localStorage silently when Supabase is not configured or
      * the network call fails.
      *
-     * @param userId  Dev: DEV_USER_ID. Sprint 24: auth.uid().
+     * @param userId  auth.uid() from the Supabase session. Empty string in
+     *                localStorage-only mode (Supabase not configured).
      */
-    async initStore(userId: string = DEV_USER_ID): Promise<void> {
+    async initStore(userId = ''): Promise<void> {
       _userId = userId;
 
       if (!isSupabaseConfigured()) {
@@ -413,6 +414,17 @@ export const useBudgetStore = defineStore('budget', {
     /** Reset to BLANK_STATE (used by Settings → Clear All Data). */
     clearAll(): void {
       this.$state = makeBlankState();
+    },
+
+    /**
+     * Called on sign-out. Clears the user ID, resets store to default
+     * state, and removes the localStorage snapshot so stale data can't
+     * leak to the next session.
+     */
+    resetStore(): void {
+      _userId = '';
+      this.$state = makeDefaultState();
+      try { localStorage.removeItem(STORAGE_KEYS.STATE); } catch { /* ignore */ }
     },
 
     // ─── Income streams ───────────────────────────────────────
