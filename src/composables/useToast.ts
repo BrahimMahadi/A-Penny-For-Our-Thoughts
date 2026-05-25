@@ -29,7 +29,11 @@ const DEFAULT_DURATION_MS = 2500;
  * - `dismiss(id)` lets the container remove a toast when its exit animation ends.
  */
 export function useToast() {
-  function show(message: string, type: ToastType = 'success'): number {
+  function show(
+    message: string,
+    type: ToastType = 'success',
+    duration = DEFAULT_DURATION_MS,
+  ): number {
     const id = nextId++;
     toasts.value.push({ id, message, type });
     // Schedule auto-dismiss. ToastContainer will mark it 'leaving'
@@ -41,7 +45,7 @@ export function useToast() {
       // We still emit a manual dismiss after a safety margin in case
       // the container isn't mounted (e.g. tests).
       dismiss(id);
-    }, DEFAULT_DURATION_MS + 600); // duration + animation buffer
+    }, duration + 600); // duration + animation buffer
     return id;
   }
 

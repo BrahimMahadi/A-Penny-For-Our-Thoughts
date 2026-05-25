@@ -1502,39 +1502,56 @@ keyboard-shortcut help (`?`), theme toggle, and UserMenu.
 
 ---
 
-### HF-2 — Auth Loading Hang Fix
+### HF-2 — Auth Loading Hang + Cloud Sync Resilience Fix
 
-**Bug**: After deploying with valid Supabase env vars, the app could
-hang permanently on the loading spinner (💸 / "Loading…"). The user
+**Bug (round 1)**: After deploying with valid Supabase env vars, the app
+could hang permanently on the loading spinner (💸 / "Loading…"). The user
 never reached the login page or the app shell.
 
-**Root cause**: Supabase's `onAuthStateChange` fires the `INITIAL_SESSION`
-event *after* the library finishes resolving the stored session — including
-a token-refresh network request if the cached token is expired. The browser's
-`fetch()` has no built-in timeout, so a stalled refresh request (slow
-network, Supabase cold start, dropped packet) caused the callback to
-never fire and `auth.loading` to stay `true` forever.
+**Root cause (round 1)**: Supabase's `onAuthStateChange` fires the
+`INITIAL_SESSION` event *after* the library finishes resolving the stored
+session — including a token-refresh network request if the cached token is
+expired. `fetch()` has no built-in timeout, so a stalled refresh request
+caused the callback to never fire and `auth.loading` to stay `true` forever.
 
-A second failure mode: even when `onAuthStateChange` did fire, the
-subsequent `fetchAllUserData()` in `initStore` fires 18 parallel
-Supabase queries in a `Promise.all`. A hung query in that group would
-also block `auth.loading` from clearing.
+**Fix (round 1)**:
+1. `src/stores/auth.ts` — 10-second safety timer in `init()`.
+2. `src/stores/budget.ts` — `withTimeout()` `Promise.race` (8 s) on
+   `fetchAllUserData()`.
 
-**Fix**:
-1. **`src/stores/auth.ts`** — 10-second safety timer in `init()`. If
-   `onAuthStateChange` has not fired by then, `loadFromStorage()` is
-   called and `loading` is set to `false`. When Supabase eventually
-   responds the callback still fires and syncs the cloud state.
-2. **`src/stores/budget.ts`** — `withTimeout()` helper wraps each
-   `fetchAllUserData()` call in a `Promise.race` against an 8-second
-   deadline, rejecting into the existing `catch` branch which falls back
-   to localStorage.
+---
 
-**Tests**: Existing 885 tests still pass; no new tests added (the timer
-is hard to test deterministically without fake timers — tracked for
-future sprint).
+**Bug (round 2)**: After round-1 fix the app loaded, but the 8-second
+DB fetch timeout was too short for a Supabase free-tier cold start
+(10–15 s when the project wakes from pause). The spinner showed for
+8+ seconds before showing the app, and the cloud sync silently fell
+back to localStorage with only a console warning.
 
-**Files changed**: `src/stores/auth.ts`, `src/stores/budget.ts`.
+**Root cause (round 2)**: `auth.loading` was cleared *after* `initStore`
+awaited (so the spinner stayed up during the full DB fetch), the localStorage
+fallback happened invisibly, and the timeout was too aggressive for cold starts.
+
+**Fix (round 2)**:
+1. **`src/stores/auth.ts`** — `this.loading = false` is now set immediately
+   after `this.user` is resolved, *before* `initStore()` is awaited. The
+   app shell / login page renders in < 1 s regardless of DB latency.
+2. **`src/stores/budget.ts`** — `loadFromStorage()` is called first at the
+   start of the Supabase path, so local data shows immediately while the
+   cloud fetch runs. Timeout raised from 8 s → 20 s to accommodate cold
+   starts. On timeout/error a 7-second warning toast is shown:
+   *"⚠ Cloud sync failed — showing local backup. Check your Supabase project
+   status and refresh to retry."*
+3. **`src/composables/useToast.ts`** — `show()` gained an optional `duration`
+   parameter so warnings can stay on screen longer than the default 2.5 s.
+
+**Important**: A paused Supabase free-tier project requires manual
+unpausing from the dashboard before cloud sync will succeed. The toast
+message now directs the user there.
+
+**Tests**: Existing 885 tests still pass.
+
+**Files changed**: `src/stores/auth.ts`, `src/stores/budget.ts`,
+`src/composables/useToast.ts`, `docs/PHASE_TRACKING.md`.
 
 ---
 

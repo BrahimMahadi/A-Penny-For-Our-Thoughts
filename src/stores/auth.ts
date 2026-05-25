@@ -110,17 +110,22 @@ export const useAuthStore = defineStore('auth', {
         clearTimeout(safetyTimer); // session resolved in time — cancel fallback
         const budgetStore = useBudgetStore();
 
-        try {
-          if (session?.user) {
-            this.user = session.user;
-            await budgetStore.initStore(session.user.id);
-          } else {
-            this.user = null;
-            budgetStore.resetStore();
-          }
-        } finally {
-          // Always clear the loading state — even if initStore throws
-          this.loading = false;
+        // Resolve auth state immediately so the loading spinner clears and
+        // the app shell (or login page) renders without waiting for the
+        // Supabase DB fetch (which can take several seconds on a cold start).
+        if (session?.user) {
+          this.user = session.user;
+        } else {
+          this.user = null;
+        }
+        this.loading = false;
+
+        // Sync budget data in the background.  initStore handles its own
+        // errors and falls back to localStorage — nothing to catch here.
+        if (session?.user) {
+          await budgetStore.initStore(session.user.id);
+        } else {
+          budgetStore.resetStore();
         }
       });
     },

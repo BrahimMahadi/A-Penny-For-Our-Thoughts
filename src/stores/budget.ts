@@ -16,6 +16,7 @@ import { exportStateToCSV, parseCSVToState, triggerCSVDownload } from '@/utils/c
 import { exportStateToJSON, parseJSONToState, triggerJSONDownload } from '@/utils/jsonBackup';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { db, fetchAllUserData, upsertProfile } from '@/lib/db';
+import { useToast } from '@/composables/useToast';
 import { migrateIfNeeded } from '@/lib/migrateLocalStorage';
 import type {
   IncomeStream,
@@ -377,10 +378,16 @@ export const useBudgetStore = defineStore('budget', {
         return;
       }
 
-      // Wrap a Supabase fetch in a race against an 8-second deadline.
-      // The browser's fetch() has no built-in timeout; without this a
-      // stalled network request keeps auth.loading = true indefinitely.
-      function withTimeout<T>(promise: Promise<T>, ms = 8_000): Promise<T> {
+      // Show locally-cached data immediately so the user sees something
+      // real while the Supabase round-trip resolves (or times out).
+      this.loadFromStorage();
+
+      // Wrap Supabase fetches in a race against a 20-second deadline.
+      // The browser's fetch() has no built-in timeout; a stalled request
+      // (paused project, cold start, network blip) would otherwise block
+      // the data-sync indefinitely.  20 s accommodates Supabase free-tier
+      // cold starts which can take 10–15 s after a period of inactivity.
+      function withTimeout<T>(promise: Promise<T>, ms = 20_000): Promise<T> {
         const deadline = new Promise<T>((_, reject) =>
           setTimeout(() => reject(new Error(`[penny] DB fetch timed out after ${ms} ms`)), ms),
         );
@@ -400,13 +407,19 @@ export const useBudgetStore = defineStore('budget', {
             const refreshed = await withTimeout(fetchAllUserData(userId));
             if (refreshed) Object.assign(this.$state, refreshed);
           } else {
-            // Brand-new user — keep default state (or localStorage fallback)
-            this.loadFromStorage();
+            // Brand-new user — keep default state (already loaded above)
           }
         }
       } catch (err) {
-        console.warn('[penny] Supabase init failed, falling back to localStorage:', err);
-        this.loadFromStorage();
+        // Local data is already showing (loaded above).  Warn visibly so
+        // the user knows the cloud sync failed and can take action.
+        console.warn('[penny] Supabase sync failed, using localStorage:', err);
+        useToast().show(
+          '⚠ Cloud sync failed — showing local backup. ' +
+          'Check your Supabase project status and refresh to retry.',
+          'warning',
+          7_000,
+        );
       }
     },
 
