@@ -14,7 +14,7 @@ import { defineStore } from 'pinia';
 import { genId, deepClone } from '@/utils/id';
 import { exportStateToCSV, parseCSVToState, triggerCSVDownload } from '@/utils/csvImportExport';
 import { exportStateToJSON, parseJSONToState, triggerJSONDownload } from '@/utils/jsonBackup';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import { db, fetchAllUserData, upsertProfile } from '@/lib/db';
 import { useToast } from '@/composables/useToast';
 import { migrateIfNeeded } from '@/lib/migrateLocalStorage';
@@ -439,40 +439,6 @@ export const useBudgetStore = defineStore('budget', {
           7_000,
         );
         return; // skip full fetch — it will just timeout anyway
-      }
-
-      // ── Authenticated probe ──────────────────────────────────────────
-      // The connectivity probe above used raw fetch with just the anon key.
-      // This probe uses the real Supabase client so the user's JWT is
-      // included — exactly as the full fetchAllUserData will be.  A fast
-      // error here (e.g. 401, RLS violation) means the JWT or policies are
-      // wrong; a timeout here means authenticated queries specifically hang.
-      {
-        const t0 = Date.now();
-        const authProbe = await Promise.race([
-          supabase.from('profiles').select('id').eq('id', userId).maybeSingle(),
-          new Promise<{ data: null; error: { message: string } }>(resolve =>
-            setTimeout(
-              () => resolve({ data: null, error: { message: 'auth probe timed out after 5 s' } }),
-              5_000,
-            ),
-          ),
-        ]);
-        const ms = Date.now() - t0;
-        if (authProbe.error) {
-          console.warn(`[penny] Authenticated probe FAILED (${ms} ms):`, authProbe.error.message);
-          useToast().show(
-            `⚠ Supabase auth query failed: "${authProbe.error.message}". ` +
-            'Check RLS policies and run migrations if you haven\'t yet.',
-            'warning',
-            10_000,
-          );
-          return; // full fetch will also fail — bail early
-        }
-        console.info(
-          `[penny] Authenticated probe OK (${ms} ms) — ` +
-          `profile row: ${authProbe.data ? 'found' : 'not found (first-time user)'}`,
-        );
       }
 
       // Wrap Supabase fetches in a race against a 20-second deadline.

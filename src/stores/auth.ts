@@ -21,6 +21,20 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useBudgetStore } from '@/stores/budget';
 import type { User } from '@supabase/supabase-js';
 
+/**
+ * Module-level session tracker.
+ *
+ * onAuthStateChange fires for INITIAL_SESSION, SIGNED_IN, and potentially
+ * other events in quick succession when the Supabase client reconciles a
+ * cached session at startup.  Each would trigger a full DB sync (18 parallel
+ * queries).  Tracking the last user-ID we synced for means initStore is
+ * called **at most once per user per page load**, no matter how many events
+ * the library emits.
+ *
+ * Reset to null on SIGNED_OUT so the next sign-in always triggers a fresh sync.
+ */
+let _syncedForUserId: string | null = null;
+
 export const useAuthStore = defineStore('auth', {
 
   // ─── State ────────────────────────────────────────────────────
@@ -120,33 +134,37 @@ export const useAuthStore = defineStore('auth', {
         }
         this.loading = false;
 
-        // Only trigger a full DB sync on session-establishment events.
+        // Sync budget data at most once per user per page-load session.
         //
         // onAuthStateChange fires for EVERY auth lifecycle event:
         //   INITIAL_SESSION  — page load (restored session or null)
         //   SIGNED_IN        — after OTP/OAuth exchange
-        //   TOKEN_REFRESHED  — silent token rotation (every ~1 hour, or at startup
+        //   TOKEN_REFRESHED  — silent token rotation (every ~1 h, or at startup
         //                      when the stored token is close to expiry)
         //   USER_UPDATED     — profile metadata changes
         //   SIGNED_OUT       — explicit sign-out
         //
-        // Triggering initStore on TOKEN_REFRESHED / USER_UPDATED fires
-        // ~18 parallel Supabase queries each time, which saturates the
-        // free-tier PgBouncer connection pool (60 connections) when two or
-        // three events arrive within seconds of each other at page load.
-        // The third concurrent call's queries time out, which was causing the
-        // "Authenticated probe FAILED (5001 ms)" errors seen in the console.
+        // A user with both magic-link and Google OAuth linked to the same email
+        // can trigger INITIAL_SESSION + SIGNED_IN + TOKEN_REFRESHED all within
+        // a few seconds of each other on page load.  Each would fire 18 parallel
+        // Supabase queries, overwhelming the free-tier PgBouncer pool (60 conns)
+        // and causing the Supabase JS client's internal request queue to back up,
+        // which made our 5-second auth probe time out.
         //
-        // Fix: only sync on events that represent a new session being established.
-        const shouldSync = event === 'INITIAL_SESSION' || event === 'SIGNED_IN';
+        // Fix: _syncedForUserId records which user ID we last called initStore
+        // for.  Any subsequent event for the same user is a no-op — auth.user
+        // and auth.loading are already correct, and the data is already synced.
 
-        if (shouldSync && session?.user) {
+        if (session?.user && _syncedForUserId !== session.user.id) {
+          _syncedForUserId = session.user.id;
           await budgetStore.initStore(session.user.id);
+        } else if (session?.user) {
+          // Same user, already synced — nothing to do.
+          console.info('[penny] onAuthStateChange: already synced for this user — skipping');
         } else if (event === 'SIGNED_OUT') {
+          _syncedForUserId = null;
           budgetStore.resetStore();
         }
-        // TOKEN_REFRESHED / USER_UPDATED — auth.user is already updated above;
-        // no data re-sync needed.
       });
     },
 
