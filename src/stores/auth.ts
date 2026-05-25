@@ -91,16 +91,18 @@ export const useAuthStore = defineStore('auth', {
       supabase.auth.onAuthStateChange(async (_event, session) => {
         const budgetStore = useBudgetStore();
 
-        if (session?.user) {
-          this.user = session.user;
-          await budgetStore.initStore(session.user.id);
-        } else {
-          this.user = null;
-          budgetStore.resetStore();
+        try {
+          if (session?.user) {
+            this.user = session.user;
+            await budgetStore.initStore(session.user.id);
+          } else {
+            this.user = null;
+            budgetStore.resetStore();
+          }
+        } finally {
+          // Always clear the loading state — even if initStore throws
+          this.loading = false;
         }
-
-        // Always clear the loading state after the first event fires
-        this.loading = false;
       });
     },
 
