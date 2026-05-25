@@ -1190,6 +1190,9 @@ describe('Subscriptions — custom-days', () => {
 
   it('does not include custom-days sub in renewal alert', async () => {
     const budget = useBudgetStore();
+    // Clear default subs — some may have renewal dates within the 7-day window
+    // as time passes, which would cause a false-positive alert and flake this test.
+    budget.subscriptions = [];
     // Add a custom-days sub with today's date (would trigger renewal if not filtered)
     budget.subscriptions.push({
       id: 'cd3', name: 'Parking', amount: 8,
