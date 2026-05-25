@@ -43,6 +43,15 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Bake Supabase credentials into the client bundle at build time.
+          # Set these in GitHub → Settings → Secrets → Actions:
+          #   VITE_SUPABASE_URL  — your project URL (https://xxx.supabase.co)
+          #   VITE_SUPABASE_ANON_KEY — your project anon/public key
+          # The anon key is safe to expose; Row Level Security policies
+          # (migration 002) ensure each user only sees their own rows.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       # Upload the dist/ folder as a Pages artifact
       - name: Upload Pages artifact
