@@ -400,8 +400,8 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 21 — WantsDonut categoryColors & ProgressBar Label Bug Fixes | ✅ Complete | v1.15.0 |
 | Sprint 22 — Search, Sort & Filter for Purchases and Subscriptions | ✅ Complete | v1.15.0 |
 | Sprint 23 — Retroactive Category Editing for Archived Purchases | ✅ Complete | v1.16.0 |
-| Sprint 24 — Supabase DB Integration | 🔄 In Progress | v1.17.0 (pending merge) |
-| **Current** | **🔄 feat/sprint-23-supabase-db** | **v1.16.0 on main** |
+| Sprint 24 — Supabase DB Integration | ✅ Complete | v1.17.0 |
+| **Current** | **✅ main** | **v1.17.0** |
 
 ---
 
@@ -1288,10 +1288,10 @@ Items captured for future sprints — not yet scheduled. See individual option d
 
 ## Sprint 24 — Supabase DB Integration 🗄️
 
-**Version**: v1.17.0 (pending merge)
+**Version**: v1.17.0
 **Date**: May 2026
 **Branch**: `feat/sprint-23-supabase-db` → `main`
-**Status**: 🔄 In Progress
+**Status**: ✅ Complete
 
 ### Goal
 Replace `localStorage` as the primary data store with Supabase Postgres while keeping the app fully functional throughout. Auth comes in Sprint 25. For this sprint, a service-role key + fixed `DEV_USER_ID` env var are used so RLS is bypassed during development.
@@ -1364,11 +1364,15 @@ Replace `localStorage` as the primary data store with Supabase Postgres while ke
 - [ ] Set `VITE_DEV_USER_ID` to any valid UUID
 
 ### Merge & Tag
-- ⏳ Pending: wire up `.env.local`, run visual QA in dev server, merge → main, tag **v1.17.0**
+- ✅ `.env.local` configured (URL corrected, service key + real auth-user UUID for DEV_USER_ID)
+- ✅ Visual QA in dev server — Supabase connected, onboarding writes land with zero console errors
+- ✅ Production build clean (`vue-tsc --noEmit` + `vite build` both pass)
+- ✅ 871/871 tests passing across 26 spec files
+- ✅ Merged `feat/sprint-23-supabase-db` → `main`, tagged **v1.17.0**
 
 ---
 
 **Last Updated**: May 2026
-**Current Version**: v1.16.0 on main / v1.17.0 in progress on feat/sprint-23-supabase-db
-**Next Up**: Sprint 25 — Auth (Supabase Auth, login/signup UI, RLS enforcement)
-**Current Branch**: `feat/sprint-23-supabase-db`
+**Current Version**: v1.17.0
+**Next Up**: Sprint 25 — Auth (Supabase Auth, login/signup UI, swap service key → anon key, enable RLS policies)
+**Current Branch**: `main`

@@ -123,8 +123,8 @@ describe('fetchAllUserData', () => {
     expect(p.budgetType).toBe('wants');
     expect(p.date).toBe('2026-05-20');
     // No snake_case keys leaked
-    expect((p as Record<string, unknown>)['card_id']).toBeUndefined();
-    expect((p as Record<string, unknown>)['budget_type']).toBeUndefined();
+    expect((p as unknown as Record<string, unknown>)['card_id']).toBeUndefined();
+    expect((p as unknown as Record<string, unknown>)['budget_type']).toBeUndefined();
   });
 
   it('maps subscription rows including days_of_week → daysOfWeek', async () => {
@@ -151,7 +151,7 @@ describe('fetchAllUserData', () => {
     expect(sub.name).toBe('Netflix');
     expect(sub.daysOfWeek).toEqual([1, 3]);
     expect(sub.cardId).toBe('card-1');
-    expect((sub as Record<string, unknown>)['days_of_week']).toBeUndefined();
+    expect((sub as unknown as Record<string, unknown>)['days_of_week']).toBeUndefined();
   });
 
   it('assembles expense cards with their nested items', async () => {

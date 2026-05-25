@@ -405,6 +405,10 @@ The budget store exposes `exportCSV()` and `importCSV(text)` actions that call t
 | `v1.0.0` | Vue 3 migration complete (Sprints 0–6) |
 | `v1.1.0` | Settings, Rules Engine, Budget Alerts, Docs (Sprint 7) |
 | `v1.2.0` | Error handling, lazy charts, architecture docs (Sprint 8) |
+| `v1.3.0`–`v1.14.0` | Feature sprints (onboarding, charts, net worth, goals, calendar, MoM analytics, etc.) |
+| `v1.15.0` | Search, sort & filter for Purchases and Subscriptions (Sprints 21–22) |
+| `v1.16.0` | Retroactive category editing on archived purchases (Sprint 23) |
+| `v1.17.0` | Supabase DB integration — Postgres backend, localStorage migration, optimistic updates (Sprint 24) |
 
 **Branch strategy**: `feat/sprint-N` → PR → merge to `main` → tag.
 
