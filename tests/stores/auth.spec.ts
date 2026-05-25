@@ -58,10 +58,13 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 
 // ─── Helpers ───────────────────────────────────────────────────────
 
-/** Simulate onAuthStateChange firing with a session. */
-function fireAuthChange(session: { user: { id: string; email: string } } | null): void {
+/** Simulate onAuthStateChange firing with a given event and session. */
+function fireAuthChange(
+  session: { user: { id: string; email: string } } | null,
+  event = 'SIGNED_IN',
+): void {
   const callback = mockOnAuthStateChange.mock.calls[0]?.[0];
-  if (callback) callback('SIGNED_IN', session);
+  if (callback) callback(event, session);
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────
@@ -104,11 +107,15 @@ describe('useAuthStore', () => {
       expect(auth.loading).toBe(false);
     });
 
-    it('sets user to null and calls resetStore when no session', async () => {
+    it('sets user to null and calls resetStore on SIGNED_OUT', async () => {
       const auth = useAuthStore();
       await auth.init();
 
-      fireAuthChange(null);
+      // Supabase fires SIGNED_OUT (not SIGNED_IN with null) when the user
+      // explicitly signs out. resetStore should only be triggered in this case
+      // to avoid inadvertently clearing local data on a simple page load with
+      // no active session.
+      fireAuthChange(null, 'SIGNED_OUT');
       await Promise.resolve();
 
       expect(auth.user).toBeNull();

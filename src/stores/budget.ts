@@ -311,6 +311,22 @@ export function saveStateToStorage(state: BudgetState): boolean {
 let _userId = '';
 
 /**
+ * Guards against concurrent executions of initStore().
+ *
+ * onAuthStateChange can fire multiple times per page load (INITIAL_SESSION,
+ * TOKEN_REFRESHED, SIGNED_IN — often within milliseconds of each other when
+ * the user has both a magic-link and a Google OAuth account linked to the same
+ * email).  Each invocation would launch ~18 parallel Supabase queries,
+ * saturating the free-tier PgBouncer pool (60 connections) and causing the
+ * later calls' queries to time out.
+ *
+ * With the event-filter in auth.ts (only INITIAL_SESSION / SIGNED_IN trigger
+ * initStore) this guard should rarely fire.  It stays here as a belt-and-
+ * suspenders safety net for any edge case we haven't anticipated.
+ */
+let _syncInProgress = false;
+
+/**
  * Fire-and-forget Supabase write. Logs errors but never throws — the local
  * state is already updated optimistically so the user sees no interruption.
  */
@@ -380,6 +396,15 @@ export const useBudgetStore = defineStore('budget', {
         return;
       }
 
+      // Belt-and-suspenders concurrency guard (primary defence is the event
+      // filter in auth.ts — see the _syncInProgress declaration for context).
+      if (_syncInProgress) {
+        console.info('[penny] initStore: sync already in progress — skipping duplicate call');
+        return;
+      }
+      _syncInProgress = true;
+
+      try {
       // Show locally-cached data immediately so the user sees something
       // real while the Supabase round-trip resolves (or times out).
       this.loadFromStorage();
@@ -488,6 +513,10 @@ export const useBudgetStore = defineStore('budget', {
           'warning',
           7_000,
         );
+      }
+
+      } finally {
+        _syncInProgress = false;
       }
     },
 

@@ -106,7 +106,7 @@ export const useAuthStore = defineStore('auth', {
         this.loading = false;
       }, 10_000);
 
-      supabase.auth.onAuthStateChange(async (_event, session) => {
+      supabase.auth.onAuthStateChange(async (event, session) => {
         clearTimeout(safetyTimer); // session resolved in time — cancel fallback
         const budgetStore = useBudgetStore();
 
@@ -120,13 +120,33 @@ export const useAuthStore = defineStore('auth', {
         }
         this.loading = false;
 
-        // Sync budget data in the background.  initStore handles its own
-        // errors and falls back to localStorage — nothing to catch here.
-        if (session?.user) {
+        // Only trigger a full DB sync on session-establishment events.
+        //
+        // onAuthStateChange fires for EVERY auth lifecycle event:
+        //   INITIAL_SESSION  — page load (restored session or null)
+        //   SIGNED_IN        — after OTP/OAuth exchange
+        //   TOKEN_REFRESHED  — silent token rotation (every ~1 hour, or at startup
+        //                      when the stored token is close to expiry)
+        //   USER_UPDATED     — profile metadata changes
+        //   SIGNED_OUT       — explicit sign-out
+        //
+        // Triggering initStore on TOKEN_REFRESHED / USER_UPDATED fires
+        // ~18 parallel Supabase queries each time, which saturates the
+        // free-tier PgBouncer connection pool (60 connections) when two or
+        // three events arrive within seconds of each other at page load.
+        // The third concurrent call's queries time out, which was causing the
+        // "Authenticated probe FAILED (5001 ms)" errors seen in the console.
+        //
+        // Fix: only sync on events that represent a new session being established.
+        const shouldSync = event === 'INITIAL_SESSION' || event === 'SIGNED_IN';
+
+        if (shouldSync && session?.user) {
           await budgetStore.initStore(session.user.id);
-        } else {
+        } else if (event === 'SIGNED_OUT') {
           budgetStore.resetStore();
         }
+        // TOKEN_REFRESHED / USER_UPDATED — auth.user is already updated above;
+        // no data re-sync needed.
       });
     },
 

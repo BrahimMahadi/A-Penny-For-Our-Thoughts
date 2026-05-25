@@ -404,6 +404,7 @@ The current architecture uses template-literal HTML strings in `render*()` funct
 | Sprint 25 — Supabase Auth (Magic Link + Google OAuth) | ✅ Complete | v1.18.0 |
 | HF-1 — Toolbar Cleanup (Import/Export → Settings) | ✅ Complete | v1.18.0 |
 | HF-2 — Auth Loading Hang Fix (safety timer + fetch timeout) | ✅ Complete | v1.18.0 |
+| HF-3 — Concurrent initStore Fix (onAuthStateChange event filter + concurrency guard) | ✅ Complete | v1.18.0 |
 | **Current** | **✅ main** | **v1.18.0** |
 
 ---
@@ -1552,6 +1553,53 @@ message now directs the user there.
 
 **Files changed**: `src/stores/auth.ts`, `src/stores/budget.ts`,
 `src/composables/useToast.ts`, `docs/PHASE_TRACKING.md`.
+
+---
+
+---
+
+### HF-3 — Concurrent `initStore` Fix
+
+**Bug**: Supabase sync consistently timed out — the console showed two
+successful "Authenticated probe OK" logs followed by "Authenticated probe
+FAILED (5001 ms)". Cloud data never loaded; the app silently fell back to
+localStorage every time.
+
+**Root cause**: `onAuthStateChange` fires for *every* Supabase auth lifecycle
+event — `INITIAL_SESSION`, `TOKEN_REFRESHED`, `SIGNED_IN`, and others. All
+three events can arrive within milliseconds of each other at page load (common
+when the user has both a magic-link account and a Google OAuth account linked
+to the same email — the auth library reconciles them at startup). The previous
+code called `initStore` on *every* event, launching ~18 parallel Supabase
+queries per call. Three concurrent calls = up to 54 simultaneous database
+connections, saturating the free-tier PgBouncer pool (60 connections) and
+causing the third call's queries to time out.
+
+**Fix**:
+1. **`src/stores/auth.ts`** — `onAuthStateChange` now filters by event type.
+   Only `INITIAL_SESSION` and `SIGNED_IN` trigger `initStore` (these are the
+   events that represent a new session being established). `TOKEN_REFRESHED`
+   and `USER_UPDATED` update `auth.user` but skip the DB sync — no re-fetch
+   needed, the data hasn't changed. `SIGNED_OUT` still calls `resetStore()`.
+   Detailed comment added explaining why each event is handled (or skipped).
+
+2. **`src/stores/budget.ts`** — Added a module-level `_syncInProgress` boolean
+   as a belt-and-suspenders concurrency guard. If `initStore` is somehow
+   called a second time before the first finishes (e.g. two rapid SIGNED_IN
+   events), the second call logs a message and returns immediately. Wrapped
+   in a `try/finally` to guarantee the flag resets even if an error is thrown.
+
+3. **`tests/stores/auth.spec.ts`** — Updated `fireAuthChange` helper to
+   accept an optional event name (default `'SIGNED_IN'`). Updated the
+   "sets user to null and calls resetStore" test to fire `'SIGNED_OUT'`
+   (which is the correct Supabase event for sign-out) rather than
+   `'SIGNED_IN'` with a null session (which Supabase never actually sends
+   and which the new filter deliberately ignores).
+
+**Tests**: 885/885 passing. `vue-tsc --noEmit` clean. `vite build` green.
+
+**Files changed**: `src/stores/auth.ts`, `src/stores/budget.ts`,
+`tests/stores/auth.spec.ts`, `docs/PHASE_TRACKING.md`.
 
 ---
 
