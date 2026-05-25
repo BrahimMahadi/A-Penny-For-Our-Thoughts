@@ -19,16 +19,16 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '1.18.0';
+const APP_VERSION = '1.19.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🔐', text: 'Supabase Auth — sign in with a magic link or Google OAuth; your data is private and accessible from any device' },
-  { icon: '🔒', text: 'Row Level Security enabled — every Supabase table is now protected so users can only read and write their own data' },
-  { icon: '📬', text: 'Magic link flow — enter your email, receive a one-click sign-in link; no password to forget or manage' },
-  { icon: '🟢', text: 'Google OAuth — one-click "Sign in with Google" for a frictionless login experience' },
-  { icon: '👤', text: 'User menu — your initial appears as an avatar chip in the toolbar; click to see your email and sign out from anywhere' },
+  { icon: '📊', text: 'New Advanced tab — 6-Month Trend, Spending Analytics, Budget vs. Actual, and Net Worth now live in their own dedicated tab' },
+  { icon: '📐', text: 'Budget Allocation moved to Settings — tweak your 50/30/20 split alongside your other preferences' },
+  { icon: '⊞', text: 'New floating section handle — the ⊞ pill on the right edge replaces the old nav button and opens the section manager without disrupting your header' },
+  { icon: '🔀', text: 'Advanced sections are drag-to-reorder, just like the Dashboard — arrange your analytics charts however you like' },
+  { icon: '🗂️', text: 'Section manager now groups Dashboard and Advanced sections with separate reset controls for each' },
 ];
 
 const budget = useBudgetStore();

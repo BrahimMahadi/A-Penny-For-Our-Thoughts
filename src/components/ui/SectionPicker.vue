@@ -4,12 +4,17 @@
   Created:  May 2026 (Sprint 13)
   Updated:  May 2026 (Sprint 18) — drag-to-reorder, collapse toggle,
             move up/down buttons (touch), reset order button
-  Summary:  Dashboard section manager — a slide-in panel that lets users:
+            May 2026 (Sprint 25) — dual-section support (Dashboard + Advanced);
+            group separators; jump routes to correct tab; triggered by
+            Option B floating handle instead of nav button
+  Summary:  Dashboard + Advanced section manager — a slide-in panel that lets users:
               • Jump to any section (click the section name)
               • Collapse / expand any section (toggle button on the right)
               • Reorder sections by dragging the ⠿ handle (desktop)
               • Reorder sections via ↑ / ↓ buttons (touch / keyboard)
               • Reset section order to the default arrangement
+            Sections are grouped by tab (Dashboard / Advanced) with a
+            visual separator between the two groups.
 
   Usage:
     <SectionPicker v-model:open="pickerOpen" />
@@ -18,17 +23,27 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue';
 import { useUiStore } from '@/stores/ui';
-import { SECTION_MAP, DEFAULT_SECTION_ORDER } from '@/constants/dashboardSections';
+import {
+  SECTION_MAP,
+  DEFAULT_SECTION_ORDER,
+  DEFAULT_ADVANCED_ORDER,
+} from '@/constants/dashboardSections';
 
 defineProps<{ open: boolean }>();
 const emit = defineEmits<{ (e: 'update:open', value: boolean): void }>();
 
 const ui = useUiStore();
 
-// ─── Ordered section list (mirrors ui.sectionOrder) ──────────────
+// ─── Ordered section lists ────────────────────────────────────────
 
-const orderedSections = computed(() =>
+const orderedDashboard = computed(() =>
   ui.sectionOrder
+    .map(id => SECTION_MAP[id])
+    .filter(Boolean),
+);
+
+const orderedAdvanced = computed(() =>
+  ui.advancedSectionOrder
     .map(id => SECTION_MAP[id])
     .filter(Boolean),
 );
@@ -39,9 +54,9 @@ function close(): void {
   emit('update:open', false);
 }
 
-function jumpTo(sectionId: string): void {
+function jumpTo(sectionId: string, tab: 'dashboard' | 'advanced'): void {
   close();
-  if (ui.activeTab !== 'dashboard') ui.setActiveTab('dashboard');
+  if (ui.activeTab !== tab) ui.setActiveTab(tab);
   ui.expandSection(sectionId);
   nextTick(() => {
     const el = document.getElementById(`section-${sectionId}`);
@@ -57,71 +72,128 @@ function toggleCollapse(sectionId: string): void {
 
 // ─── Reset order ─────────────────────────────────────────────────
 
-function resetOrder(): void {
+function resetDashboardOrder(): void {
   ui.resetSectionOrder();
 }
 
-const isDefaultOrder = computed(
+function resetAdvancedOrder(): void {
+  ui.resetAdvancedSectionOrder();
+}
+
+const isDefaultDashboardOrder = computed(
   () => ui.sectionOrder.join(',') === DEFAULT_SECTION_ORDER.join(','),
 );
 
-// ─── Move up / down (touch-friendly) ─────────────────────────────
+const isDefaultAdvancedOrder = computed(
+  () => ui.advancedSectionOrder.join(',') === DEFAULT_ADVANCED_ORDER.join(','),
+);
 
-function moveUp(sectionId: string): void {
+// ─── Dashboard: move up / down ────────────────────────────────────
+
+function moveDashboardUp(sectionId: string): void {
   ui.moveSectionUp(sectionId);
 }
 
-function moveDown(sectionId: string): void {
+function moveDashboardDown(sectionId: string): void {
   ui.moveSectionDown(sectionId);
 }
 
-// ─── Drag-and-drop (desktop) ──────────────────────────────────────
+// ─── Advanced: move up / down ─────────────────────────────────────
 
-const dragIndex  = ref<number>(-1);
-const dropIndex  = ref<number>(-1);
+function moveAdvancedUp(sectionId: string): void {
+  ui.moveAdvancedSectionUp(sectionId);
+}
 
-function onPickerDragStart(event: DragEvent, index: number): void {
-  dragIndex.value = index;
+function moveAdvancedDown(sectionId: string): void {
+  ui.moveAdvancedSectionDown(sectionId);
+}
+
+// ─── Dashboard drag-and-drop ──────────────────────────────────────
+
+const dashDragIndex = ref<number>(-1);
+const dashDropIndex = ref<number>(-1);
+
+function onDashDragStart(event: DragEvent, index: number): void {
+  dashDragIndex.value = index;
   event.dataTransfer?.setData('text/plain', String(index));
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
 }
 
-function onPickerDragOver(event: DragEvent, index: number): void {
+function onDashDragOver(event: DragEvent, index: number): void {
   event.preventDefault();
   if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-  dropIndex.value = index;
+  dashDropIndex.value = index;
 }
 
-function onPickerDragleave(event: DragEvent, index: number): void {
+function onDashDragleave(event: DragEvent, index: number): void {
   const related = event.relatedTarget as HTMLElement | null;
   const slot = event.currentTarget as HTMLElement;
   if (!related || !slot.contains(related)) {
-    if (dropIndex.value === index) dropIndex.value = -1;
+    if (dashDropIndex.value === index) dashDropIndex.value = -1;
   }
 }
 
-function onPickerDrop(event: DragEvent, targetIndex: number): void {
+function onDashDrop(event: DragEvent, targetIndex: number): void {
   event.preventDefault();
-  const from = dragIndex.value;
-  if (from === -1 || from === targetIndex) {
-    pickerCleanup();
-    return;
-  }
+  const from = dashDragIndex.value;
+  if (from === -1 || from === targetIndex) { dashCleanup(); return; }
   const newOrder = [...ui.sectionOrder];
   const [moved] = newOrder.splice(from, 1);
   const insertAt = from < targetIndex ? targetIndex - 1 : targetIndex;
   newOrder.splice(insertAt, 0, moved);
   ui.setSectionOrder(newOrder);
-  pickerCleanup();
+  dashCleanup();
 }
 
-function onPickerDragEnd(): void {
-  pickerCleanup();
+function onDashDragEnd(): void { dashCleanup(); }
+
+function dashCleanup(): void {
+  dashDragIndex.value = -1;
+  dashDropIndex.value = -1;
 }
 
-function pickerCleanup(): void {
-  dragIndex.value = -1;
-  dropIndex.value = -1;
+// ─── Advanced drag-and-drop ───────────────────────────────────────
+
+const advDragIndex = ref<number>(-1);
+const advDropIndex = ref<number>(-1);
+
+function onAdvDragStart(event: DragEvent, index: number): void {
+  advDragIndex.value = index;
+  event.dataTransfer?.setData('text/plain', String(index));
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+}
+
+function onAdvDragOver(event: DragEvent, index: number): void {
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+  advDropIndex.value = index;
+}
+
+function onAdvDragleave(event: DragEvent, index: number): void {
+  const related = event.relatedTarget as HTMLElement | null;
+  const slot = event.currentTarget as HTMLElement;
+  if (!related || !slot.contains(related)) {
+    if (advDropIndex.value === index) advDropIndex.value = -1;
+  }
+}
+
+function onAdvDrop(event: DragEvent, targetIndex: number): void {
+  event.preventDefault();
+  const from = advDragIndex.value;
+  if (from === -1 || from === targetIndex) { advCleanup(); return; }
+  const newOrder = [...ui.advancedSectionOrder];
+  const [moved] = newOrder.splice(from, 1);
+  const insertAt = from < targetIndex ? targetIndex - 1 : targetIndex;
+  newOrder.splice(insertAt, 0, moved);
+  ui.setAdvancedSectionOrder(newOrder);
+  advCleanup();
+}
+
+function onAdvDragEnd(): void { advCleanup(); }
+
+function advCleanup(): void {
+  advDragIndex.value = -1;
+  advDropIndex.value = -1;
 }
 
 // ─── Backdrop / keyboard close ────────────────────────────────────
@@ -162,24 +234,35 @@ function onKeydown(event: KeyboardEvent): void {
             </button>
           </div>
 
-          <!-- ── Section list ───────────────────────────────────── -->
+          <!-- ── Section lists ─────────────────────────────────── -->
           <div class="section-picker-body">
-            <!-- Drag hint -->
             <p class="section-picker-hint">
               Drag ⠿ to reorder · click name to jump · ⊕/⊖ to collapse
             </p>
 
+            <!-- ── Dashboard group ─────────────────────────────── -->
+            <div class="picker-group-header">
+              <span class="picker-group-label">Dashboard</span>
+              <button
+                class="picker-reset-inline"
+                :disabled="isDefaultDashboardOrder"
+                title="Reset Dashboard order"
+                @click="resetDashboardOrder"
+              >
+                ↺ Reset
+              </button>
+            </div>
+
             <template
-              v-for="(section, index) in orderedSections"
+              v-for="(section, index) in orderedDashboard"
               :key="section.id"
             >
-              <!-- Drop indicator in picker -->
               <div
                 v-if="
-                  dropIndex === index &&
-                    dragIndex !== -1 &&
-                    dragIndex !== index &&
-                    dragIndex !== index - 1
+                  dashDropIndex === index &&
+                    dashDragIndex !== -1 &&
+                    dashDragIndex !== index &&
+                    dashDragIndex !== index - 1
                 "
                 class="picker-drop-indicator"
                 aria-hidden="true"
@@ -188,57 +271,49 @@ function onKeydown(event: KeyboardEvent): void {
               <div
                 class="section-picker-item"
                 :class="{
-                  'section-picker-item--dragging': dragIndex === index,
-                  'section-picker-item--drag-active': dragIndex !== -1,
+                  'section-picker-item--dragging': dashDragIndex === index,
+                  'section-picker-item--drag-active': dashDragIndex !== -1,
                 }"
-                @dragover="onPickerDragOver($event, index)"
-                @dragleave="onPickerDragleave($event, index)"
-                @drop="onPickerDrop($event, index)"
-                @dragend="onPickerDragEnd"
+                @dragover="onDashDragOver($event, index)"
+                @dragleave="onDashDragleave($event, index)"
+                @drop="onDashDrop($event, index)"
+                @dragend="onDashDragEnd"
               >
-                <!-- Drag handle -->
                 <span
                   class="picker-drag-handle"
                   draggable="true"
                   title="Drag to reorder"
                   aria-label="Drag to reorder"
-                  @dragstart="onPickerDragStart($event, index)"
+                  @dragstart="onDashDragStart($event, index)"
                   @click.stop
                 >⠿</span>
 
-                <!-- Jump-to button -->
                 <button
                   class="picker-jump-btn"
                   :title="`Jump to ${section.label}`"
-                  @click="jumpTo(section.id)"
+                  @click="jumpTo(section.id, 'dashboard')"
                 >
                   <span class="section-picker-item__icon">{{ section.icon }}</span>
                   <span class="section-picker-item__label">{{ section.label }}</span>
                 </button>
 
-                <!-- Move up / down (touch / keyboard) -->
                 <div class="picker-move-btns">
                   <button
                     class="picker-move-btn"
                     :disabled="index === 0"
                     aria-label="Move up"
                     title="Move up"
-                    @click.stop="moveUp(section.id)"
-                  >
-                    ▲
-                  </button>
+                    @click.stop="moveDashboardUp(section.id)"
+                  >▲</button>
                   <button
                     class="picker-move-btn"
-                    :disabled="index === orderedSections.length - 1"
+                    :disabled="index === orderedDashboard.length - 1"
                     aria-label="Move down"
                     title="Move down"
-                    @click.stop="moveDown(section.id)"
-                  >
-                    ▼
-                  </button>
+                    @click.stop="moveDashboardDown(section.id)"
+                  >▼</button>
                 </div>
 
-                <!-- Collapse toggle -->
                 <button
                   class="picker-collapse-btn"
                   :title="ui.isSectionCollapsed(section.id) ? 'Expand section' : 'Collapse section'"
@@ -250,27 +325,114 @@ function onKeydown(event: KeyboardEvent): void {
               </div>
             </template>
 
-            <!-- Drop indicator at end of list -->
+            <!-- Drop indicator at end of dashboard list -->
             <div
               v-if="
-                dropIndex === orderedSections.length &&
-                  dragIndex !== -1 &&
-                  dragIndex !== orderedSections.length - 1
+                dashDropIndex === orderedDashboard.length &&
+                  dashDragIndex !== -1 &&
+                  dashDragIndex !== orderedDashboard.length - 1
               "
               class="picker-drop-indicator"
               aria-hidden="true"
             />
-          </div>
 
-          <!-- ── Footer: reset order ─────────────────────────────── -->
-          <div class="section-picker-footer">
-            <button
-              class="picker-reset-btn"
-              :disabled="isDefaultOrder"
-              @click="resetOrder"
+            <!-- ── Advanced group ──────────────────────────────── -->
+            <div class="picker-group-divider" />
+
+            <div class="picker-group-header">
+              <span class="picker-group-label">Advanced</span>
+              <button
+                class="picker-reset-inline"
+                :disabled="isDefaultAdvancedOrder"
+                title="Reset Advanced order"
+                @click="resetAdvancedOrder"
+              >
+                ↺ Reset
+              </button>
+            </div>
+
+            <template
+              v-for="(section, index) in orderedAdvanced"
+              :key="section.id"
             >
-              ↺ Reset to default order
-            </button>
+              <div
+                v-if="
+                  advDropIndex === index &&
+                    advDragIndex !== -1 &&
+                    advDragIndex !== index &&
+                    advDragIndex !== index - 1
+                "
+                class="picker-drop-indicator"
+                aria-hidden="true"
+              />
+
+              <div
+                class="section-picker-item"
+                :class="{
+                  'section-picker-item--dragging': advDragIndex === index,
+                  'section-picker-item--drag-active': advDragIndex !== -1,
+                }"
+                @dragover="onAdvDragOver($event, index)"
+                @dragleave="onAdvDragleave($event, index)"
+                @drop="onAdvDrop($event, index)"
+                @dragend="onAdvDragEnd"
+              >
+                <span
+                  class="picker-drag-handle picker-drag-handle--advanced"
+                  draggable="true"
+                  title="Drag to reorder"
+                  aria-label="Drag to reorder"
+                  @dragstart="onAdvDragStart($event, index)"
+                  @click.stop
+                >⠿</span>
+
+                <button
+                  class="picker-jump-btn picker-jump-btn--advanced"
+                  :title="`Jump to ${section.label}`"
+                  @click="jumpTo(section.id, 'advanced')"
+                >
+                  <span class="section-picker-item__icon">{{ section.icon }}</span>
+                  <span class="section-picker-item__label">{{ section.label }}</span>
+                </button>
+
+                <div class="picker-move-btns">
+                  <button
+                    class="picker-move-btn"
+                    :disabled="index === 0"
+                    aria-label="Move up"
+                    title="Move up"
+                    @click.stop="moveAdvancedUp(section.id)"
+                  >▲</button>
+                  <button
+                    class="picker-move-btn"
+                    :disabled="index === orderedAdvanced.length - 1"
+                    aria-label="Move down"
+                    title="Move down"
+                    @click.stop="moveAdvancedDown(section.id)"
+                  >▼</button>
+                </div>
+
+                <button
+                  class="picker-collapse-btn"
+                  :title="ui.isSectionCollapsed(section.id) ? 'Expand section' : 'Collapse section'"
+                  :aria-label="ui.isSectionCollapsed(section.id) ? `Expand ${section.label}` : `Collapse ${section.label}`"
+                  @click.stop="toggleCollapse(section.id)"
+                >
+                  {{ ui.isSectionCollapsed(section.id) ? '⊕' : '⊖' }}
+                </button>
+              </div>
+            </template>
+
+            <!-- Drop indicator at end of advanced list -->
+            <div
+              v-if="
+                advDropIndex === orderedAdvanced.length &&
+                  advDragIndex !== -1 &&
+                  advDragIndex !== orderedAdvanced.length - 1
+              "
+              class="picker-drop-indicator"
+              aria-hidden="true"
+            />
           </div>
         </div>
       </div>
@@ -351,6 +513,57 @@ function onKeydown(event: KeyboardEvent): void {
   margin: 0.4rem 0 0.6rem 0.25rem;
 }
 
+/* ─── Group header ───────────────────────────────────────────────── */
+.picker-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.35rem 0.2rem;
+  margin-bottom: 0.15rem;
+}
+
+.picker-group-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent, #4ade80);
+}
+
+/* ─── Group divider ──────────────────────────────────────────────── */
+.picker-group-divider {
+  height: 1px;
+  background: var(--border, #2a3041);
+  margin: 0.6rem 0.35rem;
+}
+
+/* ─── Inline reset button ────────────────────────────────────────── */
+.picker-reset-inline {
+  background: transparent;
+  border: none;
+  color: var(--muted, #5a7a63);
+  font-size: 0.68rem;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  font-family: inherit;
+  transition: color 0.12s;
+}
+
+.picker-reset-inline:hover:not(:disabled) {
+  color: var(--text, #e3e6ee);
+}
+
+.picker-reset-inline:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.picker-reset-inline:focus-visible {
+  outline: 2px solid var(--accent, #4ade80);
+  outline-offset: 2px;
+}
+
 /* ─── Drop indicator (picker) ────────────────────────────────────── */
 .picker-drop-indicator {
   height: 2px;
@@ -392,13 +605,11 @@ function onKeydown(event: KeyboardEvent): void {
   transition: color 0.12s;
 }
 
-.picker-drag-handle:hover {
-  color: var(--text, #e3e6ee);
-}
+.picker-drag-handle:hover { color: var(--text, #e3e6ee); }
+.picker-drag-handle:active { cursor: grabbing; }
 
-.picker-drag-handle:active {
-  cursor: grabbing;
-}
+/* Advanced handle uses accent2 colour to distinguish groups */
+.picker-drag-handle--advanced:hover { color: var(--accent2, #60a5fa); }
 
 /* ─── Jump button ────────────────────────────────────────────────── */
 .picker-jump-btn {
@@ -418,9 +629,8 @@ function onKeydown(event: KeyboardEvent): void {
   min-width: 0;
 }
 
-.picker-jump-btn:hover {
-  color: var(--accent, #4ade80);
-}
+.picker-jump-btn:hover { color: var(--accent, #4ade80); }
+.picker-jump-btn--advanced:hover { color: var(--accent2, #60a5fa); }
 
 .picker-jump-btn:focus-visible {
   outline: 2px solid var(--accent, #4ade80);
@@ -491,46 +701,9 @@ function onKeydown(event: KeyboardEvent): void {
   transition: color 0.12s;
 }
 
-.picker-collapse-btn:hover {
-  color: var(--text, #e3e6ee);
-}
+.picker-collapse-btn:hover { color: var(--text, #e3e6ee); }
 
 .picker-collapse-btn:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
-  outline-offset: 2px;
-}
-
-/* ─── Footer ─────────────────────────────────────────────────────── */
-.section-picker-footer {
-  flex-shrink: 0;
-  padding: 0.75rem 1rem;
-  border-top: 1px solid var(--border, #2a3041);
-}
-
-.picker-reset-btn {
-  width: 100%;
-  background: transparent;
-  border: 1px solid var(--border, #2a3041);
-  border-radius: 6px;
-  color: var(--muted, #5a7a63);
-  font-size: 0.8rem;
-  cursor: pointer;
-  padding: 0.4rem 0.75rem;
-  font-family: inherit;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.picker-reset-btn:hover:not(:disabled) {
-  color: var(--text, #e3e6ee);
-  border-color: var(--text, #e3e6ee);
-}
-
-.picker-reset-btn:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.picker-reset-btn:focus-visible {
   outline: 2px solid var(--accent, #4ade80);
   outline-offset: 2px;
 }

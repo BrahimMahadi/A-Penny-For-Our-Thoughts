@@ -1477,7 +1477,8 @@ describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
     const w = mountWith(DashboardPage);
     await nextTick();
     const handles = w.findAll('.base-card__drag-handle');
-    expect(handles.length).toBe(16);
+    // Dashboard now has 10 sections (analytics moved to Advanced; budget-allocation to Settings)
+    expect(handles.length).toBe(10);
     w.unmount();
   });
 
@@ -1485,7 +1486,7 @@ describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
     const w = mountWith(DashboardPage);
     await nextTick();
     const chevrons = w.findAll('.base-card__collapse-btn');
-    expect(chevrons.length).toBe(16);
+    expect(chevrons.length).toBe(10);
     w.unmount();
   });
 
@@ -1493,7 +1494,7 @@ describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
     const w = mountWith(DashboardPage);
     await nextTick();
     const slots = w.findAll('.section-slot');
-    expect(slots.length).toBe(16);
+    expect(slots.length).toBe(10);
     w.unmount();
   });
 
@@ -1573,14 +1574,14 @@ describe('SectionPicker — Sprint 18 reorder', () => {
   beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('renders one item per section (16 items)', async () => {
+  it('renders one item per section (14 items: 10 dashboard + 4 advanced)', async () => {
     const w = mount(SectionPicker, {
       props: { open: true },
       attachTo: document.body,
     });
     await nextTick();
     const items = document.body.querySelectorAll('.section-picker-item');
-    expect(items.length).toBe(16);
+    expect(items.length).toBe(14);
     w.unmount();
   });
 
@@ -1591,7 +1592,7 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const handles = document.body.querySelectorAll('.picker-drag-handle');
-    expect(handles.length).toBe(16);
+    expect(handles.length).toBe(14);
     w.unmount();
   });
 
@@ -1602,8 +1603,8 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const moveBtns = document.body.querySelectorAll('.picker-move-btn');
-    // 2 buttons per item × 16 items = 32
-    expect(moveBtns.length).toBe(32);
+    // 2 buttons per item × 14 items = 28
+    expect(moveBtns.length).toBe(28);
     w.unmount();
   });
 
@@ -1614,7 +1615,7 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const collapseBtns = document.body.querySelectorAll('.picker-collapse-btn');
-    expect(collapseBtns.length).toBe(16);
+    expect(collapseBtns.length).toBe(14);
     w.unmount();
   });
 
@@ -1635,18 +1636,19 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     w.unmount();
   });
 
-  it('reset button is disabled when order is already default', async () => {
+  it('dashboard reset button is disabled when order is already default', async () => {
     const w = mount(SectionPicker, {
       props: { open: true },
       attachTo: document.body,
     });
     await nextTick();
-    const resetBtn = document.body.querySelector('.picker-reset-btn') as HTMLButtonElement;
-    expect(resetBtn.disabled).toBe(true);
+    // First .picker-reset-inline is the Dashboard reset button
+    const resetBtns = document.body.querySelectorAll('.picker-reset-inline') as NodeListOf<HTMLButtonElement>;
+    expect(resetBtns[0].disabled).toBe(true);
     w.unmount();
   });
 
-  it('reset button is enabled after a reorder and restores default order', async () => {
+  it('dashboard reset button is enabled after a reorder and restores default order', async () => {
     const ui = useUiStore();
     ui.setSectionOrder([...DEFAULT_SECTION_ORDER].reverse());
     const w = mount(SectionPicker, {
@@ -1654,9 +1656,9 @@ describe('SectionPicker — Sprint 18 reorder', () => {
       attachTo: document.body,
     });
     await nextTick();
-    const resetBtn = document.body.querySelector('.picker-reset-btn') as HTMLButtonElement;
-    expect(resetBtn.disabled).toBe(false);
-    resetBtn.click();
+    const resetBtns = document.body.querySelectorAll('.picker-reset-inline') as NodeListOf<HTMLButtonElement>;
+    expect(resetBtns[0].disabled).toBe(false);
+    resetBtns[0].click();
     await nextTick();
     expect(ui.sectionOrder).toEqual(DEFAULT_SECTION_ORDER);
     w.unmount();

@@ -3,11 +3,12 @@
  * Project:  A Penny For Our Thoughts
  * Created:  May 2026 (Sprint 13)
  * Updated:  May 2026 (Sprint 18) — added `title` for dynamic card rendering
- * Summary:  Authoritative registry of all dashboard sections.
- *           Used by SectionPicker (nav/reorder) and DashboardPage
- *           (dynamic rendering, collapse, drag-and-drop). Both
- *           consumers derive their config from this single list so
- *           they always stay in sync.
+ *           May 2026 (Sprint 25) — split into DASHBOARD_SECTIONS + ADVANCED_SECTIONS;
+ *                                  removed budget-allocation (→ Settings) and
+ *                                  goals-timeline (deleted)
+ * Summary:  Authoritative registry of all section cards across the Dashboard
+ *           and Advanced tabs. Both consumers (SectionPicker, page hosts)
+ *           derive their config from these lists so they always stay in sync.
  */
 
 export interface DashboardSection {
@@ -22,27 +23,15 @@ export interface DashboardSection {
   group: string;
 }
 
+// ─── Dashboard tab sections ──────────────────────────────────────────────────
+
 export const DASHBOARD_SECTIONS: DashboardSection[] = [
   // ── Income & Budget ──────────────────────────────────────────────
-  {
-    id: 'spending-trend',
-    icon: '📊',
-    label: '6-Month Spending Trend',
-    title: '6-Month Spending Trend',
-    group: 'Income & Budget',
-  },
   {
     id: 'income-streams',
     icon: '💰',
     label: 'Income Streams',
     title: 'Income Streams',
-    group: 'Income & Budget',
-  },
-  {
-    id: 'budget-allocation',
-    icon: '📐',
-    label: 'Budget Allocation',
-    title: 'Budget Allocation (50/30/20)',
     group: 'Income & Budget',
   },
 
@@ -52,13 +41,6 @@ export const DASHBOARD_SECTIONS: DashboardSection[] = [
     icon: '🛍️',
     label: 'Wants Tracker',
     title: 'Wants Tracker',
-    group: 'Spending',
-  },
-  {
-    id: 'budget-vs-actual',
-    icon: '📉',
-    label: 'Budget vs. Actual',
-    title: 'Budget vs. Actual',
     group: 'Spending',
   },
   {
@@ -107,13 +89,6 @@ export const DASHBOARD_SECTIONS: DashboardSection[] = [
     title: 'Savings Goals',
     group: 'Savings & Goals',
   },
-  {
-    id: 'goals-timeline',
-    icon: '📌',
-    label: 'Goals Timeline',
-    title: 'Goals Timeline',
-    group: 'Savings & Goals',
-  },
 
   // ── Account Tracking ─────────────────────────────────────────────
   {
@@ -126,20 +101,6 @@ export const DASHBOARD_SECTIONS: DashboardSection[] = [
 
   // ── Wealth & History ──────────────────────────────────────────────
   {
-    id: 'net-worth',
-    icon: '📈',
-    label: 'Net Worth',
-    title: 'Net Worth',
-    group: 'Wealth & History',
-  },
-  {
-    id: 'spending-analytics',
-    icon: '🔍',
-    label: 'Spending Analytics',
-    title: 'Spending Analytics',
-    group: 'Wealth & History',
-  },
-  {
     id: 'wishlist',
     icon: '⭐',
     label: 'Wishlist',
@@ -148,15 +109,53 @@ export const DASHBOARD_SECTIONS: DashboardSection[] = [
   },
 ];
 
-/** Lookup map: section id → full DashboardSection record */
+// ─── Advanced tab sections ───────────────────────────────────────────────────
+
+export const ADVANCED_SECTIONS: DashboardSection[] = [
+  {
+    id: 'spending-trend',
+    icon: '📊',
+    label: '6-Month Spending Trend',
+    title: '6-Month Spending Trend',
+    group: 'Analytics',
+  },
+  {
+    id: 'spending-analytics',
+    icon: '🔍',
+    label: 'Spending Analytics',
+    title: 'Spending Analytics',
+    group: 'Analytics',
+  },
+  {
+    id: 'budget-vs-actual',
+    icon: '📉',
+    label: 'Budget vs. Actual',
+    title: 'Budget vs. Actual',
+    group: 'Analytics',
+  },
+  {
+    id: 'net-worth',
+    icon: '📈',
+    label: 'Net Worth',
+    title: 'Net Worth',
+    group: 'Analytics',
+  },
+];
+
+// ─── Combined lookup map (both tabs) ────────────────────────────────────────
+
+/** Lookup map: section id → full DashboardSection record (covers both tabs) */
 export const SECTION_MAP: Record<string, DashboardSection> = Object.fromEntries(
-  DASHBOARD_SECTIONS.map(s => [s.id, s]),
+  [...DASHBOARD_SECTIONS, ...ADVANCED_SECTIONS].map(s => [s.id, s]),
 );
 
-/** Default section order (canonical order defined here) */
+/** Default section order for the Dashboard tab */
 export const DEFAULT_SECTION_ORDER: string[] = DASHBOARD_SECTIONS.map(s => s.id);
 
-/** Unique ordered group names for the section picker */
+/** Default section order for the Advanced tab */
+export const DEFAULT_ADVANCED_ORDER: string[] = ADVANCED_SECTIONS.map(s => s.id);
+
+/** Unique ordered group names for the dashboard section picker */
 export const SECTION_GROUPS: string[] = [
   ...new Set(DASHBOARD_SECTIONS.map(s => s.group)),
 ];

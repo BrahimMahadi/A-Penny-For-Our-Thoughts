@@ -4,13 +4,17 @@
   Created:  May 2026 (Vue 3 migration)
   Modified: May 2026 — Sprint 5 (CSV toolbar, keyboard shortcuts)
             May 2026 — Sprint 10 (onboarding, what's new banner)
-  Summary:  Root layout. Header (title + tab bar + CSV toolbar + theme
-            toggle), page slot routed via ui store's activeTab.
+            May 2026 — Sprint 25 (Advanced tab; Option B floating section handle)
+  Summary:  Root layout. Header (title + tab bar + theme toggle), page slot
+            routed via ui store's activeTab. A fixed floating handle on the
+            right edge opens the SectionPicker panel (Option B pattern).
 
   Keyboard shortcuts (global, guarded from inputs):
     ?           — toggle keyboard-shortcut help panel
-    1 / 2 / 3   — switch to Dashboard / Schedule / Docs
+    1 / 2 / 3 / 4 / 5 — switch to Dashboard / Schedule / Docs / Settings / Advanced
     E           — export CSV
+    G           — open section picker (jump to section)
+    T           — toggle theme
 -->
 
 <script setup lang="ts">
@@ -24,16 +28,17 @@ import { useSwipe } from '@/composables/useSwipe';
 import type { TabId } from '@/types/state';
 
 import DashboardPage from '@/components/pages/DashboardPage.vue';
-import SchedulePage from '@/components/pages/SchedulePage.vue';
-import DocsPage from '@/components/pages/DocsPage.vue';
-import SettingsPage from '@/components/pages/SettingsPage.vue';
-import ToastContainer from '@/components/ui/ToastContainer.vue';
-import BaseModal from '@/components/ui/BaseModal.vue';
-import SectionPicker from '@/components/ui/SectionPicker.vue';
-import UserMenu from '@/components/ui/UserMenu.vue';
-import OnboardingModal from '@/components/onboarding/OnboardingModal.vue';
-import WhatsNewBanner from '@/components/onboarding/WhatsNewBanner.vue';
-import LoginPage from '@/components/auth/LoginPage.vue';
+import SchedulePage  from '@/components/pages/SchedulePage.vue';
+import DocsPage      from '@/components/pages/DocsPage.vue';
+import SettingsPage  from '@/components/pages/SettingsPage.vue';
+import AdvancedPage  from '@/components/pages/AdvancedPage.vue';
+import ToastContainer   from '@/components/ui/ToastContainer.vue';
+import BaseModal        from '@/components/ui/BaseModal.vue';
+import SectionPicker    from '@/components/ui/SectionPicker.vue';
+import UserMenu         from '@/components/ui/UserMenu.vue';
+import OnboardingModal  from '@/components/onboarding/OnboardingModal.vue';
+import WhatsNewBanner   from '@/components/onboarding/WhatsNewBanner.vue';
+import LoginPage        from '@/components/auth/LoginPage.vue';
 import { useAuthStore } from '@/stores/auth';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
@@ -57,6 +62,7 @@ const tabs: Tab[] = [
   { id: 'schedule',  label: 'Schedule',  icon: '📅' },
   { id: 'docs',      label: 'Docs',      icon: '📖' },
   { id: 'settings',  label: 'Settings',  icon: '⚙️' },
+  { id: 'advanced',  label: 'Advanced',  icon: '📊' },
 ];
 
 const activePage = computed(() => {
@@ -64,6 +70,7 @@ const activePage = computed(() => {
     case 'schedule':  return SchedulePage;
     case 'docs':      return DocsPage;
     case 'settings':  return SettingsPage;
+    case 'advanced':  return AdvancedPage;
     case 'dashboard':
     default:          return DashboardPage;
   }
@@ -91,6 +98,7 @@ const shortcuts = [
   { combo: '2',   description: 'Switch to Schedule' },
   { combo: '3',   description: 'Switch to Docs' },
   { combo: '4',   description: 'Switch to Settings' },
+  { combo: '5',   description: 'Switch to Advanced' },
   { combo: 'G',   description: 'Open section picker (jump to section)' },
   { combo: 'E',   description: 'Export CSV' },
   { combo: 'T',   description: 'Toggle light / dark theme' },
@@ -102,12 +110,13 @@ useKeyboard('1', () => { ui.setActiveTab('dashboard'); },                    { g
 useKeyboard('2', () => { ui.setActiveTab('schedule'); },                     { guardFromInputs: true });
 useKeyboard('3', () => { ui.setActiveTab('docs'); },                         { guardFromInputs: true });
 useKeyboard('4', () => { ui.setActiveTab('settings'); },                     { guardFromInputs: true });
-useKeyboard('e', () => { handleExport(); },                                          { guardFromInputs: true });
-useKeyboard('t', () => { theme.toggle(); },                                          { guardFromInputs: true });
-useKeyboard('g', () => { sectionPickerOpen.value = !sectionPickerOpen.value; },      { guardFromInputs: true });
+useKeyboard('5', () => { ui.setActiveTab('advanced'); },                     { guardFromInputs: true });
+useKeyboard('e', () => { handleExport(); },                                  { guardFromInputs: true });
+useKeyboard('t', () => { theme.toggle(); },                                  { guardFromInputs: true });
+useKeyboard('g', () => { sectionPickerOpen.value = !sectionPickerOpen.value; }, { guardFromInputs: true });
 
-// ─── 9B: Swipe to change tab on mobile ────────────────────────────────────
-const TAB_ORDER: TabId[] = ['dashboard', 'schedule', 'docs', 'settings'];
+// ─── Swipe to change tab on mobile ────────────────────────────────────────
+const TAB_ORDER: TabId[] = ['dashboard', 'schedule', 'docs', 'settings', 'advanced'];
 const appMainRef = ref<HTMLElement | null>(null);
 
 useSwipe(
@@ -182,25 +191,9 @@ useSwipe(
           >{{ tab.icon }}</span>
           <span class="app-tab__label">{{ tab.label }}</span>
         </button>
-
-        <!-- Section picker button — not a tab, opens jump-to panel -->
-        <button
-          class="app-tab app-tab--sections"
-          :class="{ 'app-tab--active': sectionPickerOpen }"
-          title="Jump to section (G)"
-          aria-label="Open section picker"
-          @click="sectionPickerOpen = !sectionPickerOpen"
-        >
-          <span
-            class="app-tab__icon"
-            aria-hidden="true"
-          >⊞</span>
-          <span class="app-tab__label">Sections</span>
-        </button>
       </nav>
 
-      <!-- Toolbar: shortcuts + theme + user menu
-           Import/Export buttons live in Settings → Data Management -->
+      <!-- Toolbar: shortcuts + theme + user menu -->
       <div
         class="app-toolbar"
         role="toolbar"
@@ -237,7 +230,7 @@ useSwipe(
       class="app-main"
       role="tabpanel"
     >
-      <!-- 10D: What's New banner — shown until user dismisses for this version -->
+      <!-- What's New banner — shown until user dismisses for this version -->
       <WhatsNewBanner />
 
       <component :is="activePage" />
@@ -245,10 +238,29 @@ useSwipe(
 
     <ToastContainer />
 
-    <!-- 13: Section picker panel -->
+    <!-- ── Option B: Floating section handle ───────────────────────── -->
+    <!-- Fixed pill on the right edge — opens the SectionPicker panel  -->
+    <button
+      class="section-handle"
+      :class="{ 'section-handle--open': sectionPickerOpen }"
+      aria-label="Open section picker (G)"
+      title="Manage sections (G)"
+      @click="sectionPickerOpen = !sectionPickerOpen"
+    >
+      <span
+        class="section-handle__icon"
+        aria-hidden="true"
+      >⊞</span>
+      <span
+        class="section-handle__text"
+        aria-hidden="true"
+      >SECTIONS</span>
+    </button>
+
+    <!-- Section picker panel (opened by handle above) -->
     <SectionPicker v-model:open="sectionPickerOpen" />
 
-    <!-- 10B: First-run onboarding stepper -->
+    <!-- First-run onboarding stepper -->
     <OnboardingModal
       v-if="budget.isFirstRun"
       @done="budget.completeOnboarding()"
@@ -348,20 +360,6 @@ useSwipe(
   outline-offset: 2px;
 }
 
-/* Hide the real file inputs — triggered programmatically */
-.app-file-input {
-  display: none;
-}
-
-.app-toolbar-divider {
-  display: inline-block;
-  width: 1px;
-  height: 20px;
-  background: var(--border, #2a3041);
-  margin: 0 0.1rem;
-  flex-shrink: 0;
-}
-
 .app-header__brand {
   display: flex;
   align-items: center;
@@ -372,7 +370,6 @@ useSwipe(
 }
 .app-header__title {
   margin: 0;
-  /* 9E: fluid type — scales smoothly from 0.9rem @ 320px to 1.05rem @ 1024px */
   font-size: clamp(0.9rem, 2.5vw, 1.05rem);
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -384,7 +381,6 @@ useSwipe(
   display: flex;
   gap: 0.25rem;
   justify-content: center;
-  /* Prevent tab clipping at intermediate viewport widths */
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -403,7 +399,7 @@ useSwipe(
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  position: relative; /* needed for the ::before active indicator on mobile */
+  position: relative;
   transition:
     background 0.15s ease,
     color 0.15s ease;
@@ -453,6 +449,84 @@ useSwipe(
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
+  /* Right padding accommodates the floating section handle */
+  padding-right: calc(1.5rem + 36px);
+}
+
+/* ─── Option B: Floating section handle ──────────────────────── */
+.section-handle {
+  position: fixed;
+  right: 0;
+  top: 40%;
+  transform: translateY(-50%);
+  z-index: 100;
+
+  /* Size */
+  width: 32px;
+  height: 88px;
+  padding: 0;
+
+  /* Appearance */
+  background: var(--surface, #0a1810);
+  border: 1px solid var(--border, #2a3041);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+
+  /* Accent left glow */
+  border-left: 2px solid var(--accent, #4ade80);
+  box-shadow: -2px 0 12px rgba(74, 222, 128, 0.12);
+
+  /* Layout */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+
+  cursor: pointer;
+  color: var(--muted, #6b7a99);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  /* Breathing pulse when closed */
+  animation: handle-pulse 4s ease-in-out infinite;
+}
+
+.section-handle:hover,
+.section-handle--open {
+  background: var(--surface2, #0f2018);
+  color: var(--accent, #4ade80);
+  box-shadow: -2px 0 18px rgba(74, 222, 128, 0.25);
+  animation: none;
+}
+
+.section-handle:focus-visible {
+  outline: 2px solid var(--accent, #4ade80);
+  outline-offset: 2px;
+  animation: none;
+}
+
+.section-handle__icon {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.section-handle__text {
+  font-size: 0.48rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+@keyframes handle-pulse {
+  0%, 100% { box-shadow: -2px 0 12px rgba(74, 222, 128, 0.12); }
+  50%       { box-shadow: -2px 0 20px rgba(74, 222, 128, 0.28); }
 }
 
 /* ─── Shortcut help table ─────────────────────────────────────── */
@@ -494,9 +568,6 @@ useSwipe(
     gap: 0.5rem 0.75rem;
     padding: 0.75rem 1rem;
   }
-  /* Pin brand to row 1 col 1, toolbar to row 1 col 2, tabs to row 2 full-width.
-     Without explicit placement the toolbar (which appears after tabs in source)
-     would overflow to row 3 because .app-tabs already spans 1/-1 in row 2. */
   .app-header__brand {
     grid-row: 1;
     grid-column: 1;
@@ -517,6 +588,7 @@ useSwipe(
   }
   .app-main {
     padding: 1rem 1rem 3rem;
+    padding-right: calc(1rem + 36px);
   }
 }
 
@@ -526,26 +598,21 @@ useSwipe(
     grid-template-rows: auto;
     padding: 0.6rem 0.75rem;
   }
-  /* Keep header compact with tabs gone */
   .app-header__title {
     display: none;
   }
 
   /* ─── Bottom navigation bar ─────────────────────────────────── */
   .app-tabs {
-    /* Take out of header grid flow */
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
     z-index: 100;
-    /* Styling */
     background: var(--surface, #0a1810);
     border-top: 1px solid var(--border, #2a3041);
     border-radius: 0;
-    /* Safe area inset for iPhone home indicator */
     padding: 0 0 env(safe-area-inset-bottom, 0px);
-    /* Layout */
     justify-content: stretch;
     overflow: visible;
     gap: 0;
@@ -554,7 +621,6 @@ useSwipe(
     display: none;
   }
 
-  /* Tab items: icon stacked above label, equal width */
   .app-tab {
     flex: 1;
     flex-direction: column;
@@ -571,7 +637,6 @@ useSwipe(
     line-height: 1;
   }
 
-  /* Show labels in the bottom bar (overrides the generic mobile hide) */
   .app-tab__label {
     display: block;
     font-size: 0.6rem;
@@ -596,6 +661,7 @@ useSwipe(
   /* Pad main content so nothing hides behind the fixed bottom nav */
   .app-main {
     padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    padding-right: 1rem; /* no handle offset needed — handle becomes FAB */
   }
 
   /* Touch targets for toolbar buttons */
@@ -608,14 +674,43 @@ useSwipe(
     width: 44px;
     height: 44px;
   }
+
+  /* ── Floating handle → compact FAB above bottom nav ─────────── */
+  .section-handle {
+    /* FAB in bottom-right, above bottom nav */
+    top: auto;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 12px);
+    right: 12px;
+    transform: none;
+
+    /* Circular shape */
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border, #2a3041);
+    border-left: 2px solid var(--accent, #4ade80);
+
+    /* Hide the SECTIONS text — icon only */
+    gap: 0;
+  }
+
+  .section-handle__text {
+    display: none;
+  }
+
+  .section-handle__icon {
+    font-size: 1.2rem;
+  }
 }
 
 /* ─── prefers-reduced-motion ──────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .app-tab,
   .app-toolbar-btn,
-  .app-theme-toggle {
+  .app-theme-toggle,
+  .section-handle {
     transition: none;
+    animation: none;
   }
 }
 </style>

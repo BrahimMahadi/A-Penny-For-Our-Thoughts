@@ -113,7 +113,7 @@ export interface AnalyticsFilters {
 export type ScheduleView = 'list' | 'calendar' | 'payperiod';
 
 /** Main app tabs */
-export type TabId = 'dashboard' | 'schedule' | 'docs' | 'settings';
+export type TabId = 'dashboard' | 'schedule' | 'docs' | 'settings' | 'advanced';
 
 /**
  * Volatile UI state — panel visibility, filter inputs, current month.
@@ -147,6 +147,12 @@ export interface UiState {
    * Defaults to the canonical order from dashboardSections.ts.
    */
   sectionOrder: string[];
+  /**
+   * Ordered list of advanced section IDs — controls the display order
+   * on the Advanced tab. Persisted to `penny_ui_prefs` in localStorage.
+   * Defaults to the canonical order from dashboardSections.ts (ADVANCED_SECTIONS).
+   */
+  advancedSectionOrder: string[];
 }
 
 // ─── Storage keys (single source of truth) ───────────────────────

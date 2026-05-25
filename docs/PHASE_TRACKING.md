@@ -1603,7 +1603,56 @@ causing the third call's queries to time out.
 
 ---
 
+---
+
+## Sprint 26 — Dashboard Restructure + Advanced Tab + Option B Nav (v1.19.0)
+
+**Version**: v1.19.0
+**Branch**: `main` (direct commit)
+
+### Goals
+- Reduce Dashboard clutter by moving analytics out of the main tab
+- Create a dedicated **Advanced** tab for analytics sections
+- Move Budget Allocation to Settings (less prominent real-estate)
+- Delete the redundant Goals Timeline component
+- Replace the "Sections" nav tab button with an Option B floating right-edge handle
+
+### Changes
+
+**New files:**
+- `src/components/pages/AdvancedPage.vue` — hosts the 4 analytics sections with full drag-to-reorder (mirrors DashboardPage pattern)
+
+**Deleted files:**
+- `src/components/sections/GoalsTimeline.vue` — removed; Goals Timeline was redundant with the Savings Goals section
+
+**Modified files:**
+
+| File | Change |
+|---|---|
+| `src/types/state.ts` | Added `'advanced'` to `TabId`; added `advancedSectionOrder: string[]` to `UiState` |
+| `src/constants/dashboardSections.ts` | Split `DASHBOARD_SECTIONS` (10 sections) + `ADVANCED_SECTIONS` (4 sections); removed `budget-allocation` and `goals-timeline`; added `DEFAULT_ADVANCED_ORDER` |
+| `src/stores/ui.ts` | Added `advancedSectionOrder` state, persistence, and 4 actions (`setAdvancedSectionOrder`, `resetAdvancedSectionOrder`, `moveAdvancedSectionUp/Down`) |
+| `src/components/pages/DashboardPage.vue` | Removed 6 sections (analytics → Advanced, budget-allocation → Settings, goals-timeline deleted) |
+| `src/components/pages/SettingsPage.vue` | Added `BudgetAllocation` card at the top |
+| `src/components/ui/SectionPicker.vue` | Dual-group panel (Dashboard / Advanced with divider); separate drag state and reset per group; `jumpTo()` routes to correct tab |
+| `src/App.vue` | Added Advanced tab + keyboard shortcut `5`; replaced Sections nav button with Option B floating right-edge handle (`⊞ SECTIONS` pill, pulse animation, FAB on mobile); updated swipe `TAB_ORDER` |
+| `src/components/onboarding/WhatsNewBanner.vue` | Bumped to v1.19.0, updated RELEASE_NOTES |
+| `tests/components/sections/sections.spec.ts` | Updated section counts (16→10 for dashboard, 16→14 for picker, 32→28 for move buttons); updated reset button selector |
+| `tests/stores/ui.spec.ts` | Updated `sectionOrder` length assertions (16→10) |
+| `docs/PHASE_TRACKING.md` | This entry |
+| `CLAUDE.md` | Updated test count (885 tests, 27 spec files) |
+
+### Supabase compatibility
+No schema changes required. The new `advancedSectionOrder` is stored entirely in `penny_ui_prefs` (localStorage), the same key used for `sectionOrder`. All existing Supabase tables and sync logic are unaffected.
+
+### Test results
+885/885 passing. `vue-tsc --noEmit` clean. `vite build` green.
+
+- ✅ Merged to `main`, tagged **v1.19.0**
+
+---
+
 **Last Updated**: May 2026
-**Current Version**: v1.18.0
+**Current Version**: v1.19.0
 **Next Up**: TBD
 **Current Branch**: `main`

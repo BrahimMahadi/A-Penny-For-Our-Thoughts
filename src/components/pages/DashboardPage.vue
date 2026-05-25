@@ -5,7 +5,9 @@
   Updated:  May 2026 (Sprint 4)  — all section SFCs wired
             May 2026 (Sprint 13) — section IDs, group labels, collapsible
             May 2026 (Sprint 18) — dynamic ordering + drag-and-drop reorder
-  Summary:  Dashboard tab host. Renders all financial section components in a
+            May 2026 (Sprint 25) — removed analytics sections (→ AdvancedPage),
+                                   budget-allocation (→ Settings), goals-timeline (deleted)
+  Summary:  Dashboard tab host. Renders the core financial sections in a
             user-configurable order persisted in the ui store. Each section card
             is collapsible and draggable. The order is controlled by
             ui.sectionOrder and can be changed by dragging cards or via the
@@ -22,41 +24,29 @@ import { SECTION_MAP }   from '@/constants/dashboardSections';
 import { fmt }           from '@/utils/format';
 
 // ─── Section components ───────────────────────────────────────────
-import IncomeStreams        from '@/components/sections/IncomeStreams.vue';
-import BudgetAllocation    from '@/components/sections/BudgetAllocation.vue';
-import WantsTracker        from '@/components/sections/WantsTracker.vue';
-import ExpenseCards        from '@/components/sections/ExpenseCards.vue';
-import Loans               from '@/components/sections/Loans.vue';
-import CreditCards         from '@/components/sections/CreditCards.vue';
-import Subscriptions       from '@/components/sections/Subscriptions.vue';
-import Savings             from '@/components/sections/Savings.vue';
-import SavingsGoals        from '@/components/sections/SavingsGoals.vue';
-import GoalsTimeline       from '@/components/sections/GoalsTimeline.vue';
-import NetWorth            from '@/components/sections/NetWorth.vue';
-import BudgetVsActual      from '@/components/sections/BudgetVsActual.vue';
-import SpendingAnalytics   from '@/components/sections/SpendingAnalytics.vue';
-import Wishlist            from '@/components/sections/Wishlist.vue';
-import SpendingTrendSection from '@/components/sections/SpendingTrendSection.vue';
-import ChequingBalance      from '@/components/sections/ChequingBalance.vue';
+import IncomeStreams    from '@/components/sections/IncomeStreams.vue';
+import WantsTracker    from '@/components/sections/WantsTracker.vue';
+import ExpenseCards    from '@/components/sections/ExpenseCards.vue';
+import Loans           from '@/components/sections/Loans.vue';
+import CreditCards     from '@/components/sections/CreditCards.vue';
+import Subscriptions   from '@/components/sections/Subscriptions.vue';
+import Savings         from '@/components/sections/Savings.vue';
+import SavingsGoals    from '@/components/sections/SavingsGoals.vue';
+import Wishlist        from '@/components/sections/Wishlist.vue';
+import ChequingBalance from '@/components/sections/ChequingBalance.vue';
 
 /** Registry: section id → its Vue component */
 const SECTION_COMPONENTS: Record<string, Component> = {
-  'spending-trend':     SpendingTrendSection,
-  'income-streams':     IncomeStreams,
-  'budget-allocation':  BudgetAllocation,
-  'wants-tracker':      WantsTracker,
-  'budget-vs-actual':   BudgetVsActual,
-  'expense-cards':      ExpenseCards,
-  'subscriptions':      Subscriptions,
-  'loans':              Loans,
-  'credit-cards':       CreditCards,
-  'savings-accounts':   Savings,
-  'savings-goals':      SavingsGoals,
-  'goals-timeline':     GoalsTimeline,
-  'chequing-balance':   ChequingBalance,
-  'net-worth':          NetWorth,
-  'spending-analytics': SpendingAnalytics,
-  'wishlist':           Wishlist,
+  'income-streams':   IncomeStreams,
+  'wants-tracker':    WantsTracker,
+  'expense-cards':    ExpenseCards,
+  'subscriptions':    Subscriptions,
+  'loans':            Loans,
+  'credit-cards':     CreditCards,
+  'savings-accounts': Savings,
+  'savings-goals':    SavingsGoals,
+  'chequing-balance': ChequingBalance,
+  'wishlist':         Wishlist,
 };
 
 // ─── Stores & analytics ───────────────────────────────────────────

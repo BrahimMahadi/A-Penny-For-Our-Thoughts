@@ -20,6 +20,7 @@ import { useToast } from '@/composables/useToast';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import BaseCard from '@/components/ui/BaseCard.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
+import BudgetAllocation from '@/components/sections/BudgetAllocation.vue';
 import PayStartDate from '@/components/sections/PayStartDate.vue';
 import RulesEngine from '@/components/sections/RulesEngine.vue';
 import BudgetAlerts from '@/components/sections/BudgetAlerts.vue';
@@ -118,6 +119,11 @@ function handleClearAll(): void {
 
 <template>
   <div class="page-settings">
+    <!-- Budget Allocation ──────────────────────────────────────────── -->
+    <BaseCard title="Budget Allocation (50/30/20)">
+      <BudgetAllocation />
+    </BaseCard>
+
     <!-- Pay Start Date ─────────────────────────────────────────────── -->
     <BaseCard title="Pay Period Anchor">
       <PayStartDate />
