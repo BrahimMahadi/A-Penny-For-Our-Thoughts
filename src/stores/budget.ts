@@ -382,6 +382,38 @@ export const useBudgetStore = defineStore('budget', {
       // real while the Supabase round-trip resolves (or times out).
       this.loadFromStorage();
 
+      // ── Connectivity probe ───────────────────────────────────────────
+      // Before firing all 18 queries, hit the REST root with a 5-second
+      // AbortSignal timeout.  This gives us the real HTTP status code or
+      // CORS error rather than our synthetic timeout message, and fails
+      // fast so we don't wait 20 s when the project is clearly unreachable.
+      try {
+        const { VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY } = import.meta.env;
+        const probeUrl = `${VITE_SUPABASE_URL}/rest/v1/profiles?select=id&limit=0`;
+        const signal = AbortSignal.timeout ? AbortSignal.timeout(5_000) : undefined;
+        const probe = await fetch(probeUrl, {
+          headers: {
+            apikey:        VITE_SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${VITE_SUPABASE_ANON_KEY}`,
+          },
+          signal,
+        });
+        console.info(`[penny] Supabase probe → HTTP ${probe.status}`);
+        if (!probe.ok) {
+          const body = await probe.text().catch(() => '');
+          console.warn('[penny] Supabase probe error body:', body);
+        }
+      } catch (probeErr) {
+        console.warn('[penny] Supabase probe failed (network/CORS):', probeErr);
+        useToast().show(
+          '⚠ Cannot reach Supabase — showing local backup. ' +
+          'Check console for details (likely CORS or wrong project URL).',
+          'warning',
+          7_000,
+        );
+        return; // skip full fetch — it will just timeout anyway
+      }
+
       // Wrap Supabase fetches in a race against a 20-second deadline.
       // The browser's fetch() has no built-in timeout; a stalled request
       // (paused project, cold start, network blip) would otherwise block

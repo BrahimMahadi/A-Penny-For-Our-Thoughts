@@ -25,6 +25,12 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
     'Copy .env.example → .env.local and fill in your project credentials. ' +
     'The app will fall back to localStorage until they are set.',
   );
+} else {
+  // Log enough to verify the correct project is wired up without
+  // exposing the full anon key (first 20 chars of URL is sufficient).
+  console.info(
+    `[penny] Supabase configured → ${SUPABASE_URL.slice(0, 40)}…`,
+  );
 }
 
 // ─── Client ────────────────────────────────────────────────────────
