@@ -30,6 +30,78 @@ const auth   = useAuthStore();
 const toast  = useToast();
 const supabaseEnabled = isSupabaseConfigured();
 
+// ─── Data management ──────────────────────────────────────────────────────────
+const csvFileInputRef  = ref<HTMLInputElement | null>(null);
+const jsonFileInputRef = ref<HTMLInputElement | null>(null);
+
+function handleExportCSV(): void {
+  try {
+    budget.exportCSV();
+    toast.show('CSV exported.', 'success');
+  } catch (err) {
+    toast.show('Export failed: ' + (err instanceof Error ? err.message : String(err)), 'danger');
+  }
+}
+
+function openCSVImport(): void { csvFileInputRef.value?.click(); }
+
+function handleCSVFile(event: Event): void {
+  const input = event.target as HTMLInputElement;
+  const file  = input.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const text = e.target?.result as string;
+      if (!window.confirm('Import this CSV? This will replace all current data.')) {
+        input.value = '';
+        return;
+      }
+      budget.importCSV(text);
+      toast.show('CSV imported successfully.', 'success');
+    } catch (err) {
+      toast.show('Import failed: ' + (err instanceof Error ? err.message : String(err)), 'danger');
+    } finally { input.value = ''; }
+  };
+  reader.onerror = () => { toast.show('Could not read the file.', 'danger'); input.value = ''; };
+  reader.readAsText(file);
+}
+
+function handleExportJSON(): void {
+  try {
+    budget.exportJSON();
+    toast.show('JSON backup downloaded.', 'success');
+  } catch (err) {
+    toast.show('Export failed: ' + (err instanceof Error ? err.message : String(err)), 'danger');
+  }
+}
+
+function openJSONImport(): void { jsonFileInputRef.value?.click(); }
+
+function handleJSONFile(event: Event): void {
+  const input = event.target as HTMLInputElement;
+  const file  = input.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const text = e.target?.result as string;
+      if (!window.confirm('Import this JSON backup? This will replace all current data.')) {
+        input.value = '';
+        return;
+      }
+      budget.importJSON(text);
+      toast.show('JSON backup imported successfully.', 'success');
+    } catch (err) {
+      toast.show('Import failed: ' + (err instanceof Error ? err.message : String(err)), 'danger');
+    } finally { input.value = ''; }
+  };
+  reader.onerror = () => { toast.show('Could not read the file.', 'danger'); input.value = ''; };
+  reader.readAsText(file);
+}
+
 // ─── Danger zone ─────────────────────────────────────────────────────────────
 const confirmClear = ref(false);
 
@@ -64,6 +136,68 @@ function handleClearAll(): void {
     <!-- Budget Alerts ──────────────────────────────────────────────── -->
     <BaseCard title="Budget Alerts">
       <BudgetAlerts />
+    </BaseCard>
+
+    <!-- Data Management ────────────────────────────────────────────── -->
+    <BaseCard title="Data Management">
+      <div class="data-mgmt">
+        <p class="data-mgmt__desc">
+          Export to CSV for spreadsheet analysis or JSON for a full backup.
+          Imports replace all current data. The <kbd class="data-mgmt__kbd">E</kbd> key also exports CSV from anywhere.
+        </p>
+        <div class="data-mgmt__grid">
+          <BaseButton
+            variant="secondary"
+            aria-label="Export CSV"
+            @click="handleExportCSV"
+          >
+            ⬆ Export CSV
+          </BaseButton>
+          <BaseButton
+            variant="secondary"
+            aria-label="Import CSV"
+            @click="openCSVImport"
+          >
+            ⬇ Import CSV
+          </BaseButton>
+          <BaseButton
+            variant="ghost"
+            size="sm"
+            aria-label="Export JSON backup"
+            @click="handleExportJSON"
+          >
+            📦 Export JSON
+          </BaseButton>
+          <BaseButton
+            variant="ghost"
+            size="sm"
+            aria-label="Import JSON backup"
+            @click="openJSONImport"
+          >
+            📂 Import JSON
+          </BaseButton>
+        </div>
+      </div>
+
+      <!-- Hidden file inputs triggered programmatically -->
+      <input
+        ref="csvFileInputRef"
+        type="file"
+        accept=".csv"
+        class="settings-file-input"
+        aria-hidden="true"
+        tabindex="-1"
+        @change="handleCSVFile"
+      >
+      <input
+        ref="jsonFileInputRef"
+        type="file"
+        accept=".json"
+        class="settings-file-input"
+        aria-hidden="true"
+        tabindex="-1"
+        @change="handleJSONFile"
+      >
     </BaseCard>
 
     <!-- Account ─────────────────────────────────────────────────────── -->
@@ -118,6 +252,42 @@ function handleClearAll(): void {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+/* ─── Data management ────────────────────────────────────────────── */
+.data-mgmt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.data-mgmt__desc {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 52ch;
+}
+
+.data-mgmt__kbd {
+  display: inline-block;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--accent);
+}
+
+.data-mgmt__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.settings-file-input {
+  display: none;
 }
 
 /* ─── Account ────────────────────────────────────────────────────── */

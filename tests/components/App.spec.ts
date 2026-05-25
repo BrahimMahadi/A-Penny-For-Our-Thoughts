@@ -78,39 +78,26 @@ afterEach(async () => {
 
 // ─── Toolbar rendering ────────────────────────────────────────────────────────
 
-describe('App CSV toolbar', () => {
-  it('renders Export and Import toolbar buttons', () => {
+// Import/Export buttons have moved to Settings → Data Management.
+// The toolbar now only has the shortcut-help button, theme toggle, and UserMenu.
+describe('App toolbar', () => {
+  it('renders the keyboard-shortcut help button', () => {
     mountApp();
-    const buttons = document.body.querySelectorAll('.app-toolbar-btn');
-    // Export (⬆), Import (⬇), Shortcut-help (?)
-    expect(buttons.length).toBeGreaterThanOrEqual(3);
+    expect(document.body.querySelector('[aria-label="Keyboard shortcuts"]')).not.toBeNull();
   });
 
-  it('Export button has accessible aria-label', () => {
+  it('toolbar has no CSV or JSON action buttons', () => {
     mountApp();
-    expect(document.body.querySelector('[aria-label="Export CSV"]')).not.toBeNull();
+    // Export/Import buttons now live in SettingsPage → Data Management card
+    expect(document.body.querySelector('[aria-label="Export CSV"]')).toBeNull();
+    expect(document.body.querySelector('[aria-label="Import CSV"]')).toBeNull();
+    expect(document.body.querySelector('[aria-label="Export JSON backup"]')).toBeNull();
   });
 
-  it('Import button has accessible aria-label', () => {
+  it('no hidden file inputs exist in the app toolbar', () => {
     mountApp();
-    expect(document.body.querySelector('[aria-label="Import CSV"]')).not.toBeNull();
-  });
-
-  it('file input is hidden via app-file-input class', () => {
-    mountApp();
-    const input = document.body.querySelector('input[type="file"]');
-    expect(input).not.toBeNull();
-    expect(input!.classList.contains('app-file-input')).toBe(true);
-  });
-
-  it('calls budget.exportCSV() when Export is clicked', async () => {
-    const ww = mountApp();
-    const budget = useBudgetStore();
-    const spy = vi.spyOn(budget, 'exportCSV').mockReturnValue(undefined as unknown as void);
-
-    await ww.find('[aria-label="Export CSV"]').trigger('click');
-
-    expect(spy).toHaveBeenCalledOnce();
+    // File inputs are now inside SettingsPage, not App.vue
+    expect(document.body.querySelector('input[type="file"]')).toBeNull();
   });
 });
 

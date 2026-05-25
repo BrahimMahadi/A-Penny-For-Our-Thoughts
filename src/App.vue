@@ -69,7 +69,7 @@ const activePage = computed(() => {
   }
 });
 
-// ─── CSV export ───────────────────────────────────────────────────────────────
+// ─── CSV export (keyboard shortcut E — buttons now in Settings → Data Management)
 function handleExport(): void {
   try {
     budget.exportCSV();
@@ -81,85 +81,6 @@ function handleExport(): void {
 
 // ─── Section picker ───────────────────────────────────────────────────────────
 const sectionPickerOpen = ref(false);
-
-// ─── CSV import ───────────────────────────────────────────────────────────────
-const fileInputRef    = ref<HTMLInputElement | null>(null);
-const jsonFileInputRef = ref<HTMLInputElement | null>(null);
-
-function openImportPicker(): void {
-  fileInputRef.value?.click();
-}
-
-function handleFileChange(event: Event): void {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const text = e.target?.result as string;
-      if (!window.confirm('Import this CSV? This will replace all current data.')) {
-        input.value = '';
-        return;
-      }
-      budget.importCSV(text);
-      toast.show('CSV imported successfully.', 'success');
-    } catch (err) {
-      toast.show('Import failed: ' + (err instanceof Error ? err.message : String(err)), 'danger');
-    } finally {
-      input.value = '';
-    }
-  };
-  reader.onerror = () => {
-    toast.show('Could not read the file.', 'danger');
-    input.value = '';
-  };
-  reader.readAsText(file);
-}
-
-// ─── JSON export ──────────────────────────────────────────────────────────────
-function handleJSONExport(): void {
-  try {
-    budget.exportJSON();
-    toast.show('JSON backup downloaded.', 'success');
-  } catch (err) {
-    toast.show('Export failed: ' + (err instanceof Error ? err.message : String(err)), 'danger');
-  }
-}
-
-// ─── JSON import ──────────────────────────────────────────────────────────────
-function openJSONImportPicker(): void {
-  jsonFileInputRef.value?.click();
-}
-
-function handleJSONFileChange(event: Event): void {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const text = e.target?.result as string;
-      if (!window.confirm('Import this JSON backup? This will replace all current data.')) {
-        input.value = '';
-        return;
-      }
-      budget.importJSON(text);
-      toast.show('JSON backup imported successfully.', 'success');
-    } catch (err) {
-      toast.show('Import failed: ' + (err instanceof Error ? err.message : String(err)), 'danger');
-    } finally {
-      input.value = '';
-    }
-  };
-  reader.onerror = () => {
-    toast.show('Could not read the file.', 'danger');
-    input.value = '';
-  };
-  reader.readAsText(file);
-}
 
 // ─── Keyboard shortcut help panel ─────────────────────────────────────────────
 const showShortcutHelp = ref(false);
@@ -278,80 +199,13 @@ useSwipe(
         </button>
       </nav>
 
-      <!-- Toolbar: CSV + shortcuts + theme -->
+      <!-- Toolbar: shortcuts + theme + user menu
+           Import/Export buttons live in Settings → Data Management -->
       <div
         class="app-toolbar"
         role="toolbar"
         aria-label="App actions"
       >
-        <!-- CSV export -->
-        <button
-          class="app-toolbar-btn"
-          title="Export all data as CSV (E)"
-          aria-label="Export CSV"
-          @click="handleExport"
-        >
-          ⬆
-        </button>
-
-        <!-- CSV import -->
-        <button
-          class="app-toolbar-btn"
-          title="Import data from CSV file"
-          aria-label="Import CSV"
-          @click="openImportPicker"
-        >
-          ⬇
-        </button>
-
-        <!-- Divider -->
-        <span
-          class="app-toolbar-divider"
-          aria-hidden="true"
-        />
-
-        <!-- JSON export -->
-        <button
-          class="app-toolbar-btn"
-          title="Export full backup as JSON"
-          aria-label="Export JSON backup"
-          @click="handleJSONExport"
-        >
-          📦
-        </button>
-
-        <!-- JSON import -->
-        <button
-          class="app-toolbar-btn"
-          title="Restore from JSON backup"
-          aria-label="Import JSON backup"
-          @click="openJSONImportPicker"
-        >
-          📂
-        </button>
-
-        <!-- Hidden file input (CSV — trigger via openImportPicker) -->
-        <input
-          ref="fileInputRef"
-          type="file"
-          accept=".csv"
-          class="app-file-input"
-          aria-hidden="true"
-          tabindex="-1"
-          @change="handleFileChange"
-        >
-
-        <!-- Hidden file input (JSON — trigger via openJSONImportPicker) -->
-        <input
-          ref="jsonFileInputRef"
-          type="file"
-          accept=".json"
-          class="app-file-input"
-          aria-hidden="true"
-          tabindex="-1"
-          @change="handleJSONFileChange"
-        >
-
         <!-- Shortcut help -->
         <button
           class="app-toolbar-btn"
