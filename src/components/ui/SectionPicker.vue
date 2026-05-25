@@ -177,9 +177,9 @@ function onKeydown(event: KeyboardEvent): void {
               <div
                 v-if="
                   dropIndex === index &&
-                  dragIndex !== -1 &&
-                  dragIndex !== index &&
-                  dragIndex !== index - 1
+                    dragIndex !== -1 &&
+                    dragIndex !== index &&
+                    dragIndex !== index - 1
                 "
                 class="picker-drop-indicator"
                 aria-hidden="true"
@@ -254,8 +254,8 @@ function onKeydown(event: KeyboardEvent): void {
             <div
               v-if="
                 dropIndex === orderedSections.length &&
-                dragIndex !== -1 &&
-                dragIndex !== orderedSections.length - 1
+                  dragIndex !== -1 &&
+                  dragIndex !== orderedSections.length - 1
               "
               class="picker-drop-indicator"
               aria-hidden="true"

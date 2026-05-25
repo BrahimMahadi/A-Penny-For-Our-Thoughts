@@ -81,8 +81,12 @@ function handleKeydown(e: KeyboardEvent): void {
           class="login-brand__emoji"
           aria-hidden="true"
         >💸</span>
-        <h1 class="login-brand__title">A Penny For Our Thoughts</h1>
-        <p class="login-brand__tagline">Your personal 50/30/20 budget dashboard</p>
+        <h1 class="login-brand__title">
+          A Penny For Our Thoughts
+        </h1>
+        <p class="login-brand__tagline">
+          Your personal 50/30/20 budget dashboard
+        </p>
       </div>
 
       <!-- ── Magic-link sent confirmation ── -->
@@ -96,7 +100,9 @@ function handleKeydown(e: KeyboardEvent): void {
           class="login-sent__icon"
           aria-hidden="true"
         >📬</span>
-        <p class="login-sent__heading">Check your inbox</p>
+        <p class="login-sent__heading">
+          Check your inbox
+        </p>
         <p class="login-sent__body">
           We sent a sign-in link to <strong>{{ email }}</strong>.
           Click it to open your dashboard — no password needed.

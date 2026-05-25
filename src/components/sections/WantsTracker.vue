@@ -445,7 +445,20 @@ const filteredTotal = computed(() =>
       <!-- Top row: search · Filters button · Sort -->
       <div class="filter-toolbar__top">
         <div class="filter-toolbar__search-wrap">
-          <svg class="filter-toolbar__search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <svg
+            class="filter-toolbar__search-icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            aria-hidden="true"
+          ><circle
+            cx="11"
+            cy="11"
+            r="8"
+          /><path d="m21 21-4.35-4.35" /></svg>
           <input
             id="p-search"
             v-model="pSearch"
@@ -463,7 +476,15 @@ const filteredTotal = computed(() =>
           aria-controls="p-filter-drawer"
           @click="pToggleDrawer"
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            aria-hidden="true"
+          ><path d="M3 6h18M7 12h10M11 18h2" /></svg>
           Filters
           <span
             v-if="pActiveFilterCount > 0"
@@ -477,11 +498,21 @@ const filteredTotal = computed(() =>
           class="filter-toolbar__sort"
           aria-label="Sort purchases"
         >
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="amtHigh">Amount ↓</option>
-          <option value="amtLow">Amount ↑</option>
-          <option value="nameAZ">Name A–Z</option>
+          <option value="newest">
+            Newest first
+          </option>
+          <option value="oldest">
+            Oldest first
+          </option>
+          <option value="amtHigh">
+            Amount ↓
+          </option>
+          <option value="amtLow">
+            Amount ↑
+          </option>
+          <option value="nameAZ">
+            Name A–Z
+          </option>
         </select>
       </div>
 
@@ -494,8 +525,14 @@ const filteredTotal = computed(() =>
         <div class="filter-toolbar__drawer-inner">
           <div class="filter-toolbar__drawer">
             <div class="filter-toolbar__filter-group">
-              <label class="filter-toolbar__filter-label" for="p-filter-cat">
-                <span v-if="pCatFilter" class="filter-active-dot" />
+              <label
+                class="filter-toolbar__filter-label"
+                for="p-filter-cat"
+              >
+                <span
+                  v-if="pCatFilter"
+                  class="filter-active-dot"
+                />
                 Category
               </label>
               <select
@@ -504,17 +541,27 @@ const filteredTotal = computed(() =>
                 class="filter-toolbar__filter-select"
                 :class="{ 'filter-toolbar__filter-select--active': pCatFilter }"
               >
-                <option value="">All categories</option>
+                <option value="">
+                  All categories
+                </option>
                 <option
                   v-for="cat in categoryOptions"
                   :key="cat"
                   :value="cat"
-                >{{ cat }}</option>
+                >
+                  {{ cat }}
+                </option>
               </select>
             </div>
             <div class="filter-toolbar__filter-group">
-              <label class="filter-toolbar__filter-label" for="p-filter-type">
-                <span v-if="pTypeFilter" class="filter-active-dot" />
+              <label
+                class="filter-toolbar__filter-label"
+                for="p-filter-type"
+              >
+                <span
+                  v-if="pTypeFilter"
+                  class="filter-active-dot"
+                />
                 Budget type
               </label>
               <select
@@ -523,14 +570,26 @@ const filteredTotal = computed(() =>
                 class="filter-toolbar__filter-select"
                 :class="{ 'filter-toolbar__filter-select--active': pTypeFilter }"
               >
-                <option value="">All types</option>
-                <option value="wants">Wants</option>
-                <option value="needs">Needs</option>
+                <option value="">
+                  All types
+                </option>
+                <option value="wants">
+                  Wants
+                </option>
+                <option value="needs">
+                  Needs
+                </option>
               </select>
             </div>
             <div class="filter-toolbar__filter-group">
-              <label class="filter-toolbar__filter-label" for="p-filter-card">
-                <span v-if="pCardFilter" class="filter-active-dot" />
+              <label
+                class="filter-toolbar__filter-label"
+                for="p-filter-card"
+              >
+                <span
+                  v-if="pCardFilter"
+                  class="filter-active-dot"
+                />
                 Card
               </label>
               <select
@@ -539,13 +598,19 @@ const filteredTotal = computed(() =>
                 class="filter-toolbar__filter-select"
                 :class="{ 'filter-toolbar__filter-select--active': pCardFilter }"
               >
-                <option value="">All cards</option>
+                <option value="">
+                  All cards
+                </option>
                 <option
                   v-for="card in budget.expenseCards"
                   :key="card.id"
                   :value="card.label"
-                >{{ card.label }}</option>
-                <option value="none">No card</option>
+                >
+                  {{ card.label }}
+                </option>
+                <option value="none">
+                  No card
+                </option>
               </select>
             </div>
           </div>
@@ -561,7 +626,12 @@ const filteredTotal = computed(() =>
       >
         Showing <strong>{{ filteredPurchases.length }}</strong> of {{ budget.purchases.length }}
         · <strong>{{ fmt(filteredTotal) }}</strong> filtered total
-        <button class="filter-toolbar__clear" @click="pClearFilters">Clear</button>
+        <button
+          class="filter-toolbar__clear"
+          @click="pClearFilters"
+        >
+          Clear
+        </button>
       </div>
     </div>
 

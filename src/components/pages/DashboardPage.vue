@@ -199,9 +199,9 @@ function cleanup(): void {
       <div
         v-if="
           dropIndex === index &&
-          dragIndex !== -1 &&
-          dragIndex !== index &&
-          dragIndex !== index - 1
+            dragIndex !== -1 &&
+            dragIndex !== index &&
+            dragIndex !== index - 1
         "
         class="drop-indicator"
         aria-hidden="true"
@@ -238,8 +238,8 @@ function cleanup(): void {
     <div
       v-if="
         dropIndex === ui.sectionOrder.length &&
-        dragIndex !== -1 &&
-        dragIndex !== ui.sectionOrder.length - 1
+          dragIndex !== -1 &&
+          dragIndex !== ui.sectionOrder.length - 1
       "
       class="drop-indicator"
       aria-hidden="true"

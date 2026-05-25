@@ -480,12 +480,13 @@ export const useBudgetStore = defineStore('budget', {
       // (paused project, cold start, network blip) would otherwise block
       // the data-sync indefinitely.  20 s accommodates Supabase free-tier
       // cold starts which can take 10–15 s after a period of inactivity.
-      function withTimeout<T>(promise: Promise<T>, ms = 20_000): Promise<T> {
+      // Arrow function expression (not declaration) avoids no-inner-declarations.
+      const withTimeout = <T>(promise: Promise<T>, ms = 20_000): Promise<T> => {
         const deadline = new Promise<T>((_, reject) =>
           setTimeout(() => reject(new Error(`[penny] DB fetch timed out after ${ms} ms`)), ms),
         );
         return Promise.race([promise, deadline]);
-      }
+      };
 
       try {
         const data = await withTimeout(fetchAllUserData(userId));

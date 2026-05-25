@@ -804,7 +804,10 @@ function frequencyLabel(item: ForecastItem): string {
                 class="cal-day-num"
                 :class="{ 'cal-day-num--month-start': ppDay.showMonth }"
               >
-                <span v-if="ppDay.showMonth" class="cal-month-abbr">{{ ppDay.monthLabel }}</span>
+                <span
+                  v-if="ppDay.showMonth"
+                  class="cal-month-abbr"
+                >{{ ppDay.monthLabel }}</span>
                 {{ ppDay.dayNum }}
               </span>
               <div
