@@ -104,6 +104,7 @@ function makeInitialUiState(): UiState {
     sectionOrder: loadSectionOrder(),
     advancedSectionOrder: loadAdvancedSectionOrder(),
     sectionPickerOpen: false,
+    shortcutHelpOpen:  false,
   };
 }
 
@@ -226,6 +227,20 @@ export const useUiStore = defineStore('ui', {
 
     toggleSectionPicker(): void {
       this.sectionPickerOpen = !this.sectionPickerOpen;
+    },
+
+    // ─── Shortcut help ────────────────────────────────────────────
+
+    openShortcutHelp(): void {
+      this.shortcutHelpOpen = true;
+    },
+
+    closeShortcutHelp(): void {
+      this.shortcutHelpOpen = false;
+    },
+
+    toggleShortcutHelp(): void {
+      this.shortcutHelpOpen = !this.shortcutHelpOpen;
     },
 
     // ─── Analytics panel ─────────────────────────────────────────

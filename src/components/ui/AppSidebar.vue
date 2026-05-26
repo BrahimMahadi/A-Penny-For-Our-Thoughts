@@ -14,6 +14,8 @@
     ☰  Docs
     ◆  Settings
     [spacer]
+    ?  Keyboard shortcuts help (→ ui.shortcutHelpOpen)
+    ☀️  Theme toggle
     Bⓐ Avatar / UserMenu button (bottom)
 
   Active state: accent-soft bg + accent text color.
@@ -100,6 +102,19 @@ const userInitial = computed(() => {
 
     <!-- Spacer pushes avatar to bottom -->
     <div class="app-sidebar__spacer" />
+
+    <!-- Keyboard shortcuts help -->
+    <button
+      class="app-sidebar__btn app-sidebar__btn--icon-sm"
+      title="Keyboard shortcuts (?)"
+      aria-label="Keyboard shortcuts"
+      @click="ui.toggleShortcutHelp()"
+    >
+      <span
+        aria-hidden="true"
+        class="app-sidebar__help-glyph"
+      >?</span>
+    </button>
 
     <!-- Theme toggle -->
     <button
@@ -203,9 +218,17 @@ const userInitial = computed(() => {
   outline-offset: 2px;
 }
 
-/* Slightly smaller icon buttons (theme toggle) */
+/* Slightly smaller icon buttons (theme toggle, help) */
 .app-sidebar__btn--icon-sm {
   font-size: 15px;
+}
+
+/* Help glyph — slightly bolder for readability */
+.app-sidebar__help-glyph {
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  line-height: 1;
 }
 
 /* ── Glyph ──────────────────────────────────────────────────── */

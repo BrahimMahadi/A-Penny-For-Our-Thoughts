@@ -6,10 +6,12 @@
             May 2026 — Sprint 10 (onboarding, what's new banner)
             May 2026 — Sprint 25 (Advanced tab; Option B floating section handle)
             May 2026 — Redesign Sprint 2 (sidebar nav, 6-tab set, BottomNav)
+            May 2026 — Redesign Sprint 3 (removed top header bar; full-width main)
   Summary:  Root layout. Slim 64px icon sidebar (AppSidebar) + scrollable
-            main column. Mobile (≤768px): sidebar hidden, BottomNav fixed
-            to bottom edge. Page routed via ui store's activeTab.
-            A fixed floating handle on the right edge opens SectionPicker.
+            full-width main column. No top header bar — pages own their own
+            headers. Mobile (≤768px): sidebar hidden, BottomNav fixed to bottom.
+            Page routed via ui store's activeTab. A floating handle on the right
+            edge opens SectionPicker.
 
   Keyboard shortcuts (global, guarded from inputs):
     ?           — toggle keyboard-shortcut help panel
@@ -21,7 +23,7 @@
 -->
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed } from 'vue'; // ref used for appMainRef
 import { useThemeStore } from '@/stores/theme';
 import { useUiStore } from '@/stores/ui';
 import { useBudgetStore } from '@/stores/budget';
@@ -41,7 +43,6 @@ import AdvancedPage  from '@/components/pages/AdvancedPage.vue';
 import ToastContainer   from '@/components/ui/ToastContainer.vue';
 import BaseModal        from '@/components/ui/BaseModal.vue';
 import SectionPicker    from '@/components/ui/SectionPicker.vue';
-import UserMenu         from '@/components/ui/UserMenu.vue';
 import AppSidebar       from '@/components/ui/AppSidebar.vue';
 import BottomNav        from '@/components/ui/BottomNav.vue';
 import OnboardingModal  from '@/components/onboarding/OnboardingModal.vue';
@@ -86,7 +87,7 @@ function handleExport(): void {
 // State lives in ui store so DashboardPage can open it via "Manage widgets" button.
 
 // ─── Keyboard shortcut help panel ─────────────────────────────────────────────
-const showShortcutHelp = ref(false);
+// State lives in ui store so AppSidebar's ? button can toggle it.
 
 const shortcuts = [
   { combo: '?',   description: 'Show / hide this panel' },
@@ -103,7 +104,7 @@ const shortcuts = [
 ];
 
 // ─── Global shortcuts (guarded from inputs) ────────────────────────────────
-useKeyboard('?', () => { showShortcutHelp.value = !showShortcutHelp.value; }, { guardFromInputs: true });
+useKeyboard('?', () => { ui.toggleShortcutHelp(); }, { guardFromInputs: true });
 useKeyboard('1', () => { ui.setActiveTab('dashboard'); },                    { guardFromInputs: true });
 useKeyboard('2', () => { ui.setActiveTab('schedule'); },                     { guardFromInputs: true });
 useKeyboard('3', () => { ui.setActiveTab('spending'); },                     { guardFromInputs: true });
@@ -160,38 +161,8 @@ useSwipe(
     <!-- ── Sidebar (desktop) ──────────────────────────────── -->
     <AppSidebar />
 
-    <!-- ── Content column (header + page area) ───────────── -->
+    <!-- ── Content column (page area only — no top header bar) ─── -->
     <div class="app-content">
-      <!-- Top header strip: title + toolbar -->
-      <header class="app-header">
-        <div class="app-header__brand">
-          <span
-            class="app-header__icon"
-            aria-hidden="true"
-          >💸</span>
-          <h1 class="app-header__title">A Penny For Our Thoughts</h1>
-        </div>
-
-        <div
-          class="app-toolbar"
-          role="toolbar"
-          aria-label="App actions"
-        >
-          <!-- Shortcut help -->
-          <button
-            class="app-toolbar-btn"
-            title="Keyboard shortcuts (?)"
-            aria-label="Keyboard shortcuts"
-            @click="showShortcutHelp = true"
-          >
-            ?
-          </button>
-
-          <!-- User menu (Supabase only, sidebar already has theme toggle) -->
-          <UserMenu v-if="supabaseEnabled && auth.user" />
-        </div>
-      </header>
-
       <!-- Page content -->
       <main
         :id="`page-${ui.activeTab}`"
@@ -243,9 +214,10 @@ useSwipe(
 
     <!-- Keyboard shortcut help panel -->
     <BaseModal
-      v-model:open="showShortcutHelp"
+      :open="ui.shortcutHelpOpen"
       title="Keyboard Shortcuts"
       size="sm"
+      @update:open="(v) => v ? ui.openShortcutHelp() : ui.closeShortcutHelp()"
     >
       <table class="shortcut-table">
         <tbody>
@@ -299,81 +271,15 @@ useSwipe(
   overflow: hidden;
 }
 
-/* ─── Top header strip (no tabs — just brand + toolbar) ────────── */
-.app-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1.5rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
-}
 
-.app-header__brand {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.app-header__icon {
-  font-size: 1.4rem;
-}
-
-.app-header__title {
-  margin: 0;
-  font-size: clamp(0.88rem, 2vw, 1rem);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  color: var(--text);
-}
-
-/* ─── Toolbar ─────────────────────────────────────────────────── */
-.app-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-left: auto;
-}
-
-.app-toolbar-btn {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  width: 36px;
-  height: 36px;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--muted);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: color var(--transition-fast), background var(--transition-fast);
-}
-
-.app-toolbar-btn:hover {
-  color: var(--text);
-}
-
-.app-toolbar-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* ─── Main page area ─────────────────────────────────────────── */
+/* ─── Main page area — full-width, no max-width cap ────────────── */
 .app-main {
   flex: 1;
   padding: 1.75rem 2rem 5rem;
-  max-width: 1280px;
-  width: 100%;
-  box-sizing: border-box;
-  /* Right margin for the floating section handle */
+  /* Right gutter accounts for the floating section handle (32px + gap) */
   padding-right: calc(2rem + 40px);
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 /* ─── Option B: Floating section handle ──────────────────────── */
@@ -479,10 +385,6 @@ useSwipe(
     flex-direction: column;
   }
 
-  .app-header {
-    padding: 0.65rem 1rem;
-  }
-
   .app-main {
     padding: 1.25rem 1rem calc(54px + env(safe-area-inset-bottom, 0px) + 1.25rem);
     padding-right: calc(1rem + 36px); /* section handle */
@@ -490,10 +392,6 @@ useSwipe(
 }
 
 @media (max-width: 540px) {
-  .app-header__title {
-    display: none;
-  }
-
   .app-main {
     padding-right: 1rem;
     padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 1rem);
@@ -523,7 +421,6 @@ useSwipe(
 
 /* ─── prefers-reduced-motion ──────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .app-toolbar-btn,
   .section-handle {
     transition: none;
     animation: none;

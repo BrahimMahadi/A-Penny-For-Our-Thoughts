@@ -159,6 +159,11 @@ export interface UiState {
    * Can be toggled from the Dashboard "Manage widgets" button or keyboard shortcut G.
    */
   sectionPickerOpen: boolean;
+  /**
+   * Whether the keyboard-shortcut help modal is open.
+   * Toggled by the ? key or the help button in the sidebar.
+   */
+  shortcutHelpOpen: boolean;
 }
 
 // ─── Storage keys (single source of truth) ───────────────────────
