@@ -77,7 +77,7 @@ watch(
 
 .base-toast {
   pointer-events: auto;
-  background: var(--surface, #0a1810);
+  background: var(--surface, #16161e);
   border: 1px solid var(--border, #2a3041);
   border-left-width: 4px;
   border-radius: 6px;
@@ -96,7 +96,7 @@ watch(
   border-left-color: var(--danger, #f87171);
 }
 .base-toast--info {
-  border-left-color: var(--accent, #4ade80);
+  border-left-color: var(--accent, #5b3df5);
 }
 .base-toast--warning {
   border-left-color: #f59e0b;

@@ -141,7 +141,7 @@ const chartOptions = computed(() => {
 
 .net-worth-chart-note {
   font-size: 0.8rem;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   text-align: center;
   margin-top: 0.5rem;
 }

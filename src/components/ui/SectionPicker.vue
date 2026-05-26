@@ -457,7 +457,7 @@ function onKeydown(event: KeyboardEvent): void {
 .section-picker-panel {
   width: min(340px, 92vw);
   height: 100%;
-  background: var(--surface, #0a1810);
+  background: var(--surface, #16161e);
   border-left: 1px solid var(--border, #2a3041);
   display: flex;
   flex-direction: column;
@@ -471,7 +471,7 @@ function onKeydown(event: KeyboardEvent): void {
   justify-content: space-between;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--border, #2a3041);
-  background: var(--surface, #0a1810);
+  background: var(--surface, #16161e);
   flex-shrink: 0;
 }
 
@@ -485,7 +485,7 @@ function onKeydown(event: KeyboardEvent): void {
 .section-picker-close {
   background: transparent;
   border: none;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   font-size: 1rem;
   cursor: pointer;
   padding: 0.25rem 0.4rem;
@@ -495,7 +495,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .section-picker-close:hover { color: var(--text, #e3e6ee); }
 .section-picker-close:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 
@@ -508,7 +508,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .section-picker-hint {
   font-size: 0.68rem;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   letter-spacing: 0.03em;
   margin: 0.4rem 0 0.6rem 0.25rem;
 }
@@ -527,7 +527,7 @@ function onKeydown(event: KeyboardEvent): void {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
 }
 
 /* ─── Group divider ──────────────────────────────────────────────── */
@@ -541,7 +541,7 @@ function onKeydown(event: KeyboardEvent): void {
 .picker-reset-inline {
   background: transparent;
   border: none;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   font-size: 0.68rem;
   cursor: pointer;
   padding: 0.1rem 0.3rem;
@@ -560,7 +560,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .picker-reset-inline:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 
@@ -568,7 +568,7 @@ function onKeydown(event: KeyboardEvent): void {
 .picker-drop-indicator {
   height: 2px;
   border-radius: 2px;
-  background: var(--accent, #4ade80);
+  background: var(--accent, #5b3df5);
   box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
   margin: 1px 0;
 }
@@ -585,7 +585,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .section-picker-item:hover {
-  background: var(--surface2, #0f2018);
+  background: var(--surface2, #1a1a24);
 }
 
 .section-picker-item--dragging {
@@ -595,7 +595,7 @@ function onKeydown(event: KeyboardEvent): void {
 /* ─── Drag handle ────────────────────────────────────────────────── */
 .picker-drag-handle {
   flex-shrink: 0;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   font-size: 1rem;
   cursor: grab;
   padding: 0.15rem 0.3rem;
@@ -629,11 +629,11 @@ function onKeydown(event: KeyboardEvent): void {
   min-width: 0;
 }
 
-.picker-jump-btn:hover { color: var(--accent, #4ade80); }
+.picker-jump-btn:hover { color: var(--accent, #5b3df5); }
 .picker-jump-btn--advanced:hover { color: var(--accent2, #60a5fa); }
 
 .picker-jump-btn:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: -2px;
 }
 
@@ -663,7 +663,7 @@ function onKeydown(event: KeyboardEvent): void {
 .picker-move-btn {
   background: transparent;
   border: none;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   font-size: 0.6rem;
   cursor: pointer;
   padding: 0.1rem 0.25rem;
@@ -674,7 +674,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .picker-move-btn:hover:not(:disabled) {
   color: var(--text, #e3e6ee);
-  background: var(--surface2, #0f2018);
+  background: var(--surface2, #1a1a24);
 }
 
 .picker-move-btn:disabled {
@@ -683,7 +683,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .picker-move-btn:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 
@@ -692,7 +692,7 @@ function onKeydown(event: KeyboardEvent): void {
   flex-shrink: 0;
   background: transparent;
   border: none;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   font-size: 1rem;
   cursor: pointer;
   padding: 0.2rem 0.3rem;
@@ -704,7 +704,7 @@ function onKeydown(event: KeyboardEvent): void {
 .picker-collapse-btn:hover { color: var(--text, #e3e6ee); }
 
 .picker-collapse-btn:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 

@@ -190,8 +190,8 @@ function fmtCAD(n: number): string {
   background: var(--muted);
 }
 
-.freshness--fresh .freshness__dot  { background: var(--accent, #4ade80); }
-.freshness--fresh                  { color: var(--accent, #4ade80); }
+.freshness--fresh .freshness__dot  { background: var(--accent, #5b3df5); }
+.freshness--fresh                  { color: var(--accent, #5b3df5); }
 
 .freshness--stale .freshness__dot  { background: var(--warn, #fbbf24); }
 .freshness--stale                  { color: var(--warn, #fbbf24); }
@@ -219,7 +219,7 @@ function fmtCAD(n: number): string {
 }
 
 .chq-input:focus {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 

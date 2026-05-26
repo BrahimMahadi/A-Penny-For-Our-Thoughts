@@ -329,7 +329,7 @@ const testResult = computed(() => {
 .rules-engine__pattern {
   font-family: ui-monospace, monospace;
   font-size: 0.8rem;
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -428,14 +428,14 @@ const testResult = computed(() => {
 }
 
 .rules-engine__test-input:focus {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 
 .rules-engine__test-match {
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
 }
 
 .rules-engine__test-no-match {
@@ -479,7 +479,7 @@ const testResult = computed(() => {
 
 .rules-modal__input:focus,
 .rules-modal__select:focus {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 

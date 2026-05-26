@@ -245,8 +245,8 @@ function clearDate(): void {
   flex-shrink: 0;
 }
 
-.pay-start__preview-dot--current { background: var(--accent, #4ade80); }
-.pay-start__preview-dot--next    { background: var(--muted, #5a7a63); }
+.pay-start__preview-dot--current { background: var(--accent, #5b3df5); }
+.pay-start__preview-dot--next    { background: var(--muted, #8b8b95); }
 
 .pay-start__preview-key {
   color: var(--muted);
@@ -296,7 +296,7 @@ function clearDate(): void {
 }
 
 .pay-start__date-input:focus {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 </style>

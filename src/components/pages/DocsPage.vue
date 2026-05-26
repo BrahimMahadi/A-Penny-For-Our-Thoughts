@@ -948,7 +948,7 @@ abc123,Paycheque,3500,false
 
 .docs-nav-btn--active {
   background: var(--surface2);
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
   font-weight: 600;
 }
 
@@ -1007,7 +1007,7 @@ abc123,Paycheque,3500,false
 .docs-mobile-item:last-child { border-bottom: none; }
 
 .docs-mobile-item--active {
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
   font-weight: 600;
 }
 
@@ -1065,7 +1065,7 @@ code {
   border: 1px solid var(--border);
   border-radius: 3px;
   padding: 0.1em 0.35em;
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
 }
 
 kbd {
@@ -1076,14 +1076,14 @@ kbd {
   padding: 0.1rem 0.4rem;
   font-family: ui-monospace, monospace;
   font-size: 0.8em;
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
 }
 
 /* ─── Inline link button ─────────────────────────────────────────── */
 .docs-inline-link {
   background: none;
   border: none;
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
   font-family: inherit;
   font-size: inherit;
   cursor: pointer;
@@ -1110,7 +1110,7 @@ kbd {
 .release-version {
   font-size: 0.95rem;
   font-weight: 800;
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
 }
 
 .release-date {

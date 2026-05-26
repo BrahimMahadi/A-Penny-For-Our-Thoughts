@@ -276,7 +276,7 @@ function isFiring(alertId: string): boolean {
 .budget-alerts__threshold {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
   flex-shrink: 0;
   min-width: 5rem;
   text-align: right;
@@ -350,7 +350,7 @@ function isFiring(alertId: string): boolean {
 
 .alerts-modal__input:focus,
 .alerts-modal__select:focus {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 

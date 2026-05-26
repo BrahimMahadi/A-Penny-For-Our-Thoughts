@@ -83,7 +83,7 @@ const deltaInfo = computed(() => {
 
 <style scoped>
 .base-stat-card {
-  background: var(--surface, #0a1810);
+  background: var(--surface, #16161e);
   border: 1px solid var(--border, #2a3041);
   border-radius: 8px;
   padding: 0.85rem 1rem 1rem;
@@ -97,7 +97,7 @@ const deltaInfo = computed(() => {
   font-size: clamp(0.65rem, 1.8vw, 0.7rem);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   font-weight: 600;
 }
 
@@ -111,14 +111,14 @@ const deltaInfo = computed(() => {
 }
 
 .base-stat-card--accent .base-stat-card__value {
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
 }
 
 .base-stat-card--muted {
   background: transparent;
 }
 .base-stat-card--muted .base-stat-card__value {
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
 }
 
 .base-stat-card__delta {
@@ -137,11 +137,11 @@ const deltaInfo = computed(() => {
   color: var(--danger, #f87171);
 }
 .base-stat-card__delta--flat {
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
 }
 
 .base-stat-card__hint {
   font-size: 0.78rem;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
 }
 </style>

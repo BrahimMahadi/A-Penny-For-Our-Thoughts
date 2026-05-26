@@ -89,7 +89,7 @@ header {
   flex-shrink: 0;
   transition: color .2s, border-color .2s;
 
-  &.active              { color: var(--accent-text); border-color: var(--accent); }
+  &.active              { color: var(--accent); border-color: var(--accent); }
   &:hover:not(.active)  { color: var(--text); }
 }
 
@@ -209,14 +209,13 @@ header {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 24px;
-  box-shadow: var(--card-shadow-sm);
+  border-radius: var(--radius-card);
+  padding: 22px;
+  box-shadow: var(--card-shadow);
   transition: var(--transition);
 
   &:hover {
     border-color: var(--border-light);
-    box-shadow: var(--card-shadow);
   }
 
   /* KPI Card — Emphasized Style */

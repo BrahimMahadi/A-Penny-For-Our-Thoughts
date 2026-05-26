@@ -558,7 +558,7 @@ const minDate = new Date().toISOString().slice(0, 7);
 }
 
 .goal-runway__ok {
-  color: var(--accent2, #4ade80);
+  color: var(--accent2, #5b3df5);
   font-weight: 600;
 }
 

@@ -90,7 +90,7 @@ const computedStatus = computed<Status>(() => {
 /* The actual coloured track (overflow:hidden clips fill border-radius) */
 .base-progress-bar__track {
   position: relative;
-  background: var(--surface2, #0f2018);
+  background: var(--surface2, #1a1a24);
   border-radius: 999px;
   overflow: hidden;
   border: 1px solid var(--border, #2a3041);
@@ -113,7 +113,7 @@ const computedStatus = computed<Status>(() => {
   }
 }
 
-.base-progress-bar__fill--on-track { background: var(--accent, #4ade80); }
+.base-progress-bar__fill--on-track { background: var(--accent, #5b3df5); }
 .base-progress-bar__fill--caution  { background: var(--warn, #fbbf24); }
 .base-progress-bar__fill--over     { background: var(--danger, #f87171); }
 

@@ -56,7 +56,7 @@ withDefaults(defineProps<Props>(), {
   align-items: center;
   text-align: center;
   padding: 2rem 1rem;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
 }
 
 .base-empty-state__icon {

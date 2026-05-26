@@ -208,7 +208,7 @@ function onBackdropClick(): void {
 }
 
 .base-modal {
-  background: var(--surface, #0a1810);
+  background: var(--surface, #16161e);
   border: 1px solid var(--border, #2a3041);
   border-radius: 12px;
   padding: 1.5rem;
@@ -253,7 +253,7 @@ function onBackdropClick(): void {
 .base-modal__close {
   background: transparent;
   border: 0;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   font-size: 1.2rem;
   cursor: pointer;
   width: 32px;
@@ -265,11 +265,11 @@ function onBackdropClick(): void {
   transition: background 0.15s ease, color 0.15s ease;
 }
 .base-modal__close:hover {
-  background: var(--surface2, #0f2018);
+  background: var(--surface2, #1a1a24);
   color: var(--text, #e3e6ee);
 }
 .base-modal__close:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 
@@ -337,7 +337,7 @@ function onBackdropClick(): void {
     transform: translateX(-50%);
     width: 36px;
     height: 4px;
-    background: var(--border-light, #244530);
+    background: var(--border-light, #2c2c3a);
     border-radius: 2px;
   }
 

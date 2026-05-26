@@ -102,8 +102,8 @@ onUnmounted(() => {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: var(--accent, #4ade80);
-  color: #0a1810;
+  background: var(--accent, #5b3df5);
+  color: #16161e;
   border: none;
   font-size: 0.82rem;
   font-weight: 800;
@@ -117,7 +117,7 @@ onUnmounted(() => {
 }
 .user-menu__avatar:hover  { filter: brightness(1.12); }
 .user-menu__avatar:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 
@@ -169,7 +169,7 @@ onUnmounted(() => {
   background: rgba(248, 113, 113, 0.08);
 }
 .user-menu__signout:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: -2px;
 }
 

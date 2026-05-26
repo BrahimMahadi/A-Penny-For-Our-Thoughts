@@ -152,7 +152,7 @@ const chartOptions = computed(() => {
   justify-content: center;
   font-size: 1.5rem;
   font-weight: 800;
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
   pointer-events: none;
 }
 

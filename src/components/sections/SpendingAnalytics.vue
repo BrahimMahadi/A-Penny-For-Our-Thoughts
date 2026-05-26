@@ -745,7 +745,7 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
 }
 
 .period-item__header:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: -2px;
 }
 
@@ -802,7 +802,7 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
 .period-item__cat-chip {
   font-size: 0.68rem;
   font-weight: 600;
-  background: color-mix(in srgb, var(--accent, #4ade80) 10%, transparent);
+  background: color-mix(in srgb, var(--accent, #5b3df5) 10%, transparent);
   color: var(--muted);
   border-radius: 4px;
   padding: 0.1rem 0.4rem;

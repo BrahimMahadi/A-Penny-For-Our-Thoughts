@@ -416,7 +416,7 @@ function applyAllocation(): void {
 
 /* ─── Modal shell ───────────────────────────────────────────────── */
 .ob-modal {
-  background: var(--surface, #0a1810);
+  background: var(--surface, #16161e);
   border: 1px solid var(--border, #2a3041);
   border-radius: 16px;
   padding: 2rem;
@@ -455,7 +455,7 @@ function applyAllocation(): void {
 }
 
 .ob-dot--active {
-  background: var(--accent, #4ade80);
+  background: var(--accent, #5b3df5);
   transform: scale(1.35);
 }
 
@@ -484,7 +484,7 @@ function applyAllocation(): void {
 .ob-body {
   margin: 0;
   font-size: 0.9rem;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   line-height: 1.6;
   text-align: center;
 }
@@ -502,7 +502,7 @@ function applyAllocation(): void {
 .ob-checklist li {
   font-size: 0.88rem;
   padding: 0.55rem 0.75rem;
-  background: var(--surface2, #0f2018);
+  background: var(--surface2, #1a1a24);
   border: 1px solid var(--border, #2a3041);
   border-radius: 8px;
 }
@@ -526,11 +526,11 @@ function applyAllocation(): void {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
 }
 
 .ob-input {
-  background: var(--surface2, #0f2018);
+  background: var(--surface2, #1a1a24);
   border: 1px solid var(--border, #2a3041);
   border-radius: 8px;
   padding: 0.6rem 0.8rem;
@@ -544,7 +544,7 @@ function applyAllocation(): void {
 
 .ob-input:focus {
   outline: none;
-  border-color: var(--accent, #4ade80);
+  border-color: var(--accent, #5b3df5);
 }
 
 .ob-input--error {
@@ -567,13 +567,13 @@ function applyAllocation(): void {
   align-items: center;
   gap: 0.6rem;
   font-size: 0.88rem;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   cursor: pointer;
   user-select: none;
 }
 
 .ob-checkbox {
-  accent-color: var(--accent, #4ade80);
+  accent-color: var(--accent, #5b3df5);
   width: 1rem;
   height: 1rem;
   cursor: pointer;
@@ -601,13 +601,13 @@ function applyAllocation(): void {
   letter-spacing: 0.06em;
 }
 
-.ob-alloc-badge--needs   { background: rgba(74, 222, 128, 0.12); color: var(--accent,  #4ade80); }
+.ob-alloc-badge--needs   { background: rgba(74, 222, 128, 0.12); color: var(--accent,  #5b3df5); }
 .ob-alloc-badge--wants   { background: rgba(251, 191,  36, 0.12); color: #fbbf24; }
 .ob-alloc-badge--savings { background: rgba(52,  211, 153, 0.12); color: var(--accent2, #34d399); }
 
 .ob-alloc-pct {
   font-size: 0.88rem;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   min-width: 1.2rem;
 }
 
@@ -670,7 +670,7 @@ function applyAllocation(): void {
     transform: translateX(-50%);
     width: 36px;
     height: 4px;
-    background: var(--border-light, #244530);
+    background: var(--border-light, #2c2c3a);
     border-radius: 2px;
   }
 }

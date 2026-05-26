@@ -232,7 +232,7 @@ function remove(id: string): void {
   gap: 0.6rem;
   padding: 0.45rem 0.6rem;
   border-radius: 6px;
-  background: var(--surface2, #0f2018);
+  background: var(--surface2, #1a1a24);
   border: 1px solid var(--border, #2a3041);
 }
 
@@ -302,7 +302,7 @@ function remove(id: string): void {
   gap: 0.5rem;
   margin-top: 0.5rem;
   padding: 0.4rem 0.6rem;
-  background: var(--surface2, #0f2018);
+  background: var(--surface2, #1a1a24);
   border: 1px solid var(--border);
   border-radius: 6px;
   width: fit-content;

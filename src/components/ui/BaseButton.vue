@@ -75,7 +75,7 @@ const classes = computed(() => [
 }
 
 .base-btn:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 
@@ -105,20 +105,20 @@ const classes = computed(() => [
 
 /* ─── Variants ────────────────────────────────────────────────── */
 .base-btn--primary {
-  background: var(--accent, #4ade80);
-  color: var(--surface, #0a1810);
+  background: var(--accent, #5b3df5);
+  color: var(--surface, #16161e);
 }
 .base-btn--primary:hover:not(.base-btn--disabled) {
   filter: brightness(1.1);
 }
 
 .base-btn--secondary {
-  background: var(--surface2, #0f2018);
+  background: var(--surface2, #1a1a24);
   color: var(--text, #e3e6ee);
   border-color: var(--border, #2a3041);
 }
 .base-btn--secondary:hover:not(.base-btn--disabled) {
-  background: var(--surface3, #152a1e);
+  background: var(--surface3, #1f1f2a);
 }
 
 .base-btn--danger {
@@ -128,17 +128,17 @@ const classes = computed(() => [
 }
 .base-btn--danger:hover:not(.base-btn--disabled) {
   background: var(--danger, #f87171);
-  color: var(--surface, #0a1810);
+  color: var(--surface, #16161e);
 }
 
 .base-btn--ghost {
   background: transparent;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   border-color: transparent;
 }
 .base-btn--ghost:hover:not(.base-btn--disabled) {
   color: var(--text, #e3e6ee);
-  background: var(--surface2, #0f2018);
+  background: var(--surface2, #1a1a24);
 }
 
 .base-btn--outline {
@@ -147,8 +147,8 @@ const classes = computed(() => [
   border-color: var(--border, #2a3041);
 }
 .base-btn--outline:hover:not(.base-btn--disabled) {
-  background: var(--surface2, #0f2018);
-  border-color: var(--accent, #4ade80);
+  background: var(--surface2, #1a1a24);
+  border-color: var(--accent, #5b3df5);
 }
 
 /* ─── Disabled ────────────────────────────────────────────────── */

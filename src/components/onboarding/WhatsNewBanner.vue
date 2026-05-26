@@ -83,10 +83,10 @@ function dismiss(): void {
 .wnb {
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--accent, #4ade80) 8%, var(--surface, #0a1810)),
-    var(--surface, #0a1810)
+    color-mix(in srgb, var(--accent, #5b3df5) 8%, var(--surface, #16161e)),
+    var(--surface, #16161e)
   );
-  border: 1px solid color-mix(in srgb, var(--accent, #4ade80) 30%, var(--border, #2a3041));
+  border: 1px solid color-mix(in srgb, var(--accent, #5b3df5) 30%, var(--border, #2a3041));
   border-radius: 10px;
   margin-bottom: 1.25rem;
   overflow: hidden;
@@ -109,13 +109,13 @@ function dismiss(): void {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
 }
 
 .wnb__close {
   background: transparent;
   border: 0;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   font-size: 0.9rem;
   cursor: pointer;
   width: 28px;
@@ -129,12 +129,12 @@ function dismiss(): void {
 }
 
 .wnb__close:hover {
-  background: var(--surface2, #0f2018);
+  background: var(--surface2, #1a1a24);
   color: var(--text, #e3e6ee);
 }
 
 .wnb__close:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 
@@ -149,7 +149,7 @@ function dismiss(): void {
 
 .wnb__item {
   font-size: 0.83rem;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   display: flex;
   align-items: baseline;
   gap: 0.5rem;

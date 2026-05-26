@@ -279,14 +279,14 @@ function cleanup(): void {
 }
 
 .section-slot--drag-active:not(.section-slot--dragging):hover {
-  outline-color: var(--accent, #4ade80);
+  outline-color: var(--accent, #5b3df5);
 }
 
 /* ─── Drop indicator line ──────────────────────────────────────── */
 .drop-indicator {
   height: 3px;
   border-radius: 2px;
-  background: var(--accent, #4ade80);
+  background: var(--accent, #5b3df5);
   box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
   margin: -0.25rem 0;
   animation: drop-indicator-pulse 0.8s ease-in-out infinite alternate;

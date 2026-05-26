@@ -140,7 +140,7 @@ function toggleCollapse(): void {
 
 <style scoped>
 .base-card {
-  background: var(--surface, #0a1810);
+  background: var(--surface, #16161e);
   border: 1px solid var(--border, #2a3041);
   border-radius: 10px;
   padding: 1.25rem 1.5rem;
@@ -182,7 +182,7 @@ function toggleCollapse(): void {
 /* ─── Drag handle ──────────────────────────────────────────────── */
 .base-card__drag-handle {
   flex-shrink: 0;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   font-size: 1rem;
   line-height: 1;
   cursor: grab;
@@ -195,7 +195,7 @@ function toggleCollapse(): void {
 
 .base-card__drag-handle:hover {
   color: var(--text, #e3e6ee);
-  background: var(--surface2, #0f2018);
+  background: var(--surface2, #1a1a24);
 }
 
 .base-card__drag-handle:active {
@@ -211,7 +211,7 @@ function toggleCollapse(): void {
 .base-card__collapse-btn {
   background: transparent;
   border: none;
-  color: var(--muted, #5a7a63);
+  color: var(--muted, #8b8b95);
   cursor: pointer;
   padding: 0.2rem 0.3rem;
   font-size: 0.7rem;
@@ -226,7 +226,7 @@ function toggleCollapse(): void {
 }
 
 .base-card__collapse-btn:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 

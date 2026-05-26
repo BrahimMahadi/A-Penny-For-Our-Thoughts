@@ -305,7 +305,7 @@ function handleKeydown(e: KeyboardEvent): void {
   font-family: inherit;
 }
 .login-input::placeholder { color: var(--muted, #6b7a99); }
-.login-input:focus { border-color: var(--accent, #4ade80); }
+.login-input:focus { border-color: var(--accent, #5b3df5); }
 .login-input:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ─── Buttons ───────────────────────────────────────────────────── */
@@ -330,13 +330,13 @@ function handleKeydown(e: KeyboardEvent): void {
 }
 .login-btn:not(:disabled):hover { filter: brightness(1.1); }
 .login-btn:focus-visible {
-  outline: 2px solid var(--accent, #4ade80);
+  outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
 }
 
 .login-btn--primary {
-  background: var(--accent, #4ade80);
-  color: #0a1810;
+  background: var(--accent, #5b3df5);
+  color: #16161e;
 }
 
 .login-btn--google {
@@ -375,7 +375,7 @@ function handleKeydown(e: KeyboardEvent): void {
   width: 16px;
   height: 16px;
   border: 2px solid rgba(10, 24, 16, 0.3);
-  border-top-color: #0a1810;
+  border-top-color: #16161e;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   flex-shrink: 0;
@@ -426,7 +426,7 @@ function handleKeydown(e: KeyboardEvent): void {
   margin-top: 0.5rem;
   background: none;
   border: none;
-  color: var(--accent, #4ade80);
+  color: var(--accent, #5b3df5);
   font-size: 0.85rem;
   cursor: pointer;
   text-decoration: underline;
