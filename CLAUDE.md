@@ -17,7 +17,7 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (866 tests across 27 spec files)
+- Testing: Vitest + @vue/test-utils (866 tests across 27 spec files)  <!-- update on every merge to main -->
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
@@ -44,6 +44,17 @@ This checklist must be completed in the same commit/PR as the feature work. Neve
 - Every branch must pass the full test suite (`npx vitest run`) and TypeScript check (`npx tsc --noEmit`) with zero errors before opening a PR.
 - All documentation (CLAUDE.md test count, PHASE_TRACKING.md, WhatsNewBanner, DocsPage, ARCHITECTURE.md) must be updated in the same branch as the feature work.
 - Never commit directly to `main`. Direct pushes to `main` are reserved solely for the initial project bootstrap or emergency hotfixes that cannot wait for a PR cycle — and must be flagged as such.
+
+---
+
+## Sprint Planning Policy
+
+**Whenever a sprint plan is agreed upon, it must be documented immediately and kept up to date throughout the dev cycle.**
+
+- As soon as a sprint plan is finalised in conversation, add it to `docs/PHASE_TRACKING.md` — both a detailed entry for the sprint and a row in the summary table.
+- Mark sprint entries `🔲 PLANNED` when agreed, `🟡 IN PROGRESS` when work begins, and `✅ COMPLETE` when merged.
+- If the scope of a sprint changes mid-cycle (features added, removed, or deferred), update the PHASE_TRACKING.md entry in the same commit as the scope change — never let the doc fall behind reality.
+- The active redesign sprint plan lives in `docs/PHASE_TRACKING.md` under the **"Vivid Modern Redesign (v2.0.0)"** section. All redesign sprint status must be kept current there.
 
 ---
 

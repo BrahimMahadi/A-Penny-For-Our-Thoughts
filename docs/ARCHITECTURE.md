@@ -414,6 +414,8 @@ The budget store exposes `exportCSV()` and `importCSV(text)` actions that call t
 
 **Branching policy**: All changes must be done in separate branches, tested thoroughly, and have all documentation updated to reflect the change before being ready to merge into `main`. Never commit directly to `main`. Every branch must pass `npx vitest run` and `npx tsc --noEmit` with zero errors, and all version-bearing docs (CLAUDE.md, PHASE_TRACKING.md, WhatsNewBanner, DocsPage) must be updated in the same branch as the feature work.
 
+**Sprint planning policy**: Whenever a sprint plan is agreed upon, it must be documented immediately in `docs/PHASE_TRACKING.md` — both a detailed entry and a row in the summary table. Entries are marked 🔲 PLANNED → 🟡 IN PROGRESS → ✅ COMPLETE as work progresses. If scope changes mid-sprint, the PHASE_TRACKING.md entry must be updated in the same commit as the scope change. The active redesign plan lives under the **"Vivid Modern Redesign (v2.0.0)"** section.
+
 ---
 
 ## Key Design Decisions

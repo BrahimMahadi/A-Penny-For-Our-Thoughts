@@ -1654,5 +1654,191 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 
 **Last Updated**: May 2026
 **Current Version**: v1.19.0
-**Next Up**: TBD
-**Current Branch**: `main`
+**Next Up**: Redesign Sprint 3 — Dashboard
+**Current Branch**: `feat/redesign-sprint-3-dashboard`
+
+---
+
+---
+
+# Vivid Modern Redesign — v2.0.0 🎨
+
+**Goal**: Full visual redesign of the app — replace the Botanical green palette with the Vivid Modern violet system, move navigation from a top tab bar to a 64px icon sidebar, and rebuild each tab's layout and interactions to match the `design_handoff_schedule_spending/` mockups.
+
+**Design source**: `docs/design_handoff_schedule_spending/` (HTML/React prototype + screenshots)  
+**Target release**: `v2.0.0`  
+**Sprint naming**: `feat/redesign-sprint-N-description`
+
+> **Sprint planning policy**: Whenever scope changes mid-sprint, this section must be updated in the same commit. Entries move from 🔲 PLANNED → 🟡 IN PROGRESS → ✅ COMPLETE as work lands.
+
+---
+
+## Redesign Sprint Summary
+
+| Sprint | Description | Branch | Status | Version |
+|--------|-------------|--------|--------|---------|
+| RS-1 | Design tokens — Vivid Modern palette | `feat/redesign-sprint-1-tokens` | ✅ Complete | — |
+| RS-2 | App shell — 64px sidebar, BottomNav, GoalsPage stub | `feat/redesign-sprint-2-shell` | ✅ Complete | — |
+| fix | Dev auth bypass (`VITE_DISABLE_AUTH`) | `fix/dev-auth-bypass` | ✅ Complete | — |
+| RS-3 | Dashboard redesign — hero KPI, quick-add, header | `feat/redesign-sprint-3-dashboard` | 🟡 In Progress | — |
+| RS-4 | Schedule & Spending CSS polish + search input | `feat/redesign-sprint-4-schedule-spending` | 🔲 Planned | — |
+| RS-5 | Goals tab — full implementation + Advanced folded in | `feat/redesign-sprint-5-goals` | 🔲 Planned | — |
+| RS-6 | Docs tab reskin | `feat/redesign-sprint-6-docs` | 🔲 Planned | — |
+| RS-7 | Settings redesign | `feat/redesign-sprint-7-settings` | 🔲 Planned | — |
+| RS-8 | Bottom status bar (sticky ticker) | `feat/redesign-sprint-8-statusbar` | 🔲 Planned | — |
+| RS-9 | Polish, tests, v2.0.0 release | `feat/redesign-sprint-9-release` | 🔲 Planned | v2.0.0 |
+
+---
+
+## RS-1 — Design Tokens ✅
+**Branch**: `feat/redesign-sprint-1-tokens`  
+**Status**: ✅ **COMPLETE** — May 2026
+
+### Delivered
+- `src/css/tokens.css` — full rewrite: Botanical green → Vivid Modern violet palette
+  - `:root` light theme: `--accent: #5b3df5`, `--accent2: #c8f24a`, all surface/text/border/status tokens
+  - `[data-theme="dark"]`: matching dark palette; `--success` correctly kept as `#4ade80` (NOT overwritten to violet)
+- `src/styles.css` — `@theme inline` bridge extended: `--color-accent-soft`, `--color-success`, `--color-subtle`, `--color-track`, `--radius-card` all wired to Tailwind
+- `src/css/layout.css` — `.card` border-radius bumped to `var(--radius-card)` (18px), shadow upgraded to `var(--card-shadow)`, padding 22px
+- `index.html` — Google Fonts preconnect + Inter (400–800) + JetBrains Mono (400–700)
+- 25 component files — botanical fallback hex values scrubbed and replaced with Vivid Modern equivalents via bulk replacement
+- **Bug fixed**: dark `--success` was accidentally overwritten to accent violet; restored to `#4ade80`
+- 866/866 tests pass · `tsc --noEmit` clean
+
+---
+
+## RS-2 — App Shell (Sidebar Nav) ✅
+**Branch**: `feat/redesign-sprint-2-shell`  
+**Status**: ✅ **COMPLETE** — May 2026
+
+### Delivered
+- `src/components/ui/AppSidebar.vue` — 64px sticky icon sidebar
+  - Brand `¢` logo (accent bg), 6 nav buttons (◧▥◐◎☰◆) with `accent-soft` active state
+  - Theme toggle, avatar/UserMenu at bottom
+  - Hidden via CSS at `≤768px`
+- `src/components/ui/BottomNav.vue` — mobile bottom bar (`≤768px`)
+  - Icon + label tabs with accent indicator pill; mirrors same 6 tabs as sidebar
+- `src/components/pages/GoalsPage.vue` — stub (placeholder for RS-5 full implementation)
+- `src/App.vue` — restructured: `flex-row` layout (sidebar + content column); top header strip (brand + toolbar, no tabs); keyboard shortcuts renumbered: 1–6 = Dashboard/Schedule/Spending/Goals/Docs/Settings, 7 = Advanced
+- `src/types/state.ts` — `TabId` extended with `'goals'`
+- `src/css/layout.css` — legacy top-tab CSS rules removed
+- `tests/components/App.spec.ts` — GoalsPage mock added; shortcut `4 → Goals` test updated
+- 866/866 tests pass · `tsc --noEmit` clean
+
+---
+
+## fix — Dev Auth Bypass ✅
+**Branch**: `fix/dev-auth-bypass`  
+**Status**: ✅ **COMPLETE** — May 2026
+
+### Delivered
+- `src/lib/supabase.ts` — `isSupabaseConfigured()` returns `false` when `VITE_DISABLE_AUTH=true`
+- `src/env.d.ts` — `ImportMetaEnv` interface declared; all `VITE_*` vars properly typed as `string | undefined`
+- `src/stores/budget.ts` — null-coalescing fallback for `VITE_SUPABASE_ANON_KEY` in fetch header (latent TS bug fixed)
+- `.env.example` — `VITE_DISABLE_AUTH` documented with usage instructions
+- `.env.development.local` (gitignored) — created locally with `VITE_DISABLE_AUTH=true` for immediate use
+- 866/866 tests pass · `tsc --noEmit` clean
+
+---
+
+## RS-3 — Dashboard Redesign 🟡
+**Branch**: `feat/redesign-sprint-3-dashboard`  
+**Status**: 🟡 **IN PROGRESS** — May 2026
+
+### Goal
+Bring DashboardPage.vue in line with the Vivid Modern mockup. The page structure and section components already exist — this sprint is about the page-level layout, header, and hero KPI area.
+
+### Scope
+- **Page header**: "Welcome back, Brahim" eyebrow + "Your money, May YYYY" h1; right side: "Manage widgets" secondary button + "Quick add to wants" primary accent button (pill shape, accent bg, white text, shadow)
+- **Hero KPI card**: Full-width accent-background card, "Available to spend" label, large bi-weekly wants balance, "until [next pay date]" subtitle, decorative circle overlays
+- **KPI row**: Replace the current 4-stat grid with hero (1.4fr) + Due-in-7-days + Needs + Net Worth layout
+- **Section spacing**: 18px gap between cards, consistent with `var(--space-lg)` + card radius 18px already applied
+- **Advanced tab sections folded into Goals** (RS-5): no action needed in this sprint
+
+### Out of scope for RS-3
+- Any changes to section component internals (those are correct already)
+- Schedule, Spending, Goals, Docs, Settings pages
+
+---
+
+## RS-4 — Schedule & Spending CSS Polish + Search 🔲
+**Branch**: `feat/redesign-sprint-4-schedule-spending`  
+**Status**: 🔲 **PLANNED**
+
+### Scope
+**Schedule tab:**
+- Token and spacing alignment pass (eyebrow header, KPI row, calendar cells, section shadows already use Vivid Modern tokens from RS-1)
+- No functional changes — layout already implemented in Sprint 15–20
+
+**Spending tab:**
+- Add **search input** (pill-shaped, leading magnifier SVG, trailing `×` clear button) next to Sort control above the purchases table
+- Filter logic: name + category label + card, composing (AND) with existing chip filter
+- Empty state row when no results: "No purchases match `{query}` in `{category}`. Clear filters"
+- Live counter: `{filtered.length} of {total.length}` in card header
+- Visual polish pass on KPI row, donut, daily spend chart to match mockup spacing
+
+---
+
+## RS-5 — Goals Tab (Full Implementation + Advanced folded in) 🔲
+**Branch**: `feat/redesign-sprint-5-goals`  
+**Status**: 🔲 **PLANNED**
+
+### Scope
+- Replace GoalsPage stub with full content
+- **Top section**: Savings goals (reuse existing `SavingsGoals.vue` section) + Wishlist section
+- **Advanced analytics folded in**: The Advanced tab (SpendingTrendSection, SpendingAnalytics, BudgetVsActual, NetWorth) is merged into Goals as a collapsible "Analytics" section group. If the analytics content feels out of place after implementation, it will be removed entirely at RS-9 polish pass.
+- `AdvancedPage.vue` remains accessible via keyboard shortcut `7` but the Advanced nav item is removed from `AppSidebar` and `BottomNav` (it's already absent from both — only keyboard shortcut access)
+
+---
+
+## RS-6 — Docs Tab Reskin 🔲
+**Branch**: `feat/redesign-sprint-6-docs`  
+**Status**: 🔲 **PLANNED**
+
+### Scope
+- Visual pass on `DocsPage.vue` (1,197 lines, purely presentational)
+- Update heading styles, sidebar nav, code blocks, spacing to match Vivid Modern tokens
+- No content changes — docs content remains the same
+
+---
+
+## RS-7 — Settings Redesign 🔲
+**Branch**: `feat/redesign-sprint-7-settings`  
+**Status**: 🔲 **PLANNED**
+
+### Scope
+- Section headers with proper eyebrow labels + dividers
+- Input field styling to match Vivid Modern (border-radius, focus ring color)
+- Spacing and card layout polish
+- No functional changes
+
+---
+
+## RS-8 — Bottom Status Bar 🔲
+**Branch**: `feat/redesign-sprint-8-statusbar`  
+**Status**: 🔲 **PLANNED**
+
+### Scope
+- New `AppStatusBar.vue` component — sticky strip between the header and page content (above the page, not the bottom nav)
+- **Left**: recent purchases ticker (last 3 purchases, cycling)
+- **Right**: "Up next" bill reminder (nearest upcoming scheduled item)
+- Wired to `useBudgetStore` for live data
+- Hidden on mobile (bottom nav takes that space)
+
+---
+
+## RS-9 — Polish, Tests & v2.0.0 Release 🔲
+**Branch**: `feat/redesign-sprint-9-release`  
+**Status**: 🔲 **PLANNED**  
+**Target version**: `v2.0.0`
+
+### Scope
+- Final visual QA pass across all 6 tabs in both light and dark themes
+- Decide whether Advanced analytics in Goals tab stays or is removed
+- Run full test suite; fix any regressions
+- Merge all open redesign branches (RS-3 through RS-8) to `main` via PRs
+- Bump `APP_VERSION` in `WhatsNewBanner.vue` to `'2.0.0'` with redesign highlights
+- Update `docs/PHASE_TRACKING.md` summary table
+- Update `CLAUDE.md` test count
+- Update `docs/ARCHITECTURE.md` and `docs/README.md` version references
+- Tag `v2.0.0`
