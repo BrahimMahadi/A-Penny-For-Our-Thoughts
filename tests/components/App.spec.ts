@@ -21,6 +21,7 @@ import { setActivePinia, createPinia } from 'pinia';
 // Mock heavy child pages so the App renders quickly
 vi.mock('@/components/pages/DashboardPage.vue', () => ({ default: { template: '<div data-testid="dashboard-page" />' } }));
 vi.mock('@/components/pages/SchedulePage.vue',  () => ({ default: { template: '<div data-testid="schedule-page" />' } }));
+vi.mock('@/components/pages/GoalsPage.vue',     () => ({ default: { template: '<div data-testid="goals-page" />' } }));
 vi.mock('@/components/pages/DocsPage.vue',       () => ({ default: { template: '<div data-testid="docs-page" />' } }));
 vi.mock('@/components/pages/SettingsPage.vue',   () => ({ default: { template: '<div data-testid="settings-page" />' } }));
 
@@ -268,17 +269,17 @@ describe('App tab navigation', () => {
   });
 });
 
-// ─── Sprint 7: Settings tab keyboard shortcut ─────────────────────────────────
+// ─── Sprint 7 / Redesign Sprint 2: Settings tab + updated keyboard shortcuts ───
 
 describe('App Sprint 7 — Settings shortcut', () => {
-  it('4 key switches to Docs tab', async () => {
+  it('4 key switches to Goals tab', async () => {
     const ui = useUiStore();
     const ww = mountApp();
 
     fireKey('4');
     await ww.vm.$nextTick();
 
-    expect(ui.activeTab).toBe('docs');
+    expect(ui.activeTab).toBe('goals');
   });
 
   it('Settings tab shows aria-selected=true when active', async () => {
