@@ -1682,7 +1682,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | fix | Dev auth bypass (`VITE_DISABLE_AUTH`) | `fix/dev-auth-bypass` | ✅ Complete | — |
 | RS-3 | Dashboard redesign — hero KPI, quick-add, header | `feat/redesign-sprint-3-dashboard` | ✅ Complete | — |
 | RS-4 | Schedule & Spending CSS polish + search input | `feat/redesign-sprint-4-schedule-spending` | ✅ Complete | — |
-| RS-5 | Goals tab — full implementation + Advanced folded in | `feat/redesign-sprint-5-goals` | 🔲 Planned | — |
+| RS-5 | Goals tab — full implementation + Advanced folded in | `feat/redesign-sprint-5-goals` | ✅ Complete | — |
 | RS-6 | Docs tab reskin | `feat/redesign-sprint-6-docs` | 🔲 Planned | — |
 | RS-7 | Settings redesign | `feat/redesign-sprint-7-settings` | 🔲 Planned | — |
 | RS-8 | Bottom status bar (sticky ticker) | `feat/redesign-sprint-8-statusbar` | 🔲 Planned | — |
@@ -1785,15 +1785,30 @@ Bring DashboardPage.vue in line with the Vivid Modern mockup. The page structure
 
 ---
 
-## RS-5 — Goals Tab (Full Implementation + Advanced folded in) 🔲
+## RS-5 — Goals Tab (Full Implementation + Advanced folded in) ✅
 **Branch**: `feat/redesign-sprint-5-goals`  
-**Status**: 🔲 **PLANNED**
+**Status**: ✅ **COMPLETE** — May 2026
 
-### Scope
-- Replace GoalsPage stub with full content
-- **Top section**: Savings goals (reuse existing `SavingsGoals.vue` section) + Wishlist section
-- **Advanced analytics folded in**: The Advanced tab (SpendingTrendSection, SpendingAnalytics, BudgetVsActual, NetWorth) is merged into Goals as a collapsible "Analytics" section group. If the analytics content feels out of place after implementation, it will be removed entirely at RS-9 polish pass.
-- `AdvancedPage.vue` remains accessible via keyboard shortcut `7` but the Advanced nav item is removed from `AppSidebar` and `BottomNav` (it's already absent from both — only keyboard shortcut access)
+### Delivered
+
+**`src/components/pages/GoalsPage.vue`** — Complete rewrite (stub → full page)
+- ✅ **Page header**: "Goals" eyebrow + "What you're working toward" h1; right-side CTAs "+ New savings goal" (accent) and "+ Add wishlist item" (secondary) — wired to section modal refs via `defineExpose`
+- ✅ **Summary KPI row** (4 StatCards): Total saved (success variant, with /target hint) · Overall progress (% across N goals) · Net worth (danger variant if negative) · Wishlist items count
+- ✅ **Savings Goals** section embedded in a collapsible `BaseCard`; header CTA calls `savingsGoalsRef.openAdd()`
+- ✅ **Wishlist** section embedded in a collapsible `BaseCard`; header CTA calls `wishlistRef.openAdd()`
+- ✅ **Analytics section group** (folded in from Advanced tab): toggle button (`📊 Analytics` with rotating chevron) reveals 4 collapsible BaseCards: 6-Month Spending Trend · Spending Analytics · Budget vs. Actual · Net Worth; analytics sectionIds prefixed with `goals-` to avoid ui-store collapse-state collision with AdvancedPage
+- ✅ Responsive: KPI row 4→2 cols at ≤700px; header stacks vertically + buttons full-width at ≤540px
+
+**`src/components/sections/SavingsGoals.vue`**
+- ✅ Added `defineExpose({ openAdd })` — parent pages can trigger the Add Goal modal from an external button
+
+**`src/components/sections/Wishlist.vue`**
+- ✅ Added `defineExpose({ openAdd })` — parent pages can trigger the Add Item modal from an external button
+
+**`src/components/pages/AdvancedPage.vue`** — Bug fix
+- ✅ Drop-indicator `box-shadow` replaced old hard-coded `rgba(74, 222, 128, 0.5)` with `color-mix(in srgb, var(--accent) 40%, transparent)`
+
+- ✅ 866/866 tests pass · `tsc --noEmit` clean
 
 ---
 

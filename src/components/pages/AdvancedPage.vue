@@ -175,7 +175,7 @@ function cleanup(): void {
   height: 3px;
   border-radius: 2px;
   background: var(--accent, #5b3df5);
-  box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
   margin: -0.25rem 0;
   animation: drop-indicator-pulse 0.8s ease-in-out infinite alternate;
 }

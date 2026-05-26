@@ -78,6 +78,9 @@ function remove(id: string): void {
   budget.deleteWishlistItem(id);
   toast.show('Item removed.', 'success');
 }
+
+// Allow the parent page to trigger the Add modal from a header CTA
+defineExpose({ openAdd });
 </script>
 
 <template>

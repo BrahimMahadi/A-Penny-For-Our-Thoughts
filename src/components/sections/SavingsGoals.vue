@@ -118,6 +118,9 @@ function progressBarStatus(status: string): 'on-track' | 'caution' | 'over' {
 
 // Current month YYYY-MM for date input min value
 const minDate = new Date().toISOString().slice(0, 7);
+
+// Allow the parent page to trigger the Add modal from a header CTA
+defineExpose({ openAdd });
 </script>
 
 <template>
