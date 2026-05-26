@@ -448,8 +448,8 @@ export const useBudgetStore = defineStore('budget', {
         const signal = AbortSignal.timeout ? AbortSignal.timeout(5_000) : undefined;
         const probe = await fetch(probeUrl, {
           headers: {
-            apikey:        VITE_SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${VITE_SUPABASE_ANON_KEY}`,
+            apikey:        VITE_SUPABASE_ANON_KEY ?? '',
+            Authorization: `Bearer ${VITE_SUPABASE_ANON_KEY ?? ''}`,
           },
           signal,
         });
