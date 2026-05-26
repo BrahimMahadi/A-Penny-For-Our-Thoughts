@@ -103,6 +103,7 @@ function makeInitialUiState(): UiState {
     collapsedSections: loadCollapsedSections(),
     sectionOrder: loadSectionOrder(),
     advancedSectionOrder: loadAdvancedSectionOrder(),
+    sectionPickerOpen: false,
   };
 }
 
@@ -211,6 +212,20 @@ export const useUiStore = defineStore('ui', {
       [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
       this.advancedSectionOrder = newOrder;
       saveAll(this.collapsedSections, this.sectionOrder, this.advancedSectionOrder);
+    },
+
+    // ─── Section picker ───────────────────────────────────────────
+
+    openSectionPicker(): void {
+      this.sectionPickerOpen = true;
+    },
+
+    closeSectionPicker(): void {
+      this.sectionPickerOpen = false;
+    },
+
+    toggleSectionPicker(): void {
+      this.sectionPickerOpen = !this.sectionPickerOpen;
     },
 
     // ─── Analytics panel ─────────────────────────────────────────

@@ -153,6 +153,12 @@ export interface UiState {
    * Defaults to the canonical order from dashboardSections.ts (ADVANCED_SECTIONS).
    */
   advancedSectionOrder: string[];
+  /**
+   * Whether the SectionPicker panel is open.
+   * Managed via ui.toggleSectionPicker() / openSectionPicker() / closeSectionPicker().
+   * Can be toggled from the Dashboard "Manage widgets" button or keyboard shortcut G.
+   */
+  sectionPickerOpen: boolean;
 }
 
 // ─── Storage keys (single source of truth) ───────────────────────

@@ -83,7 +83,7 @@ function handleExport(): void {
 }
 
 // ─── Section picker ───────────────────────────────────────────────────────────
-const sectionPickerOpen = ref(false);
+// State lives in ui store so DashboardPage can open it via "Manage widgets" button.
 
 // ─── Keyboard shortcut help panel ─────────────────────────────────────────────
 const showShortcutHelp = ref(false);
@@ -113,7 +113,7 @@ useKeyboard('6', () => { ui.setActiveTab('settings'); },                     { g
 useKeyboard('7', () => { ui.setActiveTab('advanced'); },                     { guardFromInputs: true });
 useKeyboard('e', () => { handleExport(); },                                  { guardFromInputs: true });
 useKeyboard('t', () => { theme.toggle(); },                                  { guardFromInputs: true });
-useKeyboard('g', () => { sectionPickerOpen.value = !sectionPickerOpen.value; }, { guardFromInputs: true });
+useKeyboard('g', () => { ui.toggleSectionPicker(); }, { guardFromInputs: true });
 
 // ─── Swipe to change tab on mobile ────────────────────────────────────────
 const TAB_ORDER: TabId[] = ['dashboard', 'schedule', 'spending', 'goals', 'docs', 'settings'];
@@ -214,10 +214,10 @@ useSwipe(
     <!-- ── Option B: Floating section handle ───────────────── -->
     <button
       class="section-handle"
-      :class="{ 'section-handle--open': sectionPickerOpen }"
+      :class="{ 'section-handle--open': ui.sectionPickerOpen }"
       aria-label="Open section picker (G)"
       title="Manage sections (G)"
-      @click="sectionPickerOpen = !sectionPickerOpen"
+      @click="ui.toggleSectionPicker()"
     >
       <span
         class="section-handle__icon"
@@ -230,7 +230,10 @@ useSwipe(
     </button>
 
     <!-- Section picker panel -->
-    <SectionPicker v-model:open="sectionPickerOpen" />
+    <SectionPicker
+      :open="ui.sectionPickerOpen"
+      @update:open="(v) => v ? ui.openSectionPicker() : ui.closeSectionPicker()"
+    />
 
     <!-- First-run onboarding stepper -->
     <OnboardingModal
