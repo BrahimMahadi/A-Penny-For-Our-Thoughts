@@ -225,10 +225,11 @@ function clearDate(): void {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  padding: 0.6rem 0.75rem;
+  padding: 0.65rem 0.85rem;
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
   font-size: 0.82rem;
 }
 
@@ -264,10 +265,10 @@ function clearDate(): void {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding: 0.75rem;
+  padding: 0.75rem 0.85rem;
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 .pay-start__form-label {
@@ -284,15 +285,16 @@ function clearDate(): void {
 }
 
 .pay-start__date-input {
-  background: var(--surface);
+  background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--text);
   padding: 0.35rem 0.6rem;
   font-size: 0.875rem;
   font-family: inherit;
   height: 32px;
   color-scheme: dark light;
+  transition: border-color var(--transition-fast);
 }
 
 .pay-start__date-input:focus {

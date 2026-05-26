@@ -314,7 +314,7 @@ const testResult = computed(() => {
 }
 
 .rules-engine__row:hover {
-  background: var(--surface2);
+  background: var(--accent-soft);
 }
 
 .rules-engine__priority {
@@ -383,7 +383,7 @@ const testResult = computed(() => {
 
 .rules-engine__icon-btn:hover {
   color: var(--text);
-  background: rgba(255,255,255,0.06);
+  background: var(--surface3);
 }
 
 .rules-engine__icon-btn--danger:hover {
@@ -395,10 +395,11 @@ const testResult = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  padding: 0.6rem 0.75rem;
+  padding: 0.65rem 0.85rem;
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
 }
 
 .rules-engine__test-label {
@@ -433,9 +434,16 @@ const testResult = computed(() => {
 }
 
 .rules-engine__test-match {
-  font-size: 0.82rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  color: var(--accent, #5b3df5);
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-radius: 999px;
+  padding: 0.15em 0.6em;
 }
 
 .rules-engine__test-no-match {

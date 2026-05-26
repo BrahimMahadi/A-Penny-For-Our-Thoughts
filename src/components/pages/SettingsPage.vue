@@ -119,6 +119,13 @@ function handleClearAll(): void {
 
 <template>
   <div class="page-settings">
+
+    <!-- ── Page header ───────────────────────────────────────────── -->
+    <div class="settings-page-header">
+      <div class="settings-eyebrow">Settings</div>
+      <h1 class="settings-page-title">Your preferences</h1>
+    </div>
+
     <!-- Budget Allocation ──────────────────────────────────────────── -->
     <BaseCard title="Budget Allocation (50/30/20)">
       <BudgetAllocation />
@@ -151,37 +158,53 @@ function handleClearAll(): void {
           Export to CSV for spreadsheet analysis or JSON for a full backup.
           Imports replace all current data. The <kbd class="data-mgmt__kbd">E</kbd> key also exports CSV from anywhere.
         </p>
-        <div class="data-mgmt__grid">
-          <BaseButton
-            variant="secondary"
-            aria-label="Export CSV"
-            @click="handleExportCSV"
-          >
-            ⬆ Export CSV
-          </BaseButton>
-          <BaseButton
-            variant="secondary"
-            aria-label="Import CSV"
-            @click="openCSVImport"
-          >
-            ⬇ Import CSV
-          </BaseButton>
-          <BaseButton
-            variant="ghost"
-            size="sm"
-            aria-label="Export JSON backup"
-            @click="handleExportJSON"
-          >
-            📦 Export JSON
-          </BaseButton>
-          <BaseButton
-            variant="ghost"
-            size="sm"
-            aria-label="Import JSON backup"
-            @click="openJSONImport"
-          >
-            📂 Import JSON
-          </BaseButton>
+
+        <div class="data-mgmt__groups">
+          <!-- CSV group -->
+          <div class="data-mgmt__group">
+            <span class="data-mgmt__group-label">CSV</span>
+            <div class="data-mgmt__group-btns">
+              <BaseButton
+                variant="secondary"
+                aria-label="Export CSV"
+                @click="handleExportCSV"
+              >
+                ⬆ Export
+              </BaseButton>
+              <BaseButton
+                variant="secondary"
+                aria-label="Import CSV"
+                @click="openCSVImport"
+              >
+                ⬇ Import
+              </BaseButton>
+            </div>
+          </div>
+
+          <div class="data-mgmt__divider" aria-hidden="true" />
+
+          <!-- JSON group -->
+          <div class="data-mgmt__group">
+            <span class="data-mgmt__group-label">JSON backup</span>
+            <div class="data-mgmt__group-btns">
+              <BaseButton
+                variant="ghost"
+                size="sm"
+                aria-label="Export JSON backup"
+                @click="handleExportJSON"
+              >
+                📦 Export
+              </BaseButton>
+              <BaseButton
+                variant="ghost"
+                size="sm"
+                aria-label="Import JSON backup"
+                @click="openJSONImport"
+              >
+                📂 Import
+              </BaseButton>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -226,7 +249,10 @@ function handleClearAll(): void {
     </BaseCard>
 
     <!-- Danger Zone ────────────────────────────────────────────────── -->
-    <BaseCard title="Danger Zone">
+    <BaseCard
+      title="Danger Zone"
+      section-id="danger-zone"
+    >
       <div class="settings-danger">
         <p class="settings-danger__desc">
           Permanently clear all budget data — income, expenses, loans, savings, history,
@@ -260,18 +286,42 @@ function handleClearAll(): void {
   gap: 1rem;
 }
 
+/* ─── Page header ────────────────────────────────────────────────── */
+.settings-page-header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-eyebrow {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.settings-page-title {
+  margin: 0;
+  font-size: clamp(1.3rem, 3.5vw, 1.6rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--text);
+}
+
 /* ─── Data management ────────────────────────────────────────────── */
 .data-mgmt {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
 
 .data-mgmt__desc {
   margin: 0;
   font-size: 0.82rem;
   color: var(--muted);
-  line-height: 1.5;
+  line-height: 1.55;
   max-width: 52ch;
 }
 
@@ -279,17 +329,47 @@ function handleClearAll(): void {
   display: inline-block;
   background: var(--surface2);
   border: 1px solid var(--border);
+  border-bottom-width: 2px;
   border-radius: 4px;
-  padding: 0.05rem 0.35rem;
-  font-family: ui-monospace, monospace;
+  padding: 0.05rem 0.4rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.75rem;
-  color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
 }
 
-.data-mgmt__grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+.data-mgmt__groups {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.data-mgmt__group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.data-mgmt__group-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.data-mgmt__group-btns {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.data-mgmt__divider {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+  flex-shrink: 0;
 }
 
 .settings-file-input {
@@ -304,11 +384,13 @@ function handleClearAll(): void {
   gap: 1rem;
   flex-wrap: wrap;
 }
+
 .settings-account__email {
   margin: 0;
   font-size: 0.87rem;
   color: var(--muted);
 }
+
 .settings-account__email strong {
   color: var(--text);
 }
@@ -318,13 +400,18 @@ function handleClearAll(): void {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  padding: 0.75rem;
+  background: color-mix(in srgb, var(--danger) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 18%, transparent);
+  border-radius: 10px;
+  margin: -0.25rem;
 }
 
 .settings-danger__desc {
   font-size: 0.82rem;
   color: var(--muted);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.55;
   max-width: 52ch;
 }
 
@@ -333,5 +420,17 @@ function handleClearAll(): void {
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .data-mgmt__groups {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .data-mgmt__divider {
+    width: 100%;
+    height: 1px;
+  }
 }
 </style>

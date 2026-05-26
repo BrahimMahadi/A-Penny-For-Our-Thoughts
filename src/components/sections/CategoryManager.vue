@@ -230,10 +230,15 @@ function remove(id: string): void {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.45rem 0.6rem;
-  border-radius: 6px;
-  background: var(--surface2, #1a1a24);
-  border: 1px solid var(--border, #2a3041);
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  transition: background var(--transition-fast);
+}
+
+.cat-item:hover {
+  background: var(--accent-soft);
 }
 
 .cat-swatch {
@@ -254,10 +259,11 @@ function remove(id: string): void {
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--muted);
-  padding: 0.1rem 0.4rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
 }
 
 .cat-actions {
@@ -301,10 +307,10 @@ function remove(id: string): void {
   align-items: center;
   gap: 0.5rem;
   margin-top: 0.5rem;
-  padding: 0.4rem 0.6rem;
-  background: var(--surface2, #1a1a24);
+  padding: 0.4rem 0.7rem;
+  background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   width: fit-content;
 }
 

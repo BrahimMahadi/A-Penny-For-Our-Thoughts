@@ -251,11 +251,12 @@ function isFiring(alertId: string): boolean {
 }
 
 .budget-alerts__row:hover {
-  background: var(--surface2);
+  background: var(--accent-soft);
 }
 
 .budget-alerts__row--firing {
-  background: rgba(245, 158, 11, 0.06);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  border-left: 3px solid var(--warn);
 }
 
 .budget-alerts__firing-dot {
@@ -307,7 +308,7 @@ function isFiring(alertId: string): boolean {
 
 .budget-alerts__icon-btn:hover {
   color: var(--text);
-  background: rgba(255,255,255,0.06);
+  background: var(--surface3);
 }
 
 .budget-alerts__icon-btn--danger:hover {

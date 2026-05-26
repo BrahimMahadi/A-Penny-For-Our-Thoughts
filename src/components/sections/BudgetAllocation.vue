@@ -298,7 +298,7 @@ function save(): void {
 .display-toggle.active,
 .display-toggle:hover {
   background: var(--accent);
-  color: var(--surface);
+  color: #fff;
   border-color: var(--accent);
 }
 
@@ -315,12 +315,17 @@ function save(): void {
 }
 
 .alloc-card {
-  padding: 0.75rem;
-  border-radius: 8px;
+  padding: 0.85rem 0.75rem;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface2);
   text-align: center;
+  border-top-width: 3px;
 }
+
+.alloc-card--needs   { border-top-color: var(--accent); }
+.alloc-card--wants   { border-top-color: var(--accent2); }
+.alloc-card--savings { border-top-color: var(--warn); }
 
 .alloc-card__pct {
   font-size: 1.5rem;
@@ -329,9 +334,9 @@ function save(): void {
   font-variant-numeric: tabular-nums;
 }
 
-.alloc-card--needs .alloc-card__pct  { color: var(--accent-text, var(--accent)); }
-.alloc-card--wants .alloc-card__pct  { color: var(--accent2, #60a5fa); }
-.alloc-card--savings .alloc-card__pct { color: var(--warn, #fbbf24); }
+.alloc-card--needs .alloc-card__pct   { color: var(--accent); }
+.alloc-card--wants .alloc-card__pct   { color: var(--accent2-text); }
+.alloc-card--savings .alloc-card__pct { color: var(--warn); }
 
 .alloc-card__label {
   font-size: 0.7rem;
@@ -351,8 +356,8 @@ function save(): void {
 
 /* Segmented bar */
 .alloc-bar {
-  height: 8px;
-  border-radius: 4px;
+  height: 10px;
+  border-radius: 5px;
   display: flex;
   overflow: hidden;
   background: var(--surface2);
@@ -366,9 +371,9 @@ function save(): void {
   transition: width 0.35s ease;
 }
 
-.alloc-bar__segment--needs   { background: var(--accent-text, var(--accent)); }
-.alloc-bar__segment--wants   { background: var(--accent2, #60a5fa); }
-.alloc-bar__segment--savings { background: var(--warn, #fbbf24); }
+.alloc-bar__segment--needs   { background: var(--accent); }
+.alloc-bar__segment--wants   { background: var(--accent2); }
+.alloc-bar__segment--savings { background: var(--warn); }
 
 .alloc-hint {
   font-size: 0.8rem;

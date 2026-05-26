@@ -1685,7 +1685,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-5 | Goals tab — full implementation + Advanced folded in | `feat/redesign-sprint-5-goals` | ✅ Complete | — |
 | fix | `--accent2` contrast — add `--accent2-text` token | `fix/accent2-contrast` | ✅ Complete | — |
 | RS-6 | Docs tab reskin | `feat/redesign-sprint-6-docs` | ✅ Complete | — |
-| RS-7 | Settings redesign | `feat/redesign-sprint-7-settings` | 🔲 Planned | — |
+| RS-7 | Settings redesign | `feat/redesign-sprint-7-settings` | ✅ Complete | — |
 | RS-8 | Bottom status bar (sticky ticker) | `feat/redesign-sprint-8-statusbar` | 🔲 Planned | — |
 | RS-9 | Polish, tests, v2.0.0 release | `feat/redesign-sprint-9-release` | 🔲 Planned | v2.0.0 |
 
@@ -1865,15 +1865,48 @@ Added a companion token `--accent2-text` that is:
 
 ---
 
-## RS-7 — Settings Redesign 🔲
+## RS-7 — Settings Redesign ✅
 **Branch**: `feat/redesign-sprint-7-settings`  
-**Status**: 🔲 **PLANNED**
+**Status**: ✅ **COMPLETE** — May 2026
 
-### Scope
-- Section headers with proper eyebrow labels + dividers
-- Input field styling to match Vivid Modern (border-radius, focus ring color)
-- Spacing and card layout polish
-- No functional changes
+### Bugs fixed
+
+- **`BudgetAllocation.vue`** — `.alloc-card--wants .alloc-card__pct` used `color: var(--accent2, #60a5fa)` — missed in the accent2-text sweep because it had a custom fallback. Fixed to `var(--accent2-text)`. Bar segments cleaned up too (removed stale fallbacks).
+- **`RulesEngine.vue`** — `.icon-btn:hover { background: rgba(255,255,255,0.06) }` was invisible in light mode (semi-transparent white on white). Fixed to `var(--surface3)`.
+- **`BudgetAlerts.vue`** — Same icon-btn light-mode invisible hover fix. Firing row `rgba(245, 158, 11, 0.06)` hardcoded → `color-mix(in srgb, var(--warn) 8%, transparent)`.
+- **`CategoryManager.vue`** — Hardcoded dark-mode fallbacks `var(--surface2, #1a1a24)` and `var(--border, #2a3041)` removed; token-only values used.
+
+### Delivered (visual polish, zero functional changes)
+
+**`src/components/pages/SettingsPage.vue`**
+- ✅ Page header: "Settings" eyebrow + "Your preferences" h1 (matches GoalsPage/DocsPage pattern)
+- ✅ Data Management: flat 2×2 button grid → two labelled groups (CSV / JSON backup) with a 1px divider; `<kbd>` updated to physical key style (border-bottom-width: 2px)
+- ✅ Danger Zone inner content wrapped in `color-mix(danger 4%)` tinted block with danger-colored border for clear destructive-zone signal
+
+**`src/components/sections/BudgetAllocation.vue`**
+- ✅ Alloc cards: `border-radius: 8px → 10px`; `border-top-width: 3px` per-color accent stripe (needs=violet, wants=chartreuse, savings=amber)
+- ✅ Progress bar: height `8px → 10px`
+- ✅ Toggle button active/hover: `color: var(--surface) → #fff` (theme-safe)
+
+**`src/components/sections/PayStartDate.vue`**
+- ✅ Period preview panel: `border-radius: 8px → 10px` + `border-left: 3px solid var(--accent)`
+- ✅ Inline edit form: `border-radius: 8px → 10px`; date input background `var(--surface) → var(--surface2)` + `border-radius: 8px`
+
+**`src/components/sections/RulesEngine.vue`**
+- ✅ Row hover: `var(--surface2) → var(--accent-soft)`
+- ✅ Test block: `border-radius: 8px → 10px` + `border-left: 3px solid var(--accent)` accent stripe
+- ✅ Live match result: plain text → accent-soft pill badge
+
+**`src/components/sections/BudgetAlerts.vue`**
+- ✅ Row hover: `var(--surface2) → var(--accent-soft)`
+- ✅ Firing rows: `border-left: 3px solid var(--warn)` visual signal
+
+**`src/components/sections/CategoryManager.vue`**
+- ✅ Cat items: `border-radius: 6px → 8px`; hover → `var(--accent-soft)`
+- ✅ `cat-badge` "built-in" chip: plain muted outline → accent-soft pill (matches badge pattern)
+- ✅ Color preview panel: `border-radius: 6px → 8px`
+
+- ✅ 866/866 tests pass · `tsc --noEmit` clean
 
 ---
 
