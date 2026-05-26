@@ -254,17 +254,18 @@ const payScheduleLabel = computed(() => {
       <StatCard
         :label="`Income ${kpiLabel}`"
         :value="fmt(incomeKpi)"
-        variant="accent"
+        variant="success"
       />
       <StatCard
-        :label="`Bills + recurring`"
+        label="Bills + recurring"
         :value="fmt(billsKpi)"
         :hint="kpiLabel"
+        variant="danger"
       />
       <StatCard
         :label="`Net (income − bills)`"
         :value="fmt(netKpi)"
-        :variant="netKpi >= 0 ? 'default' : 'default'"
+        :variant="netKpi < 0 ? 'danger' : 'default'"
         :hint="netKpi >= 0 ? `${fmt(netKpi)} surplus` : `${fmt(Math.abs(netKpi))} over`"
       />
     </div>
@@ -488,12 +489,13 @@ const payScheduleLabel = computed(() => {
   padding: 5px 12px;
   font-weight: 600;
   color: var(--accent);
-  background: rgba(74, 222, 128, 0.08);
+  background: var(--accent-soft);
 }
 
 .nav-btn--today:hover {
-  background: rgba(74, 222, 128, 0.16);
+  background: var(--accent-soft);
   color: var(--accent);
+  filter: brightness(0.93);
 }
 
 /* ── View toggle ─────────────────────────────────────────────── */
@@ -742,10 +744,10 @@ const payScheduleLabel = computed(() => {
 .timeline-dot--next    {
   width: 14px;
   height: 14px;
-  background: var(--accent);
-  border-color: rgba(74, 222, 128, 0.3);
+  background: var(--success);
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
   border-width: 3px;
-  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 15%, transparent);
 }
 .timeline-dot--future  { background: var(--border); }
 
@@ -759,7 +761,7 @@ const payScheduleLabel = computed(() => {
 }
 
 .timeline-dot-sub--next {
-  color: var(--accent);
+  color: var(--success);
   font-weight: 700;
 }
 </style>

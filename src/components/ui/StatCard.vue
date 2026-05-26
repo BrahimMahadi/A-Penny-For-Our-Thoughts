@@ -25,7 +25,7 @@ interface Props {
   /** Treat delta direction as inverted (e.g. for liabilities) */
   invertDelta?: boolean;
   /** Visual emphasis variant */
-  variant?: 'default' | 'accent' | 'muted';
+  variant?: 'default' | 'accent' | 'success' | 'danger' | 'muted';
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -112,6 +112,14 @@ const deltaInfo = computed(() => {
 
 .base-stat-card--accent .base-stat-card__value {
   color: var(--accent, #5b3df5);
+}
+
+.base-stat-card--success .base-stat-card__value {
+  color: var(--success);
+}
+
+.base-stat-card--danger .base-stat-card__value {
+  color: var(--danger);
 }
 
 .base-stat-card--muted {

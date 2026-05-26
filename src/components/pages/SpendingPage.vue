@@ -12,6 +12,7 @@
 import { computed, ref } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics } from '@/composables/useAnalytics';
+import { useToast } from '@/composables/useToast';
 import { getPayPeriodForecast, getCategorySpending } from '@/utils/calculations';
 import { CATEGORY_FALLBACK_COLOR } from '@/data/categories';
 import WantsDonut from '@/components/charts/WantsDonut.vue';
@@ -22,6 +23,17 @@ import type { Purchase, ISODate } from '@/types/budget';
 
 const budget = useBudgetStore();
 const { totalMonthlyIncome } = useAnalytics();
+const toast = useToast();
+
+// ─── CSV export ───────────────────────────────────────────────────
+function handleExport(): void {
+  try {
+    budget.exportCSV();
+    toast.show('CSV exported.', 'success');
+  } catch (err) {
+    toast.show('Export failed: ' + (err instanceof Error ? err.message : String(err)), 'danger');
+  }
+}
 
 // ─── Period navigation ────────────────────────────────────────────
 const spendingOffset = ref(0);
@@ -264,6 +276,12 @@ const totalAll = computed(() =>
             Next period ›
           </button>
         </template>
+        <button
+          class="period-nav-btn period-nav-btn--export"
+          @click="handleExport"
+        >
+          Export CSV
+        </button>
       </div>
     </div>
 
@@ -657,9 +675,22 @@ const totalAll = computed(() =>
 }
 
 .period-nav-btn--current {
-  background: rgba(74, 222, 128, 0.08);
-  border-color: rgba(74, 222, 128, 0.3);
+  background: var(--accent-soft);
+  border-color: var(--accent);
   color: var(--accent);
+}
+
+.period-nav-btn--export {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+.period-nav-btn--export:hover {
+  background: var(--accent-btn, #4a2fd4);
+  border-color: var(--accent-btn, #4a2fd4);
+  color: #fff;
 }
 
 /* ── KPI row ─────────────────────────────────────────────────── */

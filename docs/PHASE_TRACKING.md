@@ -1681,7 +1681,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-2 | App shell — 64px sidebar, BottomNav, GoalsPage stub | `feat/redesign-sprint-2-shell` | ✅ Complete | — |
 | fix | Dev auth bypass (`VITE_DISABLE_AUTH`) | `fix/dev-auth-bypass` | ✅ Complete | — |
 | RS-3 | Dashboard redesign — hero KPI, quick-add, header | `feat/redesign-sprint-3-dashboard` | ✅ Complete | — |
-| RS-4 | Schedule & Spending CSS polish + search input | `feat/redesign-sprint-4-schedule-spending` | 🔲 Planned | — |
+| RS-4 | Schedule & Spending CSS polish + search input | `feat/redesign-sprint-4-schedule-spending` | ✅ Complete | — |
 | RS-5 | Goals tab — full implementation + Advanced folded in | `feat/redesign-sprint-5-goals` | 🔲 Planned | — |
 | RS-6 | Docs tab reskin | `feat/redesign-sprint-6-docs` | 🔲 Planned | — |
 | RS-7 | Settings redesign | `feat/redesign-sprint-7-settings` | 🔲 Planned | — |
@@ -1762,21 +1762,26 @@ Bring DashboardPage.vue in line with the Vivid Modern mockup. The page structure
 
 ---
 
-## RS-4 — Schedule & Spending CSS Polish + Search 🔲
+## RS-4 — Schedule & Spending CSS Polish + Search ✅
 **Branch**: `feat/redesign-sprint-4-schedule-spending`  
-**Status**: 🔲 **PLANNED**
+**Status**: ✅ **COMPLETE** — May 2026
 
-### Scope
-**Schedule tab:**
-- Token and spacing alignment pass (eyebrow header, KPI row, calendar cells, section shadows already use Vivid Modern tokens from RS-1)
-- No functional changes — layout already implemented in Sprint 15–20
+### Delivered
+**`src/components/ui/StatCard.vue`**
+- ✅ Added `success` and `danger` variant options to the `variant` prop (were `default | accent | muted`)
+- ✅ CSS: `.base-stat-card--success` colors the value with `var(--success)`; `.base-stat-card--danger` with `var(--danger)`
 
-**Spending tab:**
-- Add **search input** (pill-shaped, leading magnifier SVG, trailing `×` clear button) next to Sort control above the purchases table
-- Filter logic: name + category label + card, composing (AND) with existing chip filter
-- Empty state row when no results: "No purchases match `{query}` in `{category}`. Clear filters"
-- Live counter: `{filtered.length} of {total.length}` in card header
-- Visual polish pass on KPI row, donut, daily spend chart to match mockup spacing
+**Schedule tab (`src/components/pages/SchedulePage.vue`)**
+- ✅ KPI tiles now use semantic color variants: Income → `variant="success"` (green), Bills → `variant="danger"` (red), Net → `variant="danger"` when negative (matches `TabSchedule` mockup)
+- ✅ "Today" nav button: fixed hard-coded `rgba(74, 222, 128, 0.08)` bg → `var(--accent-soft)` (violet-tinted, matches sidebar active state)
+- ✅ Pay-schedule timeline "Next pay" dot: fixed hard-coded rgba green border + glow → `var(--success)` via `color-mix()`; dot background changed from `var(--accent)` to `var(--success)` (income = green per mockup)
+- ✅ "Next pay" sub-label: color updated from `var(--accent)` to `var(--success)` for semantic consistency
+
+**Spending tab (`src/components/pages/SpendingPage.vue`)**
+- ✅ "Current" period nav button: fixed hard-coded `rgba(74, 222, 128, 0.08)` → `var(--accent-soft)` bg + `var(--accent)` border + `var(--accent)` text (violet, matches sidebar pattern)
+- ✅ **Export CSV button** added to the period nav header area: accent-filled pill button, calls `budget.exportCSV()` + shows success/error toast via `useToast`
+- ✅ Search, filter chips, sort, live counter, empty state — already implemented in Sprint 16; this sprint verified they are fully functional with no additional changes needed
+- ✅ 866/866 tests pass · `tsc --noEmit` clean
 
 ---
 
