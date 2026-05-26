@@ -1683,6 +1683,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-3 | Dashboard redesign — hero KPI, quick-add, header | `feat/redesign-sprint-3-dashboard` | ✅ Complete | — |
 | RS-4 | Schedule & Spending CSS polish + search input | `feat/redesign-sprint-4-schedule-spending` | ✅ Complete | — |
 | RS-5 | Goals tab — full implementation + Advanced folded in | `feat/redesign-sprint-5-goals` | ✅ Complete | — |
+| fix | `--accent2` contrast — add `--accent2-text` token | `fix/accent2-contrast` | ✅ Complete | — |
 | RS-6 | Docs tab reskin | `feat/redesign-sprint-6-docs` | 🔲 Planned | — |
 | RS-7 | Settings redesign | `feat/redesign-sprint-7-settings` | 🔲 Planned | — |
 | RS-8 | Bottom status bar (sticky ticker) | `feat/redesign-sprint-8-statusbar` | 🔲 Planned | — |
@@ -1807,6 +1808,34 @@ Bring DashboardPage.vue in line with the Vivid Modern mockup. The page structure
 
 **`src/components/pages/AdvancedPage.vue`** — Bug fix
 - ✅ Drop-indicator `box-shadow` replaced old hard-coded `rgba(74, 222, 128, 0.5)` with `color-mix(in srgb, var(--accent) 40%, transparent)`
+
+- ✅ 866/866 tests pass · `tsc --noEmit` clean
+
+---
+
+## fix — `--accent2` Contrast (WCAG a11y) ✅
+**Branch**: `fix/accent2-contrast`  
+**Status**: ✅ **COMPLETE** — May 2026
+
+### Problem
+`--accent2: #c8f24a` (chartreuse) used as a text `color:` property had ~1.3:1
+contrast ratio on the light-mode white background (`--surface: #ffffff`), making
+amounts like "Remaining", forecast figures, "On Track" status chips, and section
+labels effectively invisible.
+
+### Solution
+Added a companion token `--accent2-text` that is:
+- **Light mode**: `#4d7c0f` (lime-700) — ~7.4:1 contrast on white, passes WCAG AA + AAA for normal text
+- **Dark mode**: `#c8f24a` (same as `--accent2`) — stays legible on dark surfaces
+
+### Files changed (13)
+- `src/css/tokens.css` — added `--accent2-text` to `:root` and `[data-theme="dark"]`
+- `src/css/features.css`, `ui.css`, `forms.css` — bulk `color: var(--accent2)` → `color: var(--accent2-text)` (all text uses)
+- `src/components/sections/WantsTracker.vue`, `Subscriptions.vue`, `SavingsGoals.vue`, `SpendingAnalytics.vue`, `CreditCards.vue`, `Loans.vue`, `RecurringCalendar.vue` — same replacement in scoped styles
+- `src/components/sections/NetWorth.vue`, `BudgetVsActual.vue`, `CreditCards.vue`, `RecurringCalendar.vue` — JS computed color strings updated from `'var(--accent2)'` → `'var(--accent2-text)'`
+
+**Unchanged**: all `background: var(--accent2)` fills, `border-color: var(--accent2)` decorative borders,
+`color-mix(...)` tinted backgrounds, and chart dataset colors — these remain chartreuse.
 
 - ✅ 866/866 tests pass · `tsc --noEmit` clean
 
