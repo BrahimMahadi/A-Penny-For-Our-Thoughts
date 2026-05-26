@@ -35,6 +35,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
 <template>
   <div class="page-docs">
+
+    <!-- ── Page header ───────────────────────────────────────────── -->
+    <div class="docs-page-header">
+      <div class="docs-page-header__left">
+        <div class="docs-eyebrow">Documentation</div>
+        <h1 class="docs-page-title">How it works</h1>
+      </div>
+      <div class="docs-section-badge">
+        <span
+          class="docs-section-badge__icon"
+          aria-hidden="true"
+        >{{ sections.find(s => s.id === activeSection)?.icon }}</span>
+        <span class="docs-section-badge__label">{{ sections.find(s => s.id === activeSection)?.label }}</span>
+      </div>
+    </div>
+
     <!-- ── Mobile section picker ──────────────────────────────────── -->
     <div class="docs-mobile-nav">
       <button
@@ -43,7 +59,11 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
         @click="mobileOpen = !mobileOpen"
       >
         <span>{{ sections.find(s => s.id === activeSection)?.icon }} {{ activeLabel() }}</span>
-        <span class="docs-mobile-toggle__chevron">{{ mobileOpen ? '▲' : '▼' }}</span>
+        <span
+          class="docs-mobile-toggle__chevron"
+          :class="{ 'docs-mobile-toggle__chevron--open': mobileOpen }"
+          aria-hidden="true"
+        >›</span>
       </button>
       <div
         v-show="mobileOpen"
@@ -906,14 +926,60 @@ abc123,Paycheque,3500,false
 .page-docs {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
 }
+
+/* ─── Page header ────────────────────────────────────────────────── */
+.docs-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.docs-eyebrow {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.docs-page-title {
+  margin: 0;
+  font-size: clamp(1.3rem, 3.5vw, 1.6rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.docs-section-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.docs-section-badge__icon { font-size: 0.9rem; line-height: 1; }
 
 /* ─── Layout ─────────────────────────────────────────────────────── */
 .docs-layout {
   display: grid;
-  grid-template-columns: 180px 1fr;
-  gap: 1.5rem;
+  grid-template-columns: 200px 1fr;
+  gap: 1.75rem;
   align-items: start;
 }
 
@@ -921,35 +987,47 @@ abc123,Paycheque,3500,false
 .docs-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0;
   position: sticky;
   top: calc(var(--header-height, 70px) + 1.25rem);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.35rem;
+  overflow: hidden;
 }
 
 .docs-nav-btn {
+  position: relative;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.83rem;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  padding: 0.45rem 0.7rem;
+  padding: 0.52rem 0.8rem;
   text-align: left;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--transition-fast), color var(--transition-fast);
   white-space: nowrap;
 }
 
 .docs-nav-btn:hover {
-  background: var(--surface2);
-  color: var(--text);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.docs-nav-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .docs-nav-btn--active {
-  background: var(--surface2);
-  color: var(--accent, #5b3df5);
-  font-weight: 600;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 /* ─── Mobile nav ─────────────────────────────────────────────────── */
@@ -962,33 +1040,53 @@ abc123,Paycheque,3500,false
   width: 100%;
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--text);
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  padding: 0.6rem 0.9rem;
+  padding: 0.65rem 0.9rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.docs-mobile-toggle:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.docs-mobile-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .docs-mobile-toggle__chevron {
-  font-size: 0.7rem;
+  font-size: 1.15rem;
   color: var(--muted);
+  display: inline-block;
+  line-height: 1;
+  transition: transform var(--transition-fast);
+}
+
+.docs-mobile-toggle__chevron--open {
+  transform: rotate(90deg);
 }
 
 .docs-mobile-menu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   right: 0;
-  background: var(--surface2);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
   z-index: 20;
+  box-shadow: var(--card-shadow);
 }
 
 .docs-mobile-item {
@@ -1000,15 +1098,22 @@ abc123,Paycheque,3500,false
   font-family: inherit;
   font-size: 0.875rem;
   cursor: pointer;
-  padding: 0.6rem 0.9rem;
+  padding: 0.65rem 0.9rem;
   text-align: left;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .docs-mobile-item:last-child { border-bottom: none; }
 
+.docs-mobile-item:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .docs-mobile-item--active {
-  color: var(--accent, #5b3df5);
-  font-weight: 600;
+  color: var(--accent);
+  font-weight: 700;
+  background: var(--accent-soft);
 }
 
 /* ─── Section content ────────────────────────────────────────────── */
@@ -1016,25 +1121,35 @@ abc123,Paycheque,3500,false
   min-width: 0;
 }
 
+.docs-section {
+  display: flex;
+  flex-direction: column;
+}
+
 .docs-section-title {
-  font-size: 1.2rem;
-  font-weight: 700;
-  margin: 0 0 0.75rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
   color: var(--text);
 }
 
 .docs-intro {
   font-size: 0.9rem;
   color: var(--muted);
-  line-height: 1.6;
+  line-height: 1.7;
   margin: 0 0 1.25rem;
 }
 
 .docs-h3 {
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   font-weight: 700;
   color: var(--text);
-  margin: 1.25rem 0 0.4rem;
+  margin: 1.4rem 0 0.45rem;
+  padding-left: 0.65rem;
+  border-left: 3px solid color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .docs-h3:first-of-type {
@@ -1044,46 +1159,48 @@ abc123,Paycheque,3500,false
 p {
   font-size: 0.875rem;
   color: var(--text);
-  line-height: 1.6;
+  line-height: 1.65;
   margin: 0 0 0.5rem;
 }
 
 .docs-list {
   font-size: 0.875rem;
   color: var(--text);
-  line-height: 1.6;
+  line-height: 1.65;
   padding-left: 1.4rem;
   margin: 0 0 0.75rem;
 }
 
-.docs-list li { margin-bottom: 0.25rem; }
+.docs-list li { margin-bottom: 0.3rem; }
 
 code {
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.82em;
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 4px;
   padding: 0.1em 0.35em;
-  color: var(--accent, #5b3df5);
+  color: var(--accent);
 }
 
 kbd {
   display: inline-block;
   background: var(--surface2);
   border: 1px solid var(--border);
+  border-bottom-width: 2px;
   border-radius: 4px;
-  padding: 0.1rem 0.4rem;
-  font-family: ui-monospace, monospace;
-  font-size: 0.8em;
-  color: var(--accent, #5b3df5);
+  padding: 0.1rem 0.45rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.78em;
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* ─── Inline link button ─────────────────────────────────────────── */
 .docs-inline-link {
   background: none;
   border: none;
-  color: var(--accent, #5b3df5);
+  color: var(--accent);
   font-family: inherit;
   font-size: inherit;
   cursor: pointer;
@@ -1092,9 +1209,13 @@ kbd {
   text-underline-offset: 2px;
 }
 
+.docs-inline-link:hover {
+  opacity: 0.8;
+}
+
 /* ─── Release notes ──────────────────────────────────────────────── */
 .release-block {
-  padding: 0.75rem 0;
+  padding: 0.85rem 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -1103,38 +1224,49 @@ kbd {
 .release-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.2rem;
+  gap: 0.6rem;
+  margin-bottom: 0.25rem;
 }
 
 .release-version {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--accent, #5b3df5);
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-radius: 999px;
+  padding: 0.2em 0.75em;
+  letter-spacing: 0.01em;
 }
 
 .release-date {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 
 .release-tagline {
   font-size: 0.82rem;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--text);
   margin: 0 0 0.4rem;
 }
 
 /* ─── FAQ ────────────────────────────────────────────────────────── */
 .faq-item {
-  padding: 0.75rem 0;
+  padding: 0.75rem;
   border-bottom: 1px solid var(--border);
+  border-radius: 8px;
+  transition: background var(--transition-fast);
 }
 
 .faq-item:last-child { border-bottom: none; }
 
+.faq-item:hover { background: var(--accent-soft); }
+
 .faq-q {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 700;
   color: var(--text);
   margin: 0 0 0.35rem;
@@ -1142,15 +1274,16 @@ kbd {
 
 /* ─── CSV reference ──────────────────────────────────────────────── */
 .docs-code {
-  background: var(--surface2);
+  background: var(--surface3);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-family: ui-monospace, monospace;
+  padding: 0.85rem 1.1rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.78rem;
   color: var(--text);
   overflow-x: auto;
-  line-height: 1.6;
+  line-height: 1.65;
   margin: 0.5rem 0 1rem;
   white-space: pre;
 }
@@ -1158,6 +1291,8 @@ kbd {
 .csv-table-wrap {
   overflow-x: auto;
   margin: 0.5rem 0 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
 }
 
 .csv-table {
@@ -1169,29 +1304,56 @@ kbd {
 .csv-table th,
 .csv-table td {
   text-align: left;
-  padding: 0.4rem 0.6rem;
+  padding: 0.45rem 0.75rem;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
-  line-height: 1.4;
+  line-height: 1.45;
+}
+
+.csv-table thead tr {
+  background: var(--surface2);
 }
 
 .csv-table th {
   color: var(--muted);
   font-weight: 600;
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.csv-table tbody tr {
+  transition: background var(--transition-fast);
+}
+
+.csv-table tbody tr:hover {
+  background: var(--accent-soft);
 }
 
 .csv-table tr:last-child td { border-bottom: none; }
 
 /* ─── Responsive ─────────────────────────────────────────────────── */
 @media (max-width: 768px) {
+  .docs-page-header {
+    align-items: flex-start;
+  }
+
   .docs-layout {
     grid-template-columns: 1fr;
     gap: 0;
   }
+
   .docs-sidebar { display: none; }
   .docs-mobile-nav { display: block; }
+}
+
+@media (max-width: 480px) {
+  .docs-section-badge { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-mobile-toggle__chevron { transition: none; }
+  .faq-item { transition: none; }
+  .csv-table tbody tr { transition: none; }
 }
 </style>

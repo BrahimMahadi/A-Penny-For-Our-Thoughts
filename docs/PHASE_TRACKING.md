@@ -1684,7 +1684,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-4 | Schedule & Spending CSS polish + search input | `feat/redesign-sprint-4-schedule-spending` | ✅ Complete | — |
 | RS-5 | Goals tab — full implementation + Advanced folded in | `feat/redesign-sprint-5-goals` | ✅ Complete | — |
 | fix | `--accent2` contrast — add `--accent2-text` token | `fix/accent2-contrast` | ✅ Complete | — |
-| RS-6 | Docs tab reskin | `feat/redesign-sprint-6-docs` | 🔲 Planned | — |
+| RS-6 | Docs tab reskin | `feat/redesign-sprint-6-docs` | ✅ Complete | — |
 | RS-7 | Settings redesign | `feat/redesign-sprint-7-settings` | 🔲 Planned | — |
 | RS-8 | Bottom status bar (sticky ticker) | `feat/redesign-sprint-8-statusbar` | 🔲 Planned | — |
 | RS-9 | Polish, tests, v2.0.0 release | `feat/redesign-sprint-9-release` | 🔲 Planned | v2.0.0 |
@@ -1841,14 +1841,27 @@ Added a companion token `--accent2-text` that is:
 
 ---
 
-## RS-6 — Docs Tab Reskin 🔲
+## RS-6 — Docs Tab Reskin ✅
 **Branch**: `feat/redesign-sprint-6-docs`  
-**Status**: 🔲 **PLANNED**
+**Status**: ✅ **COMPLETE** — May 2026
 
-### Scope
-- Visual pass on `DocsPage.vue` (1,197 lines, purely presentational)
-- Update heading styles, sidebar nav, code blocks, spacing to match Vivid Modern tokens
-- No content changes — docs content remains the same
+### Delivered
+
+**`src/components/pages/DocsPage.vue`** — Visual-only pass (zero content changes)
+
+- ✅ **Page header**: "Documentation" eyebrow + "How it works" h1 + right-side section badge pill (icon + label) that tracks the active section — consistent with GoalsPage / DashboardPage header pattern. Badge hidden at ≤480px.
+- ✅ **Sidebar panel**: Wrapped in `var(--surface2)` card with border + 12px radius + 0.35rem inner padding. Active item uses `box-shadow: inset 3px 0 0 var(--accent)` left-border indicator + `var(--accent-soft)` background. Hover uses accent-soft instead of plain surface2. Width 180px → 200px.
+- ✅ **Section title (h2)**: `1.35rem / 800 / letter-spacing: -0.02em`, bottom border divider separating title from content body.
+- ✅ **h3 headings**: Subtle `3px color-mix(accent 30%)` left-border accent strip + `padding-left: 0.65rem` indent; `1.4rem` top margin for breathing room.
+- ✅ **Code blocks** (`.docs-code`): Background → `var(--surface3)` for depth; `border-left: 3px solid var(--accent)` accent stripe; uses `var(--font-mono)` token.
+- ✅ **Release version chip**: Plain bold text → `display: inline-flex` pill with `var(--accent-soft)` background + accent border + 999px radius. Tagline color lifted from muted → `var(--text)`.
+- ✅ **FAQ items**: Hover reveals `var(--accent-soft)` background; `border-radius: 8px` for rounded hover state.
+- ✅ **CSV table**: `var(--surface2)` header row; tbody rows gain hover highlight; table wrapped in border+radius container for a card feel.
+- ✅ **Mobile nav**: Chevron text (▲/▼) → CSS-rotated `›` character with `transform: rotate(90deg)` + `var(--transition-fast)`; dropdown elevated with `var(--card-shadow)`.
+- ✅ **`kbd` element**: `border-bottom-width: 2px` for physical key look; color → `var(--text)` for legibility.
+- ✅ `prefers-reduced-motion` guard: disables chevron + table transitions.
+
+- ✅ 866/866 tests pass · `tsc --noEmit` clean
 
 ---
 
