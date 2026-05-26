@@ -24,10 +24,10 @@ const toast  = useToast();
 const { netWorth } = useAnalytics();
 
 // ─── Stat tiles ───────────────────────────────────────────────────
-const nwColor = computed(() => netWorth.value.netWorth >= 0 ? 'var(--accent2)' : 'var(--danger)');
+const nwColor = computed(() => netWorth.value.netWorth >= 0 ? 'var(--accent2-text)' : 'var(--danger)');
 const momChange = computed(() => netWorth.value.momChange);
 const momSign   = computed(() => (momChange.value ?? 0) >= 0 ? '+' : '');
-const momColor  = computed(() => (momChange.value ?? 0) >= 0 ? 'var(--accent2)' : 'var(--danger)');
+const momColor  = computed(() => (momChange.value ?? 0) >= 0 ? 'var(--accent2-text)' : 'var(--danger)');
 const momArrow  = computed(() => (momChange.value ?? 0) >= 0 ? '▲' : '▼');
 
 // ─── Asset modal ─────────────────────────────────────────────────

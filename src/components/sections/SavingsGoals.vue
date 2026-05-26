@@ -399,7 +399,7 @@ defineExpose({ openAdd });
   border-left: 4px solid var(--border);
 }
 
-.goal-item.status-on-track  { border-left-color: var(--accent2); }
+.goal-item.status-on-track  { border-left-color: var(--accent2-text); }
 .goal-item.status-caution   { border-left-color: var(--warn); }
 .goal-item.status-complete  { border-left-color: var(--accent); }
 .goal-item.status-off-track { border-left-color: var(--danger); }
@@ -474,7 +474,7 @@ defineExpose({ openAdd });
   border-radius: 4px;
 }
 
-.status-on-track  { background: rgba(96, 165, 250, 0.12); color: var(--accent2); }
+.status-on-track  { background: rgba(96, 165, 250, 0.12); color: var(--accent2-text); }
 .status-caution   { background: rgba(251, 191, 36, 0.12); color: var(--warn); }
 .status-complete  { background: rgba(74, 222, 128, 0.12); color: var(--accent); }
 .status-off-track { background: rgba(248, 113, 113, 0.12); color: var(--danger); }

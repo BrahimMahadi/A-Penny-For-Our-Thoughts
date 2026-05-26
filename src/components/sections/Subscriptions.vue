@@ -1001,7 +1001,7 @@ function remove(id: string): void {
   border-radius: 4px;
 }
 
-.chip-green  { background: rgba(74, 222, 128, 0.12);  color: var(--accent2); }
+.chip-green  { background: rgba(74, 222, 128, 0.12);  color: var(--accent2-text); }
 .chip-warn   { background: rgba(251, 191, 36, 0.12);  color: var(--warn); }
 .chip-red    { background: rgba(248, 113, 113, 0.12); color: var(--danger); }
 .chip-custom { background: rgba(167, 139, 250, 0.12); color: #a78bfa; letter-spacing: 0.02em; }
@@ -1021,7 +1021,7 @@ function remove(id: string): void {
 }
 
 .badge-needs { background: rgba(74, 222, 128, 0.12); color: var(--accent); }
-.badge-wants { background: rgba(96, 165, 250, 0.12); color: var(--accent2); }
+.badge-wants { background: rgba(96, 165, 250, 0.12); color: var(--accent2-text); }
 
 .sub-card-chip {
   font-size: 0.7rem;
@@ -1114,7 +1114,7 @@ function remove(id: string): void {
 }
 
 .filter-toolbar__search::placeholder { color: var(--muted); }
-.filter-toolbar__search:focus { border-color: var(--accent2); }
+.filter-toolbar__search:focus { border-color: var(--accent2-text); }
 
 .filter-toolbar__filter-btn {
   background: var(--surface2);
@@ -1136,8 +1136,8 @@ function remove(id: string): void {
 
 .filter-toolbar__filter-btn:hover,
 .filter-toolbar__filter-btn--active {
-  border-color: var(--accent2);
-  color: var(--accent2);
+  border-color: var(--accent2-text);
+  color: var(--accent2-text);
   background: rgba(96, 165, 250, 0.08);
 }
 
@@ -1173,7 +1173,7 @@ function remove(id: string): void {
   transition: border-color 0.15s;
 }
 
-.filter-toolbar__sort:focus { outline: none; border-color: var(--accent2); }
+.filter-toolbar__sort:focus { outline: none; border-color: var(--accent2-text); }
 
 .filter-toolbar__drawer-wrap {
   display: grid;
@@ -1242,8 +1242,8 @@ function remove(id: string): void {
   transition: border-color 0.15s;
 }
 
-.filter-toolbar__filter-select:focus { outline: none; border-color: var(--accent2); }
-.filter-toolbar__filter-select--active { border-color: var(--accent2); color: var(--accent2); }
+.filter-toolbar__filter-select:focus { outline: none; border-color: var(--accent2-text); }
+.filter-toolbar__filter-select--active { border-color: var(--accent2-text); color: var(--accent2-text); }
 
 .filter-toolbar__count {
   font-size: 0.75rem;

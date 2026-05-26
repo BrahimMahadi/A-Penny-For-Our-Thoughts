@@ -111,7 +111,7 @@ input {
   &:invalid:focus { box-shadow: 0 0 0 3px rgba(255, 77, 109, 0.35); }
   /* :user-valid only fires after the user has interacted with the field
      (unlike :valid which fires immediately and turns every empty field green) */
-  &:user-valid       { border-color: var(--accent2); }
+  &:user-valid       { border-color: var(--accent2-text); }
   &:user-valid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 35%, transparent); }
 }
 
@@ -137,7 +137,7 @@ textarea:focus-visible {
   border-radius: 20px;
   padding: 3px 10px;
 
-  &.green  { background: color-mix(in srgb, var(--accent2) 15%, transparent);  color: var(--accent2); }
+  &.green  { background: color-mix(in srgb, var(--accent2) 15%, transparent);  color: var(--accent2-text); }
   &.red    { background: color-mix(in srgb, var(--danger)  15%, transparent);  color: var(--danger); }
   &.warn   { background: color-mix(in srgb, var(--warn)    15%, transparent);  color: var(--warn); }
   &.purple { background: color-mix(in srgb, var(--accent)  15%, transparent);  color: var(--accent-chip); }

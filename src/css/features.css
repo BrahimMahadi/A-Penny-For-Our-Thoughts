@@ -78,7 +78,7 @@
   & .amount {
     font-size: 16px;
     font-weight: 800;
-    color: var(--accent2);
+    color: var(--accent2-text);
     white-space: nowrap;
   }
 
@@ -199,7 +199,7 @@
     gap: 4px;
     font-size: 11px;
     font-weight: 600;
-    color: var(--accent2);
+    color: var(--accent2-text);
     margin-bottom: 8px;
   }
 
@@ -335,7 +335,7 @@
     flex-shrink: 0;
   }
   & .acct-name   { flex: 0 0 auto; font-weight: 600; font-size: 13px; }
-  & .acct-amount { font-size: 13px; font-weight: 700; color: var(--accent2); margin-right: 8px; }
+  & .acct-amount { font-size: 13px; font-weight: 700; color: var(--accent2-text); margin-right: 8px; }
 }
 
 .acct-details {
@@ -377,7 +377,7 @@
   transition: var(--transition);
 
   /* Status border colours */
-  &.goal-status-on-track  { border-left-color: var(--accent2); }
+  &.goal-status-on-track  { border-left-color: var(--accent2-text); }
   &.goal-status-caution   {
     border-left-color: var(--warn);
     & .progress-bar { background: var(--warn); }
@@ -386,7 +386,7 @@
     border-left-color: var(--danger);
     & .progress-bar { background: var(--danger); }
   }
-  &.goal-status-complete  { border-left-color: var(--accent2); opacity: 0.7; }
+  &.goal-status-complete  { border-left-color: var(--accent2-text); opacity: 0.7; }
   &.goal-status-missed    { border-left-color: var(--danger); opacity: 0.7; }
 
   & .goal-header {
@@ -458,10 +458,10 @@
   font-weight: 600;
   text-align: center;
 
-  &.status-on-track  { background: color-mix(in srgb, var(--accent2) 20%, transparent); color: var(--accent2); }
+  &.status-on-track  { background: color-mix(in srgb, var(--accent2) 20%, transparent); color: var(--accent2-text); }
   &.status-caution   { background: color-mix(in srgb, var(--warn)    20%, transparent); color: var(--warn); }
   &.status-off-track { background: color-mix(in srgb, var(--danger)  20%, transparent); color: var(--danger); }
-  &.status-complete  { background: color-mix(in srgb, var(--accent2) 20%, transparent); color: var(--accent2); }
+  &.status-complete  { background: color-mix(in srgb, var(--accent2) 20%, transparent); color: var(--accent2-text); }
   &.status-missed    { background: color-mix(in srgb, var(--danger)  20%, transparent); color: var(--danger); }
 }
 
@@ -511,7 +511,7 @@
   & .sub-amount {
     font-size: 14px;
     font-weight: 800;
-    color: var(--accent2);
+    color: var(--accent2-text);
     margin-left: auto;
     white-space: nowrap;
   }
@@ -540,7 +540,7 @@
   letter-spacing: 0.4px;
   white-space: nowrap;
 
-  &.wants { background: color-mix(in srgb, var(--accent2) 15%, transparent); color: var(--accent2); }
+  &.wants { background: color-mix(in srgb, var(--accent2) 15%, transparent); color: var(--accent2-text); }
   &.needs { background: color-mix(in srgb, var(--accent)  15%, transparent); color: var(--accent);  }
 }
 
@@ -774,7 +774,7 @@
   font-size: 10px;
   font-weight: 600;
   background: color-mix(in srgb, var(--accent2) 12%, transparent);
-  color: var(--accent2);
+  color: var(--accent2-text);
   white-space: nowrap;
   flex-shrink: 0;
 

@@ -945,7 +945,7 @@ const filteredTotal = computed(() =>
 
 .wants-stat-remaining {
   font-size: 1.1rem;
-  color: var(--accent2);
+  color: var(--accent2-text);
 }
 
 .accent     { color: var(--accent); }
@@ -977,7 +977,7 @@ const filteredTotal = computed(() =>
 }
 
 .envelope-forecast--on-track {
-  border-left-color: var(--accent2);
+  border-left-color: var(--accent2-text);
   background: rgba(52, 211, 153, 0.06);
 }
 .envelope-forecast--caution {
@@ -1003,7 +1003,7 @@ const filteredTotal = computed(() =>
   font-variant-numeric: tabular-nums;
 }
 
-.envelope-forecast--on-track .envelope-forecast__value { color: var(--accent2); }
+.envelope-forecast--on-track .envelope-forecast__value { color: var(--accent2-text); }
 .envelope-forecast--caution  .envelope-forecast__value { color: var(--warn); }
 .envelope-forecast--over     .envelope-forecast__value { color: var(--danger); }
 
@@ -1121,7 +1121,7 @@ const filteredTotal = computed(() =>
 }
 
 .filter-toolbar__search::placeholder { color: var(--muted); }
-.filter-toolbar__search:focus { border-color: var(--accent2); }
+.filter-toolbar__search:focus { border-color: var(--accent2-text); }
 
 .filter-toolbar__filter-btn {
   background: var(--surface2);
@@ -1143,8 +1143,8 @@ const filteredTotal = computed(() =>
 
 .filter-toolbar__filter-btn:hover,
 .filter-toolbar__filter-btn--active {
-  border-color: var(--accent2);
-  color: var(--accent2);
+  border-color: var(--accent2-text);
+  color: var(--accent2-text);
   background: rgba(96, 165, 250, 0.08);
 }
 
@@ -1180,7 +1180,7 @@ const filteredTotal = computed(() =>
   transition: border-color 0.15s;
 }
 
-.filter-toolbar__sort:focus { outline: none; border-color: var(--accent2); }
+.filter-toolbar__sort:focus { outline: none; border-color: var(--accent2-text); }
 
 /* Drawer: grid-template-rows transition for smooth height animation */
 .filter-toolbar__drawer-wrap {
@@ -1255,11 +1255,11 @@ const filteredTotal = computed(() =>
   transition: border-color 0.15s;
 }
 
-.filter-toolbar__filter-select:focus { outline: none; border-color: var(--accent2); }
+.filter-toolbar__filter-select:focus { outline: none; border-color: var(--accent2-text); }
 
 .filter-toolbar__filter-select--active {
-  border-color: var(--accent2);
-  color: var(--accent2);
+  border-color: var(--accent2-text);
+  color: var(--accent2-text);
 }
 
 /* Result count + inline clear link */
@@ -1367,7 +1367,7 @@ const filteredTotal = computed(() =>
 }
 
 .chip-needs { background: rgba(74, 222, 128, 0.12); color: var(--accent); }
-.chip-wants { background: rgba(96, 165, 250, 0.12); color: var(--accent2); }
+.chip-wants { background: rgba(96, 165, 250, 0.12); color: var(--accent2-text); }
 
 .purchase-card-chip {
   font-size: 0.68rem;

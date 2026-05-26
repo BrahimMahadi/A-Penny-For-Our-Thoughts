@@ -79,7 +79,7 @@ const activeTotal = computed(() =>
 );
 
 const totalColor = computed(() =>
-  activeVariance.value < 0 ? 'var(--danger)' : 'var(--accent2)',
+  activeVariance.value < 0 ? 'var(--danger)' : 'var(--accent2-text)',
 );
 
 const hasAny = computed(() => {
@@ -1099,7 +1099,7 @@ watch(
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--accent2);
+  color: var(--accent2-text);
 }
 
 /* PAY / END marker badges */

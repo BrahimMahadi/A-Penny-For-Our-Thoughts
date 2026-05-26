@@ -655,7 +655,7 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
 }
 
 .mom-over  { color: var(--danger); font-weight: 700; }
-.mom-good  { color: var(--accent2); font-weight: 700; }
+.mom-good  { color: var(--accent2-text); font-weight: 700; }
 .mom-muted { color: var(--muted); }
 
 /* Insights */
@@ -783,7 +783,7 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
 .period-item__total {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--accent2);
+  color: var(--accent2-text);
 }
 
 /* Category chips — always visible below the header */

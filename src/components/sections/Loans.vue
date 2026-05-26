@@ -535,7 +535,7 @@ const FREQ_DISPLAY: Record<string, string> = {
 
 .loan-card__payment-amount {
   font-weight: 700;
-  color: var(--accent2);
+  color: var(--accent2-text);
 }
 
 .loan-card__payment-freq {

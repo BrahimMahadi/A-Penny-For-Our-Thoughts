@@ -35,9 +35,10 @@
   --font-mono: 'JetBrains Mono', 'Courier New', monospace;
 
   /* ── Brand ────────────────────────────────────── */
-  --accent:       #5b3df5;
-  --accent2:      #c8f24a;
-  --accent-soft:  rgba(91, 61, 245, 0.07);   /* accent + '12' */
+  --accent:        #5b3df5;
+  --accent2:       #c8f24a;
+  --accent2-text:  #4d7c0f;   /* lime-700 — chartreuse legible on white (~7.4:1) */
+  --accent-soft:   rgba(91, 61, 245, 0.07);   /* accent + '12' */
 
   /* ── Semantic status ──────────────────────────── */
   --success:  #16a34a;
@@ -98,9 +99,10 @@
 /* ── Dark theme — Vivid Modern ── */
 [data-theme="dark"] {
   /* ── Brand (unchanged) ────────────────────────── */
-  --accent:      #5b3df5;
-  --accent2:     #c8f24a;
-  --accent-soft: rgba(91, 61, 245, 0.14);   /* accent + '24' */
+  --accent:        #5b3df5;
+  --accent2:       #c8f24a;
+  --accent2-text:  #c8f24a;   /* chartreuse stays — legible on dark backgrounds */
+  --accent-soft:   rgba(91, 61, 245, 0.14);   /* accent + '24' */
 
   /* ── Semantic status ──────────────────────────── */
   --success: #4ade80;

@@ -91,7 +91,7 @@ function useColour(balance: number, limit: number): string {
   const p = limit > 0 ? (balance / limit) * 100 : 0;
   if (p > 50) return 'var(--danger)';
   if (p > 30) return 'var(--warn)';
-  return 'var(--accent2)';
+  return 'var(--accent2-text)';
 }
 
 function chipClass(balance: number, limit: number): string {
@@ -343,7 +343,7 @@ function chipClass(balance: number, limit: number): string {
 
 .chip-green {
   background: rgba(74, 222, 128, 0.12);
-  color: var(--accent2);
+  color: var(--accent2-text);
 }
 
 .chip-red {

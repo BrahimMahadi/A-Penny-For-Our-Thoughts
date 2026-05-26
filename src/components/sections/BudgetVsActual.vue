@@ -53,7 +53,7 @@ function calcVariance(budgeted: number, actual: number, key: string): VarianceRe
 
 const categories = computed(() => [
   { key: 'needs',   label: 'Needs',   color: 'var(--accent-text, var(--accent))' },
-  { key: 'wants',   label: 'Wants',   color: 'var(--accent2)' },
+  { key: 'wants',   label: 'Wants',   color: 'var(--accent2-text)' },
   { key: 'savings', label: 'Savings', color: 'var(--warn)' },
 ] as const);
 
@@ -66,7 +66,7 @@ function actualFor(key: string): number {
 }
 
 function statusColor(status: string): string {
-  if (status === 'on-track') return 'var(--accent2)';
+  if (status === 'on-track') return 'var(--accent2-text)';
   if (status === 'caution')  return 'var(--warn)';
   return 'var(--danger)';
 }
