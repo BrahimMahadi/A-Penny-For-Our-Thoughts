@@ -160,16 +160,19 @@ const netWorthMomPct = computed(() => {
 const showQuickAdd      = ref(false);
 const quickAddName      = ref('');
 const quickAddAmount    = ref('');
-const quickAddCategory  = ref('other');
 
-const quickAddCats = [
-  { id: 'food',    label: 'Food',     color: '#c8f24a' },
-  { id: 'fun',     label: 'Fun',      color: '#ec4899' },
-  { id: 'shop',    label: 'Shopping', color: '#f59e0b' },
-  { id: 'auto',    label: 'Auto',     color: '#06b6d4' },
-  { id: 'sub',     label: 'Sub',      color: '#5b3df5' },
-  { id: 'other',   label: 'Other',    color: '#8b8b95' },
-];
+/**
+ * Live list of spending categories from the user's settings.
+ * Replaces the old hardcoded array — always in sync with Settings → Categories.
+ */
+const quickAddCats = computed(() => budget.spendingCategories);
+
+/** Default to the first category, falling back to 'other' if the list is empty. */
+const defaultCategory = computed(() =>
+  quickAddCats.value[0]?.id ?? 'other',
+);
+
+const quickAddCategory = ref(defaultCategory.value);
 
 const quickAddAfter = computed(() => {
   const amt = parseFloat(quickAddAmount.value) || 0;
@@ -184,7 +187,8 @@ const quickAddValid = computed(() =>
 function openQuickAdd(): void {
   quickAddName.value     = '';
   quickAddAmount.value   = '';
-  quickAddCategory.value = 'other';
+  // Reset to first user-defined category each time the modal opens
+  quickAddCategory.value = defaultCategory.value;
   showQuickAdd.value     = true;
 }
 
@@ -531,7 +535,7 @@ function cleanup(): void {
             type="button"
             @click="quickAddCategory = c.id"
           >
-            {{ c.label }}
+            {{ c.name }}
           </button>
         </div>
 
