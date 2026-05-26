@@ -1654,8 +1654,8 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 
 **Last Updated**: May 2026
 **Current Version**: v1.19.0
-**Next Up**: Redesign Sprint 3 — Dashboard
-**Current Branch**: `feat/redesign-sprint-3-dashboard`
+**Next Up**: Redesign Sprint 4 — Schedule & Spending CSS polish + search input
+**Current Branch**: `feat/redesign-sprint-4-schedule-spending`
 
 ---
 
@@ -1680,7 +1680,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-1 | Design tokens — Vivid Modern palette | `feat/redesign-sprint-1-tokens` | ✅ Complete | — |
 | RS-2 | App shell — 64px sidebar, BottomNav, GoalsPage stub | `feat/redesign-sprint-2-shell` | ✅ Complete | — |
 | fix | Dev auth bypass (`VITE_DISABLE_AUTH`) | `fix/dev-auth-bypass` | ✅ Complete | — |
-| RS-3 | Dashboard redesign — hero KPI, quick-add, header | `feat/redesign-sprint-3-dashboard` | 🟡 In Progress | — |
+| RS-3 | Dashboard redesign — hero KPI, quick-add, header | `feat/redesign-sprint-3-dashboard` | ✅ Complete | — |
 | RS-4 | Schedule & Spending CSS polish + search input | `feat/redesign-sprint-4-schedule-spending` | 🔲 Planned | — |
 | RS-5 | Goals tab — full implementation + Advanced folded in | `feat/redesign-sprint-5-goals` | 🔲 Planned | — |
 | RS-6 | Docs tab reskin | `feat/redesign-sprint-6-docs` | 🔲 Planned | — |
@@ -1741,19 +1741,20 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 
 ---
 
-## RS-3 — Dashboard Redesign 🟡
+## RS-3 — Dashboard Redesign ✅
 **Branch**: `feat/redesign-sprint-3-dashboard`  
-**Status**: 🟡 **IN PROGRESS** — May 2026
+**Status**: ✅ **COMPLETE** — May 2026
 
 ### Goal
 Bring DashboardPage.vue in line with the Vivid Modern mockup. The page structure and section components already exist — this sprint is about the page-level layout, header, and hero KPI area.
 
-### Scope
-- **Page header**: "Welcome back, Brahim" eyebrow + "Your money, May YYYY" h1; right side: "Manage widgets" secondary button + "Quick add to wants" primary accent button (pill shape, accent bg, white text, shadow)
-- **Hero KPI card**: Full-width accent-background card, "Available to spend" label, large bi-weekly wants balance, "until [next pay date]" subtitle, decorative circle overlays
-- **KPI row**: Replace the current 4-stat grid with hero (1.4fr) + Due-in-7-days + Needs + Net Worth layout
-- **Section spacing**: 18px gap between cards, consistent with `var(--space-lg)` + card radius 18px already applied
-- **Advanced tab sections folded into Goals** (RS-5): no action needed in this sprint
+### Delivered
+- ✅ **Page header**: "Welcome back, Brahim" eyebrow + "Your money, Month YYYY" h1; "⊞ Manage widgets" secondary pill button + "+ Quick add to wants" accent CTA
+- ✅ **Hero KPI card** (1.4fr, accent background): bi-weekly wants remaining with large numeral, inline chartreuse progress track, "until [pay period end]" subtitle, decorative circle overlays
+- ✅ **KPI row** (4-col: 1.4fr 1fr 1fr 1fr): hero wants + due-in-7-days (from pay period forecast) + needs spent (ProgressBar status-driven) + net worth (MoM % delta)
+- ✅ **Quick-add modal**: name + amount + category chips → `budget.addPurchase()`; live "remaining after" preview flips to danger when over budget
+- ✅ **`sectionPickerOpen` moved to ui store**: `openSectionPicker()` / `closeSectionPicker()` / `toggleSectionPicker()` actions; "Manage widgets" button and keyboard shortcut G both wire to store
+- ✅ All 866 tests pass · tsc --noEmit clean
 
 ### Out of scope for RS-3
 - Any changes to section component internals (those are correct already)
