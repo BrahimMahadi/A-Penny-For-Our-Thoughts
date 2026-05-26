@@ -113,7 +113,7 @@ export interface AnalyticsFilters {
 export type ScheduleView = 'list' | 'calendar' | 'payperiod';
 
 /** Main app tabs */
-export type TabId = 'dashboard' | 'schedule' | 'docs' | 'settings' | 'advanced';
+export type TabId = 'dashboard' | 'schedule' | 'spending' | 'docs' | 'settings' | 'advanced';
 
 /**
  * Volatile UI state — panel visibility, filter inputs, current month.

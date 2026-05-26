@@ -11,7 +11,7 @@
 
   Keyboard shortcuts (global, guarded from inputs):
     ?           — toggle keyboard-shortcut help panel
-    1 / 2 / 3 / 4 / 5 — switch to Dashboard / Schedule / Docs / Settings / Advanced
+    1 / 2 / 3 / 4 / 5 / 6 — switch to Dashboard / Schedule / Spending / Docs / Settings / Advanced
     E           — export CSV
     G           — open section picker (jump to section)
     T           — toggle theme
@@ -29,6 +29,7 @@ import type { TabId } from '@/types/state';
 
 import DashboardPage from '@/components/pages/DashboardPage.vue';
 import SchedulePage  from '@/components/pages/SchedulePage.vue';
+import SpendingPage  from '@/components/pages/SpendingPage.vue';
 import DocsPage      from '@/components/pages/DocsPage.vue';
 import SettingsPage  from '@/components/pages/SettingsPage.vue';
 import AdvancedPage  from '@/components/pages/AdvancedPage.vue';
@@ -60,6 +61,7 @@ interface Tab {
 const tabs: Tab[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
   { id: 'schedule',  label: 'Schedule',  icon: '📅' },
+  { id: 'spending',  label: 'Spending',  icon: '💸' },
   { id: 'docs',      label: 'Docs',      icon: '📖' },
   { id: 'settings',  label: 'Settings',  icon: '⚙️' },
   { id: 'advanced',  label: 'Advanced',  icon: '📊' },
@@ -68,6 +70,7 @@ const tabs: Tab[] = [
 const activePage = computed(() => {
   switch (ui.activeTab) {
     case 'schedule':  return SchedulePage;
+    case 'spending':  return SpendingPage;
     case 'docs':      return DocsPage;
     case 'settings':  return SettingsPage;
     case 'advanced':  return AdvancedPage;
@@ -96,9 +99,10 @@ const shortcuts = [
   { combo: '?',   description: 'Show / hide this panel' },
   { combo: '1',   description: 'Switch to Dashboard' },
   { combo: '2',   description: 'Switch to Schedule' },
-  { combo: '3',   description: 'Switch to Docs' },
-  { combo: '4',   description: 'Switch to Settings' },
-  { combo: '5',   description: 'Switch to Advanced' },
+  { combo: '3',   description: 'Switch to Spending' },
+  { combo: '4',   description: 'Switch to Docs' },
+  { combo: '5',   description: 'Switch to Settings' },
+  { combo: '6',   description: 'Switch to Advanced' },
   { combo: 'G',   description: 'Open section picker (jump to section)' },
   { combo: 'E',   description: 'Export CSV' },
   { combo: 'T',   description: 'Toggle light / dark theme' },
@@ -108,15 +112,16 @@ const shortcuts = [
 useKeyboard('?', () => { showShortcutHelp.value = !showShortcutHelp.value; }, { guardFromInputs: true });
 useKeyboard('1', () => { ui.setActiveTab('dashboard'); },                    { guardFromInputs: true });
 useKeyboard('2', () => { ui.setActiveTab('schedule'); },                     { guardFromInputs: true });
-useKeyboard('3', () => { ui.setActiveTab('docs'); },                         { guardFromInputs: true });
-useKeyboard('4', () => { ui.setActiveTab('settings'); },                     { guardFromInputs: true });
-useKeyboard('5', () => { ui.setActiveTab('advanced'); },                     { guardFromInputs: true });
+useKeyboard('3', () => { ui.setActiveTab('spending'); },                     { guardFromInputs: true });
+useKeyboard('4', () => { ui.setActiveTab('docs'); },                         { guardFromInputs: true });
+useKeyboard('5', () => { ui.setActiveTab('settings'); },                     { guardFromInputs: true });
+useKeyboard('6', () => { ui.setActiveTab('advanced'); },                     { guardFromInputs: true });
 useKeyboard('e', () => { handleExport(); },                                  { guardFromInputs: true });
 useKeyboard('t', () => { theme.toggle(); },                                  { guardFromInputs: true });
 useKeyboard('g', () => { sectionPickerOpen.value = !sectionPickerOpen.value; }, { guardFromInputs: true });
 
 // ─── Swipe to change tab on mobile ────────────────────────────────────────
-const TAB_ORDER: TabId[] = ['dashboard', 'schedule', 'docs', 'settings', 'advanced'];
+const TAB_ORDER: TabId[] = ['dashboard', 'schedule', 'spending', 'docs', 'settings', 'advanced'];
 const appMainRef = ref<HTMLElement | null>(null);
 
 useSwipe(

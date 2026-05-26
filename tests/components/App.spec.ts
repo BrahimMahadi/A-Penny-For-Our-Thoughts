@@ -185,14 +185,14 @@ describe('App keyboard shortcuts', () => {
     expect(ui.activeTab).toBe('schedule');
   });
 
-  it('3 key switches to Docs tab', async () => {
+  it('3 key switches to Spending tab', async () => {
     const ui = useUiStore();
     const ww = mountApp();
 
     fireKey('3');
     await ww.vm.$nextTick();
 
-    expect(ui.activeTab).toBe('docs');
+    expect(ui.activeTab).toBe('spending');
   });
 
   it('E key calls budget.exportCSV()', async () => {
@@ -271,14 +271,14 @@ describe('App tab navigation', () => {
 // ─── Sprint 7: Settings tab keyboard shortcut ─────────────────────────────────
 
 describe('App Sprint 7 — Settings shortcut', () => {
-  it('4 key switches to Settings tab', async () => {
+  it('4 key switches to Docs tab', async () => {
     const ui = useUiStore();
     const ww = mountApp();
 
     fireKey('4');
     await ww.vm.$nextTick();
 
-    expect(ui.activeTab).toBe('settings');
+    expect(ui.activeTab).toBe('docs');
   });
 
   it('Settings tab shows aria-selected=true when active', async () => {

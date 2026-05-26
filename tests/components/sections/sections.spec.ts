@@ -887,50 +887,6 @@ describe('RecurringCalendar', () => {
     w.unmount();
   });
 
-  it('renders exactly 6 month summary cards', async () => {
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    expect(w.findAll('.summary-card')).toHaveLength(6);
-    w.unmount();
-  });
-
-  it('shows bill count in each summary card', async () => {
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    const countEl = w.find('.summary-card__count');
-    expect(countEl.exists()).toBe(true);
-    expect(countEl.text()).toMatch(/\d+ bills?/);
-    w.unmount();
-  });
-
-  it('switches to calendar grid view on ⊞ button click', async () => {
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    // Title is "Calendar view" (capital C)
-    const calBtn = w.findAll('.view-toggle-btn').find(b =>
-      b.attributes('title')?.toLowerCase().includes('calendar'),
-    );
-    expect(calBtn).toBeDefined();
-    await calBtn!.trigger('click');
-    await nextTick();
-    expect(w.find('.cal-grid').exists()).toBe(true);
-    w.unmount();
-  });
-
-  it('navigates to next month on Next button click', async () => {
-    const ui = useUiStore();
-    const initialMonth = ui.scheduleViewMonth;  // correct property name
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    const nextBtn = w.findAll('button').find(b => b.text().includes('Next'));
-    expect(nextBtn).toBeDefined();
-    await nextBtn!.trigger('click');
-    await nextTick();
-    // Month should have advanced by 1 (with year rollover handled)
-    const expectedMonth = initialMonth === 12 ? 1 : initialMonth + 1;
-    expect(ui.scheduleViewMonth).toBe(expectedMonth);
-    w.unmount();
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -939,16 +895,6 @@ describe('RecurringCalendar', () => {
 describe('RecurringCalendar — pay period view', () => {
   beforeEach(() => { setActivePinia(createPinia()); });
   afterEach(() => { document.body.innerHTML = ''; });
-
-  it('renders the 2W toggle button', async () => {
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    const ppBtn = w.findAll('.view-toggle-btn').find(b =>
-      b.attributes('title')?.includes('Pay period'),
-    );
-    expect(ppBtn).toBeDefined();
-    w.unmount();
-  });
 
   it('shows pay-period empty state when payStart is null', async () => {
     const budget = useBudgetStore();
@@ -961,75 +907,16 @@ describe('RecurringCalendar — pay period view', () => {
     w.unmount();
   });
 
-  it('switches to payperiod view when 2W is clicked', async () => {
-    const ui = useUiStore();
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    const ppBtn = w.findAll('.view-toggle-btn').find(b =>
-      b.attributes('title')?.includes('Pay period'),
-    );
-    await ppBtn!.trigger('click');
-    await nextTick();
-    expect(ui.scheduleView).toBe('payperiod');
-    w.unmount();
-  });
-
-  it('shows 14-day grid when payStart is configured and 2W clicked', async () => {
+  it('shows 14-day grid when payStart is configured and view is payperiod', async () => {
     const budget = useBudgetStore();
     budget.payStart = '2026-05-19';
+    const ui = useUiStore();
+    ui.setScheduleView('payperiod');
     const w = mountWith(RecurringCalendar);
-    await nextTick();
-    const ppBtn = w.findAll('.view-toggle-btn').find(b =>
-      b.attributes('title')?.includes('Pay period'),
-    );
-    await ppBtn!.trigger('click');
     await nextTick();
     expect(w.find('.cal-grid').exists()).toBe(true);
-    // 14 day cells + header cells + blanks, grid must be present
     const cells = w.findAll('.cal-cell:not(.cal-blank)');
     expect(cells.length).toBe(14);
-    w.unmount();
-  });
-
-  it('PREV in pay period view steps offset back', async () => {
-    const budget = useBudgetStore();
-    budget.payStart = '2026-05-19';
-    const ui = useUiStore();
-    ui.setScheduleView('payperiod');
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    const prevBtn = w.findAll('button').find(b => b.text().includes('Prev'));
-    await prevBtn!.trigger('click');
-    await nextTick();
-    expect(ui.schedulePayPeriodOffset).toBe(-1);
-    // Month should NOT have changed (pay period navigation is independent)
-    w.unmount();
-  });
-
-  it('NEXT in pay period view steps offset forward', async () => {
-    const budget = useBudgetStore();
-    budget.payStart = '2026-05-19';
-    const ui = useUiStore();
-    ui.setScheduleView('payperiod');
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    const nextBtn = w.findAll('button').find(b => b.text().includes('Next'));
-    await nextBtn!.trigger('click');
-    await nextTick();
-    expect(ui.schedulePayPeriodOffset).toBe(1);
-    w.unmount();
-  });
-
-  it('clicking a month card in payperiod view switches to list view', async () => {
-    const budget = useBudgetStore();
-    budget.payStart = '2026-05-19';
-    const ui = useUiStore();
-    ui.setScheduleView('payperiod');
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    await w.find('.summary-card').trigger('click');
-    await nextTick();
-    expect(ui.scheduleView).toBe('list');
     w.unmount();
   });
 });
@@ -1081,16 +968,17 @@ describe('RecurringCalendar — loan badges', () => {
     w.unmount();
   });
 
-  it('calendar view shows a .cal-badge--loan on the correct day cell', async () => {
+  it('calendar view shows the loan name as a cal-event in the correct day cell', async () => {
     const { ui } = setupLoanInMay();
     ui.setScheduleView('calendar');
     const w = mountWith(RecurringCalendar);
     await nextTick();
-    expect(w.find('.cal-badge--loan').exists()).toBe(true);
+    const eventNames = w.findAll('.cal-event-name').map(e => e.text());
+    expect(eventNames.some(t => t.includes('Sprint16 Loan'))).toBe(true);
     w.unmount();
   });
 
-  it('pay period view shows a .cal-badge--loan when loan falls in the window', async () => {
+  it('pay period view shows the loan name as a cal-event when loan falls in the window', async () => {
     const budget = useBudgetStore();
     const ui = useUiStore();
     // Pay period: May 19 – Jun 1; loan on May 22 is inside the window
@@ -1110,7 +998,8 @@ describe('RecurringCalendar — loan badges', () => {
     ui.resetToCurrentPayPeriod();
     const w = mountWith(RecurringCalendar);
     await nextTick();
-    expect(w.find('.cal-badge--loan').exists()).toBe(true);
+    const eventNames = w.findAll('.cal-event-name').map(e => e.text());
+    expect(eventNames.some(t => t.includes('PP Loan'))).toBe(true);
     w.unmount();
   });
 
@@ -1259,15 +1148,15 @@ describe('RecurringCalendar — custom-days list view', () => {
     w.unmount();
   });
 
-  it('shows .cal-badge--sub badge on each matching calendar day', async () => {
+  it('calendar view shows cal-event rows on each day matching the custom-days pattern', async () => {
     setupCustomDaySub();
     const ui = useUiStore();
     ui.setScheduleView('calendar');
     const w = mountWith(RecurringCalendar);
     await nextTick();
-    // Calendar grid should have multiple sub badges
-    const badges = w.findAll('.cal-badge--sub');
-    expect(badges.length).toBeGreaterThanOrEqual(12);
+    // May 2026 Mon+Tue+Wed = 12 occurrences → 12 cal-event-row entries
+    const eventRows = w.findAll('.cal-event-row');
+    expect(eventRows.length).toBeGreaterThanOrEqual(12);
     w.unmount();
   });
 });
@@ -1790,154 +1679,68 @@ describe('RecurringCalendar — day detail slide panel', () => {
     w.unmount();
   });
 
-  // ── click opens panel ─────────────────────────────────────────
-  it('clicking a calendar day with bills opens the detail panel', async () => {
+  // ── click emits selected date ─────────────────────────────────
+  it('clicking a calendar day with bills emits the ISO date', async () => {
     setupSubOnDay7();
-    const w = mountWith(RecurringCalendar);
+    const w = mount(RecurringCalendar as Parameters<typeof mount>[0], {
+      attachTo: document.body,
+      props: { modelValue: null },
+    });
     await nextTick();
     await w.find('.cal-interactive').trigger('click');
     await nextTick();
-    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(true);
-    w.unmount();
-  });
-
-  it('slide panel shows the bill name', async () => {
-    setupSubOnDay7();
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    await w.find('.cal-interactive').trigger('click');
-    await nextTick();
-    expect(w.find('[data-testid="day-detail-panel"]').text()).toContain('Detail Test Sub');
-    w.unmount();
-  });
-
-  it('slide panel shows a subscription source badge', async () => {
-    setupSubOnDay7();
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    await w.find('.cal-interactive').trigger('click');
-    await nextTick();
-    const panel = w.find('[data-testid="day-detail-panel"]');
-    expect(panel.find('.bill-badge--sub').exists()).toBe(true);
-    w.unmount();
-  });
-
-  it('slide panel header has date label and total chip', async () => {
-    setupSubOnDay7();
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    await w.find('.cal-interactive').trigger('click');
-    await nextTick();
-    const panel = w.find('[data-testid="day-detail-panel"]');
-    expect(panel.find('.day-detail-panel__date').exists()).toBe(true);
-    expect(panel.find('.day-detail-panel__chip').exists()).toBe(true);
-    // Chip should contain a currency-formatted value
-    expect(panel.find('.day-detail-panel__chip').text()).toMatch(/\$/);
+    const emitted = w.emitted('update:modelValue');
+    expect(emitted).toBeTruthy();
+    expect(emitted![0][0]).toBe('2026-05-07');
     w.unmount();
   });
 
   // ── selected cell state ───────────────────────────────────────
-  it('clicked cell gains .cal-selected class', async () => {
+  it('cell with matching modelValue gets .cal-selected class', async () => {
     setupSubOnDay7();
-    const w = mountWith(RecurringCalendar);
+    const w = mount(RecurringCalendar as Parameters<typeof mount>[0], {
+      attachTo: document.body,
+      props: { modelValue: '2026-05-07' },
+    });
     await nextTick();
-    const cell = w.find('.cal-interactive');
-    await cell.trigger('click');
-    await nextTick();
-    expect(cell.classes()).toContain('cal-selected');
+    expect(w.find('.cal-interactive').classes()).toContain('cal-selected');
     w.unmount();
   });
 
-  // ── toggle off ────────────────────────────────────────────────
-  it('clicking the selected day again closes the panel', async () => {
+  // ── toggle off emits null ─────────────────────────────────────
+  it('clicking the already-selected day emits null', async () => {
     setupSubOnDay7();
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    const cell = w.find('.cal-interactive');
-    await cell.trigger('click');
-    await nextTick();
-    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(true);
-    await cell.trigger('click');
-    await nextTick();
-    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(false);
-    w.unmount();
-  });
-
-  // ── close button ──────────────────────────────────────────────
-  it('× close button dismisses the panel', async () => {
-    setupSubOnDay7();
-    const w = mountWith(RecurringCalendar);
+    const w = mount(RecurringCalendar as Parameters<typeof mount>[0], {
+      attachTo: document.body,
+      props: { modelValue: '2026-05-07' },
+    });
     await nextTick();
     await w.find('.cal-interactive').trigger('click');
     await nextTick();
-    await w.find('.day-detail-panel__close').trigger('click');
-    await nextTick();
-    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(false);
+    const emitted = w.emitted('update:modelValue');
+    expect(emitted![0][0]).toBeNull();
     w.unmount();
   });
 
-  // ── empty days don't open panel ───────────────────────────────
-  it('clicking a day with no bills does not open the panel', async () => {
+  // ── empty days don't emit ─────────────────────────────────────
+  it('clicking a day with no bills does not emit a selection', async () => {
     setupSubOnDay7();
-    const w = mountWith(RecurringCalendar);
+    const w = mount(RecurringCalendar as Parameters<typeof mount>[0], {
+      attachTo: document.body,
+      props: { modelValue: null },
+    });
     await nextTick();
-    // A non-interactive, non-blank cell has no bills
     const emptyCell = w.findAll('.cal-cell:not(.cal-blank):not(.cal-interactive)')[0];
     if (emptyCell) {
       await emptyCell.trigger('click');
       await nextTick();
-      expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(false);
+      expect(w.emitted('update:modelValue') ?? []).toHaveLength(0);
     }
     w.unmount();
   });
 
-  // ── navigation clears selection ───────────────────────────────
-  it('navigating to the next month clears the panel', async () => {
-    setupSubOnDay7();
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    await w.find('.cal-interactive').trigger('click');
-    await nextTick();
-    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(true);
-    const nextBtn = w.findAll('button').find(b => b.text().includes('Next'));
-    await nextBtn!.trigger('click');
-    await nextTick();
-    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(false);
-    w.unmount();
-  });
-
-  it('switching to list view clears the panel', async () => {
-    setupSubOnDay7();
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    await w.find('.cal-interactive').trigger('click');
-    await nextTick();
-    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(true);
-    const listBtn = w.findAll('.view-toggle-btn').find(b => b.attributes('title')?.includes('List'));
-    await listBtn!.trigger('click');
-    await nextTick();
-    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(false);
-    w.unmount();
-  });
-
-  it('switching to pay-period view clears the panel', async () => {
-    const budget = useBudgetStore();
-    budget.payStart = '2026-05-19';
-    setupSubOnDay7();
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    await w.find('.cal-interactive').trigger('click');
-    await nextTick();
-    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(true);
-    const ppBtn = w.findAll('.view-toggle-btn').find(b => b.attributes('title')?.includes('Pay period'));
-    await ppBtn!.trigger('click');
-    await nextTick();
-    expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(false);
-    w.unmount();
-  });
-
   // ── pay-period view ───────────────────────────────────────────
-  it('clicking a pay-period day with bills opens the panel', async () => {
+  it('clicking a pay-period cell with bills emits the ISO date', async () => {
     const budget = useBudgetStore();
     const ui = useUiStore();
     budget.payStart = '2026-05-19';
@@ -1953,19 +1756,21 @@ describe('RecurringCalendar — day detail slide panel', () => {
       daysOfWeek: [],
     } as any);
     ui.setScheduleView('payperiod');
-    const w = mountWith(RecurringCalendar);
+    const w = mount(RecurringCalendar as Parameters<typeof mount>[0], {
+      attachTo: document.body,
+      props: { modelValue: null },
+    });
     await nextTick();
     const cells = w.findAll('.cal-interactive');
     if (cells.length > 0) {
       await cells[0].trigger('click');
       await nextTick();
-      expect(w.find('[data-testid="day-detail-panel"]').exists()).toBe(true);
-      expect(w.find('[data-testid="day-detail-panel"]').text()).toContain('PP Detail Bill');
+      expect(w.emitted('update:modelValue')).toBeTruthy();
     }
     w.unmount();
   });
 
-  it('pay-period selected cell gets .cal-selected class', async () => {
+  it('pay-period cell with matching modelValue gets .cal-selected class', async () => {
     const budget = useBudgetStore();
     const ui = useUiStore();
     budget.payStart = '2026-05-19';
@@ -1981,102 +1786,12 @@ describe('RecurringCalendar — day detail slide panel', () => {
       daysOfWeek: [],
     } as any);
     ui.setScheduleView('payperiod');
-    const w = mountWith(RecurringCalendar);
+    const w = mount(RecurringCalendar as Parameters<typeof mount>[0], {
+      attachTo: document.body,
+      props: { modelValue: '2026-05-22' },
+    });
     await nextTick();
-    const cells = w.findAll('.cal-interactive');
-    if (cells.length > 0) {
-      await cells[0].trigger('click');
-      await nextTick();
-      expect(cells[0].classes()).toContain('cal-selected');
-    }
-    w.unmount();
-  });
-
-  // ── loan / expense source badges ──────────────────────────────
-  it('loan bill shows bill-badge--loan in the slide panel', async () => {
-    const budget = useBudgetStore();
-    const ui = useUiStore();
-    // Clear DEFAULT_STATE data so only our test loan is present
-    budget.subscriptions.splice(0);
-    budget.loans.splice(0);
-    budget.loans.push({
-      id: 'detail-loan-test',
-      name: 'Detail Car Loan',
-      paymentAmount: 350,
-      date: '2026-05-10' as any,
-      frequency: 'monthly' as any,
-      budgetType: 'needs' as any,
-      cardId: null,
-      remaining: 8000,
-      original: 20000,
-    } as any);
-    ui.scheduleViewYear = 2026;
-    ui.scheduleViewMonth = 5;
-    ui.setScheduleView('calendar');
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    const cells = w.findAll('.cal-interactive');
-    expect(cells.length).toBeGreaterThan(0);
-    await cells[0].trigger('click');
-    await nextTick();
-    const panel = w.find('[data-testid="day-detail-panel"]');
-    expect(panel.exists()).toBe(true);
-    expect(panel.find('.bill-badge--loan').exists()).toBe(true);
-    w.unmount();
-  });
-
-  // ── frequency label ───────────────────────────────────────────
-  it('panel shows frequency label for the bill', async () => {
-    setupSubOnDay7();
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    await w.find('.cal-interactive').trigger('click');
-    await nextTick();
-    const panel = w.find('[data-testid="day-detail-panel"]');
-    expect(panel.find('.day-detail-row__freq').text()).toContain('monthly');
-    w.unmount();
-  });
-
-  // ── multiple bills on same day ────────────────────────────────
-  it('panel shows all bills when multiple land on the same day', async () => {
-    const budget = useBudgetStore();
-    const ui = useUiStore();
-    budget.subscriptions.splice(0);
-    budget.loans.splice(0);
-    budget.subscriptions.push(
-      {
-        id: 'multi-a',
-        name: 'Bill Alpha',
-        amount: 12,
-        frequency: 'monthly' as any,
-        date: '2026-05-15',
-        category: 'Entertainment',
-        budgetType: 'wants' as any,
-        cardId: null,
-        daysOfWeek: [],
-      } as any,
-      {
-        id: 'multi-b',
-        name: 'Bill Beta',
-        amount: 25,
-        frequency: 'monthly' as any,
-        date: '2026-05-15',
-        category: 'Entertainment',
-        budgetType: 'wants' as any,
-        cardId: null,
-        daysOfWeek: [],
-      } as any,
-    );
-    ui.scheduleViewYear = 2026;
-    ui.scheduleViewMonth = 5;
-    ui.setScheduleView('calendar');
-    const w = mountWith(RecurringCalendar);
-    await nextTick();
-    await w.find('.cal-interactive').trigger('click');
-    await nextTick();
-    const panel = w.find('[data-testid="day-detail-panel"]');
-    expect(panel.text()).toContain('Bill Alpha');
-    expect(panel.text()).toContain('Bill Beta');
+    expect(w.find('.cal-selected').exists()).toBe(true);
     w.unmount();
   });
 });
@@ -2205,13 +1920,13 @@ describe('RecurringCalendar — day detail hover popover', () => {
       value: vi.fn().mockReturnValue({ matches: true }),
     });
     setupSubOnDay14();
+    const ui = useUiStore();
     const w = mountWith(RecurringCalendar);
     await nextTick();
     await w.find('.cal-interactive').trigger('mouseenter');
     await nextTick();
-    // Navigate away — watch should fire
-    const nextBtn = w.findAll('button').find(b => b.text().includes('Next'));
-    await nextBtn!.trigger('click');
+    // Simulate navigation by advancing the month via the store (parent's responsibility)
+    ui.stepScheduleMonth(1);
     await nextTick();
     expect(document.body.querySelector('[data-testid="day-popover"]')).toBeNull();
     w.unmount();

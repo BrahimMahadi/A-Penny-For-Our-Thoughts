@@ -2,26 +2,36 @@
   Module:   components/sections/RecurringCalendar.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 4)
-  Updated:  May 2026 (Sprint 15 — Pay Period view)
-  Summary:  Recurring schedule: 6-month summary cards, ForecastBar chart,
-            and active-period detail in list, calendar, or pay-period view.
-            The 14-day pay-period grid mirrors the calendar grid but is
-            anchored to the user's bi-weekly pay cycle rather than a
-            calendar month.
+  Updated:  May 2026 (Sprint 16 — pure calendar widget, pay-period redesign)
+  Summary:  Pure calendar grid widget. Renders the recurring schedule in
+            list, month-calendar, or 14-day pay-period view. Navigation,
+            view-toggle, and day-detail panel are owned by the parent
+            (SchedulePage). Emits `update:modelValue` with the selected
+            ISO date whenever a day cell is clicked.
 -->
 
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { useUiStore } from '@/stores/ui';
+import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics } from '@/composables/useAnalytics';
-import ForecastBar from '@/components/charts/ForecastBar.vue';
-import BaseButton from '@/components/ui/BaseButton.vue';
 import { fmt } from '@/utils/format';
 import type { ForecastItem } from '@/utils/calculations';
 import type { ISODate } from '@/types/budget';
 
-// Day-of-week abbreviations shared with the schedule list view
-const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+// ─── Props / emits ────────────────────────────────────────────────
+const props = defineProps<{
+  /** Currently-selected ISO date; null = no selection */
+  modelValue?: ISODate | null;
+}>();
+
+const emit = defineEmits<{
+  'update:modelValue': [value: ISODate | null];
+}>();
+
+// ─── Day-of-week labels ───────────────────────────────────────────
+const DOW_SHORT  = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /** Render a sorted day-pattern label, e.g. [1,3] → "Mon · Wed" */
 function dayPatternLabel(days: number[] | undefined): string {
@@ -29,69 +39,31 @@ function dayPatternLabel(days: number[] | undefined): string {
   return [...days].sort((a, b) => a - b).map(d => DOW_SHORT[d]).join(' · ');
 }
 
-const ui = useUiStore();
+// ─── Stores / composables ─────────────────────────────────────────
+const ui     = useUiStore();
+const budget = useBudgetStore();
 const {
-  sixMonthForecast,
+  totalMonthlyIncome,
   monthForecast,
   calendarDayMap,
   payPeriodForecast,
   payPeriodDayMap,
 } = useAnalytics();
 
-// ─── Month navigation ─────────────────────────────────────────────
-function prevUnit(): void {
-  if (ui.scheduleView === 'payperiod') ui.stepPayPeriod(-1);
-  else ui.stepScheduleMonth(-1);
+// ─── Income colour helper ─────────────────────────────────────────
+
+/** Map an event source (or 'income') to its 2-px bar colour. */
+function sourceToColor(source: string): string {
+  if (source === 'income')       return 'var(--accent)';
+  if (source === 'subscription') return '#a78bfa';
+  if (source === 'loan')         return 'var(--warn, #f59e0b)';
+  return 'var(--danger)';
 }
 
-function nextUnit(): void {
-  if (ui.scheduleView === 'payperiod') ui.stepPayPeriod(1);
-  else ui.stepScheduleMonth(1);
-}
+/** Approximate per-pay income: total monthly / 2 (bi-weekly pay cadence). */
+const incomePerPay = computed(() => totalMonthlyIncome.value / 2);
 
-function setMonth(year: number, month: number): void {
-  ui.setScheduleMonth(year, month);
-  // Clicking a month card always switches to list/calendar view if in pay period mode
-  if (ui.scheduleView === 'payperiod') ui.setScheduleView('list');
-}
-
-const detailTitle = computed(() => {
-  if (ui.scheduleView === 'payperiod') {
-    return payPeriodForecast.value
-      ? `Pay Period: ${payPeriodForecast.value.label}`
-      : 'Pay Period';
-  }
-  return new Date(ui.scheduleViewYear, ui.scheduleViewMonth - 1, 1)
-    .toLocaleString('en-CA', { month: 'long', year: 'numeric' });
-});
-
-// ─── 6-month summary cards ────────────────────────────────────────
-const summaryCards = computed(() => sixMonthForecast.value);
-
-function cardLabel(year: number, month: number): string {
-  return new Date(year, month - 1, 1).toLocaleString('en-CA', { month: 'short', year: 'numeric' });
-}
-
-function isActiveCard(year: number, month: number): boolean {
-  return year === ui.scheduleViewYear && month === ui.scheduleViewMonth;
-}
-
-// ─── Forecast bar chart data ──────────────────────────────────────
-const forecastBarData = computed(() =>
-  summaryCards.value.map(fc => ({
-    year:     fc.year,
-    month:    fc.month,
-    label:    cardLabel(fc.year, fc.month),
-    total:    fc.total,
-    budgeted: fc.budgeted,
-  })),
-);
-
-function onBarClick(year: number, month: number): void {
-  setMonth(year, month);
-}
-
-// ─── Active period data (unified for all three views) ─────────────
+// ─── Active-period totals (used by list view) ─────────────────────
 const fc = computed(() => monthForecast.value);
 
 const activeVariance = computed(() =>
@@ -122,10 +94,8 @@ const hasAny = computed(() => {
 });
 
 // ─── List-view grouping for custom-days subscriptions ────────────
-// custom-days subs produce one ForecastItem per occurrence day (for the
-// calendar grid), but the list view must collapse them into a single row.
 interface CollapsedCustomDay extends ForecastItem {
-  occurrences: number;
+  occurrences:   number;
   totalForMonth: number;
 }
 
@@ -133,7 +103,7 @@ const listGrouped = computed(() => {
   const dated   = fc.value?.dated   ?? [];
   const undated = fc.value?.undated ?? [];
 
-  const customMap = new Map<string, CollapsedCustomDay>();
+  const customMap     = new Map<string, CollapsedCustomDay>();
   const normalDated: ForecastItem[] = [];
 
   dated.forEach((item) => {
@@ -142,7 +112,7 @@ const listGrouped = computed(() => {
       if (existing) {
         customMap.set(item.id, {
           ...existing,
-          occurrences:  existing.occurrences + 1,
+          occurrences:   existing.occurrences + 1,
           totalForMonth: existing.totalForMonth + item.amount,
         });
       } else {
@@ -153,23 +123,17 @@ const listGrouped = computed(() => {
     }
   });
 
-  return {
-    dated:      normalDated,
-    customDays: [...customMap.values()],
-    undated,
-  };
+  return { dated: normalDated, customDays: [...customMap.values()], undated };
 });
 
 // ─── Calendar grid (month view) ───────────────────────────────────
-const today      = new Date();
-const todayIso   = today.toISOString().split('T')[0] as ISODate;
-const maxDay     = computed(() => new Date(ui.scheduleViewYear, ui.scheduleViewMonth, 0).getDate());
-const firstDow   = computed(() => new Date(ui.scheduleViewYear, ui.scheduleViewMonth - 1, 1).getDay());
+const today       = new Date();
+const todayIso    = today.toISOString().split('T')[0] as ISODate;
+const maxDay      = computed(() => new Date(ui.scheduleViewYear, ui.scheduleViewMonth, 0).getDate());
+const firstDow    = computed(() => new Date(ui.scheduleViewYear, ui.scheduleViewMonth - 1, 1).getDay());
 const isThisMonth = computed(() =>
   today.getFullYear() === ui.scheduleViewYear && today.getMonth() + 1 === ui.scheduleViewMonth,
 );
-
-const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const heavyThreshold = computed(() => {
   if (ui.scheduleView === 'payperiod') {
@@ -184,20 +148,33 @@ interface CalDay {
   dayTotal: number;
   isToday:  boolean;
   isHeavy:  boolean;
+  isPayDay: boolean;
 }
 
 const calDays = computed<CalDay[]>(() => {
-  const days: CalDay[] = [];
-  const map = calendarDayMap.value;
+  const days: CalDay[]  = [];
+  const map             = calendarDayMap.value;
+  const payStart        = budget.$state.payStart;
+  const payStartMs      = payStart ? new Date(payStart + 'T00:00:00').getTime() : null;
+
   for (let d = 1; d <= maxDay.value; d++) {
     const items    = map.get(d) || [];
     const dayTotal = items.reduce((s, i) => s + i.totalForMonth, 0);
+
+    let isPayDay = false;
+    if (payStartMs !== null) {
+      const dateMs = new Date(ui.scheduleViewYear, ui.scheduleViewMonth - 1, d).getTime();
+      const diff   = Math.round((dateMs - payStartMs) / 86400000);
+      isPayDay     = diff % 14 === 0;
+    }
+
     days.push({
-      day:      d,
+      day:     d,
       items,
       dayTotal,
-      isToday:  isThisMonth.value && today.getDate() === d,
-      isHeavy:  dayTotal > heavyThreshold.value && heavyThreshold.value > 0,
+      isToday: isThisMonth.value && today.getDate() === d,
+      isHeavy: dayTotal > heavyThreshold.value && heavyThreshold.value > 0,
+      isPayDay,
     });
   }
   return days;
@@ -210,90 +187,108 @@ const trailingBlanks = computed(() => {
   return rem > 0 ? Array.from({ length: 7 - rem }) : [];
 });
 
+/** Build the ISO date string for a given calendar day in the current view month. */
+function calDayIso(day: number): ISODate {
+  return `${ui.scheduleViewYear}-${String(ui.scheduleViewMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}` as ISODate;
+}
+
 // ─── Pay-period grid (14-day view) ────────────────────────────────
 
 interface PayPeriodDay {
-  isoDate:      ISODate;
-  dayNum:       number;
-  monthLabel:   string;    // shown on the 1st of any month within the period
-  showMonth:    boolean;
-  items:        ReturnType<typeof payPeriodDayMap.value.get> extends infer T ? Exclude<T, undefined> : never[];
-  dayTotal:     number;
-  isToday:      boolean;
-  isHeavy:      boolean;
+  isoDate:    ISODate;
+  dayNum:     number;
+  monthLabel: string;
+  showMonth:  boolean;
+  items:      ReturnType<typeof payPeriodDayMap.value.get> extends infer T ? Exclude<T, undefined> : never[];
+  dayTotal:   number;
+  isToday:    boolean;
+  isHeavy:    boolean;
+  isPayStart: boolean;
+  isPayEnd:   boolean;
 }
 
 const ppDays = computed<PayPeriodDay[]>(() => {
   const fc2 = payPeriodForecast.value;
   if (!fc2) return [];
-  const map = payPeriodDayMap.value;
+  const map       = payPeriodDayMap.value;
   const startDate = new Date(fc2.periodStart + 'T00:00:00');
   const days: PayPeriodDay[] = [];
+
   for (let i = 0; i < 14; i++) {
-    const d = new Date(startDate.getTime() + i * 86400000);
+    const d       = new Date(startDate.getTime() + i * 86400000);
     const isoDate = d.toISOString().split('T')[0] as ISODate;
-    const items = map.get(isoDate) ?? [];
+    const items   = map.get(isoDate) ?? [];
     const dayTotal = items.reduce((s, item) => s + item.totalForMonth, 0);
     days.push({
       isoDate,
-      dayNum: d.getDate(),
+      dayNum:     d.getDate(),
       monthLabel: d.toLocaleString('en-CA', { month: 'short' }),
-      showMonth: d.getDate() === 1,
+      showMonth:  d.getDate() === 1,
       items,
       dayTotal,
-      isToday: isoDate === todayIso,
-      isHeavy: dayTotal > heavyThreshold.value && heavyThreshold.value > 0,
+      isToday:    isoDate === todayIso,
+      isHeavy:    dayTotal > heavyThreshold.value && heavyThreshold.value > 0,
+      isPayStart: i === 0,
+      isPayEnd:   i === 13,
     });
   }
   return days;
 });
 
-const ppLeadingBlanks = computed(() => {
+/**
+ * DOW header labels for the pay-period grid, rotated so the first column
+ * aligns with the day-of-week on which the period starts (typically Thursday).
+ */
+const ppDowLabels = computed(() => {
   const fc2 = payPeriodForecast.value;
-  if (!fc2) return [];
+  if (!fc2) return DOW_LABELS;
   const startDow = new Date(fc2.periodStart + 'T00:00:00').getDay();
-  return Array.from({ length: startDow });
+  return [...DOW_LABELS.slice(startDow), ...DOW_LABELS.slice(0, startDow)];
 });
 
-const ppTrailingBlanks = computed(() => {
-  const total = ppLeadingBlanks.value.length + 14;
-  const rem = total % 7;
-  return rem > 0 ? Array.from({ length: 7 - rem }) : [];
-});
+// 14 days ÷ 7 = exactly 2 rows — no leading or trailing blank cells needed.
+const ppLeadingBlanks  = computed(() => []);
+const ppTrailingBlanks = computed(() => []);
 
-// ─── View toggle ─────────────────────────────────────────────────
-function setView(v: 'list' | 'calendar' | 'payperiod'): void {
-  ui.setScheduleView(v);
-  // Reset pay-period offset to current when entering the pay-period view.
-  if (v === 'payperiod') ui.resetToCurrentPayPeriod();
+// ─── Selection ────────────────────────────────────────────────────
+function onCalDayClick(day: number): void {
+  const cd = calDays.value.find(c => c.day === day);
+  if (!cd || (!cd.items.length && !cd.isPayDay)) return;
+  const iso = calDayIso(day);
+  emit('update:modelValue', props.modelValue === iso ? null : iso);
+}
+
+function onPpDayClick(isoDate: string): void {
+  const pd = ppDays.value.find(d => d.isoDate === isoDate);
+  if (!pd || (!pd.items.length && !pd.isPayStart)) return;
+  emit('update:modelValue', props.modelValue === isoDate ? null : isoDate as ISODate);
 }
 
 // ─── Bill row helper ─────────────────────────────────────────────
 function ordinal(n: number): string {
-  const s = ['th','st','nd','rd'];
+  const s = ['th', 'st', 'nd', 'rd'];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-// ─── Day detail: hover popover + click slide panel ────────────────
-/** True when the device supports precise hover (not touch-primary). */
+function frequencyLabel(item: ForecastItem): string {
+  const map: Record<string, string> = {
+    monthly: 'monthly', weekly: 'weekly', 'bi-weekly': 'bi-weekly',
+    biyearly: 'every 6 mo', quarterly: 'quarterly', yearly: 'yearly',
+    'bi-monthly': 'bi-monthly', 'custom-days': 'recurring',
+  };
+  return (item.frequency && map[item.frequency]) || item.frequency || '';
+}
+
+// ─── Hover popover (desktop only) ────────────────────────────────
 const supportsHover = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
   ? window.matchMedia('(hover: hover)').matches
   : false;
 
-/** Calendar view: which day number is currently selected (slide panel). */
-const selectedCalDay = ref<number | null>(null);
-/** Pay-period view: which ISO date is currently selected (slide panel). */
-const selectedPpDate = ref<string | null>(null);
-
-/** Desktop hover popover — which cal day is hovered. */
-const hoveredCalDay = ref<number | null>(null);
-/** Desktop hover popover — which pp ISO date is hovered. */
-const hoveredPpDate = ref<string | null>(null);
-
-/** Popover position (fixed coordinates). */
-const popoverPos   = ref({ top: 0, left: 0, flipLeft: false });
-const popoverVisible = ref(false);
+const hoveredCalDay   = ref<number | null>(null);
+const hoveredPpDate   = ref<string | null>(null);
+const popoverPos      = ref({ top: 0, left: 0, flipLeft: false });
+const popoverVisible  = ref(false);
 
 let _leaveTimer: ReturnType<typeof setTimeout> | null = null;
 function _clearLeave(): void {
@@ -301,38 +296,42 @@ function _clearLeave(): void {
 }
 onUnmounted(() => _clearLeave());
 
-// ─── Shared data shape for the detail panel / popover ────────────
 interface DayDetailData {
-  label:    string;          // e.g. "Sat, May 3"
-  dayTotal: number;
-  items:    ForecastItem[];
+  label:         string;
+  dayTotal:      number;
+  items:         ForecastItem[];
+  incomeAmount?: number;
 }
 
 function _buildCalDetail(day: number): DayDetailData | null {
   const cd = calDays.value.find(c => c.day === day);
-  if (!cd || cd.items.length === 0) return null;
+  if (!cd || (!cd.items.length && !cd.isPayDay)) return null;
   const date  = new Date(ui.scheduleViewYear, ui.scheduleViewMonth - 1, day);
   const label = date.toLocaleString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
-  return { label, dayTotal: cd.dayTotal, items: cd.items };
+  return {
+    label,
+    dayTotal:     cd.dayTotal,
+    items:        cd.items,
+    incomeAmount: cd.isPayDay ? incomePerPay.value : undefined,
+  };
 }
 
 function _buildPpDetail(isoDate: string): DayDetailData | null {
   const pd = ppDays.value.find(d => d.isoDate === isoDate);
-  if (!pd || pd.items.length === 0) return null;
+  if (!pd || (!pd.items.length && !pd.isPayStart)) return null;
   const date  = new Date(isoDate + 'T00:00:00');
   const label = date.toLocaleString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
-  return { label, dayTotal: pd.dayTotal, items: pd.items };
+  return {
+    label,
+    dayTotal:     pd.dayTotal,
+    items:        pd.items,
+    incomeAmount: pd.isPayStart ? incomePerPay.value : undefined,
+  };
 }
 
 const hoveredDayDetail = computed<DayDetailData | null>(() => {
   if (hoveredCalDay.value !== null) return _buildCalDetail(hoveredCalDay.value);
   if (hoveredPpDate.value !== null) return _buildPpDetail(hoveredPpDate.value);
-  return null;
-});
-
-const selectedDayDetail = computed<DayDetailData | null>(() => {
-  if (selectedCalDay.value !== null) return _buildCalDetail(selectedCalDay.value);
-  if (selectedPpDate.value !== null) return _buildPpDetail(selectedPpDate.value);
   return null;
 });
 
@@ -352,17 +351,11 @@ function _positionPopover(el: HTMLElement): void {
 }
 
 // ─── Calendar view event handlers ───────────────────────────────
-function onCalDayClick(day: number): void {
-  if (!calDays.value.find(c => c.day === day)?.items.length) return;
-  selectedCalDay.value = selectedCalDay.value === day ? null : day;
-  selectedPpDate.value = null;
-}
-
 function onCalDayEnter(day: number, event: MouseEvent): void {
   if (!supportsHover) return;
   _clearLeave();
-  const items = calDays.value.find(c => c.day === day)?.items ?? [];
-  if (items.length === 0) { popoverVisible.value = false; return; }
+  const cd = calDays.value.find(c => c.day === day);
+  if (!cd?.items.length && !cd?.isPayDay) { popoverVisible.value = false; return; }
   hoveredCalDay.value  = day;
   hoveredPpDate.value  = null;
   _positionPopover(event.currentTarget as HTMLElement);
@@ -379,18 +372,11 @@ function onCalDayLeave(): void {
 }
 
 // ─── Pay-period view event handlers ─────────────────────────────
-function onPpDayClick(isoDate: string): void {
-  const items = ppDays.value.find(d => d.isoDate === isoDate)?.items ?? [];
-  if (!items.length) return;
-  selectedPpDate.value = selectedPpDate.value === isoDate ? null : isoDate;
-  selectedCalDay.value = null;
-}
-
 function onPpDayEnter(isoDate: string, event: MouseEvent): void {
   if (!supportsHover) return;
   _clearLeave();
-  const items = ppDays.value.find(d => d.isoDate === isoDate)?.items ?? [];
-  if (items.length === 0) { popoverVisible.value = false; return; }
+  const pd = ppDays.value.find(d => d.isoDate === isoDate);
+  if (!pd?.items.length && !pd?.isPayStart) { popoverVisible.value = false; return; }
   hoveredPpDate.value  = isoDate;
   hoveredCalDay.value  = null;
   _positionPopover(event.currentTarget as HTMLElement);
@@ -407,10 +393,7 @@ function onPpDayLeave(): void {
 }
 
 // ─── Popover self-hover (grace period) ──────────────────────────
-function onPopoverEnter(): void {
-  if (!supportsHover) return;
-  _clearLeave();
-}
+function onPopoverEnter(): void { if (supportsHover) _clearLeave(); }
 
 function onPopoverLeave(): void {
   if (!supportsHover) return;
@@ -422,384 +405,288 @@ function onPopoverLeave(): void {
   }, 150);
 }
 
-function closeDayDetail(): void {
-  selectedCalDay.value = null;
-  selectedPpDate.value = null;
+/** Left-border colour for popover rows — mirrors sourceToColor for non-income. */
+function itemBorderColor(item: ForecastItem): string {
+  return sourceToColor(item.source);
 }
 
-// ─── Clear state on navigation ───────────────────────────────────
+// ─── Clear hover state on navigation ───────────────────────────
 watch(
   [() => ui.scheduleView, () => ui.scheduleViewMonth, () => ui.scheduleViewYear, () => ui.schedulePayPeriodOffset],
   () => {
-    selectedCalDay.value = null;
-    selectedPpDate.value = null;
     hoveredCalDay.value  = null;
     hoveredPpDate.value  = null;
     popoverVisible.value = false;
     _clearLeave();
+    if (props.modelValue != null) emit('update:modelValue', null);
   },
 );
-
-// ─── Item type colour for slide panel left border ────────────────
-function itemBorderColor(item: ForecastItem): string {
-  if (item.source === 'subscription') return '#a78bfa';
-  if (item.source === 'loan')         return 'var(--warn, #f59e0b)';
-  return 'var(--accent2)';
-}
-
-function frequencyLabel(item: ForecastItem): string {
-  const map: Record<string, string> = {
-    monthly: 'monthly', weekly: 'weekly', 'bi-weekly': 'bi-weekly',
-    biyearly: 'every 6 mo', quarterly: 'quarterly', yearly: 'yearly',
-    'bi-monthly': 'bi-monthly', 'custom-days': 'recurring',
-  };
-  return (item.frequency && map[item.frequency]) || item.frequency || '';
-}
 </script>
 
 <template>
   <div class="recurring-calendar">
-    <!-- 6-month summary cards -->
-    <div class="summary-cards">
-      <button
-        v-for="card in summaryCards"
-        :key="`${card.year}-${card.month}`"
-        class="summary-card"
-        :class="{ 'summary-card--active': isActiveCard(card.year, card.month) && ui.scheduleView !== 'payperiod' }"
-        type="button"
-        @click="setMonth(card.year, card.month)"
-      >
-        <div class="summary-card__month">
-          {{ cardLabel(card.year, card.month) }}
-        </div>
-        <div class="summary-card__total">
-          {{ fmt(card.total) }}
-        </div>
-        <div
-          class="summary-card__variance"
-          :class="card.variance < 0 ? 'text-danger' : 'text-accent2'"
-        >
-          {{ card.variance < 0 ? `+${fmt(Math.abs(card.variance))} over` : `${fmt(Math.abs(card.variance))} under` }}
-        </div>
-        <div class="summary-card__count">
-          {{ card.billCount }} bill{{ card.billCount !== 1 ? 's' : '' }}
-        </div>
-      </button>
+
+    <!-- Pay period: no payStart configured -->
+    <div
+      v-if="ui.scheduleView === 'payperiod' && !payPeriodForecast"
+      class="detail-empty"
+    >
+      <div>📅</div>
+      <div>No pay period configured. Set a start date in <strong>Settings → Pay Period</strong> to use this view.</div>
     </div>
 
-    <!-- Forecast bar chart -->
-    <ForecastBar
-      :forecast-data="forecastBarData"
-      @bar-click="onBarClick"
-    />
+    <!-- List view: no bills yet -->
+    <div
+      v-else-if="ui.scheduleView === 'list' && !hasAny"
+      class="detail-empty"
+    >
+      <div>📅</div>
+      <div>No recurring bills yet — add expense cards or subscriptions to see them here.</div>
+    </div>
 
-    <!-- Active period detail -->
-    <div class="detail-section">
-      <!-- Detail header -->
-      <div class="detail-header">
-        <BaseButton
-          size="xs"
-          variant="secondary"
-          @click="prevUnit"
+    <!-- ───────────── LIST VIEW ──────────────────────────────────── -->
+    <template v-else-if="ui.scheduleView === 'list'">
+      <template v-if="fc.dated.length > 0">
+        <div class="bill-group-label">
+          Scheduled by date
+        </div>
+        <div
+          v-for="(item, i) in listGrouped.dated"
+          :key="`dated-${i}`"
+          class="bill-row"
         >
-          ‹ Prev
-        </BaseButton>
-        <div class="detail-title">
-          {{ detailTitle }}
+          <span class="bill-day">{{ item.dueDay ? ordinal(item.dueDay) : '∞' }}</span>
+          <span class="bill-name">{{ item.name }}</span>
+          <span class="bill-badge bill-badge--card">{{ item.cardLabel }}</span>
           <span
-            class="detail-total"
-            :style="{ color: totalColor }"
-          >
-            {{ fmt(activeTotal) }}{{ ui.scheduleView === 'payperiod' ? '/period' : '/mo' }}
-          </span>
-        </div>
-        <div class="detail-header-right">
-          <div class="view-toggle">
-            <button
-              class="view-toggle-btn"
-              :class="{ active: ui.scheduleView === 'list' }"
-              title="List view"
-              @click="setView('list')"
-            >
-              ☰
-            </button>
-            <button
-              class="view-toggle-btn"
-              :class="{ active: ui.scheduleView === 'calendar' }"
-              title="Calendar view"
-              @click="setView('calendar')"
-            >
-              ⊞
-            </button>
-            <button
-              class="view-toggle-btn view-toggle-btn--pp"
-              :class="{ active: ui.scheduleView === 'payperiod' }"
-              title="Pay period view (14-day grid)"
-              @click="setView('payperiod')"
-            >
-              2W
-            </button>
-          </div>
-          <BaseButton
-            size="xs"
-            variant="secondary"
-            @click="nextUnit"
-          >
-            Next ›
-          </BaseButton>
-        </div>
-      </div>
-
-      <!-- Pay period: no payStart configured -->
-      <div
-        v-if="ui.scheduleView === 'payperiod' && !payPeriodForecast"
-        class="detail-empty"
-      >
-        <div>📅</div>
-        <div>No pay period configured. Set a start date in <strong>Settings → Pay Period</strong> to use this view.</div>
-      </div>
-
-      <!-- Empty state (bills configured, but pay-period is fine) -->
-      <div
-        v-else-if="!hasAny"
-        class="detail-empty"
-      >
-        <div>📅</div>
-        <div>No recurring bills yet — add expense cards or subscriptions to see them here.</div>
-      </div>
-
-      <!-- LIST VIEW -->
-      <template v-else-if="ui.scheduleView === 'list'">
-        <template v-if="fc.dated.length > 0">
-          <div class="bill-group-label">
-            Scheduled by date
-          </div>
-          <div
-            v-for="(item, i) in listGrouped.dated"
-            :key="`dated-${i}`"
-            class="bill-row"
-          >
-            <span class="bill-day">{{ item.dueDay ? ordinal(item.dueDay) : '∞' }}</span>
-            <span class="bill-name">{{ item.name }}</span>
-            <span class="bill-badge bill-badge--card">{{ item.cardLabel }}</span>
-            <span
-              v-if="item.biweekly"
-              class="bill-badge bill-badge--biweekly"
-            >×2 bi-wk</span>
-            <span
-              v-else-if="item.source === 'subscription'"
-              class="bill-badge bill-badge--sub"
-            >subscription</span>
-            <span
-              v-else-if="item.source === 'loan'"
-              class="bill-badge bill-badge--loan"
-            >loan</span>
-            <span class="bill-amt">{{ fmt(item.totalForMonth) }}</span>
-          </div>
-        </template>
-
-        <!-- Custom-days recurring patterns (collapsed, one row per subscription) -->
-        <template v-if="listGrouped.customDays.length > 0">
-          <div class="bill-group-label">
-            Weekly recurring pattern
-          </div>
-          <div
-            v-for="(item, i) in listGrouped.customDays"
-            :key="`custom-${i}`"
-            class="bill-row"
-          >
-            <span class="bill-day bill-day--pattern">≡</span>
-            <span class="bill-name">{{ item.name }}</span>
-            <span class="bill-badge bill-badge--custom">{{ dayPatternLabel(item.daysOfWeek) }}</span>
-            <span class="bill-badge bill-badge--sub">subscription</span>
-            <span class="bill-count">×{{ item.occurrences }} this mo.</span>
-            <span class="bill-amt">{{ fmt(item.totalForMonth) }}</span>
-          </div>
-        </template>
-
-        <template v-if="listGrouped.undated.length > 0">
-          <div class="bill-group-label">
-            Any time this month
-          </div>
-          <div
-            v-for="(item, i) in listGrouped.undated"
-            :key="`undated-${i}`"
-            class="bill-row"
-          >
-            <span class="bill-day">∞</span>
-            <span class="bill-name">{{ item.name }}</span>
-            <span class="bill-badge bill-badge--card">{{ item.cardLabel }}</span>
-            <span
-              v-if="item.source === 'subscription'"
-              class="bill-badge bill-badge--sub"
-            >subscription</span>
-            <span class="bill-amt">{{ fmt(item.totalForMonth) }}</span>
-          </div>
-        </template>
-
-        <div class="bill-total-row">
-          <span>Total recurring</span>
+            v-if="item.biweekly"
+            class="bill-badge bill-badge--biweekly"
+          >×2 bi-wk</span>
           <span
-            class="bill-total-amt"
-            :style="{ color: totalColor }"
-          >{{ fmt(fc.total) }}</span>
+            v-else-if="item.source === 'subscription'"
+            class="bill-badge bill-badge--sub"
+          >subscription</span>
+          <span
+            v-else-if="item.source === 'loan'"
+            class="bill-badge bill-badge--loan"
+          >loan</span>
+          <span class="bill-amt">{{ fmt(item.totalForMonth) }}</span>
         </div>
       </template>
 
-      <!-- CALENDAR VIEW (month) -->
-      <template v-else-if="ui.scheduleView === 'calendar'">
-        <!-- Scroll wrapper prevents the 7-column grid from clipping on narrow screens -->
-        <div class="cal-scroll-wrapper">
-          <div class="cal-grid">
-            <!-- Day-of-week headers -->
-            <div
-              v-for="dow in DOW_LABELS"
-              :key="dow"
-              class="cal-header-cell"
-            >
-              {{ dow }}
-            </div>
+      <template v-if="listGrouped.customDays.length > 0">
+        <div class="bill-group-label">
+          Weekly recurring pattern
+        </div>
+        <div
+          v-for="(item, i) in listGrouped.customDays"
+          :key="`custom-${i}`"
+          class="bill-row"
+        >
+          <span class="bill-day bill-day--pattern">≡</span>
+          <span class="bill-name">{{ item.name }}</span>
+          <span class="bill-badge bill-badge--custom">{{ dayPatternLabel(item.daysOfWeek) }}</span>
+          <span class="bill-badge bill-badge--sub">subscription</span>
+          <span class="bill-count">×{{ item.occurrences }} this mo.</span>
+          <span class="bill-amt">{{ fmt(item.totalForMonth) }}</span>
+        </div>
+      </template>
 
-            <!-- Leading blank cells -->
-            <div
-              v-for="(_, i) in leadingBlanks"
-              :key="`blank-l-${i}`"
-              class="cal-cell cal-blank"
-            />
+      <template v-if="listGrouped.undated.length > 0">
+        <div class="bill-group-label">
+          Any time this month
+        </div>
+        <div
+          v-for="(item, i) in listGrouped.undated"
+          :key="`undated-${i}`"
+          class="bill-row"
+        >
+          <span class="bill-day">∞</span>
+          <span class="bill-name">{{ item.name }}</span>
+          <span class="bill-badge bill-badge--card">{{ item.cardLabel }}</span>
+          <span
+            v-if="item.source === 'subscription'"
+            class="bill-badge bill-badge--sub"
+          >subscription</span>
+          <span class="bill-amt">{{ fmt(item.totalForMonth) }}</span>
+        </div>
+      </template>
 
-            <!-- Day cells -->
-            <div
-              v-for="calDay in calDays"
-              :key="calDay.day"
-              class="cal-cell"
-              :class="{
-                'cal-today': calDay.isToday,
-                'cal-has-bills': calDay.items.length > 0,
-                'cal-heavy': calDay.isHeavy,
-                'cal-interactive': calDay.items.length > 0,
-                'cal-selected': selectedCalDay === calDay.day && calDay.items.length > 0,
-              }"
-              @click="onCalDayClick(calDay.day)"
-              @mouseenter="onCalDayEnter(calDay.day, $event)"
-              @mouseleave="onCalDayLeave()"
-            >
+      <div class="bill-total-row">
+        <span>Total recurring</span>
+        <span
+          class="bill-total-amt"
+          :style="{ color: totalColor }"
+        >{{ fmt(fc.total) }}</span>
+      </div>
+    </template>
+
+    <!-- ───────────── CALENDAR VIEW (month) ─────────────────────── -->
+    <template v-else-if="ui.scheduleView === 'calendar'">
+      <div class="cal-scroll-wrapper">
+        <div class="cal-grid">
+          <!-- Day-of-week headers -->
+          <div
+            v-for="dow in DOW_LABELS"
+            :key="dow"
+            class="cal-header-cell"
+          >
+            {{ dow }}
+          </div>
+
+          <!-- Leading blank cells -->
+          <div
+            v-for="(_, i) in leadingBlanks"
+            :key="`blank-l-${i}`"
+            class="cal-cell cal-cell--month cal-blank"
+          />
+
+          <!-- Day cells -->
+          <div
+            v-for="calDay in calDays"
+            :key="calDay.day"
+            class="cal-cell cal-cell--month"
+            :class="{
+              'cal-today':       calDay.isToday,
+              'cal-has-events':  calDay.items.length > 0 || calDay.isPayDay,
+              'cal-heavy':       calDay.isHeavy,
+              'cal-interactive': calDay.items.length > 0 || calDay.isPayDay,
+              'cal-selected':    modelValue === calDayIso(calDay.day) && (calDay.items.length > 0 || calDay.isPayDay),
+            }"
+            @click="onCalDayClick(calDay.day)"
+            @mouseenter="onCalDayEnter(calDay.day, $event)"
+            @mouseleave="onCalDayLeave()"
+          >
+            <div class="cal-cell-top">
               <span class="cal-day-num">{{ calDay.day }}</span>
-              <div
-                v-for="(item, bi) in calDay.items.slice(0, 2)"
-                :key="bi"
-                class="cal-badge"
-                :class="item.source === 'subscription' ? 'cal-badge--sub' : item.source === 'loan' ? 'cal-badge--loan' : 'cal-badge--expense'"
-                :title="`${item.name} — ${fmt(item.totalForMonth)}`"
-              >
-                {{ item.name }}
-              </div>
-              <div
-                v-if="calDay.items.length > 2"
-                class="cal-badge cal-badge--more"
-              >
-                +{{ calDay.items.length - 2 }}
-              </div>
-              <div
-                v-if="calDay.dayTotal > 0"
-                class="cal-day-total"
-              >
-                {{ fmt(calDay.dayTotal) }}
-              </div>
             </div>
 
-            <!-- Trailing blank cells -->
+            <!-- Income event row (pay day) -->
             <div
-              v-for="(_, i) in trailingBlanks"
-              :key="`blank-t-${i}`"
-              class="cal-cell cal-blank"
-            />
-          </div>
-        </div>
+              v-if="calDay.isPayDay"
+              class="cal-event-row"
+            >
+              <span
+                class="cal-event-bar"
+                style="background: var(--accent)"
+              />
+              <span class="cal-event-name">Pay</span>
+            </div>
 
-        <!-- Undated items below grid -->
-        <template v-if="fc.undated.length > 0">
-          <div
-            class="bill-group-label"
-            style="margin-top: 1rem"
-          >
-            No fixed date this month
+            <!-- Bill / sub / loan event rows (up to remaining slots) -->
+            <div
+              v-for="(item, bi) in calDay.items.slice(0, calDay.isPayDay ? 1 : 2)"
+              :key="bi"
+              class="cal-event-row"
+            >
+              <span
+                class="cal-event-bar"
+                :style="{ background: sourceToColor(item.source) }"
+              />
+              <span class="cal-event-name">{{ item.name }}</span>
+            </div>
+
+            <!-- "+N more" overflow indicator -->
+            <div
+              v-if="(calDay.isPayDay ? 1 : 0) + calDay.items.length > 2"
+              class="cal-event-more"
+            >
+              +{{ (calDay.isPayDay ? 1 : 0) + calDay.items.length - 2 }} more
+            </div>
           </div>
+
+          <!-- Trailing blank cells -->
           <div
-            v-for="(item, i) in fc.undated"
-            :key="`cal-undated-${i}`"
-            class="bill-row"
-          >
-            <span class="bill-day">∞</span>
-            <span class="bill-name">{{ item.name }}</span>
-            <span
-              v-if="item.source === 'subscription'"
-              class="bill-badge bill-badge--sub"
-            >subscription</span>
-            <span
-              v-else
-              class="bill-badge bill-badge--card"
-            >{{ item.cardLabel }}</span>
-            <span class="bill-amt">{{ fmt(item.totalForMonth) }}</span>
-          </div>
-        </template>
+            v-for="(_, i) in trailingBlanks"
+            :key="`blank-t-${i}`"
+            class="cal-cell cal-cell--month cal-blank"
+          />
+        </div>
+      </div>
+
+      <!-- Undated items below grid -->
+      <template v-if="fc.undated.length > 0">
+        <div
+          class="bill-group-label"
+          style="margin-top: 1rem"
+        >
+          No fixed date this month
+        </div>
+        <div
+          v-for="(item, i) in fc.undated"
+          :key="`cal-undated-${i}`"
+          class="bill-row"
+        >
+          <span class="bill-day">∞</span>
+          <span class="bill-name">{{ item.name }}</span>
+          <span
+            v-if="item.source === 'subscription'"
+            class="bill-badge bill-badge--sub"
+          >subscription</span>
+          <span
+            v-else
+            class="bill-badge bill-badge--card"
+          >{{ item.cardLabel }}</span>
+          <span class="bill-amt">{{ fmt(item.totalForMonth) }}</span>
+        </div>
       </template>
 
-      <!-- PAY PERIOD VIEW (14-day grid) -->
-      <template v-else-if="ui.scheduleView === 'payperiod' && payPeriodForecast">
-        <!-- Period budget bar -->
-        <div class="pp-budget-bar">
-          <div class="pp-budget-bar__label">
-            <span class="pp-budget-bar__billed">{{ fmt(payPeriodForecast.total) }} billed</span>
-            <span class="pp-budget-bar__budget">of {{ fmt(payPeriodForecast.budgeted) }} Needs budget</span>
+      <!-- Legend -->
+      <div class="cal-legend">
+        <span class="cal-legend-item">
+          <span class="cal-legend-bar" style="background: var(--accent)" />Income
+        </span>
+        <span class="cal-legend-item">
+          <span class="cal-legend-bar" style="background: var(--danger)" />Bill
+        </span>
+        <span class="cal-legend-item">
+          <span class="cal-legend-bar" style="background: #a78bfa" />Sub
+        </span>
+        <span class="cal-legend-item">
+          <span class="cal-legend-bar" style="background: var(--warn, #f59e0b)" />Loan
+        </span>
+      </div>
+    </template>
+
+    <!-- ───────────── PAY PERIOD VIEW (14-day grid) ──────────────── -->
+    <template v-else-if="ui.scheduleView === 'payperiod' && payPeriodForecast">
+      <div class="cal-scroll-wrapper">
+        <div class="cal-grid">
+          <!-- THU-anchored day-of-week headers -->
+          <div
+            v-for="dow in ppDowLabels"
+            :key="dow"
+            class="cal-header-cell"
+          >
+            {{ dow }}
           </div>
-          <div class="pp-budget-bar__track">
-            <div
-              class="pp-budget-bar__fill"
-              :style="{
-                width: payPeriodForecast.budgeted > 0
-                  ? `${Math.min((payPeriodForecast.total / payPeriodForecast.budgeted) * 100, 100)}%`
-                  : '0%',
-                background: activeVariance < 0 ? 'var(--danger)' : 'var(--accent)',
-              }"
-            />
-          </div>
-        </div>
 
-        <!-- 14-day grid -->
-        <div class="cal-scroll-wrapper">
-          <div class="cal-grid">
-            <!-- Day-of-week headers -->
-            <div
-              v-for="dow in DOW_LABELS"
-              :key="dow"
-              class="cal-header-cell"
-            >
-              {{ dow }}
-            </div>
+          <!-- Leading blank cells (always empty — 14 days fills 2 rows exactly) -->
+          <div
+            v-for="(_, i) in ppLeadingBlanks"
+            :key="`pp-blank-l-${i}`"
+            class="cal-cell cal-blank"
+          />
 
-            <!-- Leading blank cells -->
-            <div
-              v-for="(_, i) in ppLeadingBlanks"
-              :key="`pp-blank-l-${i}`"
-              class="cal-cell cal-blank"
-            />
-
-            <!-- 14 day cells -->
-            <div
-              v-for="ppDay in ppDays"
-              :key="ppDay.isoDate"
-              class="cal-cell"
-              :class="{
-                'cal-today': ppDay.isToday,
-                'cal-has-bills': ppDay.items.length > 0,
-                'cal-heavy': ppDay.isHeavy,
-                'cal-interactive': ppDay.items.length > 0,
-                'cal-selected': selectedPpDate === ppDay.isoDate && ppDay.items.length > 0,
-              }"
-              @click="onPpDayClick(ppDay.isoDate)"
-              @mouseenter="onPpDayEnter(ppDay.isoDate, $event)"
-              @mouseleave="onPpDayLeave()"
-            >
+          <!-- 14 day cells -->
+          <div
+            v-for="ppDay in ppDays"
+            :key="ppDay.isoDate"
+            class="cal-cell cal-cell--period"
+            :class="{
+              'cal-today':       ppDay.isToday,
+              'cal-has-events':  ppDay.items.length > 0 || ppDay.isPayStart,
+              'cal-heavy':       ppDay.isHeavy,
+              'cal-interactive': ppDay.items.length > 0 || ppDay.isPayStart,
+              'cal-selected':    modelValue === ppDay.isoDate && (ppDay.items.length > 0 || ppDay.isPayStart),
+              'cal-pay-start':   ppDay.isPayStart,
+              'cal-pay-end':     ppDay.isPayEnd,
+            }"
+            @click="onPpDayClick(ppDay.isoDate)"
+            @mouseenter="onPpDayEnter(ppDay.isoDate, $event)"
+            @mouseleave="onPpDayLeave()"
+          >
+            <div class="cal-cell-top">
               <span
                 class="cal-day-num"
                 :class="{ 'cal-day-num--month-start': ppDay.showMonth }"
@@ -810,138 +697,118 @@ function frequencyLabel(item: ForecastItem): string {
                 >{{ ppDay.monthLabel }}</span>
                 {{ ppDay.dayNum }}
               </span>
-              <div
-                v-for="(item, bi) in ppDay.items.slice(0, 2)"
-                :key="bi"
-                class="cal-badge"
-                :class="item.source === 'subscription' ? 'cal-badge--sub' : item.source === 'loan' ? 'cal-badge--loan' : 'cal-badge--expense'"
-                :title="`${item.name} — ${fmt(item.totalForMonth)}`"
-              >
-                {{ item.name }}
-              </div>
-              <div
-                v-if="ppDay.items.length > 2"
-                class="cal-badge cal-badge--more"
-              >
-                +{{ ppDay.items.length - 2 }}
-              </div>
-              <div
-                v-if="ppDay.dayTotal > 0"
-                class="cal-day-total"
-              >
-                {{ fmt(ppDay.dayTotal) }}
-              </div>
+              <span
+                v-if="ppDay.isPayStart"
+                class="cal-pay-marker cal-pay-marker--pay"
+              >PAY</span>
+              <span
+                v-else-if="ppDay.isPayEnd"
+                class="cal-pay-marker cal-pay-marker--end"
+              >END</span>
             </div>
 
-            <!-- Trailing blank cells -->
+            <!-- Income event row (period start = pay day) -->
             <div
-              v-for="(_, i) in ppTrailingBlanks"
-              :key="`pp-blank-t-${i}`"
-              class="cal-cell cal-blank"
-            />
-          </div>
-        </div>
-
-        <!-- Undated items below grid -->
-        <template v-if="payPeriodForecast.undated.length > 0">
-          <div
-            class="bill-group-label"
-            style="margin-top: 1rem"
-          >
-            No fixed date this period
-          </div>
-          <div
-            v-for="(item, i) in payPeriodForecast.undated"
-            :key="`pp-undated-${i}`"
-            class="bill-row"
-          >
-            <span class="bill-day">∞</span>
-            <span class="bill-name">{{ item.name }}</span>
-            <span class="bill-badge bill-badge--card">{{ item.cardLabel }}</span>
-            <span
-              v-if="item.biweekly"
-              class="bill-badge bill-badge--biweekly"
-            >bi-wk</span>
-            <span
-              v-else-if="item.source === 'loan'"
-              class="bill-badge bill-badge--loan"
-            >loan</span>
-            <span
-              class="bill-amt"
-              :title="item.biweekly ? 'Per-period amount' : 'Approx. half of monthly amount'"
+              v-if="ppDay.isPayStart"
+              class="cal-event-row"
             >
-              {{ fmt(item.totalForMonth) }}
-            </span>
-          </div>
-        </template>
+              <span
+                class="cal-event-bar"
+                style="background: var(--accent)"
+              />
+              <span class="cal-event-name">Pay</span>
+            </div>
 
-        <!-- Period total row -->
-        <div class="bill-total-row">
-          <span>Total this period</span>
+            <!-- Bill / sub / loan event rows (up to remaining slots) -->
+            <div
+              v-for="(item, bi) in ppDay.items.slice(0, ppDay.isPayStart ? 3 : 4)"
+              :key="bi"
+              class="cal-event-row"
+            >
+              <span
+                class="cal-event-bar"
+                :style="{ background: sourceToColor(item.source) }"
+              />
+              <span class="cal-event-name">{{ item.name }}</span>
+            </div>
+
+            <!-- "+N more" overflow indicator -->
+            <div
+              v-if="(ppDay.isPayStart ? 1 : 0) + ppDay.items.length > 4"
+              class="cal-event-more"
+            >
+              +{{ (ppDay.isPayStart ? 1 : 0) + ppDay.items.length - 4 }} more
+            </div>
+          </div>
+
+          <!-- Trailing blank cells (always empty) -->
+          <div
+            v-for="(_, i) in ppTrailingBlanks"
+            :key="`pp-blank-t-${i}`"
+            class="cal-cell cal-blank"
+          />
+        </div>
+      </div>
+
+      <!-- Undated items below grid -->
+      <template v-if="payPeriodForecast.undated.length > 0">
+        <div
+          class="bill-group-label"
+          style="margin-top: 1rem"
+        >
+          No fixed date this period
+        </div>
+        <div
+          v-for="(item, i) in payPeriodForecast.undated"
+          :key="`pp-undated-${i}`"
+          class="bill-row"
+        >
+          <span class="bill-day">∞</span>
+          <span class="bill-name">{{ item.name }}</span>
+          <span class="bill-badge bill-badge--card">{{ item.cardLabel }}</span>
           <span
-            class="bill-total-amt"
-            :style="{ color: totalColor }"
-          >{{ fmt(payPeriodForecast.total) }}</span>
+            v-if="item.biweekly"
+            class="bill-badge bill-badge--biweekly"
+          >bi-wk</span>
+          <span
+            v-else-if="item.source === 'loan'"
+            class="bill-badge bill-badge--loan"
+          >loan</span>
+          <span
+            class="bill-amt"
+            :title="item.biweekly ? 'Per-period amount' : 'Approx. half of monthly amount'"
+          >
+            {{ fmt(item.totalForMonth) }}
+          </span>
         </div>
       </template>
 
-      <!-- ── Day Detail Slide Panel ── -->
-      <!-- Shows when any calendar or pay-period day is clicked. -->
-      <Transition name="detail-slide">
-        <div
-          v-if="selectedDayDetail"
-          class="day-detail-panel"
-          data-testid="day-detail-panel"
-        >
-          <div class="day-detail-panel__header">
-            <div class="day-detail-panel__title">
-              <span class="day-detail-panel__date">{{ selectedDayDetail.label }}</span>
-              <span class="day-detail-panel__chip">{{ fmt(selectedDayDetail.dayTotal) }}</span>
-            </div>
-            <button
-              class="day-detail-panel__close"
-              title="Close"
-              aria-label="Close day detail"
-              @click="closeDayDetail"
-            >
-              ×
-            </button>
-          </div>
+      <!-- Period total row -->
+      <div class="bill-total-row">
+        <span>Total this period</span>
+        <span
+          class="bill-total-amt"
+          :style="{ color: totalColor }"
+        >{{ fmt(payPeriodForecast.total) }}</span>
+      </div>
 
-          <div
-            v-for="(item, i) in selectedDayDetail.items"
-            :key="i"
-            class="day-detail-row"
-            :style="{ borderLeftColor: itemBorderColor(item) }"
-          >
-            <div class="day-detail-row__info">
-              <span class="day-detail-row__name">{{ item.name }}</span>
-              <div class="day-detail-row__badges">
-                <span
-                  class="bill-badge"
-                  :class="item.source === 'subscription' ? 'bill-badge--sub' : item.source === 'loan' ? 'bill-badge--loan' : 'bill-badge--expense'"
-                >{{ item.source }}</span>
-                <span
-                  v-if="item.cardLabel"
-                  class="bill-badge bill-badge--card"
-                >{{ item.cardLabel }}</span>
-                <span
-                  v-if="item.biweekly"
-                  class="bill-badge bill-badge--biweekly"
-                >bi-weekly</span>
-              </div>
-            </div>
-            <div class="day-detail-row__right">
-              <span class="day-detail-row__amt">{{ fmt(item.totalForMonth) }}</span>
-              <span
-                v-if="frequencyLabel(item)"
-                class="day-detail-row__freq"
-              >{{ frequencyLabel(item) }}</span>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </div>
+      <!-- Legend -->
+      <div class="cal-legend">
+        <span class="cal-legend-item">
+          <span class="cal-legend-bar" style="background: var(--accent)" />Income
+        </span>
+        <span class="cal-legend-item">
+          <span class="cal-legend-bar" style="background: var(--danger)" />Bill
+        </span>
+        <span class="cal-legend-item">
+          <span class="cal-legend-bar" style="background: #a78bfa" />Sub
+        </span>
+        <span class="cal-legend-item">
+          <span class="cal-legend-bar" style="background: var(--warn, #f59e0b)" />Loan
+        </span>
+      </div>
+    </template>
+
   </div>
 
   <!-- ── Hover Popover (desktop only, teleported to <body>) ── -->
@@ -959,6 +826,28 @@ function frequencyLabel(item: ForecastItem): string {
           <span class="day-popover__date">{{ hoveredDayDetail.label }}</span>
           <span class="day-popover__total">{{ fmt(hoveredDayDetail.dayTotal) }}</span>
         </div>
+
+        <!-- Income row (pay day) -->
+        <div
+          v-if="hoveredDayDetail.incomeAmount"
+          class="day-popover__row"
+        >
+          <span
+            class="day-popover__dot"
+            style="background: var(--accent)"
+          />
+          <span class="day-popover__name">Pay</span>
+          <span
+            class="bill-badge"
+            style="background: rgba(74,222,128,0.12); color: var(--accent); flex-shrink:0"
+          >income</span>
+          <span
+            class="day-popover__amt"
+            style="color: var(--accent)"
+          >+{{ fmt(hoveredDayDetail.incomeAmount) }}</span>
+        </div>
+
+        <!-- Bill / sub / loan rows -->
         <div
           v-for="(item, i) in hoveredDayDetail.items"
           :key="i"
@@ -987,140 +876,6 @@ function frequencyLabel(item: ForecastItem): string {
   gap: 0.75rem;
 }
 
-/* Summary cards */
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 0.4rem;
-  overflow-x: auto;
-}
-
-@media (max-width: 700px) {
-  .summary-cards { grid-template-columns: repeat(3, 1fr); }
-}
-
-@media (max-width: 420px) {
-  .summary-cards { grid-template-columns: repeat(2, 1fr); }
-}
-
-.summary-card {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.6rem 0.5rem;
-  text-align: center;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-  font: inherit;
-  color: inherit;
-}
-
-.summary-card:hover {
-  border-color: var(--accent);
-}
-
-.summary-card--active {
-  background: rgba(74, 222, 128, 0.08);
-  border-color: var(--accent);
-}
-
-.summary-card__month {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--muted);
-}
-
-.summary-card__total {
-  font-size: 0.95rem;
-  font-weight: 800;
-  margin-top: 4px;
-  font-variant-numeric: tabular-nums;
-}
-
-.summary-card__variance {
-  font-size: 0.68rem;
-  font-weight: 600;
-  margin-top: 2px;
-}
-
-.summary-card__count {
-  font-size: 0.65rem;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
-.text-danger  { color: var(--danger); }
-.text-accent2 { color: var(--accent2); }
-
-/* Detail section */
-.detail-section {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 0.85rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.detail-title {
-  font-size: 1rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.detail-total {
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.detail-header-right {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.view-toggle {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.view-toggle-btn {
-  background: transparent;
-  border: none;
-  padding: 4px 9px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  color: var(--muted);
-  transition: background 0.15s, color 0.15s;
-}
-
-.view-toggle-btn--pp {
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  padding: 4px 7px;
-}
-
-.view-toggle-btn.active,
-.view-toggle-btn:hover {
-  background: var(--accent);
-  color: var(--surface);
-}
-
 .detail-empty {
   display: flex;
   flex-direction: column;
@@ -1129,45 +884,10 @@ function frequencyLabel(item: ForecastItem): string {
   color: var(--muted);
   font-size: 0.85rem;
   text-align: center;
-  padding: 1rem;
+  padding: 1.5rem 1rem;
 }
 
-/* Pay-period budget bar */
-.pp-budget-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.pp-budget-bar__label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.72rem;
-}
-
-.pp-budget-bar__billed {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.pp-budget-bar__budget {
-  color: var(--muted);
-}
-
-.pp-budget-bar__track {
-  height: 5px;
-  background: var(--border);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.pp-budget-bar__fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.3s ease;
-}
-
-/* List view */
+/* ── List view ────────────────────────────────────────────────── */
 .bill-group-label {
   font-size: 0.7rem;
   font-weight: 800;
@@ -1228,6 +948,7 @@ function frequencyLabel(item: ForecastItem): string {
 .bill-badge--sub      { background: rgba(167, 139, 250, 0.12); color: #a78bfa; }
 .bill-badge--loan     { background: rgba(251, 191, 36, 0.12);  color: var(--warn, #f59e0b); }
 .bill-badge--custom   { background: rgba(167, 139, 250, 0.18); color: #a78bfa; font-weight: 700; }
+.bill-badge--expense  { background: rgba(248, 113, 113, 0.12); color: var(--danger); }
 
 .bill-amt {
   font-weight: 700;
@@ -1251,27 +972,19 @@ function frequencyLabel(item: ForecastItem): string {
   font-variant-numeric: tabular-nums;
 }
 
-/* Calendar grid — scroll wrapper prevents clipping on narrow screens */
+/* ── Calendar grid — scroll wrapper ──────────────────────────── */
 .cal-scroll-wrapper {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  /* Extend flush to card edges on very small screens */
   margin: 0 -0.1rem;
   padding: 0 0.1rem;
-  /* Hide the scrollbar track but keep functionality */
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
 
-.cal-scroll-wrapper::-webkit-scrollbar {
-  height: 4px;
-}
-
-.cal-scroll-wrapper::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.cal-scroll-wrapper::-webkit-scrollbar-thumb {
+.cal-scroll-wrapper::-webkit-scrollbar { height: 4px; }
+.cal-scroll-wrapper::-webkit-scrollbar-track  { background: transparent; }
+.cal-scroll-wrapper::-webkit-scrollbar-thumb  {
   background: var(--border);
   border-radius: 2px;
 }
@@ -1279,8 +992,7 @@ function frequencyLabel(item: ForecastItem): string {
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-  /* Minimum width keeps all 7 columns legible; scrolls below this */
+  gap: 4px;
   min-width: 380px;
 }
 
@@ -1293,17 +1005,29 @@ function frequencyLabel(item: ForecastItem): string {
   padding: 4px 0;
 }
 
+/* ── Day cells ───────────────────────────────────────────────── */
 .cal-cell {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 3px 4px;
-  min-height: 60px;
+  border-radius: 6px;
+  padding: 5px 5px 4px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   font-size: 0.65rem;
   position: relative;
+  overflow: hidden;
+  transition: all 0.1s;
+}
+
+/* Month view: compact height */
+.cal-cell--month {
+  min-height: 86px;
+}
+
+/* Pay-period view: taller for more events */
+.cal-cell--period {
+  min-height: 130px;
 }
 
 .cal-blank {
@@ -1320,23 +1044,55 @@ function frequencyLabel(item: ForecastItem): string {
   background: rgba(248, 113, 113, 0.06);
 }
 
-.cal-has-bills {
-  background: rgba(96, 165, 250, 0.04);
+.cal-has-events {
+  background: rgba(96, 165, 250, 0.03);
+}
+
+/* Pay-start / pay-end cell tint */
+.cal-pay-start {
+  border-color: rgba(74, 222, 128, 0.4);
+}
+
+.cal-pay-end {
+  border-color: rgba(74, 222, 128, 0.2);
+}
+
+.cal-interactive {
+  cursor: pointer;
+}
+
+.cal-interactive:hover {
+  border-color: rgba(96, 165, 250, 0.4);
+  background: rgba(96, 165, 250, 0.06);
+}
+
+.cal-selected {
+  border-color: var(--accent2) !important;
+  background: rgba(96, 165, 250, 0.1) !important;
+  box-shadow: 0 0 0 1px var(--accent2);
+}
+
+/* ── Cell top row (day number + PAY/END marker) ──────────────── */
+.cal-cell-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  line-height: 1;
+  margin-bottom: 1px;
 }
 
 .cal-day-num {
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--muted);
-  line-height: 1;
   display: flex;
   align-items: center;
   gap: 2px;
 }
 
-.cal-day-num--month-start {
-  color: var(--text);
-}
+.cal-day-num--month-start { color: var(--text); }
+
+.cal-today .cal-day-num { color: var(--accent); }
 
 .cal-month-abbr {
   font-size: 0.6rem;
@@ -1346,176 +1102,73 @@ function frequencyLabel(item: ForecastItem): string {
   color: var(--accent2);
 }
 
-.cal-today .cal-day-num {
-  color: var(--accent);
+/* PAY / END marker badges */
+.cal-pay-marker {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
-.cal-badge {
-  border-radius: 2px;
-  padding: 1px 3px;
-  font-size: 0.6rem;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.cal-pay-marker--pay { color: var(--accent); }
+.cal-pay-marker--end { color: var(--muted); }
 
-.cal-badge--expense { background: rgba(96, 165, 250, 0.15); color: var(--accent2); }
-.cal-badge--sub     { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
-.cal-badge--loan    { background: rgba(251, 191, 36, 0.15);  color: var(--warn, #f59e0b); }
-.cal-badge--more    { background: var(--surface2); color: var(--muted); }
-
-.cal-day-total {
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: var(--danger);
-  margin-top: auto;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Interactive cell states */
-.cal-interactive {
-  cursor: pointer;
-  transition: border-color 0.12s, background 0.12s;
-}
-
-.cal-interactive:hover {
-  border-color: rgba(96, 165, 250, 0.5);
-  background: rgba(96, 165, 250, 0.07);
-}
-
-.cal-selected {
-  border-color: var(--accent2) !important;
-  background: rgba(96, 165, 250, 0.1) !important;
-  box-shadow: 0 0 0 1px var(--accent2);
-}
-
-/* ── Day Detail Slide Panel ─────────────────────────────────── */
-.detail-slide-enter-active {
-  transition: max-height 0.26s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.18s ease;
-  max-height: 700px;
-  overflow: hidden;
-}
-
-.detail-slide-leave-active {
-  transition: max-height 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.14s ease;
-  max-height: 700px;
-  overflow: hidden;
-}
-
-.detail-slide-enter-from,
-.detail-slide-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-
-.day-detail-panel {
-  border-top: 1px solid var(--border);
-  padding-top: 0.6rem;
-}
-
-.day-detail-panel__header {
+/* ── Event rows inside cells ─────────────────────────────────── */
+.cal-event-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
-.day-detail-panel__title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.day-detail-panel__date {
-  font-size: 0.875rem;
-  font-weight: 700;
-}
-
-.day-detail-panel__chip {
-  font-size: 0.72rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  background: rgba(96, 165, 250, 0.12);
-  color: var(--accent2);
-  border-radius: 20px;
-  padding: 2px 8px;
-}
-
-.day-detail-panel__close {
-  background: transparent;
-  border: none;
-  font-size: 1.1rem;
-  line-height: 1;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  transition: background 0.12s, color 0.12s;
-}
-
-.day-detail-panel__close:hover {
-  background: var(--border);
-  color: var(--text);
-}
-
-.day-detail-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.35rem 0.5rem;
-  margin-bottom: 3px;
-  border-left: 3px solid transparent;
-  border-radius: 0 4px 4px 0;
-  background: var(--surface);
-  transition: background 0.1s;
-}
-
-.day-detail-row:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.day-detail-row__info {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
 }
 
-.day-detail-row__name {
-  font-size: 0.82rem;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.day-detail-row__badges {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.day-detail-row__right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
+.cal-event-bar {
+  width: 2px;
+  align-self: stretch;
+  min-height: 10px;
+  border-radius: 999px;
   flex-shrink: 0;
 }
 
-.day-detail-row__amt {
-  font-size: 0.88rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+.cal-event-name {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+  line-height: 1.3;
 }
 
-.day-detail-row__freq {
-  font-size: 0.62rem;
+.cal-event-more {
+  font-size: 0.58rem;
+  font-weight: 600;
   color: var(--muted);
+  margin-left: 6px;
+  line-height: 1;
+}
+
+/* ── Legend ──────────────────────────────────────────────────── */
+.cal-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+
+.cal-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cal-legend-bar {
+  width: 8px;
+  height: 3px;
+  border-radius: 999px;
+  flex-shrink: 0;
 }
 </style>
 
@@ -1615,7 +1268,7 @@ function frequencyLabel(item: ForecastItem): string {
   flex-shrink: 0;
 }
 
-.day-popover .bill-badge--expense { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+.day-popover .bill-badge--expense { background: rgba(248, 113, 113, 0.15); color: var(--danger, #f87171); }
 .day-popover .bill-badge--sub     { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
-.day-popover .bill-badge--loan    { background: rgba(251, 191, 36, 0.15);  color: #f59e0b; }
+.day-popover .bill-badge--loan    { background: rgba(251, 191, 36,  0.15); color: #f59e0b; }
 </style>

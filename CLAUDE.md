@@ -17,7 +17,7 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (885 tests across 27 spec files)
+- Testing: Vitest + @vue/test-utils (866 tests across 27 spec files)
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
@@ -33,6 +33,17 @@ Every time a new version is merged to `main` and tagged, ALL of the following mu
 5. **Any other version-bearing docs** (`docs/ARCHITECTURE.md`, `docs/README.md`, etc.) — Update version references as applicable.
 
 This checklist must be completed in the same commit/PR as the feature work. Never ship to main without completing all five items.
+
+---
+
+## Branching & Merge Policy
+
+**All changes must be done in separate branches, tested thoroughly, and have all documentation updated to reflect the change before being ready to merge into the main branch.**
+
+- Branch naming convention: `feat/sprint-N-short-description` for features, `fix/short-description` for bug fixes.
+- Every branch must pass the full test suite (`npx vitest run`) and TypeScript check (`npx tsc --noEmit`) with zero errors before opening a PR.
+- All documentation (CLAUDE.md test count, PHASE_TRACKING.md, WhatsNewBanner, DocsPage, ARCHITECTURE.md) must be updated in the same branch as the feature work.
+- Never commit directly to `main`. Direct pushes to `main` are reserved solely for the initial project bootstrap or emergency hotfixes that cannot wait for a PR cycle — and must be flagged as such.
 
 ---
 

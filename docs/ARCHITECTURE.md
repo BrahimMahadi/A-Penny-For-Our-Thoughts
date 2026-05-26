@@ -412,6 +412,8 @@ The budget store exposes `exportCSV()` and `importCSV(text)` actions that call t
 
 **Branch strategy**: `feat/sprint-N` → PR → merge to `main` → tag.
 
+**Branching policy**: All changes must be done in separate branches, tested thoroughly, and have all documentation updated to reflect the change before being ready to merge into `main`. Never commit directly to `main`. Every branch must pass `npx vitest run` and `npx tsc --noEmit` with zero errors, and all version-bearing docs (CLAUDE.md, PHASE_TRACKING.md, WhatsNewBanner, DocsPage) must be updated in the same branch as the feature work.
+
 ---
 
 ## Key Design Decisions
