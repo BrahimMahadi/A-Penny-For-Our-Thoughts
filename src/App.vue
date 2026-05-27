@@ -29,7 +29,6 @@
 import { ref, computed, watch } from 'vue';
 import { useThemeStore } from '@/stores/theme';
 import { useUiStore } from '@/stores/ui';
-import { useGsap, prefersReducedMotion } from '@/composables/useGsap';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useKeyboard } from '@/composables/useKeyboard';
@@ -61,7 +60,6 @@ const ui     = useUiStore();
 const budget = useBudgetStore();
 const auth   = useAuthStore();
 const toast  = useToast();
-const { to, fromTo, raw: rawGsap } = useGsap();
 
 const supabaseEnabled = isSupabaseConfigured();
 
@@ -126,6 +124,15 @@ useKeyboard('g', () => { ui.toggleSectionPicker(); }, { guardFromInputs: true })
 // Track which direction the user is navigating so the slide goes the right way.
 // Positive = moving forward in the tab order (new content slides in from right).
 // Negative = moving backward (new content slides in from left).
+//
+// BUG-020b: Replaced GSAP JS-hook approach (gsap.fromTo + done callback) with
+// a plain CSS <Transition>. The GSAP approach used Vue's mode="out-in" with a
+// done() callback that GSAP had to call via onComplete — if the tween was ever
+// interrupted or GSAP deferred execution past the RAF cycle, done() would never
+// fire and Vue's transition state machine would be permanently stuck with the
+// entering page set to opacity:0. CSS transitions never need a done() callback;
+// the browser compositor handles timing and Vue listens for transitionend
+// automatically. The directional slide is preserved via two named transitions.
 const TAB_ORDER: TabId[] = ['dashboard', 'schedule', 'spending', 'goals', 'docs', 'settings'];
 const tabDirection = ref(1);
 
@@ -138,50 +145,14 @@ watch(
   },
 );
 
-// ── BUG-020 fix: pre-hide the entering element before the first paint so
-// there is never a one-frame flash of the page at full opacity.
-// Skip the hide for reduced-motion users — their animation is duration:0
-// so they'll never see a flash anyway.
-function onTabBeforeEnter(el: Element): void {
-  if (!prefersReducedMotion()) {
-    rawGsap.set(el as HTMLElement, { opacity: 0, x: tabDirection.value * 28 });
-  }
-}
-
-// BUG-020 fix:
-//   • Switch from gsap.from() → gsap.fromTo() so both start AND end states are
-//     explicit. gsap.from() captures the target's current values as the "to"
-//     state at call-time; if a prior interrupted animation left opacity:0 as an
-//     inline style, the tween would animate 0→0 and the page would stay blank.
-//   • Add onInterrupt: done so Vue's mode="out-in" is never left waiting for a
-//     done() that was swallowed by a killed tween (happens on rapid tab switching).
-//   • Add clearProps so GSAP's inline styles are removed on completion, returning
-//     the element to its natural CSS state.
-function onTabLeave(el: Element, done: () => void): void {
-  to(el as HTMLElement, {
-    x:          tabDirection.value * -28,
-    opacity:    0,
-    duration:   0.2,
-    ease:       'power2.in',
-    onComplete: done,
-    onInterrupt: done,  // safety net: always unblock Vue's out-in mode
-  });
-}
-function onTabEnter(el: Element, done: () => void): void {
-  fromTo(
-    el as HTMLElement,
-    { x: tabDirection.value * 28, opacity: 0 },     // explicit start state
-    {
-      x:           0,
-      opacity:     1,
-      duration:    0.28,
-      ease:        'power2.out',
-      clearProps:  'opacity,x',                       // clean up after animation
-      onComplete:  done,
-      onInterrupt: done,                              // safety net
-    },
-  );
-}
+/**
+ * Name of the <Transition> to use for the current navigation direction.
+ *   tab-fwd: leave slides left,  enter comes from right  (forward navigation)
+ *   tab-bwd: leave slides right, enter comes from left   (backward navigation)
+ */
+const tabTransitionName = computed<string>(() =>
+  tabDirection.value >= 0 ? 'tab-fwd' : 'tab-bwd',
+);
 
 // ─── Swipe to change tab on mobile ────────────────────────────────────────
 const appMainRef = ref<HTMLElement | null>(null);
@@ -243,11 +214,8 @@ useSwipe(
         <WhatsNewBanner />
 
         <Transition
-          :css="false"
+          :name="tabTransitionName"
           mode="out-in"
-          @before-enter="onTabBeforeEnter"
-          @leave="onTabLeave"
-          @enter="onTabEnter"
         >
           <component
             :is="activePage"
@@ -501,11 +469,46 @@ useSwipe(
   }
 }
 
+/* ─── Tab slide transitions (CSS — no done() callback required) ─── */
+/*
+ * Two named transitions so the slide direction matches navigation intent.
+ * tab-fwd: forward (Dashboard→Settings order) — old page exits left, new enters from right.
+ * tab-bwd: backward — old page exits right, new enters from left.
+ *
+ * Using CSS rather than GSAP JS hooks because mode="out-in" with done() is
+ * fragile: if GSAP defers execution or a tween is abandoned, done() is never
+ * called and Vue's transition state machine gets permanently stuck (BUG-020).
+ */
+.tab-fwd-enter-active,
+.tab-fwd-leave-active,
+.tab-bwd-enter-active,
+.tab-bwd-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  will-change: opacity, transform;
+}
+
+/* Forward: leaving page exits left, entering page slides in from right */
+.tab-fwd-leave-to   { opacity: 0; transform: translateX(-22px); }
+.tab-fwd-enter-from { opacity: 0; transform: translateX(22px);  }
+
+/* Backward: leaving page exits right, entering page slides in from left */
+.tab-bwd-leave-to   { opacity: 0; transform: translateX(22px);  }
+.tab-bwd-enter-from { opacity: 0; transform: translateX(-22px); }
+
 /* ─── prefers-reduced-motion ──────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .section-handle {
     transition: none;
     animation: none;
+  }
+
+  /* Disable tab slide for motion-sensitive users */
+  .tab-fwd-enter-active,
+  .tab-fwd-leave-active,
+  .tab-bwd-enter-active,
+  .tab-bwd-leave-active {
+    transition: none;
+    will-change: auto;
   }
 }
 </style>

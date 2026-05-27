@@ -1695,6 +1695,11 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-14 | Wishlist card-grid redesign: savings progress, months-to-goal, inline "Add savings", DB sync fix | `feat/redesign-sprint-14-wishlist-price` | ✅ Complete | v2.5.0 |
 | RS-15 | Purchase type (Want vs Need): stacked bar chart, type column + filter in Spending tab, wants-only donut, updated quick-add modal | `feat/redesign-sprint-15-purchase-type` | ✅ Complete | v2.6.0 |
 | RS-16 | Wants/Needs toggle: dashboard hero + PurchasesThisPeriod shared toggle, spending-tab donut toggle, row-action cleanup (delete in modal) | `feat/sprint-16-type-toggle` | ✅ Complete | v2.7.0 |
+| RS-17 | GSAP foundation: `useGsap` composable, mock, `BaseButton` press, hero KPI fade-up, WhatsNewBanner enter/leave | `feat/rs-17-gsap-foundation` | ✅ Complete | v2.8.0 |
+| RS-18 | Page load & navigation animations: `useFadeSlide`, App.vue tab enter/leave, sidebar hover, AppStatusBar ticker | `feat/rs-18-page-animations` | ✅ Complete | v2.9.0 |
+| RS-19 | List & micro-interaction animations: `useListTransition`, Wishlist stagger, Subscriptions TransitionGroup, BaseButton spring press | `feat/rs-19-micro-animations` | ✅ Complete | v2.10.0 |
+| BUG-020 | Tab blank screen + ToastContainer Vue warning: `onInterrupt: done`, `fromTo()`, `@before-enter`, `move-class` fix | `fix/bug-020-tab-blank-screen` | ✅ Complete | v2.10.1 |
+| BUG-020b | CSS tab transition: replace GSAP `mode="out-in"` hooks with directional CSS transitions to fix persistent blank screen | `fix/bug-020b-css-tab-transition` | ✅ Complete | v2.10.2 |
 
 ---
 
@@ -2632,6 +2637,76 @@ Bring tactile life to every list-level interaction. Wishlist cards stagger in on
 
 ### Tests
 - All 1069 existing tests continue to pass — no new test cases needed (the existing `App.spec.ts` tab navigation tests verify the corrected behavior; the GSAP mock calls `onComplete` synchronously so `done()` always fires in tests)
+
+### Final gate
+- ✅ 1069/1069 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## BUG-020b — CSS Tab Transition (Persistent Blank Screen) ✅
+
+**Branch:** `fix/bug-020b-css-tab-transition`
+**Version:** v2.10.2
+**Status:** ✅ Fixed
+
+### Symptom
+After BUG-020's first fix (v2.10.1), the main content area still went blank after every tab switch — not just rapid switching. The What's New banner and AppStatusBar ticker rendered correctly, but the `<component :is="activePage">` stayed invisible indefinitely. Even waiting several seconds before switching produced the same blank result.
+
+### Root Cause
+The fundamental failure mode of Vue `<Transition mode="out-in">` with GSAP JavaScript hooks:
+
+- `mode="out-in"` requires the **leave** animation to call `done()` before the **enter** animation begins. Vue's state machine waits for that callback.
+- GSAP schedules all tween execution on the next `requestAnimationFrame` — there is no guarantee the `onComplete` callback fires within the same tick as Vue's state machine expects.
+- In the browser (not jsdom), the RAF timing can produce subtle mismatches: Vue transitions the element out, GSAP's enter tween is created, but `done()` is never called (or called after Vue has already timed out internally), leaving the entering element permanently at `opacity: 0` (the GSAP `from` start value).
+- BUG-020's `onInterrupt: done` addition handled mid-animation interruptions but not the single-switch case where Vue and RAF just disagree on timing.
+
+### Fix — `src/App.vue`
+
+Removed GSAP JS hooks entirely for tab transitions. Replaced with named CSS `<Transition>`:
+
+```html
+<Transition :name="tabTransitionName" mode="out-in">
+  <component :is="activePage" :key="ui.activeTab" />
+</Transition>
+```
+
+```typescript
+const tabTransitionName = computed<string>(() =>
+  tabDirection.value >= 0 ? 'tab-fwd' : 'tab-bwd',
+);
+```
+
+Two named CSS transitions preserve directional slide (forward = slide right-to-left, backward = slide left-to-right):
+
+```css
+.tab-fwd-enter-active, .tab-fwd-leave-active,
+.tab-bwd-enter-active, .tab-bwd-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  will-change: opacity, transform;
+}
+.tab-fwd-leave-to   { opacity: 0; transform: translateX(-22px); }
+.tab-fwd-enter-from { opacity: 0; transform: translateX(22px);  }
+.tab-bwd-leave-to   { opacity: 0; transform: translateX(22px);  }
+.tab-bwd-enter-from { opacity: 0; transform: translateX(-22px); }
+@media (prefers-reduced-motion: reduce) {
+  .tab-fwd-enter-active, .tab-fwd-leave-active,
+  .tab-bwd-enter-active, .tab-bwd-leave-active { transition: none; will-change: auto; }
+}
+```
+
+With CSS transitions, Vue listens for `transitionend` events natively — no `done()` callback is ever needed, and no RAF timing dependency exists.
+
+### Why CSS Is Correct Here
+The GSAP `done()` pattern is appropriate for animations that cannot be expressed in CSS (e.g., spring easings, staggered children, FLIP). A simple directional opacity+translate slide has no such requirement — CSS transitions handle it perfectly and with zero risk of the state machine hanging.
+
+### Files Changed
+- `src/App.vue` — removed `useGsap` import and all three GSAP tab hook functions; added `tabTransitionName` computed; updated template and CSS
+- `src/components/onboarding/WhatsNewBanner.vue` — `APP_VERSION` bumped to `'2.10.2'`; `RELEASE_NOTES` updated
+- `tests/components/onboarding.spec.ts` — version strings updated to `'2.10.2'`
+
+### Tests
+- All 1069 existing tests continue to pass — no new test cases needed
+- `vue-tsc --noEmit` clean
 
 ### Final gate
 - ✅ 1069/1069 tests pass · `vue-tsc --noEmit` clean
