@@ -931,5 +931,63 @@ tab, summary cards).
 
 ---
 
-*Last updated: May 2026 — v2.7.0 (BUG-021, RS-16 amount mismatch fix)*  
+---
+
+## BUG-022 — Category filter chips in "All purchases" change when Wants/Needs toggle is switched
+
+**Date:** May 2026  
+**Branch:** `feat/sprint-16-type-toggle` (RS-16 Wants/Needs toggle)  
+**Severity:** Medium (UX confusion — chip list unexpectedly shrinks/changes when toggling the KPI tile)
+
+### Symptom
+In the Spending tab, clicking the 🛍 Wants / 🏠 Needs toggle on the "Spent this period"
+card also changed which category chips appeared in the "All purchases" filter row below.
+For example, with Needs selected, only needs-type categories showed as chips; switching to
+Wants removed them and showed only wants-type categories.
+
+### Root Cause
+`activeCategories` — the computed that drives the filter chips — was derived from
+`categorySpending`, which itself reads from `donutPurchases` (the toggle-filtered subset):
+
+```ts
+// BUG: categorySpending is derived from donutPurchases (toggle-filtered)
+const categorySpending = computed(() => getCategorySpending(donutPurchases.value));
+
+const activeCategories = computed(() =>
+  Object.entries(categorySpending.value)  // ← changes when donutTypeFilter changes
+    .filter(([, v]) => v > 0)
+    .sort(([, a], [, b]) => b - a)
+    .map(([name]) => name),
+);
+```
+
+The donut card and the "All purchases" table shared the same intermediate computed, so any
+change to `donutTypeFilter` rippled into the chip list.
+
+### Fix
+`activeCategories` now reads directly from `purchasesInPeriod` (all purchases in the
+period, regardless of type), completely decoupled from the donut toggle:
+
+```ts
+const activeCategories = computed(() => {
+  const spending = getCategorySpending(purchasesInPeriod.value);
+  return Object.entries(spending)
+    .filter(([, v]) => v > 0)
+    .sort(([, a], [, b]) => b - a)
+    .map(([name]) => name);
+});
+```
+
+`categorySpending` (used by the donut) is unchanged — it still reads from `donutPurchases`.
+
+### Prevention
+**Rule:** UI controls that are visually independent (a type toggle on one card vs filter chips
+on a different card) must not share a reactive intermediate computed. When two sections of a
+page need different views of the same data, give each its own dedicated computed sourced from
+the appropriate base set — never let one section's filter computed "accidentally" drive
+another section's UI.
+
+---
+
+*Last updated: May 2026 — v2.7.0 (BUG-021, BUG-022, RS-16 fixes)*  
 *See also: [PHASE_TRACKING.md](PHASE_TRACKING.md) for the full sprint history.*

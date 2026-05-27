@@ -193,13 +193,16 @@ const catFilter    = ref('');
 const typeFilter   = ref<'' | 'wants' | 'needs'>('');
 const sortKey      = ref<'newest' | 'oldest' | 'amtHigh' | 'amtLow' | 'nameAZ'>('newest');
 
-/** All categories that appear in current period purchases (sorted by amount). */
-const activeCategories = computed(() =>
-  Object.entries(categorySpending.value)
+/** All categories present in the period — ALL purchase types, independent of the
+ *  donut toggle. These drive the filter chips in the "All purchases" table, which
+ *  always shows everything and must not change when the Wants/Needs toggle flips. */
+const activeCategories = computed(() => {
+  const spending = getCategorySpending(purchasesInPeriod.value);
+  return Object.entries(spending)
     .filter(([, v]) => v > 0)
     .sort(([, a], [, b]) => b - a)
-    .map(([name]) => name),
-);
+    .map(([name]) => name);
+});
 
 function cardLabel(cardId: string | null): string {
   if (!cardId) return '';
