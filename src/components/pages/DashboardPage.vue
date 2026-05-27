@@ -18,10 +18,10 @@
                                    RecurringSpend replaces ExpenseCards :readonly on dash.
   Summary:  Dashboard tab host. Fixed-grid layout:
               Row 0 — page header (greeting + quick-add CTA)
-              Row 1 — 4-col KPI hero row (wants envelope, due-in-7, needs, net worth)
+              Row 1 — 4-col KPI hero row (wants envelope, due-in-7, needs, chequing balance)
               Row 2 — 2-col charts row   (Purchases This Period | Money Flow)
               Row 3 — 3-col widget row   (Recurring Spend | Loan Payoff | Savings Accounts)
-              Row 4 — 2-col row          (Chequing Balance | Subscriptions)
+              Row 4 — full-width         (Subscriptions)
               Row 5 — full-width         (Credit Cards)
               Row 6 — full-width         (Wishlist)
 -->
@@ -62,7 +62,6 @@ const {
   currentMonthBudgeted,
   currentMonthActuals,
   prevMonthActuals,
-  netWorth,
   payPeriodForecast,
 } = useAnalytics();
 
@@ -139,16 +138,6 @@ const needsUsedPct = computed(() => {
 const needsIsOver = computed(() =>
   currentMonthActuals.value.needs > currentMonthBudgeted.value.needs,
 );
-
-// ─── Net worth KPI ────────────────────────────────────────────────
-/** Month-over-month percentage change for net worth. */
-const netWorthMomPct = computed(() => {
-  const change = netWorth.value.momChange;
-  if (change === null) return null;
-  const prev = netWorth.value.netWorth - change;
-  if (prev === 0) return null;
-  return (change / Math.abs(prev)) * 100;
-});
 
 // ─── Dashboard shared type toggle (RS-16) ────────────────────────
 /** Drives the hero card + Purchases This Period. Persists per session only. */
@@ -426,34 +415,13 @@ function submitQuickAdd(): void {
         />
       </div>
 
-      <!-- ── Net worth ── -->
-      <div class="kpi-card">
-        <div class="kpi-card__header">
-          <span class="kpi-card__label">Net worth</span>
-        </div>
-        <div class="kpi-card__value">
-          {{ fmt(netWorth.netWorth) }}
-        </div>
-        <div class="kpi-card__delta-row">
-          <span
-            v-if="netWorth.momChange !== null"
-            class="kpi-delta"
-            :class="netWorth.momChange >= 0 ? 'kpi-delta--good' : 'kpi-delta--bad'"
-          >
-            {{ netWorth.momChange >= 0 ? '↑' : '↓' }}
-            {{ fmt(Math.abs(netWorth.momChange)) }}
-          </span>
-          <span
-            v-if="netWorthMomPct !== null"
-            class="kpi-card__budget-hint"
-          >
-            ({{ netWorthMomPct >= 0 ? '+' : '' }}{{ netWorthMomPct.toFixed(1) }}%)
-          </span>
-        </div>
-        <p class="kpi-card__sub-hint">
-          Assets {{ fmt(netWorth.totalAssets) }} · Liabilities {{ fmt(netWorth.totalLiabilities) }}
-        </p>
-      </div>
+      <!-- ── Chequing Balance ── -->
+      <BaseCard
+        title="Chequing Balance"
+        section-id="chequing-balance"
+      >
+        <ChequingBalance />
+      </BaseCard>
     </div><!-- /kpi-row -->
 
     <!-- ══ Row 2 — 2-col charts row ════════════════════════════════════
@@ -506,26 +474,16 @@ function submitQuickAdd(): void {
       </BaseCard>
     </div>
 
-    <!-- ══ Row 4 — 2-col row ══════════════════════════════════════════════
-         Chequing Balance · Subscriptions
+    <!-- ══ Row 4 — full-width: Subscriptions ════════════════════════════
+         (Chequing Balance moved to KPI row)
     ═══════════════════════════════════════════════════════════════════ -->
-    <div class="dash-2col-row">
-      <BaseCard
-        title="Chequing Balance"
-        section-id="chequing-balance"
-        :collapsible="true"
-      >
-        <ChequingBalance />
-      </BaseCard>
-
-      <BaseCard
-        title="Subscriptions"
-        section-id="subscriptions"
-        :collapsible="true"
-      >
-        <Subscriptions />
-      </BaseCard>
-    </div>
+    <BaseCard
+      title="Subscriptions"
+      section-id="subscriptions"
+      :collapsible="true"
+    >
+      <Subscriptions />
+    </BaseCard>
 
     <!-- ══ Row 5 — full-width: Credit Cards ══════════════════════════════
          (inline add/withdraw redesign in RS-13)

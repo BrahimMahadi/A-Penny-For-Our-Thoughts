@@ -1859,7 +1859,9 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
     await nextTick();
     expect(w.find('.kpi-row').exists()).toBe(true);
     expect(w.find('.kpi-hero').exists()).toBe(true);
-    expect(w.findAll('.kpi-card')).toHaveLength(3);
+    // 2 plain .kpi-card divs (due-in-7, needs-spent) + chequing-balance as BaseCard in the same row
+    expect(w.findAll('.kpi-card')).toHaveLength(2);
+    expect(w.find('.kpi-row #section-chequing-balance').exists()).toBe(true);
     w.unmount();
   });
 
@@ -1902,12 +1904,14 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
     w.unmount();
   });
 
-  it('renders the 2-col row with chequing and subscriptions', async () => {
+  it('chequing balance is in the KPI row; subscriptions is full-width', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
-    expect(w.find('.dash-2col-row').exists()).toBe(true);
-    expect(w.find('.dash-2col-row #section-chequing-balance').exists()).toBe(true);
-    expect(w.find('.dash-2col-row #section-subscriptions').exists()).toBe(true);
+    // Chequing balance moved to the KPI row (no longer in a dash-2col-row)
+    expect(w.find('.kpi-row #section-chequing-balance').exists()).toBe(true);
+    expect(w.find('.dash-2col-row').exists()).toBe(false);
+    // Subscriptions is now a standalone full-width card
+    expect(w.find('#section-subscriptions').exists()).toBe(true);
     w.unmount();
   });
 
@@ -1937,8 +1941,10 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
     const w = mountWith(DashboardPage);
     await nextTick();
     const chevrons = w.findAll('.base-card__collapse-btn');
-    // 9 sections (RS-12 added purchases-this-period + money-flow), each with a collapsible BaseCard
-    expect(chevrons.length).toBe(9);
+    // 8 collapsible BaseCards: purchases-this-period, money-flow, expense-cards, loans,
+    // savings-accounts, subscriptions, credit-cards, wishlist.
+    // Chequing Balance is non-collapsible (now lives in the KPI row).
+    expect(chevrons.length).toBe(8);
     w.unmount();
   });
 
