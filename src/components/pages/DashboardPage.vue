@@ -8,24 +8,31 @@
             May 2026 (Sprint 25) — removed analytics sections (→ AdvancedPage),
                                    budget-allocation (→ Settings), goals-timeline (deleted)
             May 2026 (RS-3)      — Vivid Modern redesign: hero KPI row, page header,
-                                   quick-add wants modal, "Manage widgets" button wired to
-                                   ui.toggleSectionPicker()
-  Summary:  Dashboard tab host. A page header with welcome greeting + quick-add
-            CTA sits above a 4-column KPI hero row (wants envelope hero, due-in-7
-            days, needs spent, net worth). Below that the user-configurable section
-            cards render in drag-and-drop order.
+                                   quick-add wants modal
+            May 2026 (RS-11)     — Fixed-grid layout: removed income-streams, wants-tracker
+                                   (→ RS-12), savings-goals (→ Goals tab); removed
+                                   drag-and-drop and "Manage widgets"; sections now live
+                                   in a responsive fixed grid matching the new mockup.
+  Summary:  Dashboard tab host. Fixed-grid layout:
+              Row 0 — page header (greeting + quick-add CTA)
+              Row 1 — 4-col KPI hero row (wants envelope, due-in-7, needs, net worth)
+              Row 2 — 3-col widget row  (Recurring Spend | Loan Payoff | Savings Accounts)
+              Row 3 — 2-col row         (Chequing Balance | Subscriptions)
+              Row 4 — full-width        (Credit Cards)
+              Row 5 — full-width        (Wishlist)
+            RS-12 will add the charts row (Money flow + Purchases this period) between
+            Row 1 and Row 2.
 -->
 
 <script setup lang="ts">
-import { ref, computed, type Component } from 'vue';
-import BaseCard   from '@/components/ui/BaseCard.vue';
-import BaseModal  from '@/components/ui/BaseModal.vue';
+import { ref, computed } from 'vue';
+import BaseCard    from '@/components/ui/BaseCard.vue';
+import BaseModal   from '@/components/ui/BaseModal.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import { useUiStore }    from '@/stores/ui';
 import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics }  from '@/composables/useAnalytics';
 import { useToast }      from '@/composables/useToast';
-import { SECTION_MAP }   from '@/constants/dashboardSections';
 import { fmt }           from '@/utils/format';
 import {
   getSubsDeductedThisPeriod,
@@ -34,40 +41,13 @@ import {
 import type { Purchase } from '@/types/budget';
 
 // ─── Section components ───────────────────────────────────────────
-import IncomeStreams    from '@/components/sections/IncomeStreams.vue';
-import WantsTracker    from '@/components/sections/WantsTracker.vue';
 import ExpenseCards    from '@/components/sections/ExpenseCards.vue';
 import Loans           from '@/components/sections/Loans.vue';
 import CreditCards     from '@/components/sections/CreditCards.vue';
 import Subscriptions   from '@/components/sections/Subscriptions.vue';
 import Savings         from '@/components/sections/Savings.vue';
-import SavingsGoals    from '@/components/sections/SavingsGoals.vue';
 import Wishlist        from '@/components/sections/Wishlist.vue';
 import ChequingBalance from '@/components/sections/ChequingBalance.vue';
-
-/** Registry: section id → its Vue component */
-const SECTION_COMPONENTS: Record<string, Component> = {
-  'income-streams':   IncomeStreams,
-  'wants-tracker':    WantsTracker,
-  'expense-cards':    ExpenseCards,
-  'subscriptions':    Subscriptions,
-  'loans':            Loans,
-  'credit-cards':     CreditCards,
-  'savings-accounts': Savings,
-  'savings-goals':    SavingsGoals,
-  'chequing-balance': ChequingBalance,
-  'wishlist':         Wishlist,
-};
-
-/**
- * Per-section props. Income streams and expense cards are also
- * rendered in the Settings tab with full CRUD; the Dashboard shows
- * them in display-only (read-only) mode.
- */
-const SECTION_PROPS: Record<string, Record<string, unknown>> = {
-  'income-streams': { readonly: true },
-  'expense-cards':  { readonly: true },
-};
 
 // ─── Stores & composables ──────────────────────────────────────────
 const ui     = useUiStore();
@@ -125,7 +105,7 @@ const periodEndLabel = computed(() => {
 });
 
 // ─── Due in 7 days ────────────────────────────────────────────────
-const todayStr    = today.toISOString().split('T')[0];
+const todayStr     = today.toISOString().split('T')[0];
 const sevenDaysOut = new Date(today);
 sevenDaysOut.setDate(today.getDate() + 7);
 const sevenDaysStr = sevenDaysOut.toISOString().split('T')[0];
@@ -167,17 +147,12 @@ const netWorthMomPct = computed(() => {
 });
 
 // ─── Quick-add modal ──────────────────────────────────────────────
-const showQuickAdd      = ref(false);
-const quickAddName      = ref('');
-const quickAddAmount    = ref('');
+const showQuickAdd   = ref(false);
+const quickAddName   = ref('');
+const quickAddAmount = ref('');
 
-/**
- * Live list of spending categories from the user's settings.
- * Replaces the old hardcoded array — always in sync with Settings → Categories.
- */
 const quickAddCats = computed(() => budget.spendingCategories);
 
-/** Default to the first category, falling back to 'other' if the list is empty. */
 const defaultCategory = computed(() =>
   quickAddCats.value[0]?.id ?? 'other',
 );
@@ -197,7 +172,6 @@ const quickAddValid = computed(() =>
 function openQuickAdd(): void {
   quickAddName.value     = '';
   quickAddAmount.value   = '';
-  // Reset to first user-defined category each time the modal opens
   quickAddCategory.value = defaultCategory.value;
   showQuickAdd.value     = true;
 }
@@ -215,49 +189,6 @@ function submitQuickAdd(): void {
   budget.addPurchase(purchase);
   toast.show(`Added "${purchase.name}" (${fmt(purchase.amount)}) to wants.`, 'success');
   showQuickAdd.value = false;
-}
-
-// ─── Drag-and-drop state ──────────────────────────────────────────
-const dragIndex = ref<number>(-1);
-const dropIndex = ref<number>(-1);
-
-function onDragStart(event: DragEvent, index: number): void {
-  dragIndex.value = index;
-  event.dataTransfer?.setData('text/plain', String(index));
-  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-}
-
-function onDragOver(event: DragEvent, index: number): void {
-  event.preventDefault();
-  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-  dropIndex.value = index;
-}
-
-function onDragLeave(event: DragEvent, index: number): void {
-  const related = event.relatedTarget as HTMLElement | null;
-  const slot    = event.currentTarget as HTMLElement;
-  if (!related || !slot.contains(related)) {
-    if (dropIndex.value === index) dropIndex.value = -1;
-  }
-}
-
-function onDrop(event: DragEvent, targetIndex: number): void {
-  event.preventDefault();
-  const from = dragIndex.value;
-  if (from === -1 || from === targetIndex) { cleanup(); return; }
-  const newOrder = [...ui.sectionOrder];
-  const [moved] = newOrder.splice(from, 1);
-  const insertAt = from < targetIndex ? targetIndex - 1 : targetIndex;
-  newOrder.splice(insertAt, 0, moved);
-  ui.setSectionOrder(newOrder);
-  cleanup();
-}
-
-function onDragEnd(): void { cleanup(); }
-
-function cleanup(): void {
-  dragIndex.value = -1;
-  dropIndex.value = -1;
 }
 </script>
 
@@ -277,13 +208,6 @@ function cleanup(): void {
 
       <div class="dash-header__actions">
         <button
-          class="btn-secondary"
-          title="Manage dashboard widgets (G)"
-          @click="ui.toggleSectionPicker()"
-        >
-          <span aria-hidden="true">⊞</span> Manage widgets
-        </button>
-        <button
           class="btn-primary"
           @click="openQuickAdd"
         >
@@ -297,7 +221,6 @@ function cleanup(): void {
 
       <!-- ── Hero: bi-weekly wants envelope ── -->
       <div class="kpi-hero">
-        <!-- decorative circles -->
         <div class="kpi-hero__circle kpi-hero__circle--lg" aria-hidden="true" />
         <div class="kpi-hero__circle kpi-hero__circle--sm" aria-hidden="true" />
 
@@ -329,7 +252,6 @@ function cleanup(): void {
           <p class="kpi-hero__caption">
             {{ fmt(biWeeklySpent + biWeeklyDeductions) }} spent of {{ fmt(biWeeklyBudget) }}
           </p>
-          <!-- Custom inline track (chartreuse fill on accent background) -->
           <div
             class="kpi-hero__track"
             role="progressbar"
@@ -448,58 +370,78 @@ function cleanup(): void {
       </div>
     </div><!-- /kpi-row -->
 
-    <!-- ══ Dynamically ordered sections ══════════════════════════════════ -->
-    <template
-      v-for="(sectionId, index) in ui.sectionOrder"
-      :key="sectionId"
-    >
-      <div
-        v-if="
-          dropIndex === index &&
-            dragIndex !== -1 &&
-            dragIndex !== index &&
-            dragIndex !== index - 1
-        "
-        class="drop-indicator"
-        aria-hidden="true"
-      />
-
-      <div
-        class="section-slot"
-        :class="{
-          'section-slot--dragging': dragIndex === index,
-          'section-slot--drag-active': dragIndex !== -1,
-        }"
-        @dragstart="onDragStart($event, index)"
-        @dragover="onDragOver($event, index)"
-        @dragleave="onDragLeave($event, index)"
-        @drop="onDrop($event, index)"
-        @dragend="onDragEnd"
+    <!-- ══ Row 2 — 3-col widget row ══════════════════════════════════════
+         Recurring Spend · Loan Payoff · Savings Accounts
+         (content redesigns coming in RS-12 and RS-13)
+    ═══════════════════════════════════════════════════════════════════ -->
+    <div class="dash-widget-row">
+      <BaseCard
+        title="Recurring Spend"
+        section-id="expense-cards"
+        :collapsible="true"
       >
-        <BaseCard
-          :title="SECTION_MAP[sectionId]?.title ?? sectionId"
-          :section-id="sectionId"
-          :collapsible="true"
-          :draggable="true"
-        >
-          <component
-            :is="SECTION_COMPONENTS[sectionId]"
-            v-bind="SECTION_PROPS[sectionId] ?? {}"
-          />
-        </BaseCard>
-      </div>
-    </template>
+        <ExpenseCards :readonly="true" />
+      </BaseCard>
 
-    <!-- Drop indicator at end of list -->
-    <div
-      v-if="
-        dropIndex === ui.sectionOrder.length &&
-          dragIndex !== -1 &&
-          dragIndex !== ui.sectionOrder.length - 1
-      "
-      class="drop-indicator"
-      aria-hidden="true"
-    />
+      <BaseCard
+        title="Loan Payoff"
+        section-id="loans"
+        :collapsible="true"
+      >
+        <Loans />
+      </BaseCard>
+
+      <BaseCard
+        title="Savings Accounts"
+        section-id="savings-accounts"
+        :collapsible="true"
+      >
+        <Savings />
+      </BaseCard>
+    </div>
+
+    <!-- ══ Row 3 — 2-col row ══════════════════════════════════════════════
+         Chequing Balance · Subscriptions
+    ═══════════════════════════════════════════════════════════════════ -->
+    <div class="dash-2col-row">
+      <BaseCard
+        title="Chequing Balance"
+        section-id="chequing-balance"
+        :collapsible="true"
+      >
+        <ChequingBalance />
+      </BaseCard>
+
+      <BaseCard
+        title="Subscriptions"
+        section-id="subscriptions"
+        :collapsible="true"
+      >
+        <Subscriptions />
+      </BaseCard>
+    </div>
+
+    <!-- ══ Row 4 — full-width: Credit Cards ══════════════════════════════
+         (bar chart removed in RS-11; inline add/withdraw redesign in RS-13)
+    ═══════════════════════════════════════════════════════════════════ -->
+    <BaseCard
+      title="Credit Cards"
+      section-id="credit-cards"
+      :collapsible="true"
+    >
+      <CreditCards />
+    </BaseCard>
+
+    <!-- ══ Row 5 — full-width: Wishlist ══════════════════════════════════
+         (redesign in RS-14)
+    ═══════════════════════════════════════════════════════════════════ -->
+    <BaseCard
+      title="Wishlist"
+      section-id="wishlist"
+      :collapsible="true"
+    >
+      <Wishlist />
+    </BaseCard>
 
     <!-- ══ Quick-add wants modal ══════════════════════════════════════════ -->
     <BaseModal
@@ -944,39 +886,40 @@ function cleanup(): void {
   transition: width 0.35s ease-out;
 }
 
-/* ─── Section slot (drag wrapper) ──────────────────────────────── */
-.section-slot {
-  position: relative;
-  border-radius: 10px;
-  transition: opacity 0.15s ease;
+/* ─── Dashboard grid rows ──────────────────────────────────────── */
+
+/* 3-col row: Recurring Spend | Loan Payoff | Savings Accounts */
+.dash-widget-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  align-items: start;
 }
 
-.section-slot--dragging {
-  opacity: 0.35;
+@media (max-width: 1100px) {
+  .dash-widget-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-.section-slot--drag-active:not(.section-slot--dragging) {
-  outline: 2px solid transparent;
-  transition: outline-color 0.1s ease, opacity 0.15s ease;
+@media (max-width: 680px) {
+  .dash-widget-row {
+    grid-template-columns: 1fr;
+  }
 }
 
-.section-slot--drag-active:not(.section-slot--dragging):hover {
-  outline-color: var(--accent);
+/* 2-col row: Chequing Balance | Subscriptions */
+.dash-2col-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  align-items: start;
 }
 
-/* ─── Drop indicator line ──────────────────────────────────────── */
-.drop-indicator {
-  height: 3px;
-  border-radius: 2px;
-  background: var(--accent);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent);
-  margin: -0.25rem 0;
-  animation: drop-indicator-pulse 0.8s ease-in-out infinite alternate;
-}
-
-@keyframes drop-indicator-pulse {
-  from { opacity: 0.7; }
-  to   { opacity: 1; }
+@media (max-width: 680px) {
+  .dash-2col-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ─── Quick-add modal ──────────────────────────────────────────── */
@@ -1123,8 +1066,6 @@ function cleanup(): void {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .drop-indicator { animation: none; }
-  .section-slot { transition: none; }
   .btn-primary,
   .btn-secondary { transition: none; }
 }

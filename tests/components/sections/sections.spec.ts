@@ -1337,22 +1337,42 @@ describe('Subscriptions — BUG-015 save regression', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-//  DashboardPage — Sprint 18 (collapsible + drag-and-drop)
+//  DashboardPage — RS-11 fixed grid layout
 // ─────────────────────────────────────────────────────────────────
 import DashboardPage from '@/components/pages/DashboardPage.vue';
 import SectionPicker from '@/components/ui/SectionPicker.vue';
 import { DEFAULT_SECTION_ORDER } from '@/constants/dashboardSections';
 
-describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
+describe('DashboardPage — RS-11 fixed grid layout', () => {
   beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('renders all 15 section cards in the default order', async () => {
+  it('mounts without throwing', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
-    const cards = w.findAll('.base-card');
-    // 15 section cards + 4 stat cards = at least 15 sections present
-    // We check by looking for all section id attributes
+    expect(w.exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders the page wrapper', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('.page-dashboard').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders the KPI hero row with 4 cards', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('.kpi-row').exists()).toBe(true);
+    expect(w.find('.kpi-hero').exists()).toBe(true);
+    expect(w.findAll('.kpi-card')).toHaveLength(3);
+    w.unmount();
+  });
+
+  it('renders all 7 fixed section cards', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
     DEFAULT_SECTION_ORDER.forEach(id => {
       const el = w.find(`#section-${id}`);
       expect(el.exists(), `section #section-${id} should exist`).toBe(true);
@@ -1360,12 +1380,54 @@ describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
     w.unmount();
   });
 
-  it('every section card has a drag handle (⠿)', async () => {
+  it('does NOT render removed sections (income-streams, savings-goals, wants-tracker)', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
-    const handles = w.findAll('.base-card__drag-handle');
-    // Dashboard now has 10 sections (analytics moved to Advanced; budget-allocation to Settings)
-    expect(handles.length).toBe(10);
+    expect(w.find('#section-income-streams').exists()).toBe(false);
+    expect(w.find('#section-savings-goals').exists()).toBe(false);
+    expect(w.find('#section-wants-tracker').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('renders the 3-col widget row', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('.dash-widget-row').exists()).toBe(true);
+    // Expense cards, loans, savings-accounts are all in the widget row
+    expect(w.find('.dash-widget-row #section-expense-cards').exists()).toBe(true);
+    expect(w.find('.dash-widget-row #section-loans').exists()).toBe(true);
+    expect(w.find('.dash-widget-row #section-savings-accounts').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders the 2-col row with chequing and subscriptions', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('.dash-2col-row').exists()).toBe(true);
+    expect(w.find('.dash-2col-row #section-chequing-balance').exists()).toBe(true);
+    expect(w.find('.dash-2col-row #section-subscriptions').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders credit cards and wishlist as full-width sections', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('#section-credit-cards').exists()).toBe(true);
+    expect(w.find('#section-wishlist').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('has NO drag handles (drag-and-drop removed in RS-11)', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.findAll('.base-card__drag-handle')).toHaveLength(0);
+    w.unmount();
+  });
+
+  it('has NO section-slot wrappers (fixed grid, no drag slots)', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.findAll('.section-slot')).toHaveLength(0);
     w.unmount();
   });
 
@@ -1373,15 +1435,8 @@ describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
     const w = mountWith(DashboardPage);
     await nextTick();
     const chevrons = w.findAll('.base-card__collapse-btn');
-    expect(chevrons.length).toBe(10);
-    w.unmount();
-  });
-
-  it('each section slot is a drop zone (has dragover listener attribute region)', async () => {
-    const w = mountWith(DashboardPage);
-    await nextTick();
-    const slots = w.findAll('.section-slot');
-    expect(slots.length).toBe(10);
+    // 7 sections, each with a collapsible BaseCard
+    expect(chevrons.length).toBe(7);
     w.unmount();
   });
 
@@ -1389,67 +1444,29 @@ describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
     const ui = useUiStore();
     const w = mountWith(DashboardPage);
     await nextTick();
-    // Toggle income-streams collapsed
-    ui.toggleSection('income-streams');
+    ui.toggleSection('subscriptions');
     await nextTick();
-    // The BaseCard body uses v-show so the element is in the DOM but hidden
-    const incomeCard = w.find('#section-income-streams');
-    const body = incomeCard.find('.base-card__body');
+    const card = w.find('#section-subscriptions');
+    const body = card.find('.base-card__body');
     expect(body.isVisible()).toBe(false);
     w.unmount();
   });
 
-  it('reordering via setSectionOrder changes rendered card order', async () => {
-    const ui = useUiStore();
+  it('renders the quick-add button in the header', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
-
-    // Move wishlist to first position
-    const withWishlistFirst = [
-      'wishlist',
-      ...DEFAULT_SECTION_ORDER.filter(id => id !== 'wishlist'),
-    ];
-    ui.setSectionOrder(withWishlistFirst);
-    await nextTick();
-
-    // First section slot should now contain the wishlist card
-    const slots = w.findAll('.section-slot');
-    const firstSlot = slots[0];
-    expect(firstSlot.find('#section-wishlist').exists()).toBe(true);
+    const btn = w.find('.btn-primary');
+    expect(btn.exists()).toBe(true);
+    expect(btn.text()).toContain('Quick add to wants');
     w.unmount();
   });
 
-  it('drag-and-drop onDrop triggers setSectionOrder with new order', async () => {
-    const ui = useUiStore();
+  it('does NOT render the "Manage widgets" button (removed in RS-11)', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
-
-    const originalOrder = [...ui.sectionOrder];
-    const firstId = originalOrder[0];
-    const thirdId = originalOrder[2];
-
-    // Simulate: drag index 0 → drop on index 2
-    const slots = w.findAll('.section-slot');
-    const handle = slots[0].find('.base-card__drag-handle');
-    const targetSlot = slots[2];
-
-    // Fire dragstart from the handle of the first slot
-    await handle.trigger('dragstart', { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    await nextTick();
-
-    // Fire dragover + drop on the third slot
-    await targetSlot.trigger('dragover', { preventDefault: vi.fn(), dataTransfer: { dropEffect: '' } });
-    await targetSlot.trigger('drop', { preventDefault: vi.fn(), dataTransfer: {} });
-    await nextTick();
-
-    // The first section (index 0) should have moved before index 2
-    // After splice(0,1): [B,C,D,...], insertAt = 2-1 = 1 → [B,firstId,C,...]
-    expect(ui.sectionOrder).not.toEqual(originalOrder);
-    // firstId should no longer be at position 0
-    expect(ui.sectionOrder[0]).not.toBe(firstId);
-    // firstId should still be in the order (not lost)
-    expect(ui.sectionOrder).toContain(firstId);
-    expect(ui.sectionOrder).toContain(thirdId);
+    // The old "Manage widgets" button had class btn-secondary in the header
+    const headerBtns = w.findAll('.dash-header__actions .btn-secondary');
+    expect(headerBtns).toHaveLength(0);
     w.unmount();
   });
 });
@@ -1461,14 +1478,14 @@ describe('SectionPicker — Sprint 18 reorder', () => {
   beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('renders one item per section (14 items: 10 dashboard + 4 advanced)', async () => {
+  it('renders one item per section (11 items: 7 dashboard + 4 advanced)', async () => {
     const w = mount(SectionPicker, {
       props: { open: true },
       attachTo: document.body,
     });
     await nextTick();
     const items = document.body.querySelectorAll('.section-picker-item');
-    expect(items.length).toBe(14);
+    expect(items.length).toBe(11);
     w.unmount();
   });
 
@@ -1479,7 +1496,7 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const handles = document.body.querySelectorAll('.picker-drag-handle');
-    expect(handles.length).toBe(14);
+    expect(handles.length).toBe(11);
     w.unmount();
   });
 
@@ -1490,8 +1507,8 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const moveBtns = document.body.querySelectorAll('.picker-move-btn');
-    // 2 buttons per item × 14 items = 28
-    expect(moveBtns.length).toBe(28);
+    // 2 buttons per item × 11 items = 22
+    expect(moveBtns.length).toBe(22);
     w.unmount();
   });
 
@@ -1502,13 +1519,13 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const collapseBtns = document.body.querySelectorAll('.picker-collapse-btn');
-    expect(collapseBtns.length).toBe(14);
+    expect(collapseBtns.length).toBe(11);
     w.unmount();
   });
 
   it('clicking collapse toggle calls ui.toggleSection', async () => {
     const ui = useUiStore();
-    expect(ui.isSectionCollapsed('income-streams')).toBe(false);
+    expect(ui.isSectionCollapsed('expense-cards')).toBe(false);
     const w = mount(SectionPicker, {
       props: { open: true },
       attachTo: document.body,

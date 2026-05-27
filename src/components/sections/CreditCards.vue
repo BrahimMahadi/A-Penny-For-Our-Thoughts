@@ -2,8 +2,10 @@
   Module:   components/sections/CreditCards.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 4)
-  Summary:  Credit-card list with utilisation bars, totals, and the
-            CcBar chart. CRUD via BaseModal.
+  Updated:  May 2026 (RS-11) — removed CcBar chart; progress bars are sufficient.
+            (RS-13 will add inline add/withdraw interaction.)
+  Summary:  Credit-card list with utilisation progress bars and totals.
+            CRUD via BaseModal.
 -->
 
 <script setup lang="ts">
@@ -14,7 +16,6 @@ import { useFormValidation, rules } from '@/composables/useFormValidation';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
-import CcBar from '@/components/charts/CcBar.vue';
 import { fmt } from '@/utils/format';
 
 const budget = useBudgetStore();
@@ -194,12 +195,6 @@ function chipClass(balance: number, limit: number): string {
         </div>
       </div>
     </div>
-
-    <!-- Chart -->
-    <CcBar
-      v-if="budget.creditCards.length > 0"
-      :cards="budget.creditCards"
-    />
 
     <!-- Add / Edit modal -->
     <BaseModal

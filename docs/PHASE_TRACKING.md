@@ -1689,6 +1689,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-8 | Bottom status bar (sticky ticker + next-bill, 7 tests) | `feat/redesign-sprint-8-statusbar` | ✅ Complete | — |
 | RS-9 | Polish, tests, v2.0.0 release | `feat/redesign-sprint-9-release` | ✅ Complete | v2.0.0 |
 | RS-10 | Sidebar hover-expand (icon+label, overlay mode) | `feat/sidebar-hover-expand` | ✅ Complete | v2.1.0 |
+| RS-11 | Dashboard grid restructure — fixed layout, remove legacy sections, strip bar charts | `feat/redesign-sprint-11-dashboard-grid` | ✅ Complete | v2.2.0 |
 
 ---
 
@@ -2060,6 +2061,44 @@ Add smooth hover-expand behaviour to the 64px icon sidebar: on hover it widens t
 - ✅ Utility buttons (Shortcuts, theme toggle) present and have label spans
 - ✅ Accessibility: `role="tablist"`, `role="tab"`, `aria-selected` correct
 - ✅ Avatar fallback renders when Supabase not configured
+
+---
+
+## RS-11 — Dashboard Grid Restructure ✅
+**Branch**: `feat/redesign-sprint-11-dashboard-grid`
+**Status**: ✅ **COMPLETE** — May 2026
+**Version**: `v2.2.0`
+
+### Goal
+Replace the old drag-and-drop dynamic section renderer with a clean fixed-grid layout matching the new dashboard mockup. Remove retired sections, strip the CcBar chart from Credit Cards, and place remaining sections in the correct grid positions.
+
+### Delivered
+
+#### `src/constants/dashboardSections.ts`
+- ✅ Removed: `income-streams` (handled in Settings), `wants-tracker` (RS-12 replaces with `purchases-this-period`), `savings-goals` (lives in Goals tab)
+- ✅ DASHBOARD_SECTIONS: 10 → 7 sections
+- ✅ Renamed: `expense-cards` title → "Recurring Spend"; `loans` title → "Loan Payoff"
+
+#### `src/components/pages/DashboardPage.vue`
+- ✅ Removed: drag-and-drop machinery (dragIndex, dropIndex, all handlers), "Manage widgets" button, `SECTION_MAP`, `SECTION_COMPONENTS`, `SECTION_PROPS`
+- ✅ Removed imports: `IncomeStreams`, `WantsTracker`, `SavingsGoals`
+- ✅ Fixed grid layout:
+  - **Row 1**: KPI hero row (unchanged)
+  - **Row 2** (`.dash-widget-row`, 3-col): Recurring Spend | Loan Payoff | Savings Accounts
+  - **Row 3** (`.dash-2col-row`, 2-col): Chequing Balance | Subscriptions
+  - **Row 4** (full-width): Credit Cards
+  - **Row 5** (full-width): Wishlist
+- ✅ Responsive breakpoints: 3-col → 2-col at ≤1100px, → 1-col at ≤680px; 2-col → 1-col at ≤680px
+
+#### `src/components/sections/CreditCards.vue`
+- ✅ Removed `CcBar` chart import and template usage; progress bars are sufficient
+
+#### Tests updated
+- ✅ `tests/stores/ui.spec.ts` — section count 10 → 7; `income-streams` references replaced with `subscriptions`/`expense-cards`; migration test lengths updated
+- ✅ `tests/components/sections/sections.spec.ts` — DashboardPage describe block fully rewritten (fixed grid assertions, drag-and-drop tests removed); SectionPicker counts: 14 → 11 items, 28 → 22 move buttons
+
+#### Final gate
+- ✅ 905/905 tests pass · `vue-tsc --noEmit` clean
 
 #### Doc updates
 - ✅ `CLAUDE.md` — test count updated to 898/28
