@@ -1653,9 +1653,9 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 ---
 
 **Last Updated**: May 2026
-**Current Version**: v1.19.0
-**Next Up**: Redesign Sprint 4 — Schedule & Spending CSS polish + search input
-**Current Branch**: `feat/redesign-sprint-4-schedule-spending`
+**Current Version**: v2.0.0
+**Next Up**: Post-v2.0.0 backlog (see Future Backlog section)
+**Current Branch**: `main`
 
 ---
 
@@ -1687,7 +1687,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-6 | Docs tab reskin | `feat/redesign-sprint-6-docs` | ✅ Complete | — |
 | RS-7 | Settings redesign (initial polish + deep two-col rebuild, readonly props, inline sliders) | `feat/redesign-sprint-7-settings` | ✅ Complete | — |
 | RS-8 | Bottom status bar (sticky ticker + next-bill, 7 tests) | `feat/redesign-sprint-8-statusbar` | ✅ Complete | — |
-| RS-9 | Polish, tests, v2.0.0 release | `feat/redesign-sprint-9-release` | 🔲 Planned | v2.0.0 |
+| RS-9 | Polish, tests, v2.0.0 release | `feat/redesign-sprint-9-release` | ✅ Complete | v2.0.0 |
 
 ---
 
@@ -1982,22 +1982,39 @@ Added a companion token `--accent2-text` that is:
 - ✅ CSS `mask-image` gradient fades the ticker edges for a polished bleed effect
 - ✅ `App.vue` `.app-main` gets `padding-bottom: calc(5rem + 44px)` so the last content item is never hidden behind the fixed bar
 - ✅ Tests updated: `.status-bar__zone / .status-bar__muted / .status-bar__dot` class refs replaced with `.ticker-zone / .bill-zone / .ticker-empty / .ticker-inner / .ticker-item`; "6 ticker-item elements" test verifies original + duplicate pass
+
+### RS-8 revision 2 — right zone converted to scrolling ticker
+
+- ✅ Right zone replaced: static "UP NEXT" single bill → continuous CSS scroll ticker matching left zone
+- ✅ `upcomingBills` computed (up to 5 items from `payPeriodForecast.dated`, filtered to `>= today`); `hasBills` + `billTickerDuration` (`~7s per item`, min 14s) computed refs
+- ✅ `📅 UPCOMING` static label with same border-right separator pattern as left zone
+- ✅ `.bill-wrap` / `.bill-inner` / `.bill-item` classes; reuses `ticker-scroll` keyframe
+- ✅ Bill amounts coloured `var(--warn)` (orange) to distinguish upcoming spend from recent purchases (accent/violet)
+- ✅ Both zones now `flex: 1` — equal split of the 36px bar; divider centred between them
 - ✅ 874/874 tests pass · `tsc --noEmit` clean
 
 ---
 
-## RS-9 — Polish, Tests & v2.0.0 Release 🔲
+## RS-9 — Polish, Tests & v2.0.0 Release ✅
 **Branch**: `feat/redesign-sprint-9-release`  
-**Status**: 🔲 **PLANNED**  
-**Target version**: `v2.0.0`
+**Status**: ✅ **COMPLETE** — May 2026  
+**Version**: `v2.0.0`
 
-### Scope
-- Final visual QA pass across all 6 tabs in both light and dark themes
-- Decide whether Advanced analytics in Goals tab stays or is removed
-- Run full test suite; fix any regressions
-- Merge all open redesign branches (RS-3 through RS-8) to `main` via PRs
-- Bump `APP_VERSION` in `WhatsNewBanner.vue` to `'2.0.0'` with redesign highlights
-- Update `docs/PHASE_TRACKING.md` summary table
-- Update `CLAUDE.md` test count
-- Update `docs/ARCHITECTURE.md` and `docs/README.md` version references
-- Tag `v2.0.0`
+### Delivered
+
+#### GoalsPage — Analytics grid refactor
+- ✅ 6-Month Spending Trend → full-width card (chart needs horizontal room)
+- ✅ Budget vs. Actual + Net Worth → side-by-side 2-col grid (`.analytics-2col`) — collapses to 1-col at ≤860px
+- ✅ Spending Analytics → full-width card (filter toolbar + history list + charts need room)
+- ✅ `.analytics-full` class ensures full-width cards don't shrink inside the flex group
+
+#### Version & doc updates
+- ✅ `WhatsNewBanner.vue` — `APP_VERSION` bumped to `'2.0.0'`; 5 redesign highlights (Vivid Modern, status bar, Settings rebuild, Goals analytics grid, light/dark polish)
+- ✅ `tests/components/onboarding.spec.ts` — version strings updated to `'2.0.0'`
+- ✅ `docs/README.md` — version bumped to v2.0.0; test count updated to 874/27; design direction updated to Vivid Modern
+- ✅ `docs/ARCHITECTURE.md` — title + summary line updated to v2.0.0
+- ✅ `docs/PHASE_TRACKING.md` — RS-8 right-zone ticker revision noted; RS-9 entry completed; summary table updated
+
+#### Final gate
+- ✅ 874/874 tests pass · `tsc --noEmit` clean · `vite build` green
+- ✅ Merged all redesign branches → `main`, tagged **v2.0.0**

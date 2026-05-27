@@ -3,6 +3,7 @@
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Redesign Sprint 2) — stub
   Rewritten: May 2026 (Redesign Sprint 5) — full implementation
+  Updated:  May 2026 (Redesign Sprint 9) — analytics grid: 2-col BvA+NetWorth, full-width trend+analytics
   Summary:  Goals tab. Three-zone layout:
             1. Page header — eyebrow + h1 + "New savings goal" / "Add wishlist item" CTAs
             2. Summary KPI row — total saved, goals count, overall %, wishlist count
@@ -152,36 +153,43 @@ const netWorthValue = computed(() => netWorth.value.current);
       </button>
 
       <template v-if="analyticsOpen">
+        <!-- Full-width: chart needs horizontal room -->
         <BaseCard
           title="6-Month Spending Trend"
           section-id="goals-spending-trend"
           :collapsible="true"
+          class="analytics-full"
         >
           <SpendingTrendSection />
         </BaseCard>
 
+        <!-- Two-column row: summary cards sit nicely side-by-side -->
+        <div class="analytics-2col">
+          <BaseCard
+            title="Budget vs. Actual"
+            section-id="goals-budget-vs-actual"
+            :collapsible="true"
+          >
+            <BudgetVsActual />
+          </BaseCard>
+
+          <BaseCard
+            title="Net Worth"
+            section-id="goals-net-worth"
+            :collapsible="true"
+          >
+            <NetWorth />
+          </BaseCard>
+        </div>
+
+        <!-- Full-width: filter toolbar + history list + charts need room -->
         <BaseCard
           title="Spending Analytics"
           section-id="goals-spending-analytics"
           :collapsible="true"
+          class="analytics-full"
         >
           <SpendingAnalytics />
-        </BaseCard>
-
-        <BaseCard
-          title="Budget vs. Actual"
-          section-id="goals-budget-vs-actual"
-          :collapsible="true"
-        >
-          <BudgetVsActual />
-        </BaseCard>
-
-        <BaseCard
-          title="Net Worth"
-          section-id="goals-net-worth"
-          :collapsible="true"
-        >
-          <NetWorth />
         </BaseCard>
       </template>
     </div>
@@ -289,6 +297,25 @@ const netWorthValue = computed(() => netWorth.value.current);
   flex-direction: column;
   gap: 1rem;
   margin-top: 0.5rem;
+}
+
+/* Side-by-side pair: Budget vs. Actual + Net Worth */
+.analytics-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+/* Ensure full-width cards don't accidentally shrink inside the group */
+.analytics-full {
+  width: 100%;
+}
+
+@media (max-width: 860px) {
+  .analytics-2col {
+    grid-template-columns: 1fr;
+  }
 }
 
 .analytics-toggle {

@@ -17,13 +17,13 @@ Welcome to the project documentation. This folder contains all guides, roadmaps,
 **A Penny For Our Thoughts** is a personal financial dashboard built on the 50/30/20 budget rule. The app runs entirely in the browser with no backend — all data lives in `localStorage`.
 
 - **Tech Stack**: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- **Current Version**: v1.6.0 (Sprint 12 — spending trend chart, goals timeline)
-- **Design Direction**: Bloomberg-style professional & data-focused
-- **Testing**: Vitest + @vue/test-utils · 508 tests across 21 spec files
+- **Current Version**: v2.0.0 (Vivid Modern redesign — sidebar nav, Supabase auth, status bar, full polish pass)
+- **Design Direction**: Vivid Modern — violet accent palette, 64px icon sidebar, responsive across all 6 tabs
+- **Testing**: Vitest + @vue/test-utils · 874 tests across 27 spec files
 - **CI/CD**: GitHub Actions (CI on PRs + deploy-to-GitHub-Pages on push to `main`)
 - **Live URL**: [https://brahimmahadi.github.io/A-Penny-For-Our-Thoughts/](https://brahimmahadi.github.io/A-Penny-For-Our-Thoughts/)
 
-## Feature Summary (v1.6.0)
+## Feature Summary (v2.0.0)
 
 | Feature | Description |
 |---------|-------------|

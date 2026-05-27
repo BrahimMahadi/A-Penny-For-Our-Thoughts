@@ -1,6 +1,6 @@
-# Architecture — A Penny For Our Thoughts (v1.6+)
+# Architecture — A Penny For Our Thoughts (v2.0+)
 
-> Last updated: May 2026 — reflects v1.6.0 (Sprint 12): spending trend chart, goals timeline, envelope forecast, MoM stat deltas, onboarding flow, swipe navigation, GitHub Pages CI deploy.
+> Last updated: May 2026 — reflects v2.0.0: Vivid Modern redesign (violet palette, 64px icon sidebar, 6-tab layout), Supabase Postgres + Auth, live status bar ticker, full Settings rebuild, 874 tests across 27 spec files.
 
 ---
 
