@@ -29,7 +29,7 @@
 import { ref, computed, watch } from 'vue';
 import { useThemeStore } from '@/stores/theme';
 import { useUiStore } from '@/stores/ui';
-import { useGsap } from '@/composables/useGsap';
+import { useGsap, prefersReducedMotion } from '@/composables/useGsap';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useKeyboard } from '@/composables/useKeyboard';
@@ -61,7 +61,7 @@ const ui     = useUiStore();
 const budget = useBudgetStore();
 const auth   = useAuthStore();
 const toast  = useToast();
-const { to, from } = useGsap();
+const { to, fromTo, raw: rawGsap } = useGsap();
 
 const supabaseEnabled = isSupabaseConfigured();
 
@@ -138,11 +138,49 @@ watch(
   },
 );
 
+// ── BUG-020 fix: pre-hide the entering element before the first paint so
+// there is never a one-frame flash of the page at full opacity.
+// Skip the hide for reduced-motion users — their animation is duration:0
+// so they'll never see a flash anyway.
+function onTabBeforeEnter(el: Element): void {
+  if (!prefersReducedMotion()) {
+    rawGsap.set(el as HTMLElement, { opacity: 0, x: tabDirection.value * 28 });
+  }
+}
+
+// BUG-020 fix:
+//   • Switch from gsap.from() → gsap.fromTo() so both start AND end states are
+//     explicit. gsap.from() captures the target's current values as the "to"
+//     state at call-time; if a prior interrupted animation left opacity:0 as an
+//     inline style, the tween would animate 0→0 and the page would stay blank.
+//   • Add onInterrupt: done so Vue's mode="out-in" is never left waiting for a
+//     done() that was swallowed by a killed tween (happens on rapid tab switching).
+//   • Add clearProps so GSAP's inline styles are removed on completion, returning
+//     the element to its natural CSS state.
 function onTabLeave(el: Element, done: () => void): void {
-  to(el, { x: tabDirection.value * -28, opacity: 0, duration: 0.2, ease: 'power2.in', onComplete: done });
+  to(el as HTMLElement, {
+    x:          tabDirection.value * -28,
+    opacity:    0,
+    duration:   0.2,
+    ease:       'power2.in',
+    onComplete: done,
+    onInterrupt: done,  // safety net: always unblock Vue's out-in mode
+  });
 }
 function onTabEnter(el: Element, done: () => void): void {
-  from(el, { x: tabDirection.value * 28, opacity: 0, duration: 0.28, ease: 'power2.out', onComplete: done });
+  fromTo(
+    el as HTMLElement,
+    { x: tabDirection.value * 28, opacity: 0 },     // explicit start state
+    {
+      x:           0,
+      opacity:     1,
+      duration:    0.28,
+      ease:        'power2.out',
+      clearProps:  'opacity,x',                       // clean up after animation
+      onComplete:  done,
+      onInterrupt: done,                              // safety net
+    },
+  );
 }
 
 // ─── Swipe to change tab on mobile ────────────────────────────────────────
@@ -207,6 +245,7 @@ useSwipe(
         <Transition
           :css="false"
           mode="out-in"
+          @before-enter="onTabBeforeEnter"
           @leave="onTabLeave"
           @enter="onTabEnter"
         >
