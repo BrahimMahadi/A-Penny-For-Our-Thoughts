@@ -2445,3 +2445,59 @@ Give the user a single Wants / Needs toggle on the dashboard that drives both th
 
 ### Final gate
 - ✅ 1032/1032 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-17 — GSAP Foundation & Primitive Animations ✅
+
+**Branch:** `feat/rs-17-gsap-foundation`
+**Version:** v2.8.0
+**Status:** ✅ Complete
+
+### Goal
+Install GSAP 3 and establish the animation foundation: a central `useGsap` composable with `prefers-reduced-motion` awareness, then animate every shared primitive so every page in the app immediately benefits.
+
+### Changes
+
+#### 1 — GSAP install + test infrastructure
+- `npm install gsap@3.15.0`
+- `tests/setup.ts` (new) — global Vitest setup: `window.matchMedia` stub + GSAP mock that calls `onComplete` synchronously so Vue `<Transition>` `done()` hooks fire without needing fake timers
+- `vite.config.ts` — added `setupFiles: ['./tests/setup.ts']`
+
+#### 2 — `src/composables/useGsap.ts` (new)
+- Exports `useGsap()` returning `{ to, from, fromTo, timeline, raw }`
+- Exports `prefersReducedMotion()` helper (used by the composable and testable independently)
+- All animation wrappers pass `duration: 0, delay: 0` when reduced motion is detected, ensuring `onComplete` still fires without a visual animation
+- Guards against `window.matchMedia` being unavailable (jsdom / SSR)
+
+#### 3 — `BaseCard.vue` — animated collapse/expand
+- Changed body from `v-show="!isCollapsed"` → `v-if="!isCollapsed"` wrapped in `<Transition :css="false">`
+- Added `onCollapseBeforeEnter`, `onCollapseEnter`, `onCollapseLeave` JS hooks
+- Expand: `gsap.fromTo(el, { height:0 }, { height: scrollHeight, duration:0.28, ease:'power2.inOut' })` then clears props
+- Collapse: `gsap.to(el, { height:0, duration:0.22, ease:'power2.inOut' })` then Vue removes the node
+
+#### 4 — `BaseModal.vue` — GSAP spring entrance
+- Replaced `<Transition name="base-modal">` CSS animation with `<Transition :css="false">` + JS hooks
+- Enter: overlay fades in (`duration:0.2`) while panel springs up with `back.out(1.4)` ease (`duration:0.32`)
+- Leave: panel shrinks out (`power2.in`) while overlay fades simultaneously
+- Removed all CSS `base-modal-enter-*` / `base-modal-leave-*` transition rules (replaced by GSAP)
+
+#### 5 — `ToastContainer.vue` — GSAP slide with spring
+- Replaced `<TransitionGroup name="base-toast">` CSS with `<TransitionGroup :css="false">` + JS hooks
+- Enter: each toast slides in from `x:110` with `back.out(1.5)` ease (`duration:0.38`)
+- Leave: slides back to `x:110` with `power2.in` (`duration:0.26`)
+- Removed all CSS `base-toast-enter-*` / `base-toast-leave-*` rules
+
+#### 6 — `ProgressBar.vue` — on-mount fill animation
+- Added `ref="fillRef"` on the fill element
+- `onMounted`: `gsap.fromTo(fill, { width:'0%' }, { width: clampedPercent, duration:0.75, ease:'power2.out', delay:0.1 })`
+- `watch(clamped)`: smooth `gsap.to(fill, { width, duration:0.45 })` on every reactive change (Wants ↔ Needs toggle, data updates)
+- Removed CSS `transition: width 0.35s ease-out` from fill (GSAP owns width now); `background-color` transition kept
+
+### Tests
+- ✅ `tests/composables/useGsap.spec.ts` (14 tests) — `prefersReducedMotion()`, `useGsap()` delegates, reduced-motion fast-paths, `onComplete` fires in both modes
+- ✅ Updated `tests/components/sections/sections.spec.ts` — "collapsing a section hides its body" changed from `isVisible()` to `exists()` (correct for `v-if`)
+- **Total: 1052 passing (↑14 from 1038) across 29 spec files**
+
+### Final gate
+- ✅ 1052/1052 tests pass · `vue-tsc --noEmit` clean

@@ -1955,8 +1955,9 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
     ui.toggleSection('subscriptions');
     await nextTick();
     const card = w.find('#section-subscriptions');
+    // v-if removes body from DOM when collapsed (RS-17: switched from v-show to v-if + GSAP)
     const body = card.find('.base-card__body');
-    expect(body.isVisible()).toBe(false);
+    expect(body.exists()).toBe(false);
     w.unmount();
   });
 

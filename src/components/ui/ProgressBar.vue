@@ -2,13 +2,18 @@
   Module:   components/ui/ProgressBar.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 2)
+  Modified: May 2026 (RS-17) — GSAP fill animation: 0 → target on mount,
+                               smooth tween on subsequent value changes.
   Summary:  Progress bar with status colour. Used for: goal progress,
             wants envelope, credit-card utilisation, budget alerts.
             Status auto-derives from `percent` unless overridden.
 -->
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
+import { useGsap } from '@/composables/useGsap';
+
+const { fromTo, to } = useGsap();
 
 type Status = 'on-track' | 'caution' | 'over';
 
@@ -43,6 +48,28 @@ const computedStatus = computed<Status>(() => {
   if (props.percent > 100) return 'caution';
   return 'on-track';
 });
+
+// ─── GSAP fill animation ──────────────────────────────────────────────────
+// fillRef points to the coloured fill div so GSAP can drive its width.
+// The Vue :style binding provides the correct final width to ARIA / SSR;
+// on mount GSAP plays a 0 → target fill so it's not just "there".
+const fillRef = ref<HTMLElement | null>(null);
+
+onMounted(() => {
+  if (!fillRef.value) return;
+  fromTo(
+    fillRef.value,
+    { width: '0%' },
+    { width: `${clamped.value}%`, duration: 0.75, ease: 'power2.out', delay: 0.1 },
+  );
+});
+
+// When the percent changes reactively (e.g. Wants ↔ Needs toggle), animate
+// the fill smoothly to the new value rather than jumping.
+watch(clamped, (newVal) => {
+  if (!fillRef.value) return;
+  to(fillRef.value, { width: `${newVal}%`, duration: 0.45, ease: 'power2.out' });
+});
 </script>
 
 <template>
@@ -63,6 +90,7 @@ const computedStatus = computed<Status>(() => {
     <!-- The track: overflow:hidden clips the fill's rounded edges cleanly -->
     <div class="base-progress-bar__track">
       <div
+        ref="fillRef"
         class="base-progress-bar__fill"
         :class="`base-progress-bar__fill--${computedStatus}`"
         :style="{ width: `${clamped}%` }"
@@ -104,13 +132,8 @@ const computedStatus = computed<Status>(() => {
 .base-progress-bar__fill {
   height: 100%;
   border-radius: 999px;
-  transition: width 0.35s ease-out, background-color 0.2s ease;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .base-progress-bar__fill {
-    transition: none;
-  }
+  /* width is animated by GSAP (RS-17); background-color still transitions via CSS */
+  transition: background-color 0.2s ease;
 }
 
 .base-progress-bar__fill--on-track { background: var(--accent, #5b3df5); }

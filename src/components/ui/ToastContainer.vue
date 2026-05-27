@@ -2,6 +2,7 @@
   Module:   components/ui/ToastContainer.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 2)
+  Modified: May 2026 (RS-17) — GSAP slide-in with back.out spring ease
   Summary:  Singleton overlay that renders all toasts queued via
             `useToast().show(msg)`. Mount once in App.vue.
 -->
@@ -9,6 +10,9 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { useToast } from '@/composables/useToast';
+import { useGsap } from '@/composables/useGsap';
+
+const { to, from } = useGsap();
 
 const { toasts, dismiss, _DURATION_MS } = useToast();
 
@@ -26,6 +30,20 @@ onMounted(() => {
   // during HMR / SSR hydration).
   toasts.value.forEach((t) => scheduleExit(t.id));
 });
+
+// ─── GSAP transition hooks for each toast ─────────────────────────────────
+function onToastEnter(el: Element, done: () => void): void {
+  from(el, { x: 110, opacity: 0, duration: 0.38, ease: 'back.out(1.5)',
+             onComplete: done });
+}
+function onToastLeave(el: Element, done: () => void): void {
+  to(el, { x: 110, opacity: 0, duration: 0.26, ease: 'power2.in',
+           onComplete: done });
+}
+function onToastMove(el: Element): void {
+  // Keeps stacked toasts sliding smoothly when one is dismissed
+  to(el, { y: 0, duration: 0.22, ease: 'power2.out' });
+}
 
 // Watch new toasts and schedule exits as they arrive.
 // (Reactive helper rather than a manual watch for clarity.)
@@ -48,7 +66,12 @@ watch(
       aria-live="polite"
       aria-atomic="false"
     >
-      <TransitionGroup name="base-toast">
+      <TransitionGroup
+        :css="false"
+        @enter="onToastEnter"
+        @leave="onToastLeave"
+        @move="onToastMove"
+      >
         <div
           v-for="t in toasts"
           :key="t.id"
@@ -102,25 +125,6 @@ watch(
   border-left-color: #f59e0b;
 }
 
-/* Enter / leave transitions */
-.base-toast-enter-active,
-.base-toast-leave-active {
-  transition:
-    transform 0.25s ease,
-    opacity 0.25s ease;
-}
-.base-toast-enter-from {
-  transform: translateX(120%);
-  opacity: 0;
-}
-.base-toast-leave-to {
-  transform: translateX(120%);
-  opacity: 0;
-}
-.base-toast-move {
-  transition: transform 0.25s ease;
-}
-
 @media (max-width: 540px) {
   .base-toast-container {
     left: 0.75rem;
@@ -132,16 +136,5 @@ watch(
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .base-toast-enter-active,
-  .base-toast-leave-active,
-  .base-toast-move {
-    transition: none;
-  }
-  .base-toast-enter-from,
-  .base-toast-leave-to {
-    transform: none;
-    opacity: 0;
-  }
-}
+/* prefers-reduced-motion is handled inside useGsap — no CSS overrides needed */
 </style>

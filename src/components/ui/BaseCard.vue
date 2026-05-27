@@ -4,8 +4,11 @@
   Created:  May 2026 (Vue 3 migration — Sprint 2)
   Modified: May 2026 (Sprint 13) — sectionId + collapsible support
             May 2026 (Sprint 18) — draggable prop + drag handle
+            May 2026 (RS-17)     — GSAP height-tween for collapse/expand
   Summary:  Surface container with optional title + actions slot.
             Replaces the legacy `.card` markup used across every section.
+            Collapse uses v-if + GSAP so the body animates from 0 → auto
+            height (expand) or auto → 0 (collapse) rather than snapping.
 
   Props:
     sectionId   — When set, renders `id="section-{sectionId}"` on the root
@@ -20,6 +23,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useUiStore } from '@/stores/ui';
+import { useGsap } from '@/composables/useGsap';
+
+const { to, fromTo, raw: gsap } = useGsap();
 
 interface Props {
   /** Card title; rendered in the section header */
@@ -63,6 +69,42 @@ const isCollapsed = computed(() =>
 
 function toggleCollapse(): void {
   if (props.sectionId) ui.toggleSection(props.sectionId);
+}
+
+// ─── GSAP collapse / expand hooks ─────────────────────────────────────────
+// Vue's <Transition> calls these at the right moment so GSAP can animate
+// height between 0 and the element's natural scrollHeight.
+
+function onCollapseBeforeEnter(el: Element): void {
+  (el as HTMLElement).style.height = '0';
+  (el as HTMLElement).style.overflow = 'hidden';
+}
+
+function onCollapseEnter(el: Element, done: () => void): void {
+  const height = (el as HTMLElement).scrollHeight;
+  fromTo(
+    el,
+    { height: 0 },
+    {
+      height,
+      duration: 0.28,
+      ease: 'power2.inOut',
+      onComplete: () => {
+        gsap.set(el, { clearProps: 'height,overflow' });
+        done();
+      },
+    },
+  );
+}
+
+function onCollapseLeave(el: Element, done: () => void): void {
+  (el as HTMLElement).style.overflow = 'hidden';
+  to(el, {
+    height: 0,
+    duration: 0.22,
+    ease: 'power2.inOut',
+    onComplete: done,
+  });
 }
 </script>
 
@@ -122,12 +164,19 @@ function toggleCollapse(): void {
       </div>
     </header>
 
-    <div
-      v-show="!isCollapsed"
-      class="base-card__body"
+    <Transition
+      :css="false"
+      @before-enter="onCollapseBeforeEnter"
+      @enter="onCollapseEnter"
+      @leave="onCollapseLeave"
     >
-      <slot />
-    </div>
+      <div
+        v-if="!isCollapsed"
+        class="base-card__body"
+      >
+        <slot />
+      </div>
+    </Transition>
 
     <footer
       v-if="$slots.footer && !isCollapsed"

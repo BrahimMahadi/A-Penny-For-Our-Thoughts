@@ -2,8 +2,11 @@
   Module:   components/ui/BaseModal.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 2)
+  Modified: May 2026 (RS-17) — GSAP spring entrance (back.out ease)
   Summary:  Accessible modal: Teleport to body, slot-driven content,
             scroll lock, ESC to close, focus trap, click-outside dismiss.
+            Entrance/exit animated by GSAP: backdrop fades while the panel
+            springs up with a slight overshoot (back.out(1.4)).
 
   Usage:
     <BaseModal v-model:open="isOpen" title="Edit goal">
@@ -17,6 +20,9 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, computed, onBeforeUnmount } from 'vue';
 import { useModal } from '@/composables/useModal';
+import { useGsap } from '@/composables/useGsap';
+
+const { timeline } = useGsap();
 
 interface Props {
   /** Two-way bind: visibility */
@@ -134,11 +140,40 @@ function onKeydown(e: KeyboardEvent): void {
 function onBackdropClick(): void {
   if (props.closeOnBackdrop) close();
 }
+
+// ─── GSAP transition hooks ────────────────────────────────────────────────
+// The <Transition :css="false"> wrapper calls these instead of CSS classes.
+
+function onModalEnter(el: Element, done: () => void): void {
+  const overlay = el as HTMLElement;
+  const dialog  = overlay.querySelector<HTMLElement>('.base-modal');
+  if (!dialog) { done(); return; }
+
+  const tl = timeline({ onComplete: done });
+  tl.from(overlay, { opacity: 0, duration: 0.2, ease: 'power2.out' });
+  tl.from(dialog,  { y: 22, scale: 0.97, opacity: 0, duration: 0.32,
+                     ease: 'back.out(1.4)' }, 0);
+}
+
+function onModalLeave(el: Element, done: () => void): void {
+  const overlay = el as HTMLElement;
+  const dialog  = overlay.querySelector<HTMLElement>('.base-modal');
+  if (!dialog) { done(); return; }
+
+  const tl = timeline({ onComplete: done });
+  tl.to(dialog,  { y: 10, scale: 0.97, opacity: 0, duration: 0.18,
+                   ease: 'power2.in' });
+  tl.to(overlay, { opacity: 0, duration: 0.16, ease: 'power2.in' }, 0);
+}
 </script>
 
 <template>
   <Teleport to="body">
-    <Transition name="base-modal">
+    <Transition
+      :css="false"
+      @enter="onModalEnter"
+      @leave="onModalLeave"
+    >
       <div
         v-if="open"
         class="base-modal-overlay"
@@ -286,27 +321,6 @@ function onBackdropClick(): void {
   gap: 0.5rem;
 }
 
-/* Enter / leave transitions */
-.base-modal-enter-active,
-.base-modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-.base-modal-enter-active .base-modal,
-.base-modal-leave-active .base-modal {
-  transition:
-    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.2s ease;
-}
-.base-modal-enter-from,
-.base-modal-leave-to {
-  opacity: 0;
-}
-.base-modal-enter-from .base-modal,
-.base-modal-leave-to .base-modal {
-  transform: translateY(20px) scale(0.98);
-  opacity: 0;
-}
-
 /* ─── 9C: Bottom-sheet layout on phones ─────────────────────── */
 @media (max-width: 540px) {
   .base-modal-overlay {
@@ -345,38 +359,6 @@ function onBackdropClick(): void {
   .base-modal__close {
     width: 44px;
     height: 44px;
-  }
-
-  /* Slide up from bottom instead of scale+fade */
-  .base-modal-enter-active .base-modal,
-  .base-modal-leave-active .base-modal {
-    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  .base-modal-enter-from .base-modal,
-  .base-modal-leave-to .base-modal {
-    transform: translateY(100%);
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .base-modal-enter-active,
-  .base-modal-leave-active {
-    transition: none;
-  }
-  .base-modal-enter-active .base-modal,
-  .base-modal-leave-active .base-modal {
-    transition: none;
-  }
-  .base-modal-enter-from,
-  .base-modal-leave-to {
-    opacity: 0;
-  }
-  .base-modal-enter-from .base-modal,
-  .base-modal-leave-to .base-modal {
-    transform: none;
-    opacity: 0;
   }
 }
 </style>
