@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.9.0';
+const APP_VERSION = '2.10.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🎬', text: 'Switching tabs now plays a directional slide transition — forward tabs slide left, backward tabs slide right' },
-  { icon: '📋', text: 'Dashboard cards cascade in on page load — each card staggers in from below for a polished entrance' },
-  { icon: '🔢', text: 'Hero "Available to Spend" amount counts up from $0 on load and transitions smoothly when you toggle Wants ↔ Needs' },
-  { icon: '🔔', text: 'What\'s New banner now animates in from above and collapses smoothly when dismissed' },
-  { icon: '✅', text: '1032 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '🃏', text: 'Wishlist cards stagger in from below on page load, and add/remove now uses a smooth GSAP fade instead of a CSS pop' },
+  { icon: '📋', text: 'Subscription list rows animate in/out with GSAP when items are added or removed' },
+  { icon: '🖱️', text: 'Every button now gives tactile press feedback — scales down on press and springs back with an elastic ease' },
+  { icon: '🔀', text: 'Wishlist card reorder (sort change) still uses CSS FLIP so moves glide smoothly without the Flip plugin' },
+  { icon: '✅', text: '1069 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

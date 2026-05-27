@@ -7,7 +7,8 @@
 -->
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
+import { useGsap } from '@/composables/useGsap';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
 type Size = 'xs' | 'sm' | 'md' | 'lg';
@@ -38,14 +39,36 @@ const classes = computed(() => [
   `base-btn--${props.size}`,
   { 'base-btn--block': props.block, 'base-btn--disabled': props.disabled },
 ]);
+
+// ─── GSAP press feedback ──────────────────────────────────────────
+const buttonRef = ref<HTMLButtonElement | null>(null);
+const { to } = useGsap();
+
+function onPress(): void {
+  if (props.disabled || !buttonRef.value) return;
+  to(buttonRef.value, { scale: 0.93, duration: 0.08, ease: 'power2.in', overwrite: true });
+}
+
+function onRelease(): void {
+  if (!buttonRef.value) return;
+  to(buttonRef.value, { scale: 1, duration: 0.4, ease: 'elastic.out(1.2, 0.4)', overwrite: true });
+}
 </script>
 
 <template>
   <button
+    ref="buttonRef"
     :type="type"
     :class="classes"
     :disabled="disabled"
     :aria-label="ariaLabel"
+    @pointerdown="onPress"
+    @pointerup="onRelease"
+    @pointerleave="onRelease"
+    @keydown.enter="onPress"
+    @keydown.space.prevent="onPress"
+    @keyup.enter="onRelease"
+    @keyup.space="onRelease"
   >
     <slot />
   </button>
@@ -62,16 +85,13 @@ const classes = computed(() => [
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
+  /* transform is handled by GSAP press feedback — omit it from CSS transition
+     to avoid fighting GSAP's inline style overrides */
   transition:
     filter 0.15s ease,
     background-color 0.15s ease,
-    border-color 0.15s ease,
-    transform 0.1s ease;
+    border-color 0.15s ease;
   white-space: nowrap;
-}
-
-.base-btn:active:not(.base-btn--disabled) {
-  transform: translateY(1px);
 }
 
 .base-btn:focus-visible {

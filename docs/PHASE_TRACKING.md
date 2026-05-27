@@ -2548,3 +2548,46 @@ Make the app feel alive the moment any page loads. Tab transitions give a sense 
 
 ### Final gate
 - ✅ 1052/1052 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-19 — List & Micro-interaction Animations ✅
+
+**Branch:** `feat/rs-19-micro-animations`
+**Version:** v2.10.0
+**Status:** ✅ Complete
+
+### Goal
+Bring tactile life to every list-level interaction. Wishlist cards stagger in on load; adding/removing items animates via GSAP rather than CSS; every button in the app now gives a satisfying elastic press-and-spring-back feedback.
+
+### Changes
+
+#### 1 — `src/composables/useListTransition.ts` (new)
+- Reusable composable: exposes `{ onItemEnter, onItemLeave }` GSAP hooks for `<TransitionGroup :css="false">`
+- `onItemEnter`: `gsap.from(el, { opacity:0, y:enterY, ... })` — item slides up from below on add
+- `onItemLeave`: `gsap.to(el, { opacity:0, y:-enterY*0.5, ... })` — item floats up-and-fades on remove
+- All options (`enterY`, `enterDuration`, `leaveDuration`, `enterEase`, `leaveEase`) are configurable per-callsite
+- Delegates to `useGsap()` so prefers-reduced-motion is automatically respected
+
+#### 2 — `src/components/sections/Wishlist.vue`
+- Added `onMounted` stagger: all `.wish-card` elements animate from `y:18, opacity:0` with `0.055s` stagger on first load
+- `<TransitionGroup>` switched from CSS `name="wish-card"` to `:css="false" + move-class="wish-card-move"` — GSAP handles enter/leave, CSS FLIP still handles reorder so sort animations remain smooth without needing the GSAP Flip plugin
+- Removed stale `.wish-card-enter-active/from/leave-active/to` CSS rules; kept `.wish-card-move` for FLIP
+
+#### 3 — `src/components/ui/BaseButton.vue`
+- Added GSAP press scale feedback: `pointerdown` → `scale:0.93` (fast, `power2.in`); `pointerup`/`pointerleave` → spring back to `scale:1` with `elastic.out(1.2, 0.4)`
+- Keyboard users also get feedback via `@keydown.enter`/`@keydown.space` → `@keyup.enter`/`@keyup.space` handlers
+- Removed CSS `transform 0.1s ease` from the `transition` property (GSAP inline styles override it; keeping it would cause visual fights)
+- Removed the CSS `:active { transform: translateY(1px) }` rule (GSAP scale press replaces it)
+
+#### 4 — `src/components/sections/Subscriptions.vue`
+- `<ul v-else class="subs-list">` replaced with `<TransitionGroup tag="ul" class="subs-list" :css="false">` using `useListTransition` hooks
+- Subscription rows now animate in/out with GSAP on add/delete/filter
+
+### Tests
+- Added `tests/composables/useListTransition.spec.ts`: 17 tests covering default options, custom options, `onItemEnter` enter params, `onItemLeave` leave params, and the combined options path
+- All GSAP assertions use the mock from `tests/setup.ts` (synchronous `onComplete`) to verify parameters without real timers
+- **Total: 1069 passing (↑17 from 1052) across 30 spec files**
+
+### Final gate
+- ✅ 1069/1069 tests pass · `vue-tsc --noEmit` clean
