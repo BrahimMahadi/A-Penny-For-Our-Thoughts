@@ -1691,6 +1691,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-10 | Sidebar hover-expand (icon+label, overlay mode) | `feat/sidebar-hover-expand` | ✅ Complete | v2.1.0 |
 | RS-11 | Dashboard grid restructure — fixed layout, remove legacy sections, strip bar charts | `feat/redesign-sprint-11-dashboard-grid` | ✅ Complete | v2.2.0 |
 | RS-12 | Purchases This Period + Recurring Spend + Money Flow charts row | `feat/redesign-sprint-12-purchases-recurring` | ✅ Complete | v2.3.0 |
+| RS-13 | Inline pay/charge/deposit/withdraw interactions on loan, CC, and savings cards | `feat/redesign-sprint-13-inline-interactions` | ✅ Complete | v2.4.0 |
 
 ---
 
@@ -2164,3 +2165,50 @@ Add a new charts row to the dashboard (between the KPI hero row and the 3-col wi
 
 #### Final gate
 - ✅ 920/920 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-13 — Inline Pay / Charge / Deposit / Withdraw Interactions ✅
+**Branch**: `feat/redesign-sprint-13-inline-interactions`
+**Status**: ✅ **COMPLETE** — May 2026
+**Version**: `v2.4.0`
+
+### Goal
+Add quick inline action forms directly on loan cards, credit card bars, and savings account rows — so users can record a payment, charge, deposit, or withdrawal without opening the full Edit modal.
+
+### Delivered
+
+#### `src/components/sections/Loans.vue`
+- ✅ **"Pay" button** added alongside Edit / Delete per loan card
+- ✅ `inlineLoanId` ref tracks which card has the inline form open (one at a time)
+- ✅ `openInlinePay(loanId)` — pre-fills amount from `loan.paymentAmount`; guarded `el.focus()` for jsdom safety
+- ✅ `confirmInlinePay(loanId)` — reduces `remaining` via `budget.updateLoan(id, { remaining: Math.max(0, remaining - amt) })`; success toast; clamps to 0
+- ✅ Inline form: dollar-prefixed input, ✓ Confirm (disabled at 0), ✕ cancel, live "Remaining after" preview
+- ✅ CSS: `.loan-inline-pay`, `__label`, `__row`, `__input-wrap`, `__dollar`, `__input`, `__confirm`, `__cancel`, `__preview`
+
+#### `src/components/sections/CreditCards.vue`
+- ✅ **"+ Charge" and "✓ Pay" buttons** added alongside Edit / Delete per card
+- ✅ `inlineCcId` + `inlineCcMode: 'charge' | 'pay'` refs
+- ✅ `confirmCcInline` — charge: `Math.min(limit, balance + amt)`; pay: `Math.max(0, balance - amt)`; success toast
+- ✅ Color-coded forms: `--charge` (danger red), `--pay` (accent2 green)
+- ✅ CSS: `.cc-inline-form`, `--charge`, `--pay`, all sub-elements; live new-balance / limit preview
+
+#### `src/components/sections/Savings.vue`
+- ✅ **"+ Deposit" and "− Withdraw" buttons** added before Allocate / Edit / Delete per account
+- ✅ `inlineAcctId` + `inlineMode: 'deposit' | 'withdraw'` refs
+- ✅ `confirmInline` — deposit adds; withdraw clamps to 0; success toast with correct action word
+- ✅ Color-coded forms: `--deposit` (accent violet), `--withdraw` (warn amber)
+- ✅ Form appears as `flex-basis: 100%` child inside the `.savings-acct-item` flex row — no layout breakage
+- ✅ CSS: `.savings-inline-form`, `--deposit`, `--withdraw`, all sub-elements; live "New balance" preview
+
+#### Focus guard (jsdom compatibility)
+- ✅ All three `nextTick(() => el.focus())` calls wrapped in `typeof el.focus === 'function'` check — eliminates 22 unhandled errors in jsdom while preserving browser auto-focus behaviour
+
+### Tests (`tests/components/sections/sections.spec.ts`)
+- ✅ `Loans — RS-13 inline payment` (7 tests): Pay button present, form shown/hidden on click, pre-fill from paymentAmount, confirm reduces remaining, clamped to 0, cancel no-op, confirm disabled when amount = 0
+- ✅ `CreditCards — RS-13 inline charge/pay` (7 tests): Charge/Pay buttons present, form `--charge`/`--pay` classes, confirm charge increases balance, confirm pay decreases balance, limit cap enforced, cancel no-op, disabled when amount = 0
+- ✅ `Savings — RS-13 inline deposit/withdraw` (8 tests): Deposit/Withdraw buttons present, form `--deposit`/`--withdraw` classes, confirm deposit adds, confirm withdraw subtracts, clamped to 0, cancel no-op, disabled when amount = 0, preview text correct
+- **Total: 945 passing (↑25 from 920) across 28 spec files**
+
+### Final gate
+- ✅ 945/945 tests pass · `vue-tsc --noEmit` clean

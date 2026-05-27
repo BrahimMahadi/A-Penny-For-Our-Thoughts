@@ -357,6 +357,120 @@ describe('Loans', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  Loans — RS-13 inline payment
+// ─────────────────────────────────────────────────────────────────
+describe('Loans — RS-13 inline payment', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  function setupLoan() {
+    const budget = useBudgetStore();
+    budget.loans = [];
+    budget.addLoan({
+      name: 'Car Loan', remaining: 5000, original: 12000,
+      paymentAmount: 300, frequency: 'monthly', date: '2026-06-01',
+      budgetType: 'needs', cardId: null,
+    });
+    return budget;
+  }
+
+  it('each loan card has a Pay button', async () => {
+    setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    const payBtn = w.findAll('button').find(b => b.text() === 'Pay');
+    expect(payBtn).toBeDefined();
+    w.unmount();
+  });
+
+  it('clicking Pay reveals the inline payment form', async () => {
+    setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    expect(w.find('.loan-inline-pay').exists()).toBe(false);
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    expect(w.find('.loan-inline-pay').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('inline form pre-fills with scheduled payment amount', async () => {
+    setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    const input = w.find('.loan-inline-pay__input');
+    expect(Number((input.element as HTMLInputElement).value)).toBe(300);
+    w.unmount();
+  });
+
+  it('confirming payment reduces loan remaining balance', async () => {
+    const budget = setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    const input = w.find('.loan-inline-pay__input');
+    await input.setValue('300');
+    await w.find('.loan-inline-pay__confirm').trigger('click');
+    await nextTick();
+    expect(budget.loans[0].remaining).toBe(4700);
+    w.unmount();
+  });
+
+  it('payment is clamped to 0 (cannot go negative)', async () => {
+    const budget = setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    await w.find('.loan-inline-pay__input').setValue('99999');
+    await w.find('.loan-inline-pay__confirm').trigger('click');
+    await nextTick();
+    expect(budget.loans[0].remaining).toBe(0);
+    w.unmount();
+  });
+
+  it('clicking ✕ cancel closes the inline form', async () => {
+    setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    expect(w.find('.loan-inline-pay').exists()).toBe(true);
+    await w.find('.loan-inline-pay__cancel').trigger('click');
+    await nextTick();
+    expect(w.find('.loan-inline-pay').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('confirm button is disabled when amount is 0', async () => {
+    setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    await w.find('.loan-inline-pay__input').setValue('0');
+    const confirmBtn = w.find('.loan-inline-pay__confirm').element as HTMLButtonElement;
+    expect(confirmBtn.disabled).toBe(true);
+    w.unmount();
+  });
+
+  it('shows remaining-after preview that updates as amount changes', async () => {
+    setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    await w.find('.loan-inline-pay__input').setValue('500');
+    await nextTick();
+    expect(w.find('.loan-inline-pay__preview').text()).toContain('4,500');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 //  6. CREDIT CARDS
 // ─────────────────────────────────────────────────────────────────
 describe('CreditCards', () => {
@@ -394,6 +508,111 @@ describe('CreditCards', () => {
     await addBtn!.trigger('click');
     await nextTick();
     expect(modalOpen()).toBe(true);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  CreditCards — RS-13 inline charge/pay
+// ─────────────────────────────────────────────────────────────────
+describe('CreditCards — RS-13 inline charge/pay', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  // DEFAULT_STATE: Visa with balance: 0, limit: 1000
+
+  it('each card has a "+ Charge" and "✓ Pay" button', async () => {
+    const w = mountWith(CreditCards);
+    await nextTick();
+    const btns = w.findAll('button').map(b => b.text());
+    expect(btns.some(t => t.includes('Charge'))).toBe(true);
+    expect(btns.some(t => t.includes('Pay'))).toBe(true);
+    w.unmount();
+  });
+
+  it('clicking "+ Charge" reveals inline form with --charge class', async () => {
+    const w = mountWith(CreditCards);
+    await nextTick();
+    expect(w.find('.cc-inline-form').exists()).toBe(false);
+    await w.findAll('button').find(b => b.text().includes('Charge'))!.trigger('click');
+    await nextTick();
+    expect(w.find('.cc-inline-form').exists()).toBe(true);
+    expect(w.find('.cc-inline-form--charge').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('clicking "✓ Pay" reveals inline form with --pay class', async () => {
+    const w = mountWith(CreditCards);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Pay'))!.trigger('click');
+    await nextTick();
+    expect(w.find('.cc-inline-form--pay').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('confirming a charge increases balance', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(CreditCards);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Charge'))!.trigger('click');
+    await nextTick();
+    await w.find('.cc-inline-form__input').setValue('150');
+    await w.find('.cc-inline-form__confirm').trigger('click');
+    await nextTick();
+    expect(+budget.creditCards[0].balance).toBe(150);
+    w.unmount();
+  });
+
+  it('charge is capped at credit limit', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(CreditCards);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Charge'))!.trigger('click');
+    await nextTick();
+    await w.find('.cc-inline-form__input').setValue('9999');
+    await w.find('.cc-inline-form__confirm').trigger('click');
+    await nextTick();
+    expect(+budget.creditCards[0].balance).toBe(1000); // capped at limit
+    w.unmount();
+  });
+
+  it('confirming a payment decreases balance (clamped at 0)', async () => {
+    const budget = useBudgetStore();
+    // First set a positive balance
+    budget.updateCreditCard(budget.creditCards[0].id, { balance: 400 });
+    const w = mountWith(CreditCards);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Pay'))!.trigger('click');
+    await nextTick();
+    await w.find('.cc-inline-form__input').setValue('9999');
+    await w.find('.cc-inline-form__confirm').trigger('click');
+    await nextTick();
+    expect(+budget.creditCards[0].balance).toBe(0);
+    w.unmount();
+  });
+
+  it('cancel closes the inline form without modifying balance', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(CreditCards);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Charge'))!.trigger('click');
+    await nextTick();
+    await w.find('.cc-inline-form__input').setValue('200');
+    await w.find('.cc-inline-form__cancel').trigger('click');
+    await nextTick();
+    expect(w.find('.cc-inline-form').exists()).toBe(false);
+    expect(+budget.creditCards[0].balance).toBe(0);
+    w.unmount();
+  });
+
+  it('confirm button is disabled when amount is 0', async () => {
+    const w = mountWith(CreditCards);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Charge'))!.trigger('click');
+    await nextTick();
+    await w.find('.cc-inline-form__input').setValue('0');
+    const confirmBtn = w.find('.cc-inline-form__confirm').element as HTMLButtonElement;
+    expect(confirmBtn.disabled).toBe(true);
     w.unmount();
   });
 });
@@ -497,6 +716,124 @@ describe('Savings', () => {
     await addBtn!.trigger('click');
     await nextTick();
     expect(modalOpen()).toBe(true);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Savings — RS-13 inline deposit/withdraw
+// ─────────────────────────────────────────────────────────────────
+describe('Savings — RS-13 inline deposit/withdraw', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  // DEFAULT_STATE: Emergency Fund + Investments with balance: 0
+
+  it('each account has a "+ Deposit" and "− Withdraw" button', async () => {
+    const w = mountWith(Savings);
+    await nextTick();
+    const btns = w.findAll('button').map(b => b.text());
+    expect(btns.some(t => t.includes('Deposit'))).toBe(true);
+    expect(btns.some(t => t.includes('Withdraw'))).toBe(true);
+    w.unmount();
+  });
+
+  it('clicking "+ Deposit" reveals inline form with --deposit class', async () => {
+    const w = mountWith(Savings);
+    await nextTick();
+    expect(w.find('.savings-inline-form').exists()).toBe(false);
+    await w.findAll('button').find(b => b.text().includes('Deposit'))!.trigger('click');
+    await nextTick();
+    expect(w.find('.savings-inline-form--deposit').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('clicking "− Withdraw" reveals inline form with --withdraw class', async () => {
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Withdraw'))!.trigger('click');
+    await nextTick();
+    expect(w.find('.savings-inline-form--withdraw').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('confirming a deposit increases account balance', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Deposit'))!.trigger('click');
+    await nextTick();
+    await w.find('.savings-inline-form__input').setValue('500');
+    await w.find('.savings-inline-form__confirm').trigger('click');
+    await nextTick();
+    expect(budget.savingsAccounts[0].balance).toBe(500);
+    w.unmount();
+  });
+
+  it('confirming a withdrawal decreases balance', async () => {
+    const budget = useBudgetStore();
+    // Pre-set a positive balance
+    budget.updateSavingsAccount(budget.savingsAccounts[0].id, { balance: 1000 });
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Withdraw'))!.trigger('click');
+    await nextTick();
+    await w.find('.savings-inline-form__input').setValue('250');
+    await w.find('.savings-inline-form__confirm').trigger('click');
+    await nextTick();
+    expect(budget.savingsAccounts[0].balance).toBe(750);
+    w.unmount();
+  });
+
+  it('withdrawal is clamped to 0 — balance cannot go negative', async () => {
+    const budget = useBudgetStore();
+    budget.updateSavingsAccount(budget.savingsAccounts[0].id, { balance: 100 });
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Withdraw'))!.trigger('click');
+    await nextTick();
+    await w.find('.savings-inline-form__input').setValue('9999');
+    await w.find('.savings-inline-form__confirm').trigger('click');
+    await nextTick();
+    expect(budget.savingsAccounts[0].balance).toBe(0);
+    w.unmount();
+  });
+
+  it('cancel closes the inline form without modifying balance', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Deposit'))!.trigger('click');
+    await nextTick();
+    await w.find('.savings-inline-form__input').setValue('999');
+    await w.find('.savings-inline-form__cancel').trigger('click');
+    await nextTick();
+    expect(w.find('.savings-inline-form').exists()).toBe(false);
+    expect(budget.savingsAccounts[0].balance).toBe(0);
+    w.unmount();
+  });
+
+  it('confirm button is disabled when amount is 0', async () => {
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Deposit'))!.trigger('click');
+    await nextTick();
+    await w.find('.savings-inline-form__input').setValue('0');
+    const confirmBtn = w.find('.savings-inline-form__confirm').element as HTMLButtonElement;
+    expect(confirmBtn.disabled).toBe(true);
+    w.unmount();
+  });
+
+  it('new-balance preview reflects typed amount', async () => {
+    const budget = useBudgetStore();
+    budget.updateSavingsAccount(budget.savingsAccounts[0].id, { balance: 1000 });
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Deposit'))!.trigger('click');
+    await nextTick();
+    await w.find('.savings-inline-form__input').setValue('250');
+    await nextTick();
+    expect(w.find('.savings-inline-form__preview').text()).toContain('1,250');
     w.unmount();
   });
 });

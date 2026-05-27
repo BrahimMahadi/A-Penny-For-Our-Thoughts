@@ -19,16 +19,16 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.4.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🛍️', text: 'Purchases This Period — new dashboard widget showing your bi-weekly wants donut chart with a per-category breakdown list' },
-  { icon: '📊', text: 'Money Flow — 12-month stacked bar chart (Needs / Wants / Savings + income line) now sits in the dashboard charts row' },
-  { icon: '💳', text: 'Recurring Spend — redesigned expandable per-card view; click any card to reveal its items, linked subscriptions, and loan payments' },
-  { icon: '📐', text: 'Dashboard layout — new charts row added between KPI hero and widget grid; 9 collapsible sections total' },
-  { icon: '✅', text: '920 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '💳', text: 'Inline Pay — click "Pay" on any loan card to instantly reduce the remaining balance without opening the edit modal' },
+  { icon: '⚡', text: 'Inline Charge / Pay — "+ Charge" and "✓ Pay" buttons on each credit card bar let you update your balance in one click' },
+  { icon: '🏦', text: 'Inline Deposit / Withdraw — savings accounts now have "+ Deposit" and "− Withdraw" quick-action buttons with a live balance preview' },
+  { icon: '🔒', text: 'All inline forms are color-coded (violet = deposit/pay, red = charge, amber = withdraw) and clamp values to valid ranges automatically' },
+  { icon: '✅', text: '945 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();
