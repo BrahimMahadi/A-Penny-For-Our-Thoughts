@@ -2,13 +2,16 @@
   Module:   components/sections/Savings.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 4)
+  Updated:  May 2026 (RS-13) — inline Deposit / Withdraw buttons per
+            account. Instantly adjusts `balance` without opening the
+            full Edit modal.
   Summary:  Savings accounts list with balance, monthly allocation, and
             a progress bar showing how much of the Savings budget is
-            allocated. CRUD via BaseModal. Mirrors renderSavings().
+            allocated. CRUD via BaseModal. Inline deposit/withdraw.
 -->
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, nextTick } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
@@ -123,6 +126,41 @@ function remove(id: string): void {
   if (!window.confirm(`Delete "${acct.name}"? Any savings goals linked to it will also be removed.`)) return;
   budget.deleteSavingsAccount(id);
   toast.show('Account removed.', 'success');
+}
+
+// ─── Inline deposit / withdraw ────────────────────────────────────
+type InlineMode = 'deposit' | 'withdraw';
+
+const inlineAcctId    = ref<string | null>(null);
+const inlineMode      = ref<InlineMode>('deposit');
+const inlineAmount    = ref(0);
+const inlineInputEl   = ref<HTMLInputElement | null>(null);
+
+function openInline(id: string, mode: InlineMode): void {
+  inlineAcctId.value = id;
+  inlineMode.value   = mode;
+  inlineAmount.value = 0;
+  nextTick(() => { const el = inlineInputEl.value; if (el && typeof el.focus === 'function') el.focus(); });
+}
+
+function closeInline(): void {
+  inlineAcctId.value = null;
+  inlineAmount.value = 0;
+}
+
+function confirmInline(id: string): void {
+  const amt = +inlineAmount.value;
+  if (!(amt > 0)) return;
+  const acct = budget.savingsAccounts.find(a => a.id === id);
+  if (!acct) return;
+  const currentBal = acct.balance || 0;
+  const newBalance = inlineMode.value === 'deposit'
+    ? currentBal + amt
+    : Math.max(0, currentBal - amt);
+  budget.updateSavingsAccount(id, { balance: newBalance });
+  const action = inlineMode.value === 'deposit' ? 'Deposited' : 'Withdrew';
+  toast.show(`${action} ${fmt(amt)} ${inlineMode.value === 'deposit' ? 'to' : 'from'} "${acct.name}".`, 'success');
+  closeInline();
 }
 
 // ─── Monthly allocation override modal ────────────────────────────
@@ -242,6 +280,19 @@ function saveAlloc(): void {
         <div class="savings-acct-actions">
           <BaseButton
             size="xs"
+            @click="openInline(acct.id, 'deposit')"
+          >
+            + Deposit
+          </BaseButton>
+          <BaseButton
+            size="xs"
+            variant="secondary"
+            @click="openInline(acct.id, 'withdraw')"
+          >
+            − Withdraw
+          </BaseButton>
+          <BaseButton
+            size="xs"
             variant="secondary"
             @click="openAllocate(acct.id)"
           >
@@ -261,6 +312,54 @@ function saveAlloc(): void {
           >
             Delete
           </BaseButton>
+        </div>
+
+        <!-- Inline deposit / withdraw form -->
+        <div
+          v-if="inlineAcctId === acct.id"
+          class="savings-inline-form"
+          :class="`savings-inline-form--${inlineMode}`"
+        >
+          <span class="savings-inline-form__label">
+            {{ inlineMode === 'deposit' ? '+ Deposit to' : '− Withdraw from' }} {{ acct.name }}
+          </span>
+          <div class="savings-inline-form__row">
+            <div class="savings-inline-form__input-wrap">
+              <span class="savings-inline-form__dollar">$</span>
+              <input
+                ref="inlineInputEl"
+                v-model.number="inlineAmount"
+                class="savings-inline-form__input"
+                type="number"
+                inputmode="decimal"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                @keydown.enter="confirmInline(acct.id)"
+                @keydown.esc="closeInline()"
+              >
+            </div>
+            <button
+              class="savings-inline-form__confirm"
+              type="button"
+              :disabled="!(inlineAmount > 0)"
+              @click="confirmInline(acct.id)"
+            >
+              ✓ Confirm
+            </button>
+            <button
+              class="savings-inline-form__cancel"
+              type="button"
+              @click="closeInline()"
+            >
+              ✕
+            </button>
+          </div>
+          <p class="savings-inline-form__preview">
+            New balance: {{ fmt(inlineMode === 'deposit'
+              ? (acct.balance || 0) + (inlineAmount || 0)
+              : Math.max(0, (acct.balance || 0) - (inlineAmount || 0))) }}
+          </p>
         </div>
       </li>
     </ul>
@@ -507,6 +606,143 @@ function saveAlloc(): void {
   display: flex;
   gap: 0.35rem;
   margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ─── Inline deposit / withdraw form ──────────────────────────── */
+.savings-inline-form {
+  flex-basis: 100%;
+  margin-top: 0.35rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border: 1px solid;
+}
+
+.savings-inline-form--deposit {
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+
+.savings-inline-form--withdraw {
+  background: color-mix(in srgb, var(--warn) 6%, var(--surface));
+  border-color: color-mix(in srgb, var(--warn) 30%, var(--border));
+}
+
+.savings-inline-form__label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.savings-inline-form--deposit .savings-inline-form__label {
+  color: var(--accent);
+}
+
+.savings-inline-form--withdraw .savings-inline-form__label {
+  color: var(--warn);
+}
+
+.savings-inline-form__row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.savings-inline-form__input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 100px;
+}
+
+.savings-inline-form__dollar {
+  position: absolute;
+  left: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.85rem;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.savings-inline-form__input {
+  width: 100%;
+  padding: 0.4rem 0.6rem 0.4rem 1.4rem;
+  font-size: 0.9rem;
+  font-family: var(--font-mono);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.savings-inline-form__input:focus {
+  border-color: var(--accent);
+}
+
+.savings-inline-form--withdraw .savings-inline-form__input:focus {
+  border-color: var(--warn);
+}
+
+.savings-inline-form__confirm {
+  padding: 0.4rem 0.75rem;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+
+.savings-inline-form--deposit .savings-inline-form__confirm {
+  background: var(--accent);
+}
+
+.savings-inline-form--withdraw .savings-inline-form__confirm {
+  background: var(--warn);
+}
+
+.savings-inline-form__confirm:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.savings-inline-form__confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.savings-inline-form__cancel {
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.savings-inline-form__cancel:hover {
+  background: var(--surface2);
+}
+
+.savings-inline-form__preview {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
 }
 
 /* Modal */

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A Penny For Our Thoughts — Dashboard Redesign</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet" />
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; font-family: 'Inter', system-ui, sans-serif; background: #f0eee9; }
+    * { box-sizing: border-box; }
+    #app { width: 100%; height: 100vh; }
+  </style>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Shared utilities (data + chart primitives) -->
+  <script type="text/babel" src="data.jsx"></script>
+  <script type="text/babel" src="charts.jsx"></script>
+
+  <!-- Dashboard C — Vivid Modern (and its supporting tabs) -->
+  <script type="text/babel" src="dashboard-tabs.jsx"></script>
+  <script type="text/babel" src="dashboard-modern.jsx"></script>
+
+  <!-- Canvas + tweaks chrome -->
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+
+  <script type="text/babel">
+    const { useEffect } = React;
+
+    // ─── Tweak defaults ──────────────────────────────────────────────
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "accent": "#5b3df5",
+      "density": "comfortable",
+      "cardStyle": "elevated",
+      "font": "sans",
+      "dataset": "brahim"
+    }/*EDITMODE-END*/;
+
+    // ─── Top-level app ───────────────────────────────────────────────
+    function App() {
+      const [tweaks, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+
+      // Common props applied to all dashboards. Each direction uses its
+      // own default font when font='auto'.
+      const common = {
+        density: tweaks.density,
+        cardStyle: tweaks.cardStyle,
+        accent: tweaks.accent,
+        font: tweaks.font,
+      };
+
+      const A_W = 1440, A_H = 980;
+
+      return (
+        <>
+          <window.DesignCanvas>
+            {/* ─── Dashboard tab — light + dark ─── */}
+            <window.DCSection
+              id="dashboard"
+              title="Dashboard"
+              subtitle="The main view. Quick add, hero, KPIs, money flow, purchases this period, recurring/loans/savings, wishlist, sticky status bar.">
+              <window.DCArtboard id="dashboard-light" label="Light · primary" width={A_W} height={A_H}>
+                <window.DashboardModern theme="light" tab="dashboard" {...common} />
+              </window.DCArtboard>
+              <window.DCArtboard id="dashboard-dark" label="Dark variant" width={A_W} height={A_H}>
+                <window.DashboardModern theme="dark" tab="dashboard" {...common} />
+              </window.DCArtboard>
+            </window.DCSection>
+
+            {/* ─── Other tabs ─── */}
+            <window.DCSection
+              id="other-tabs"
+              title="Schedule · Spending · Goals · Settings"
+              subtitle="The other primary surfaces in the app, in the same visual language.">
+              <window.DCArtboard id="schedule" label="Schedule" width={A_W} height={A_H}>
+                <window.DashboardModern theme="light" tab="schedule" {...common} />
+              </window.DCArtboard>
+              <window.DCArtboard id="spending" label="Spending" width={A_W} height={A_H}>
+                <window.DashboardModern theme="light" tab="spending" {...common} />
+              </window.DCArtboard>
+              <window.DCArtboard id="goals" label="Goals" width={A_W} height={A_H}>
+                <window.DashboardModern theme="light" tab="goals" {...common} />
+              </window.DCArtboard>
+              <window.DCArtboard id="settings" label="Settings" width={A_W} height={A_H}>
+                <window.DashboardModern theme="light" tab="settings" {...common} />
+              </window.DCArtboard>
+            </window.DCSection>
+          </window.DesignCanvas>
+
+          {/* ─── Tweaks panel ───────────────────────────────────────── */}
+          <window.TweaksPanel title="Tweaks">
+            <window.TweakSection label="Density">
+              <window.TweakRadio
+                label="Spacing"
+                value={tweaks.density}
+                options={[{ value: 'compact', label: 'Compact' }, { value: 'comfortable', label: 'Comfortable' }]}
+                onChange={(v) => setTweak('density', v)}
+              />
+            </window.TweakSection>
+
+            <window.TweakSection label="Card style">
+              <window.TweakRadio
+                label="Treatment"
+                value={tweaks.cardStyle}
+                options={[
+                  { value: 'flat', label: 'Flat' },
+                  { value: 'bordered', label: 'Bordered' },
+                  { value: 'elevated', label: 'Elevated' },
+                ]}
+                onChange={(v) => setTweak('cardStyle', v)}
+              />
+            </window.TweakSection>
+
+            <window.TweakSection label="Typography">
+              <window.TweakSelect
+                label="Font"
+                value={tweaks.font}
+                options={[
+                  { value: 'sans',  label: 'Sans (Inter)' },
+                  { value: 'serif', label: 'Serif (Source Serif)' },
+                  { value: 'mono',  label: 'Mono (JetBrains Mono)' },
+                ]}
+                onChange={(v) => setTweak('font', v)}
+              />
+            </window.TweakSection>
+
+            <window.TweakSection label="Accent color">
+              <window.TweakColor
+                label="Accent"
+                value={tweaks.accent}
+                options={['#5b3df5', '#000000', '#0ea5e9', '#ec4899', '#16a34a']}
+                onChange={(v) => setTweak('accent', v)}
+              />
+            </window.TweakSection>
+
+            <window.TweakSection label="Mock dataset">
+              <window.TweakSelect
+                label="Numbers"
+                value={tweaks.dataset}
+                options={[
+                  { value: 'brahim', label: "Brahim's real budget" },
+                  { value: 'sample', label: 'Sample CSV' },
+                  { value: 'empty',  label: 'Empty state (preview)' },
+                ]}
+                onChange={(v) => {
+                  setTweak('dataset', v);
+                  // Live swap: mutate window.BUDGET in place
+                  if (v === 'sample') {
+                    window.BUDGET.income.monthly = 3300;
+                    window.BUDGET.buckets.needs.spent = 1620;
+                    window.BUDGET.buckets.wants.spent = 312;
+                  } else if (v === 'empty') {
+                    window.BUDGET.income.monthly = 0;
+                    window.BUDGET.buckets.needs.spent = 0;
+                    window.BUDGET.buckets.wants.spent = 0;
+                  } else {
+                    window.BUDGET.income.monthly = 3551.64;
+                    window.BUDGET.buckets.needs.spent = 1834.41;
+                    window.BUDGET.buckets.wants.spent = 274.25;
+                  }
+                  // Force a re-render via the tween's effect
+                }}
+              />
+            </window.TweakSection>
+          </window.TweaksPanel>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('app')).render(<App />);
+  </script>
+</body>
+</html>

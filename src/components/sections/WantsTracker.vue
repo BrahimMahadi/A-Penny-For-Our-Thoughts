@@ -68,7 +68,10 @@ const loanTotal = computed(() =>
 const deductionTotal = computed(() => subTotal.value + loanTotal.value);
 
 // ─── Category spending + totals ───────────────────────────────────
-const categorySpending = computed(() => getCategorySpending(budget.purchases));
+// RS-15: filter to wants-only so the donut only reflects the wants envelope
+const categorySpending = computed(() =>
+  getCategorySpending(budget.purchases.filter(p => (p.budgetType ?? 'wants') !== 'needs')),
+);
 
 const totalSpent = computed(() =>
   budget.purchases

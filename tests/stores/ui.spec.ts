@@ -160,13 +160,16 @@ describe('ui store — sectionOrder', () => {
     expect(store.sectionOrder).toEqual(DEFAULT_SECTION_ORDER);
   });
 
-  it('sectionOrder contains all 10 known dashboard section IDs', () => {
+  it('sectionOrder contains all 9 known dashboard section IDs', () => {
     const store = useUiStore();
-    // Dashboard now has 10 sections (analytics moved to Advanced; budget-allocation to Settings)
-    expect(store.sectionOrder).toHaveLength(10);
-    expect(store.sectionOrder).toContain('income-streams');
+    // RS-11: income-streams, wants-tracker, savings-goals removed → 7 sections remain
+    // RS-12: purchases-this-period + money-flow added → 9 sections
+    expect(store.sectionOrder).toHaveLength(9);
+    expect(store.sectionOrder).toContain('expense-cards');
     expect(store.sectionOrder).toContain('subscriptions');
     expect(store.sectionOrder).toContain('wishlist');
+    expect(store.sectionOrder).toContain('purchases-this-period');
+    expect(store.sectionOrder).toContain('money-flow');
   });
 
   it('setSectionOrder updates the order and persists to localStorage', () => {
@@ -184,18 +187,18 @@ describe('ui store — sectionOrder', () => {
 
   it('setSectionOrder filters out unknown IDs', () => {
     const store = useUiStore();
-    store.setSectionOrder(['income-streams', 'ghost-section-does-not-exist', 'loans']);
+    store.setSectionOrder(['subscriptions', 'ghost-section-does-not-exist', 'loans']);
     expect(store.sectionOrder).not.toContain('ghost-section-does-not-exist');
   });
 
   it('setSectionOrder appends missing IDs so no section is ever lost', () => {
     const store = useUiStore();
-    // Pass an order that only contains 2 of the 10 dashboard sections
-    store.setSectionOrder(['income-streams', 'loans']);
+    // Pass an order that only contains 2 of the 9 dashboard sections
+    store.setSectionOrder(['subscriptions', 'loans']);
     expect(store.sectionOrder).toContain('wishlist');
-    expect(store.sectionOrder.length).toBe(10);
+    expect(store.sectionOrder.length).toBe(9);
     // The 2 provided sections come first
-    expect(store.sectionOrder[0]).toBe('income-streams');
+    expect(store.sectionOrder[0]).toBe('subscriptions');
     expect(store.sectionOrder[1]).toBe('loans');
   });
 
@@ -259,24 +262,24 @@ describe('ui store — sectionOrder', () => {
   it('migration: unknown IDs in stored order are filtered out on load', () => {
     localStorage.setItem('penny_ui_prefs', JSON.stringify({
       collapsedSections: [],
-      sectionOrder: ['income-streams', 'totally-fake-id', 'loans'],
+      sectionOrder: ['subscriptions', 'totally-fake-id', 'loans'],
     }));
     setActivePinia(createPinia());
     const store2 = useUiStore();
     expect(store2.sectionOrder).not.toContain('totally-fake-id');
-    expect(store2.sectionOrder.length).toBe(10);
+    expect(store2.sectionOrder.length).toBe(9);
   });
 
   it('migration: sections missing from stored order are appended on load', () => {
     // Store only has 2 IDs persisted
     localStorage.setItem('penny_ui_prefs', JSON.stringify({
       collapsedSections: [],
-      sectionOrder: ['income-streams', 'loans'],
+      sectionOrder: ['subscriptions', 'loans'],
     }));
     setActivePinia(createPinia());
     const store2 = useUiStore();
-    expect(store2.sectionOrder.length).toBe(10);
-    expect(store2.sectionOrder[0]).toBe('income-streams');
+    expect(store2.sectionOrder.length).toBe(9);
+    expect(store2.sectionOrder[0]).toBe('subscriptions');
     expect(store2.sectionOrder[1]).toBe('loans');
   });
 

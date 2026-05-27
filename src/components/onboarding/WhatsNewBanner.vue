@@ -19,16 +19,16 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.7.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🎨', text: 'Vivid Modern redesign — new violet palette, 64px icon sidebar, and a polished layout across all 6 tabs' },
-  { icon: '📺', text: 'Live status bar — a slim ticker at the bottom of the screen shows your 5 most recent purchases and upcoming bills, scrolling ESPN-style' },
-  { icon: '⚙️', text: 'Settings rebuilt — two-column layout with full income and expense CRUD; Dashboard shows read-only views of the same data' },
-  { icon: '📊', text: 'Goals analytics grid — Budget vs. Actual and Net Worth now appear side-by-side for easier comparison' },
-  { icon: '🌗', text: 'Full light & dark theme — every screen tested and polished in both modes with accessible colour contrast throughout' },
+  { icon: '🔀', text: 'New Wants / Needs toggle on the dashboard hero card — switch between your bi-weekly wants and needs envelopes at a glance' },
+  { icon: '📊', text: '"Purchases This Period" donut follows the toggle — shows category breakdown for wants or needs separately' },
+  { icon: '🍩', text: '"By category" donut in the Spending tab now has its own Wants / Needs toggle so you can view either envelope independently' },
+  { icon: '🖱️', text: 'Click any purchase row to edit it directly — the Edit modal now also has a Delete button so you never need to leave the form' },
+  { icon: '✅', text: '1032 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

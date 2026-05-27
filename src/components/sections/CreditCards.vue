@@ -2,19 +2,21 @@
   Module:   components/sections/CreditCards.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 4)
-  Summary:  Credit-card list with utilisation bars, totals, and the
-            CcBar chart. CRUD via BaseModal.
+  Updated:  May 2026 (RS-11) — removed CcBar chart; progress bars are sufficient.
+            May 2026 (RS-13) — inline Charge / Pay buttons per card. Instantly
+            adjusts balance without opening the full Edit modal.
+  Summary:  Credit-card list with utilisation progress bars and totals.
+            CRUD via BaseModal. Inline charge/pay interaction.
 -->
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, nextTick } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
-import CcBar from '@/components/charts/CcBar.vue';
 import { fmt } from '@/utils/format';
 
 const budget = useBudgetStore();
@@ -84,6 +86,41 @@ function remove(id: string): void {
   if (!window.confirm(`Delete "${cc.name}"?`)) return;
   budget.deleteCreditCard(id);
   toast.show('Credit card removed.', 'success');
+}
+
+// ─── Inline charge / pay ──────────────────────────────────────────
+type CCInlineMode = 'charge' | 'pay';
+
+const inlineCcId     = ref<string | null>(null);
+const inlineCcMode   = ref<CCInlineMode>('pay');
+const inlineCcAmount = ref(0);
+const inlineCcInputEl = ref<HTMLInputElement | null>(null);
+
+function openCcInline(id: string, mode: CCInlineMode): void {
+  inlineCcId.value     = id;
+  inlineCcMode.value   = mode;
+  inlineCcAmount.value = 0;
+  nextTick(() => { const el = inlineCcInputEl.value; if (el && typeof el.focus === 'function') el.focus(); });
+}
+
+function closeCcInline(): void {
+  inlineCcId.value     = null;
+  inlineCcAmount.value = 0;
+}
+
+function confirmCcInline(id: string): void {
+  const amt = +inlineCcAmount.value;
+  if (!(amt > 0)) return;
+  const cc = budget.creditCards.find(c => c.id === id);
+  if (!cc) return;
+  const currentBal = +cc.balance;
+  const newBalance = inlineCcMode.value === 'charge'
+    ? Math.min(cc.limit, currentBal + amt)
+    : Math.max(0, currentBal - amt);
+  budget.updateCreditCard(id, { balance: newBalance });
+  const action = inlineCcMode.value === 'charge' ? 'Charged' : 'Payment of';
+  toast.show(`${action} ${fmt(amt)} on "${cc.name}".`, 'success');
+  closeCcInline();
 }
 
 // ─── Colour helpers ───────────────────────────────────────────────
@@ -168,6 +205,19 @@ function chipClass(balance: number, limit: number): string {
             </span>
             <BaseButton
               size="xs"
+              @click="openCcInline(cc.id, 'charge')"
+            >
+              + Charge
+            </BaseButton>
+            <BaseButton
+              size="xs"
+              variant="secondary"
+              @click="openCcInline(cc.id, 'pay')"
+            >
+              ✓ Pay
+            </BaseButton>
+            <BaseButton
+              size="xs"
               variant="secondary"
               @click="openEdit(cc.id)"
             >
@@ -192,14 +242,58 @@ function chipClass(balance: number, limit: number): string {
           />
           <div class="cc-bar-threshold" />
         </div>
+
+        <!-- Inline charge / pay form -->
+        <div
+          v-if="inlineCcId === cc.id"
+          class="cc-inline-form"
+          :class="`cc-inline-form--${inlineCcMode}`"
+        >
+          <span class="cc-inline-form__label">
+            {{ inlineCcMode === 'charge' ? '+ Charge to' : '✓ Pay off' }} {{ cc.name }}
+          </span>
+          <div class="cc-inline-form__row">
+            <div class="cc-inline-form__input-wrap">
+              <span class="cc-inline-form__dollar">$</span>
+              <input
+                ref="inlineCcInputEl"
+                v-model.number="inlineCcAmount"
+                class="cc-inline-form__input"
+                type="number"
+                inputmode="decimal"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                @keydown.enter="confirmCcInline(cc.id)"
+                @keydown.esc="closeCcInline()"
+              >
+            </div>
+            <button
+              class="cc-inline-form__confirm"
+              type="button"
+              :disabled="!(inlineCcAmount > 0)"
+              @click="confirmCcInline(cc.id)"
+            >
+              ✓ Confirm
+            </button>
+            <button
+              class="cc-inline-form__cancel"
+              type="button"
+              @click="closeCcInline()"
+            >
+              ✕
+            </button>
+          </div>
+          <p class="cc-inline-form__preview">
+            New balance:
+            {{ fmt(inlineCcMode === 'charge'
+              ? Math.min(cc.limit, +cc.balance + (inlineCcAmount || 0))
+              : Math.max(0, +cc.balance - (inlineCcAmount || 0))) }}
+            / {{ fmt(cc.limit) }}
+          </p>
+        </div>
       </div>
     </div>
-
-    <!-- Chart -->
-    <CcBar
-      v-if="budget.creditCards.length > 0"
-      :cards="budget.creditCards"
-    />
 
     <!-- Add / Edit modal -->
     <BaseModal
@@ -475,5 +569,135 @@ function chipClass(balance: number, limit: number): string {
   font-size: 0.78rem;
   color: var(--danger);
   margin: 0.15rem 0 0;
+}
+
+/* ─── Inline charge / pay form ────────────────────────────────── */
+.cc-inline-form {
+  margin-top: 0.35rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border: 1px solid;
+}
+
+.cc-inline-form--charge {
+  background: color-mix(in srgb, var(--danger) 6%, var(--surface));
+  border-color: color-mix(in srgb, var(--danger) 25%, var(--border));
+}
+
+.cc-inline-form--pay {
+  background: color-mix(in srgb, var(--accent2) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent2) 35%, var(--border));
+}
+
+.cc-inline-form__label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cc-inline-form--charge .cc-inline-form__label {
+  color: var(--danger);
+}
+
+.cc-inline-form--pay .cc-inline-form__label {
+  color: var(--accent2-text);
+}
+
+.cc-inline-form__row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.cc-inline-form__input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 100px;
+}
+
+.cc-inline-form__dollar {
+  position: absolute;
+  left: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.85rem;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.cc-inline-form__input {
+  width: 100%;
+  padding: 0.4rem 0.6rem 0.4rem 1.4rem;
+  font-size: 0.9rem;
+  font-family: var(--font-mono);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.cc-inline-form__input:focus {
+  border-color: var(--accent);
+}
+
+.cc-inline-form__confirm {
+  padding: 0.4rem 0.75rem;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+
+.cc-inline-form--charge .cc-inline-form__confirm {
+  background: var(--danger);
+}
+
+.cc-inline-form--pay .cc-inline-form__confirm {
+  background: var(--accent2-text);
+}
+
+.cc-inline-form__confirm:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.cc-inline-form__confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cc-inline-form__cancel {
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.cc-inline-form__cancel:hover {
+  background: var(--surface2);
+}
+
+.cc-inline-form__preview {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
 }
 </style>

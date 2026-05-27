@@ -119,7 +119,14 @@ function toSubscription(r: SubscriptionRow): Subscription {
 }
 
 function toWishlistItem(r: WishlistItemRow): WishlistItem {
-  return { id: r.id, icon: r.icon, name: r.name, url: r.url };
+  return {
+    id:   r.id,
+    icon: r.icon,
+    name: r.name,
+    url:  r.url,
+    ...(r.price != null ? { price: r.price } : {}),
+    ...(r.saved != null ? { saved: r.saved } : {}),
+  };
 }
 
 function toSavingsAccount(r: SavingsAccountRow): SavingsAccount {
@@ -491,9 +498,17 @@ export const db = {
 
   wishlist: {
     insert: (userId: string, w: WishlistItem) =>
-      insertRow('wishlist_items', { id: w.id, user_id: userId, icon: w.icon, name: w.name, url: w.url }),
+      insertRow('wishlist_items', {
+        id: w.id, user_id: userId, icon: w.icon, name: w.name, url: w.url,
+        price: w.price ?? null,
+        saved: w.saved ?? null,
+      }),
     update: (userId: string, w: WishlistItem) =>
-      updateRow('wishlist_items', w.id, userId, { icon: w.icon, name: w.name, url: w.url }),
+      updateRow('wishlist_items', w.id, userId, {
+        icon: w.icon, name: w.name, url: w.url,
+        price: w.price ?? null,
+        saved: w.saved ?? null,
+      }),
     delete: (userId: string, id: string) => deleteRow('wishlist_items', id, userId),
   },
 

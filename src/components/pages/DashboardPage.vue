@@ -8,24 +8,33 @@
             May 2026 (Sprint 25) — removed analytics sections (→ AdvancedPage),
                                    budget-allocation (→ Settings), goals-timeline (deleted)
             May 2026 (RS-3)      — Vivid Modern redesign: hero KPI row, page header,
-                                   quick-add wants modal, "Manage widgets" button wired to
-                                   ui.toggleSectionPicker()
-  Summary:  Dashboard tab host. A page header with welcome greeting + quick-add
-            CTA sits above a 4-column KPI hero row (wants envelope hero, due-in-7
-            days, needs spent, net worth). Below that the user-configurable section
-            cards render in drag-and-drop order.
+                                   quick-add wants modal
+            May 2026 (RS-11)     — Fixed-grid layout: removed income-streams, wants-tracker
+                                   (→ RS-12), savings-goals (→ Goals tab); removed
+                                   drag-and-drop and "Manage widgets"; sections now live
+                                   in a responsive fixed grid matching the new mockup.
+            May 2026 (RS-12)     — Charts row added between KPI and widget rows:
+                                   Purchases This Period (donut) + Money Flow (12-month).
+                                   RecurringSpend replaces ExpenseCards :readonly on dash.
+  Summary:  Dashboard tab host. Fixed-grid layout:
+              Row 0 — page header (greeting + quick-add CTA)
+              Row 1 — 4-col KPI hero row (wants envelope, due-in-7, needs, chequing balance)
+              Row 2 — 2-col charts row   (Purchases This Period | Money Flow)
+              Row 3 — 3-col widget row   (Recurring Spend | Loan Payoff | Savings Accounts)
+              Row 4 — full-width         (Subscriptions)
+              Row 5 — full-width         (Credit Cards)
+              Row 6 — full-width         (Wishlist)
 -->
 
 <script setup lang="ts">
-import { ref, computed, type Component } from 'vue';
-import BaseCard   from '@/components/ui/BaseCard.vue';
-import BaseModal  from '@/components/ui/BaseModal.vue';
+import { ref, computed, nextTick } from 'vue';
+import BaseCard    from '@/components/ui/BaseCard.vue';
+import BaseModal   from '@/components/ui/BaseModal.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import { useUiStore }    from '@/stores/ui';
 import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics }  from '@/composables/useAnalytics';
 import { useToast }      from '@/composables/useToast';
-import { SECTION_MAP }   from '@/constants/dashboardSections';
 import { fmt }           from '@/utils/format';
 import {
   getSubsDeductedThisPeriod,
@@ -34,40 +43,15 @@ import {
 import type { Purchase } from '@/types/budget';
 
 // ─── Section components ───────────────────────────────────────────
-import IncomeStreams    from '@/components/sections/IncomeStreams.vue';
-import WantsTracker    from '@/components/sections/WantsTracker.vue';
-import ExpenseCards    from '@/components/sections/ExpenseCards.vue';
-import Loans           from '@/components/sections/Loans.vue';
-import CreditCards     from '@/components/sections/CreditCards.vue';
-import Subscriptions   from '@/components/sections/Subscriptions.vue';
-import Savings         from '@/components/sections/Savings.vue';
-import SavingsGoals    from '@/components/sections/SavingsGoals.vue';
-import Wishlist        from '@/components/sections/Wishlist.vue';
-import ChequingBalance from '@/components/sections/ChequingBalance.vue';
-
-/** Registry: section id → its Vue component */
-const SECTION_COMPONENTS: Record<string, Component> = {
-  'income-streams':   IncomeStreams,
-  'wants-tracker':    WantsTracker,
-  'expense-cards':    ExpenseCards,
-  'subscriptions':    Subscriptions,
-  'loans':            Loans,
-  'credit-cards':     CreditCards,
-  'savings-accounts': Savings,
-  'savings-goals':    SavingsGoals,
-  'chequing-balance': ChequingBalance,
-  'wishlist':         Wishlist,
-};
-
-/**
- * Per-section props. Income streams and expense cards are also
- * rendered in the Settings tab with full CRUD; the Dashboard shows
- * them in display-only (read-only) mode.
- */
-const SECTION_PROPS: Record<string, Record<string, unknown>> = {
-  'income-streams': { readonly: true },
-  'expense-cards':  { readonly: true },
-};
+import PurchasesThisPeriod from '@/components/sections/PurchasesThisPeriod.vue';
+import MoneyFlow           from '@/components/sections/MoneyFlow.vue';
+import RecurringSpend      from '@/components/sections/RecurringSpend.vue';
+import Loans               from '@/components/sections/Loans.vue';
+import CreditCards         from '@/components/sections/CreditCards.vue';
+import Subscriptions       from '@/components/sections/Subscriptions.vue';
+import Savings             from '@/components/sections/Savings.vue';
+import Wishlist            from '@/components/sections/Wishlist.vue';
+import ChequingBalance     from '@/components/sections/ChequingBalance.vue';
 
 // ─── Stores & composables ──────────────────────────────────────────
 const ui     = useUiStore();
@@ -78,15 +62,11 @@ const {
   currentMonthBudgeted,
   currentMonthActuals,
   prevMonthActuals,
-  netWorth,
   payPeriodForecast,
 } = useAnalytics();
 
 // ─── Page header ───────────────────────────────────────────────────
 const today = new Date();
-const monthLabel = computed(() =>
-  today.toLocaleDateString('en-CA', { month: 'long', year: 'numeric' }),
-);
 
 // ─── Hero KPI: bi-weekly wants envelope ───────────────────────────
 const biWeeklyBudget = computed(() =>
@@ -125,7 +105,7 @@ const periodEndLabel = computed(() => {
 });
 
 // ─── Due in 7 days ────────────────────────────────────────────────
-const todayStr    = today.toISOString().split('T')[0];
+const todayStr     = today.toISOString().split('T')[0];
 const sevenDaysOut = new Date(today);
 sevenDaysOut.setDate(today.getDate() + 7);
 const sevenDaysStr = sevenDaysOut.toISOString().split('T')[0];
@@ -156,38 +136,131 @@ const needsIsOver = computed(() =>
   currentMonthActuals.value.needs > currentMonthBudgeted.value.needs,
 );
 
-// ─── Net worth KPI ────────────────────────────────────────────────
-/** Month-over-month percentage change for net worth. */
-const netWorthMomPct = computed(() => {
-  const change = netWorth.value.momChange;
-  if (change === null) return null;
-  const prev = netWorth.value.netWorth - change;
-  if (prev === 0) return null;
-  return (change / Math.abs(prev)) * 100;
+// ─── Wants spent KPI (mirrors needsDelta/needsUsedPct/needsIsOver) ─
+const wantsDelta = computed(() =>
+  prevMonthActuals.value.wants > 0
+    ? currentMonthActuals.value.wants - prevMonthActuals.value.wants
+    : null,
+);
+
+const wantsUsedPct = computed(() => {
+  if (currentMonthBudgeted.value.wants <= 0) return 0;
+  return Math.min(100, (currentMonthActuals.value.wants / currentMonthBudgeted.value.wants) * 100);
+});
+
+const wantsIsOver = computed(() =>
+  currentMonthActuals.value.wants > currentMonthBudgeted.value.wants,
+);
+
+// ─── Switchable KPI card — follows the hero toggle ────────────────
+/** Label shown on the 3rd KPI card. */
+const kpiLabel = computed(() =>
+  dashboardTypeFilter.value === 'needs' ? 'Needs spent' : 'Wants spent',
+);
+
+/** Monthly spent amount for the active type. */
+const kpiSpent = computed(() =>
+  dashboardTypeFilter.value === 'needs'
+    ? currentMonthActuals.value.needs
+    : currentMonthActuals.value.wants,
+);
+
+/** Monthly budget for the active type. */
+const kpiBudgeted = computed(() =>
+  dashboardTypeFilter.value === 'needs'
+    ? currentMonthBudgeted.value.needs
+    : currentMonthBudgeted.value.wants,
+);
+
+/** Month-over-month delta for the active type (null if no prior month). */
+const kpiDelta = computed(() =>
+  dashboardTypeFilter.value === 'needs' ? needsDelta.value : wantsDelta.value,
+);
+
+/** % of monthly budget used for the active type. */
+const kpiUsedPct = computed(() =>
+  dashboardTypeFilter.value === 'needs' ? needsUsedPct.value : wantsUsedPct.value,
+);
+
+/** Whether the active type is over its monthly budget. */
+const kpiIsOver = computed(() =>
+  dashboardTypeFilter.value === 'needs' ? needsIsOver.value : wantsIsOver.value,
+);
+
+// ─── Dashboard shared type toggle (RS-16) ────────────────────────
+/** Drives the hero card + Purchases This Period. Persists per session only. */
+const dashboardTypeFilter = ref<'wants' | 'needs'>('wants');
+
+/** Hero card: budget for the active type. */
+const heroBudget = computed(() =>
+  dashboardTypeFilter.value === 'needs' ? biWeeklyNeedsBudget.value : biWeeklyBudget.value,
+);
+
+/** Hero card: amount spent for the active type (purchases only — deductions are
+ *  excluded from the "spent" caption so the number matches the Spending tab).
+ *  `heroRemaining` still deducts subs/loans from the available-to-spend total. */
+const heroSpent = computed(() =>
+  dashboardTypeFilter.value === 'needs'
+    ? biWeeklyNeedsSpent.value
+    : biWeeklySpent.value,
+);
+
+/** Hero card: remaining for the active type. */
+const heroRemaining = computed(() =>
+  dashboardTypeFilter.value === 'needs'
+    ? biWeeklyNeedsRemaining.value
+    : biWeeklyRemaining.value,
+);
+
+/** Hero card: % used for the active type. */
+const heroUsedPct = computed(() => {
+  if (heroBudget.value <= 0) return 0;
+  return Math.min(100, (heroSpent.value / heroBudget.value) * 100);
 });
 
 // ─── Quick-add modal ──────────────────────────────────────────────
-const showQuickAdd      = ref(false);
-const quickAddName      = ref('');
-const quickAddAmount    = ref('');
+const showQuickAdd       = ref(false);
+const quickAddName       = ref('');
+const quickAddAmount     = ref('');
+const quickAddBudgetType = ref<'wants' | 'needs'>('wants');
+const quickAddInputEl    = ref<HTMLInputElement | null>(null);
 
-/**
- * Live list of spending categories from the user's settings.
- * Replaces the old hardcoded array — always in sync with Settings → Categories.
- */
 const quickAddCats = computed(() => budget.spendingCategories);
 
-/** Default to the first category, falling back to 'other' if the list is empty. */
 const defaultCategory = computed(() =>
   quickAddCats.value[0]?.id ?? 'other',
 );
 
 const quickAddCategory = ref(defaultCategory.value);
 
+/** Bi-weekly needs envelope (income × needs% ÷ 2). */
+const biWeeklyNeedsBudget = computed(() =>
+  (totalMonthlyIncome.value * (budget.allocation.needs / 100)) / 2,
+);
+
+/** All needs purchases spent so far this period. */
+const biWeeklyNeedsSpent = computed(() =>
+  budget.purchases
+    .filter(p => p.budgetType === 'needs')
+    .reduce((s, p) => s + p.amount, 0),
+);
+
+const biWeeklyNeedsRemaining = computed(() =>
+  biWeeklyNeedsBudget.value - biWeeklyNeedsSpent.value,
+);
+
 const quickAddAfter = computed(() => {
   const amt = parseFloat(quickAddAmount.value) || 0;
-  return biWeeklyRemaining.value - amt;
+  return quickAddBudgetType.value === 'needs'
+    ? biWeeklyNeedsRemaining.value - amt
+    : biWeeklyRemaining.value - amt;
 });
+
+const quickAddPreviewLabel = computed(() =>
+  quickAddBudgetType.value === 'needs'
+    ? 'BI-WEEKLY NEEDS REMAINING AFTER'
+    : 'BI-WEEKLY WANTS REMAINING AFTER',
+);
 
 const quickAddValid = computed(() =>
   quickAddName.value.trim() !== '' &&
@@ -195,11 +268,15 @@ const quickAddValid = computed(() =>
 );
 
 function openQuickAdd(): void {
-  quickAddName.value     = '';
-  quickAddAmount.value   = '';
-  // Reset to first user-defined category each time the modal opens
-  quickAddCategory.value = defaultCategory.value;
-  showQuickAdd.value     = true;
+  quickAddName.value       = '';
+  quickAddAmount.value     = '';
+  quickAddBudgetType.value = 'wants';
+  quickAddCategory.value   = defaultCategory.value;
+  showQuickAdd.value       = true;
+  // BUG-020: use programmatic focus via nextTick instead of the `autofocus`
+  // HTML attribute, which triggers a browser warning when another element
+  // already has focus when the input is inserted into the DOM.
+  nextTick(() => quickAddInputEl.value?.focus());
 }
 
 function submitQuickAdd(): void {
@@ -209,55 +286,13 @@ function submitQuickAdd(): void {
     amount:     parseFloat(quickAddAmount.value),
     category:   quickAddCategory.value,
     cardId:     null,
-    budgetType: 'wants',
+    budgetType: quickAddBudgetType.value,
     date:       today.toISOString().split('T')[0] as Purchase['date'],
   };
   budget.addPurchase(purchase);
-  toast.show(`Added "${purchase.name}" (${fmt(purchase.amount)}) to wants.`, 'success');
+  const typeLabel = quickAddBudgetType.value === 'needs' ? 'needs' : 'wants';
+  toast.show(`Added "${purchase.name}" (${fmt(purchase.amount)}) to ${typeLabel}.`, 'success');
   showQuickAdd.value = false;
-}
-
-// ─── Drag-and-drop state ──────────────────────────────────────────
-const dragIndex = ref<number>(-1);
-const dropIndex = ref<number>(-1);
-
-function onDragStart(event: DragEvent, index: number): void {
-  dragIndex.value = index;
-  event.dataTransfer?.setData('text/plain', String(index));
-  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-}
-
-function onDragOver(event: DragEvent, index: number): void {
-  event.preventDefault();
-  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-  dropIndex.value = index;
-}
-
-function onDragLeave(event: DragEvent, index: number): void {
-  const related = event.relatedTarget as HTMLElement | null;
-  const slot    = event.currentTarget as HTMLElement;
-  if (!related || !slot.contains(related)) {
-    if (dropIndex.value === index) dropIndex.value = -1;
-  }
-}
-
-function onDrop(event: DragEvent, targetIndex: number): void {
-  event.preventDefault();
-  const from = dragIndex.value;
-  if (from === -1 || from === targetIndex) { cleanup(); return; }
-  const newOrder = [...ui.sectionOrder];
-  const [moved] = newOrder.splice(from, 1);
-  const insertAt = from < targetIndex ? targetIndex - 1 : targetIndex;
-  newOrder.splice(insertAt, 0, moved);
-  ui.setSectionOrder(newOrder);
-  cleanup();
-}
-
-function onDragEnd(): void { cleanup(); }
-
-function cleanup(): void {
-  dragIndex.value = -1;
-  dropIndex.value = -1;
 }
 </script>
 
@@ -267,27 +302,17 @@ function cleanup(): void {
     <!-- ══ Page header ═══════════════════════════════════════════════════ -->
     <header class="dash-header">
       <div class="dash-header__text">
-        <p class="dash-header__eyebrow">
-          Welcome back, Brahim
-        </p>
         <h1 class="dash-header__title">
-          Your money, {{ monthLabel }}
+          Welcome back, Brahim
         </h1>
       </div>
 
       <div class="dash-header__actions">
         <button
-          class="btn-secondary"
-          title="Manage dashboard widgets (G)"
-          @click="ui.toggleSectionPicker()"
-        >
-          <span aria-hidden="true">⊞</span> Manage widgets
-        </button>
-        <button
           class="btn-primary"
           @click="openQuickAdd"
         >
-          <span aria-hidden="true">+</span> Quick add to wants
+          <span aria-hidden="true">+</span> Add purchase
         </button>
       </div>
     </header>
@@ -295,52 +320,69 @@ function cleanup(): void {
     <!-- ══ Hero KPI row ══════════════════════════════════════════════════ -->
     <div class="kpi-row">
 
-      <!-- ── Hero: bi-weekly wants envelope ── -->
+      <!-- ── Hero: bi-weekly envelope (RS-16: wants/needs toggle) ── -->
       <div class="kpi-hero">
-        <!-- decorative circles -->
         <div class="kpi-hero__circle kpi-hero__circle--lg" aria-hidden="true" />
         <div class="kpi-hero__circle kpi-hero__circle--sm" aria-hidden="true" />
 
         <div class="kpi-hero__content">
-          <p class="kpi-hero__label">
-            Available to spend
-          </p>
+          <div class="kpi-hero__label-row">
+            <p class="kpi-hero__label">
+              Available to spend
+            </p>
+            <!-- Wants / Needs toggle -->
+            <div class="hero-type-toggle">
+              <button
+                class="htt-btn"
+                :class="{ 'htt-btn--active': dashboardTypeFilter === 'wants' }"
+                @click="dashboardTypeFilter = 'wants'"
+              >
+                Wants
+              </button>
+              <button
+                class="htt-btn"
+                :class="{ 'htt-btn--active': dashboardTypeFilter === 'needs' }"
+                @click="dashboardTypeFilter = 'needs'"
+              >
+                Needs
+              </button>
+            </div>
+          </div>
           <p
             v-if="periodEndLabel"
             class="kpi-hero__subtitle"
           >
-            Bi-weekly wants · until {{ periodEndLabel }}
+            Bi-weekly {{ dashboardTypeFilter }} · until {{ periodEndLabel }}
           </p>
           <p
             v-else
             class="kpi-hero__subtitle"
           >
-            Bi-weekly wants · set a pay date in Settings
+            Bi-weekly {{ dashboardTypeFilter }} · set a pay date in Settings
           </p>
 
           <div class="kpi-hero__amount">
-            <span class="kpi-hero__amount-int">{{ fmt(Math.abs(biWeeklyRemaining)).split('.')[0] }}</span><span class="kpi-hero__amount-dec">.{{ fmt(Math.abs(biWeeklyRemaining)).split('.')[1] ?? '00' }}</span>
+            <span class="kpi-hero__amount-int">{{ fmt(Math.abs(heroRemaining)).split('.')[0] }}</span><span class="kpi-hero__amount-dec">.{{ fmt(Math.abs(heroRemaining)).split('.')[1] ?? '00' }}</span>
             <span
-              v-if="biWeeklyRemaining < 0"
+              v-if="heroRemaining < 0"
               class="kpi-hero__over-badge"
             >OVER</span>
           </div>
 
           <p class="kpi-hero__caption">
-            {{ fmt(biWeeklySpent + biWeeklyDeductions) }} spent of {{ fmt(biWeeklyBudget) }}
+            {{ fmt(heroSpent) }} spent of {{ fmt(heroBudget) }}
           </p>
-          <!-- Custom inline track (chartreuse fill on accent background) -->
           <div
             class="kpi-hero__track"
             role="progressbar"
-            :aria-valuenow="biWeeklyUsedPct"
+            :aria-valuenow="heroUsedPct"
             aria-valuemin="0"
             aria-valuemax="100"
-            aria-label="Bi-weekly wants spent"
+            :aria-label="`Bi-weekly ${dashboardTypeFilter} spent`"
           >
             <div
               class="kpi-hero__fill"
-              :style="{ width: `${Math.min(100, biWeeklyUsedPct)}%` }"
+              :style="{ width: `${Math.min(100, heroUsedPct)}%` }"
             />
           </div>
         </div>
@@ -388,123 +430,132 @@ function cleanup(): void {
         </p>
       </div>
 
-      <!-- ── Needs spent ── -->
+      <!-- ── Wants / Needs spent (follows hero toggle) ── -->
       <div class="kpi-card">
         <div class="kpi-card__header">
-          <span class="kpi-card__label">Needs spent</span>
+          <span class="kpi-card__label">{{ kpiLabel }}</span>
         </div>
         <div
           class="kpi-card__value"
-          :class="{ 'kpi-card__value--danger': needsIsOver }"
+          :class="{ 'kpi-card__value--danger': kpiIsOver }"
         >
-          {{ fmt(currentMonthActuals.needs) }}
+          {{ fmt(kpiSpent) }}
         </div>
         <div class="kpi-card__delta-row">
           <span
-            v-if="needsDelta !== null"
+            v-if="kpiDelta !== null"
             class="kpi-delta"
-            :class="needsDelta > 0 ? 'kpi-delta--bad' : 'kpi-delta--good'"
+            :class="kpiDelta > 0 ? 'kpi-delta--bad' : 'kpi-delta--good'"
           >
-            {{ needsDelta > 0 ? '↑' : '↓' }} {{ fmt(Math.abs(needsDelta)) }}
+            {{ kpiDelta > 0 ? '↑' : '↓' }} {{ fmt(Math.abs(kpiDelta)) }}
           </span>
-          <span class="kpi-card__budget-hint">of {{ fmt(currentMonthBudgeted.needs) }}</span>
+          <span class="kpi-card__budget-hint">of {{ fmt(kpiBudgeted) }}</span>
         </div>
         <ProgressBar
           class="kpi-card__bar"
-          :percent="needsUsedPct"
-          :status="needsIsOver ? 'over' : 'on-track'"
+          :percent="kpiUsedPct"
+          :status="kpiIsOver ? 'over' : 'on-track'"
           size="sm"
-          aria-label="Needs budget used"
+          :aria-label="`${kpiLabel} budget used`"
         />
       </div>
 
-      <!-- ── Net worth ── -->
-      <div class="kpi-card">
-        <div class="kpi-card__header">
-          <span class="kpi-card__label">Net worth</span>
-        </div>
-        <div class="kpi-card__value">
-          {{ fmt(netWorth.netWorth) }}
-        </div>
-        <div class="kpi-card__delta-row">
-          <span
-            v-if="netWorth.momChange !== null"
-            class="kpi-delta"
-            :class="netWorth.momChange >= 0 ? 'kpi-delta--good' : 'kpi-delta--bad'"
-          >
-            {{ netWorth.momChange >= 0 ? '↑' : '↓' }}
-            {{ fmt(Math.abs(netWorth.momChange)) }}
-          </span>
-          <span
-            v-if="netWorthMomPct !== null"
-            class="kpi-card__budget-hint"
-          >
-            ({{ netWorthMomPct >= 0 ? '+' : '' }}{{ netWorthMomPct.toFixed(1) }}%)
-          </span>
-        </div>
-        <p class="kpi-card__sub-hint">
-          Assets {{ fmt(netWorth.totalAssets) }} · Liabilities {{ fmt(netWorth.totalLiabilities) }}
-        </p>
-      </div>
+      <!-- ── Chequing Balance ── -->
+      <BaseCard
+        title="Chequing Balance"
+        section-id="chequing-balance"
+      >
+        <ChequingBalance />
+      </BaseCard>
     </div><!-- /kpi-row -->
 
-    <!-- ══ Dynamically ordered sections ══════════════════════════════════ -->
-    <template
-      v-for="(sectionId, index) in ui.sectionOrder"
-      :key="sectionId"
-    >
-      <div
-        v-if="
-          dropIndex === index &&
-            dragIndex !== -1 &&
-            dragIndex !== index &&
-            dragIndex !== index - 1
-        "
-        class="drop-indicator"
-        aria-hidden="true"
-      />
-
-      <div
-        class="section-slot"
-        :class="{
-          'section-slot--dragging': dragIndex === index,
-          'section-slot--drag-active': dragIndex !== -1,
-        }"
-        @dragstart="onDragStart($event, index)"
-        @dragover="onDragOver($event, index)"
-        @dragleave="onDragLeave($event, index)"
-        @drop="onDrop($event, index)"
-        @dragend="onDragEnd"
+    <!-- ══ Row 2 — 2-col charts row ════════════════════════════════════
+         Purchases This Period (donut) · Money Flow (12-month trend)
+    ═══════════════════════════════════════════════════════════════════ -->
+    <div class="dash-charts-row">
+      <BaseCard
+        title="Purchases This Period"
+        section-id="purchases-this-period"
+        :collapsible="true"
       >
-        <BaseCard
-          :title="SECTION_MAP[sectionId]?.title ?? sectionId"
-          :section-id="sectionId"
-          :collapsible="true"
-          :draggable="true"
-        >
-          <component
-            :is="SECTION_COMPONENTS[sectionId]"
-            v-bind="SECTION_PROPS[sectionId] ?? {}"
-          />
-        </BaseCard>
-      </div>
-    </template>
+        <PurchasesThisPeriod :type-filter="dashboardTypeFilter" />
+      </BaseCard>
 
-    <!-- Drop indicator at end of list -->
-    <div
-      v-if="
-        dropIndex === ui.sectionOrder.length &&
-          dragIndex !== -1 &&
-          dragIndex !== ui.sectionOrder.length - 1
-      "
-      class="drop-indicator"
-      aria-hidden="true"
-    />
+      <BaseCard
+        title="Money Flow (12 months)"
+        section-id="money-flow"
+        :collapsible="true"
+      >
+        <MoneyFlow />
+      </BaseCard>
+    </div>
+
+    <!-- ══ Row 3 — 3-col widget row ══════════════════════════════════════
+         Recurring Spend · Loan Payoff · Savings Accounts
+    ═══════════════════════════════════════════════════════════════════ -->
+    <div class="dash-widget-row">
+      <BaseCard
+        title="Recurring Spend"
+        section-id="expense-cards"
+        :collapsible="true"
+      >
+        <RecurringSpend />
+      </BaseCard>
+
+      <BaseCard
+        title="Loan Payoff"
+        section-id="loans"
+        :collapsible="true"
+      >
+        <Loans />
+      </BaseCard>
+
+      <BaseCard
+        title="Savings Accounts"
+        section-id="savings-accounts"
+        :collapsible="true"
+      >
+        <Savings />
+      </BaseCard>
+    </div>
+
+    <!-- ══ Row 4 — full-width: Subscriptions ════════════════════════════
+         (Chequing Balance moved to KPI row)
+    ═══════════════════════════════════════════════════════════════════ -->
+    <BaseCard
+      title="Subscriptions"
+      section-id="subscriptions"
+      :collapsible="true"
+    >
+      <Subscriptions />
+    </BaseCard>
+
+    <!-- ══ Row 5 — full-width: Credit Cards ══════════════════════════════
+         (inline add/withdraw redesign in RS-13)
+    ═══════════════════════════════════════════════════════════════════ -->
+    <BaseCard
+      title="Credit Cards"
+      section-id="credit-cards"
+      :collapsible="true"
+    >
+      <CreditCards />
+    </BaseCard>
+
+    <!-- ══ Row 6 — full-width: Wishlist ══════════════════════════════════
+         (redesign in RS-14)
+    ═══════════════════════════════════════════════════════════════════ -->
+    <BaseCard
+      title="Wishlist"
+      section-id="wishlist"
+      :collapsible="true"
+    >
+      <Wishlist />
+    </BaseCard>
 
     <!-- ══ Quick-add wants modal ══════════════════════════════════════════ -->
     <BaseModal
       v-model:open="showQuickAdd"
-      title="Log a wants purchase"
+      title="Log a purchase"
       size="sm"
     >
       <div class="quick-add">
@@ -512,12 +563,33 @@ function cleanup(): void {
           QUICK ADD
         </p>
 
+        <!-- Want / Need type toggle -->
+        <label class="quick-add__label">Purchase type</label>
+        <div class="quick-add__type-row">
+          <button
+            class="quick-add__type-btn"
+            :class="{ 'quick-add__type-btn--wants': quickAddBudgetType === 'wants' }"
+            type="button"
+            @click="quickAddBudgetType = 'wants'"
+          >
+            🛍 Want
+          </button>
+          <button
+            class="quick-add__type-btn"
+            :class="{ 'quick-add__type-btn--needs': quickAddBudgetType === 'needs' }"
+            type="button"
+            @click="quickAddBudgetType = 'needs'"
+          >
+            🏠 Need
+          </button>
+        </div>
+
         <label class="quick-add__label">What did you buy?</label>
         <input
+          ref="quickAddInputEl"
           v-model="quickAddName"
           class="quick-add__input"
           placeholder="e.g. coffee, t-shirt, dinner"
-          autofocus
           @keydown.enter="submitQuickAdd"
           @keydown.esc="showQuickAdd = false"
         >
@@ -556,7 +628,7 @@ function cleanup(): void {
         <div class="quick-add__preview">
           <div>
             <p class="quick-add__preview-label">
-              BI-WEEKLY REMAINING AFTER
+              {{ quickAddPreviewLabel }}
             </p>
             <p
               class="quick-add__preview-value"
@@ -608,13 +680,6 @@ function cleanup(): void {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-}
-
-.dash-header__eyebrow {
-  margin: 0 0 0.25rem;
-  font-size: 0.8rem;
-  color: var(--muted);
-  font-weight: 500;
 }
 
 .dash-header__title {
@@ -725,13 +790,56 @@ function cleanup(): void {
   width: 100%;
 }
 
+/* ── Hero label row (label + type toggle side by side) ─────────── */
+.kpi-hero__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
 .kpi-hero__label {
-  margin: 0 0 0.2rem;
+  margin: 0;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.75);
+}
+
+/* ── Wants / Needs toggle pill (inside hero card) ────────────────── */
+.hero-type-toggle {
+  display: flex;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.htt-btn {
+  padding: 3px 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.htt-btn--active {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.htt-btn:not(.htt-btn--active):hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .kpi-hero__subtitle {
@@ -944,39 +1052,54 @@ function cleanup(): void {
   transition: width 0.35s ease-out;
 }
 
-/* ─── Section slot (drag wrapper) ──────────────────────────────── */
-.section-slot {
-  position: relative;
-  border-radius: 10px;
-  transition: opacity 0.15s ease;
+/* ─── Dashboard grid rows ──────────────────────────────────────── */
+
+/* 2-col charts row: Purchases This Period | Money Flow */
+.dash-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 1.25rem;
+  align-items: start;
 }
 
-.section-slot--dragging {
-  opacity: 0.35;
+@media (max-width: 900px) {
+  .dash-charts-row {
+    grid-template-columns: 1fr;
+  }
 }
 
-.section-slot--drag-active:not(.section-slot--dragging) {
-  outline: 2px solid transparent;
-  transition: outline-color 0.1s ease, opacity 0.15s ease;
+/* 3-col row: Recurring Spend | Loan Payoff | Savings Accounts */
+.dash-widget-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  align-items: start;
 }
 
-.section-slot--drag-active:not(.section-slot--dragging):hover {
-  outline-color: var(--accent);
+@media (max-width: 1100px) {
+  .dash-widget-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-/* ─── Drop indicator line ──────────────────────────────────────── */
-.drop-indicator {
-  height: 3px;
-  border-radius: 2px;
-  background: var(--accent);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent);
-  margin: -0.25rem 0;
-  animation: drop-indicator-pulse 0.8s ease-in-out infinite alternate;
+@media (max-width: 680px) {
+  .dash-widget-row {
+    grid-template-columns: 1fr;
+  }
 }
 
-@keyframes drop-indicator-pulse {
-  from { opacity: 0.7; }
-  to   { opacity: 1; }
+/* 2-col row: Chequing Balance | Subscriptions */
+.dash-2col-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 680px) {
+  .dash-2col-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ─── Quick-add modal ──────────────────────────────────────────── */
@@ -1043,6 +1166,44 @@ function cleanup(): void {
   padding-left: 1.6rem;
   margin-bottom: 0;
   font-family: var(--font-mono);
+}
+
+/* ── Want / Need type toggle ───────────────────────────────────── */
+.quick-add__type-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.quick-add__type-btn {
+  padding: 0.55rem 0;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-family: inherit;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.quick-add__type-btn:hover:not(.quick-add__type-btn--wants):not(.quick-add__type-btn--needs) {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.quick-add__type-btn--wants {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.quick-add__type-btn--needs {
+  background: color-mix(in srgb, var(--danger, #f87171) 12%, transparent);
+  border-color: var(--danger, #f87171);
+  color: var(--danger, #f87171);
 }
 
 .quick-add__cats {
@@ -1123,8 +1284,6 @@ function cleanup(): void {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .drop-indicator { animation: none; }
-  .section-slot { transition: none; }
   .btn-primary,
   .btn-secondary { transition: none; }
 }

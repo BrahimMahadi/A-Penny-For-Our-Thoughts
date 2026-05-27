@@ -2,12 +2,16 @@
   Module:   components/sections/Loans.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 4)
+  Updated:  May 2026 (RS-13) — inline "Make Payment" row per loan card.
+            Clicking "Pay" pre-fills the scheduled payment amount and
+            lets you quickly reduce `remaining` without opening the modal.
   Summary:  Loan list showing remaining balance, payoff progress bar,
             and optional recurring payment info. CRUD via BaseModal.
+            Inline payment via per-card quick-pay form.
 -->
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, nextTick } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
@@ -107,6 +111,36 @@ function remove(id: string): void {
   toast.show('Loan removed.', 'success');
 }
 
+// ─── Inline payment ───────────────────────────────────────────────
+const inlineLoanId    = ref<string | null>(null);
+const inlinePayAmount = ref(0);
+const inlinePayInputEl = ref<HTMLInputElement | null>(null);
+
+function openInlinePay(loanId: string): void {
+  const loan = budget.loans.find(l => l.id === loanId);
+  if (!loan) return;
+  // Close any existing inline, then open this one
+  inlineLoanId.value    = loanId;
+  inlinePayAmount.value = loan.paymentAmount > 0 ? loan.paymentAmount : 0;
+  nextTick(() => { const el = inlinePayInputEl.value; if (el && typeof el.focus === 'function') el.focus(); });
+}
+
+function closeInlinePay(): void {
+  inlineLoanId.value    = null;
+  inlinePayAmount.value = 0;
+}
+
+function confirmInlinePay(loanId: string): void {
+  const amt = +inlinePayAmount.value;
+  if (!(amt > 0)) return;
+  const loan = budget.loans.find(l => l.id === loanId);
+  if (!loan) return;
+  const newRemaining = Math.max(0, loan.remaining - amt);
+  budget.updateLoan(loanId, { remaining: newRemaining });
+  toast.show(`Payment of ${fmt(amt)} applied to "${loan.name}".`, 'success');
+  closeInlinePay();
+}
+
 // ─── Display helpers ──────────────────────────────────────────────
 function progressPct(remaining: number, original: number): number {
   return original > 0 ? (remaining / original) * 100 : 0;
@@ -189,6 +223,12 @@ const FREQ_DISPLAY: Record<string, string> = {
           <div class="loan-card__actions">
             <BaseButton
               size="xs"
+              @click="openInlinePay(loan.id)"
+            >
+              Pay
+            </BaseButton>
+            <BaseButton
+              size="xs"
               variant="secondary"
               @click="openEdit(loan.id)"
             >
@@ -241,6 +281,52 @@ const FREQ_DISPLAY: Record<string, string> = {
             <span class="loan-card__payment-freq">{{ loan.frequency }}</span>
           </div>
           <span class="loan-card__payment-next">Next: {{ nextPayStr(loan) }}</span>
+        </div>
+
+        <!-- Inline payment form -->
+        <div
+          v-if="inlineLoanId === loan.id"
+          class="loan-inline-pay"
+        >
+          <span class="loan-inline-pay__label">Payment amount</span>
+          <div class="loan-inline-pay__row">
+            <div class="loan-inline-pay__input-wrap">
+              <span class="loan-inline-pay__dollar">$</span>
+              <input
+                ref="inlinePayInputEl"
+                v-model.number="inlinePayAmount"
+                class="loan-inline-pay__input"
+                type="number"
+                inputmode="decimal"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                @keydown.enter="confirmInlinePay(loan.id)"
+                @keydown.esc="closeInlinePay()"
+              >
+            </div>
+            <button
+              class="loan-inline-pay__confirm"
+              type="button"
+              :disabled="!(inlinePayAmount > 0)"
+              @click="confirmInlinePay(loan.id)"
+            >
+              ✓ Confirm
+            </button>
+            <button
+              class="loan-inline-pay__cancel"
+              type="button"
+              @click="closeInlinePay()"
+            >
+              ✕
+            </button>
+          </div>
+          <p
+            v-if="loan.remaining > 0"
+            class="loan-inline-pay__preview"
+          >
+            Remaining after: {{ fmt(Math.max(0, loan.remaining - (inlinePayAmount || 0))) }}
+          </p>
         </div>
       </div>
     </div>
@@ -616,5 +702,112 @@ const FREQ_DISPLAY: Record<string, string> = {
   font-size: 0.78rem;
   color: var(--danger);
   margin: 0.15rem 0 0;
+}
+
+/* ─── Inline payment form ──────────────────────────────────────── */
+.loan-inline-pay {
+  margin-top: 0.1rem;
+  padding: 0.6rem 0.75rem;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.loan-inline-pay__label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.loan-inline-pay__row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.loan-inline-pay__input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 100px;
+}
+
+.loan-inline-pay__dollar {
+  position: absolute;
+  left: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.85rem;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.loan-inline-pay__input {
+  width: 100%;
+  padding: 0.4rem 0.6rem 0.4rem 1.4rem;
+  font-size: 0.9rem;
+  font-family: var(--font-mono);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.loan-inline-pay__input:focus {
+  border-color: var(--accent);
+}
+
+.loan-inline-pay__confirm {
+  padding: 0.4rem 0.75rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+
+.loan-inline-pay__confirm:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.loan-inline-pay__confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.loan-inline-pay__cancel {
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.loan-inline-pay__cancel:hover {
+  background: var(--surface2);
+}
+
+.loan-inline-pay__preview {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
 }
 </style>

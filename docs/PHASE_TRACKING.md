@@ -1688,6 +1688,13 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-7 | Settings redesign (initial polish + deep two-col rebuild, readonly props, inline sliders) | `feat/redesign-sprint-7-settings` | ✅ Complete | — |
 | RS-8 | Bottom status bar (sticky ticker + next-bill, 7 tests) | `feat/redesign-sprint-8-statusbar` | ✅ Complete | — |
 | RS-9 | Polish, tests, v2.0.0 release | `feat/redesign-sprint-9-release` | ✅ Complete | v2.0.0 |
+| RS-10 | Sidebar hover-expand (icon+label, overlay mode) | `feat/sidebar-hover-expand` | ✅ Complete | v2.1.0 |
+| RS-11 | Dashboard grid restructure — fixed layout, remove legacy sections, strip bar charts | `feat/redesign-sprint-11-dashboard-grid` | ✅ Complete | v2.2.0 |
+| RS-12 | Purchases This Period + Recurring Spend + Money Flow charts row | `feat/redesign-sprint-12-purchases-recurring` | ✅ Complete | v2.3.0 |
+| RS-13 | Inline pay/charge/deposit/withdraw interactions on loan, CC, and savings cards | `feat/redesign-sprint-13-inline-interactions` | ✅ Complete | v2.4.0 |
+| RS-14 | Wishlist card-grid redesign: savings progress, months-to-goal, inline "Add savings", DB sync fix | `feat/redesign-sprint-14-wishlist-price` | ✅ Complete | v2.5.0 |
+| RS-15 | Purchase type (Want vs Need): stacked bar chart, type column + filter in Spending tab, wants-only donut, updated quick-add modal | `feat/redesign-sprint-15-purchase-type` | ✅ Complete | v2.6.0 |
+| RS-16 | Wants/Needs toggle: dashboard hero + PurchasesThisPeriod shared toggle, spending-tab donut toggle, row-action cleanup (delete in modal) | `feat/sprint-16-type-toggle` | ✅ Complete | v2.7.0 |
 
 ---
 
@@ -2018,3 +2025,423 @@ Added a companion token `--accent2-text` that is:
 #### Final gate
 - ✅ 874/874 tests pass · `tsc --noEmit` clean · `vite build` green
 - ✅ Merged all redesign branches → `main`, tagged **v2.0.0**
+
+---
+
+## RS-10 — Sidebar Hover-Expand ✅
+**Branch**: `feat/sidebar-hover-expand`  
+**Status**: ✅ **COMPLETE** — May 2026  
+**Version**: `v2.1.0`
+
+### Goal
+Add smooth hover-expand behaviour to the 64px icon sidebar: on hover it widens to 220px (icon + label), with a CSS transition and fade-in labels; collapses back to icon-only on mouse-out.  Content behind the sidebar is never reflowed (overlay mode).
+
+### Design decisions
+- **Overlay mode** — ghost spacer (`<aside>` stays at `width: 64px` in flex flow) + `position: fixed` panel overlays content. Zero layout shift on expand.
+- **Icon stays left** — glyph is in a fixed 64px column; label fades in to the right.
+- **Label animation** — `opacity 0→1` + `translateX(-6px → 0)` with 80ms delay so the width transition leads.
+- **`prefers-reduced-motion` respected** — all transitions disabled when OS accessibility setting is active.
+- **Mobile unchanged** — both `<aside>` and `<div.app-sidebar__panel>` have `display:none` at ≤768px.
+
+### Delivered
+
+#### `src/components/ui/AppSidebar.vue`
+- ✅ Two-element wrapper: ghost `<aside class="app-sidebar">` (64px flex-spacer) + `<div class="app-sidebar__panel">` (position:fixed overlay)
+- ✅ `isExpanded = ref(false)` driven by `@mouseenter` / `@mouseleave` on the panel
+- ✅ `app-sidebar__panel--expanded` class applies `width: 220px` + `box-shadow`
+- ✅ `<span class="app-sidebar__label">` added to all 6 nav buttons + Shortcuts + Theme toggle
+- ✅ Glyph cell is `width: 64px; min-width: 64px` so icon never shifts
+- ✅ Label uses `opacity/transform` transition with `80ms` delay on expand, `0ms` on collapse
+- ✅ `prefers-reduced-motion` block disables all transitions
+
+#### `tests/components/ui/AppSidebar.spec.ts` (new — 24 tests)
+- ✅ Mounts without throwing
+- ✅ Ghost spacer + fixed panel exist in DOM
+- ✅ Brand logo glyph renders
+- ✅ Exactly 6 nav buttons with correct labels (`Dashboard`, `Schedule`, `Spending`, `Goals`, `Docs`, `Settings`)
+- ✅ Active tab gets `--active` modifier; inactive tabs do not
+- ✅ Clicking nav buttons calls `ui.setActiveTab()` and updates store
+- ✅ Panel has no `--expanded` class initially
+- ✅ `mouseenter` adds `--expanded`; `mouseleave` removes it
+- ✅ Utility buttons (Shortcuts, theme toggle) present and have label spans
+- ✅ Accessibility: `role="tablist"`, `role="tab"`, `aria-selected` correct
+- ✅ Avatar fallback renders when Supabase not configured
+
+---
+
+## RS-11 — Dashboard Grid Restructure ✅
+**Branch**: `feat/redesign-sprint-11-dashboard-grid`
+**Status**: ✅ **COMPLETE** — May 2026
+**Version**: `v2.2.0`
+
+### Goal
+Replace the old drag-and-drop dynamic section renderer with a clean fixed-grid layout matching the new dashboard mockup. Remove retired sections, strip the CcBar chart from Credit Cards, and place remaining sections in the correct grid positions.
+
+### Delivered
+
+#### `src/constants/dashboardSections.ts`
+- ✅ Removed: `income-streams` (handled in Settings), `wants-tracker` (RS-12 replaces with `purchases-this-period`), `savings-goals` (lives in Goals tab)
+- ✅ DASHBOARD_SECTIONS: 10 → 7 sections
+- ✅ Renamed: `expense-cards` title → "Recurring Spend"; `loans` title → "Loan Payoff"
+
+#### `src/components/pages/DashboardPage.vue`
+- ✅ Removed: drag-and-drop machinery (dragIndex, dropIndex, all handlers), "Manage widgets" button, `SECTION_MAP`, `SECTION_COMPONENTS`, `SECTION_PROPS`
+- ✅ Removed imports: `IncomeStreams`, `WantsTracker`, `SavingsGoals`
+- ✅ Fixed grid layout:
+  - **Row 1**: KPI hero row (unchanged)
+  - **Row 2** (`.dash-widget-row`, 3-col): Recurring Spend | Loan Payoff | Savings Accounts
+  - **Row 3** (`.dash-2col-row`, 2-col): Chequing Balance | Subscriptions
+  - **Row 4** (full-width): Credit Cards
+  - **Row 5** (full-width): Wishlist
+- ✅ Responsive breakpoints: 3-col → 2-col at ≤1100px, → 1-col at ≤680px; 2-col → 1-col at ≤680px
+
+#### `src/components/sections/CreditCards.vue`
+- ✅ Removed `CcBar` chart import and template usage; progress bars are sufficient
+
+#### Tests updated
+- ✅ `tests/stores/ui.spec.ts` — section count 10 → 7; `income-streams` references replaced with `subscriptions`/`expense-cards`; migration test lengths updated
+- ✅ `tests/components/sections/sections.spec.ts` — DashboardPage describe block fully rewritten (fixed grid assertions, drag-and-drop tests removed); SectionPicker counts: 14 → 11 items, 28 → 22 move buttons
+
+#### Final gate
+- ✅ 905/905 tests pass · `vue-tsc --noEmit` clean
+
+#### Doc updates
+- ✅ `CLAUDE.md` — test count updated to 898/28
+- ✅ `docs/PHASE_TRACKING.md` — RS-10 entry added; summary table row added
+
+#### Final gate
+- ✅ 898/898 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-12 — Purchases This Period + Recurring Spend + Money Flow ✅
+**Branch**: `feat/redesign-sprint-12-purchases-recurring`
+**Status**: ✅ **COMPLETE** — May 2026
+**Version**: `v2.3.0`
+
+### Goal
+Add a new charts row to the dashboard (between the KPI hero row and the 3-col widget row) containing three new components: a bi-weekly wants donut widget, an expandable per-card recurring spend view, and a 12-month money flow bar chart.
+
+### Delivered
+
+#### `src/constants/dashboardSections.ts`
+- ✅ Added: `purchases-this-period` (icon 🛍️, group "Spending") — donut + category breakdown
+- ✅ Added: `money-flow` (icon 📊, group "Spending") — 12-month income/spend trend
+- ✅ DASHBOARD_SECTIONS: 7 → 9 sections; DEFAULT_SECTION_ORDER updated accordingly
+- ✅ Updated grid order comment to reflect new Row 1 (2-col charts row)
+
+#### `src/components/sections/PurchasesThisPeriod.vue` (new)
+- ✅ Read-only bi-weekly wants widget: donut (left) + category list (right)
+- ✅ Category list shows name, amount, % of total; sorted by spend descending
+- ✅ Auto-deductions row (subs/loans deducted this period) shown below categories
+- ✅ Empty state when no purchases and no deductions
+- ✅ Footer: "For full detail, see the Spending tab."
+
+#### `src/components/sections/RecurringSpend.vue` (new)
+- ✅ Read-only expandable per-card view replacing `ExpenseCards :readonly` on dashboard
+- ✅ Summary bar: Grand Total / mo + Needs Remaining (danger-coloured when negative)
+- ✅ Each expense card row is a click-to-expand button showing items, linked subs, linked loans
+- ✅ Linked items display Due badge (this month) or "next {date}" hint
+- ✅ Expand/collapse per-card with chevron rotation animation
+- ✅ Footer: "Edit in Settings → Expenses"
+
+#### `src/components/sections/MoneyFlow.vue` (new)
+- ✅ Thin wrapper around `SpendingTrendChart` with 12-month window via `getSpendingTrend(state, 12)`
+- ✅ Stacked Needs / Wants / Savings bars + income reference line
+- ✅ Lazy-renders via `useInView` (inherited from SpendingTrendChart)
+
+#### `src/components/pages/DashboardPage.vue`
+- ✅ Replaced `ExpenseCards :readonly` with `RecurringSpend`
+- ✅ Added `PurchasesThisPeriod` import
+- ✅ Added `MoneyFlow` import
+- ✅ Added `.dash-charts-row` (2-col: 1fr 1.4fr) between KPI row and widget row
+- ✅ `.dash-charts-row` collapses to 1-col at ≤900px
+
+#### Tests updated
+- ✅ `tests/stores/ui.spec.ts` — section count 7 → 9; added `purchases-this-period` and `money-flow` assertions
+- ✅ `tests/components/sections/sections.spec.ts`:
+  - DashboardPage: `renders all 9 fixed section cards`; chevrons 7 → 9; new `.dash-charts-row` test
+  - SectionPicker: 11 → 13 items, 11 → 13 handles, 22 → 26 move buttons, 11 → 13 collapse buttons
+  - New `PurchasesThisPeriod` describe block (5 tests)
+  - New `RecurringSpend` describe block (7 tests)
+  - New `MoneyFlow` describe block (2 tests)
+
+#### Final gate
+- ✅ 920/920 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-13 — Inline Pay / Charge / Deposit / Withdraw Interactions ✅
+**Branch**: `feat/redesign-sprint-13-inline-interactions`
+**Status**: ✅ **COMPLETE** — May 2026
+**Version**: `v2.4.0`
+
+### Goal
+Add quick inline action forms directly on loan cards, credit card bars, and savings account rows — so users can record a payment, charge, deposit, or withdrawal without opening the full Edit modal.
+
+### Delivered
+
+#### `src/components/sections/Loans.vue`
+- ✅ **"Pay" button** added alongside Edit / Delete per loan card
+- ✅ `inlineLoanId` ref tracks which card has the inline form open (one at a time)
+- ✅ `openInlinePay(loanId)` — pre-fills amount from `loan.paymentAmount`; guarded `el.focus()` for jsdom safety
+- ✅ `confirmInlinePay(loanId)` — reduces `remaining` via `budget.updateLoan(id, { remaining: Math.max(0, remaining - amt) })`; success toast; clamps to 0
+- ✅ Inline form: dollar-prefixed input, ✓ Confirm (disabled at 0), ✕ cancel, live "Remaining after" preview
+- ✅ CSS: `.loan-inline-pay`, `__label`, `__row`, `__input-wrap`, `__dollar`, `__input`, `__confirm`, `__cancel`, `__preview`
+
+#### `src/components/sections/CreditCards.vue`
+- ✅ **"+ Charge" and "✓ Pay" buttons** added alongside Edit / Delete per card
+- ✅ `inlineCcId` + `inlineCcMode: 'charge' | 'pay'` refs
+- ✅ `confirmCcInline` — charge: `Math.min(limit, balance + amt)`; pay: `Math.max(0, balance - amt)`; success toast
+- ✅ Color-coded forms: `--charge` (danger red), `--pay` (accent2 green)
+- ✅ CSS: `.cc-inline-form`, `--charge`, `--pay`, all sub-elements; live new-balance / limit preview
+
+#### `src/components/sections/Savings.vue`
+- ✅ **"+ Deposit" and "− Withdraw" buttons** added before Allocate / Edit / Delete per account
+- ✅ `inlineAcctId` + `inlineMode: 'deposit' | 'withdraw'` refs
+- ✅ `confirmInline` — deposit adds; withdraw clamps to 0; success toast with correct action word
+- ✅ Color-coded forms: `--deposit` (accent violet), `--withdraw` (warn amber)
+- ✅ Form appears as `flex-basis: 100%` child inside the `.savings-acct-item` flex row — no layout breakage
+- ✅ CSS: `.savings-inline-form`, `--deposit`, `--withdraw`, all sub-elements; live "New balance" preview
+
+#### Focus guard (jsdom compatibility)
+- ✅ All three `nextTick(() => el.focus())` calls wrapped in `typeof el.focus === 'function'` check — eliminates 22 unhandled errors in jsdom while preserving browser auto-focus behaviour
+
+### Tests (`tests/components/sections/sections.spec.ts`)
+- ✅ `Loans — RS-13 inline payment` (7 tests): Pay button present, form shown/hidden on click, pre-fill from paymentAmount, confirm reduces remaining, clamped to 0, cancel no-op, confirm disabled when amount = 0
+- ✅ `CreditCards — RS-13 inline charge/pay` (7 tests): Charge/Pay buttons present, form `--charge`/`--pay` classes, confirm charge increases balance, confirm pay decreases balance, limit cap enforced, cancel no-op, disabled when amount = 0
+- ✅ `Savings — RS-13 inline deposit/withdraw` (8 tests): Deposit/Withdraw buttons present, form `--deposit`/`--withdraw` classes, confirm deposit adds, confirm withdraw subtracts, clamped to 0, cancel no-op, disabled when amount = 0, preview text correct
+- **Total: 945 passing (↑25 from 920) across 28 spec files**
+
+### Final gate
+- ✅ 945/945 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-14 — Wishlist Card-Grid Redesign & Savings Progress Tracking ✅
+**Branch**: `feat/redesign-sprint-14-wishlist-price`
+**Status**: ✅ **COMPLETE** — May 2026
+**Version**: `v2.5.0`
+
+### Goal
+Full wishlist redesign matching the approved card-grid mockup: per-item savings tracking, months-to-goal badges, progress bars, inline "Add savings" interaction, and savings-rate header. Also fixes the Supabase sync bug where `price` and `saved` were silently dropped.
+
+### Delivered
+
+#### `src/types/budget.ts`
+- ✅ `WishlistItem.price?: number` — optional target price (RS-14 original)
+- ✅ `WishlistItem.saved?: number` — amount saved toward this item (RS-14 redesign)
+
+#### `src/types/database.ts`
+- ✅ `WishlistItemRow.price: number | null` — DB column (was missing)
+- ✅ `WishlistItemRow.saved: number | null` — DB column (was missing)
+
+#### `src/lib/db.ts` (bug fix — price/saved were never synced)
+- ✅ `toWishlistItem` mapper now reads `r.price` and `r.saved`
+- ✅ `db.wishlist.insert` now writes `price` and `saved`
+- ✅ `db.wishlist.update` now writes `price` and `saved`
+
+#### `src/utils/csvImportExport.ts`
+- ✅ Export header updated to `id,icon,name,url,price,saved`
+- ✅ Export row serialises both `price` and `saved` (empty string when undefined)
+- ✅ Import reads `vals[5]` as saved; backward-compat with 4-col and 5-col legacy exports
+
+#### `src/components/sections/Wishlist.vue` (full card-grid redesign)
+- ✅ **Card grid** — `repeat(auto-fill, minmax(220px, 1fr))` responsive grid
+- ✅ **Violet icon box** per card with emoji icon
+- ✅ **`~N mo` badge** — months to goal = `ceil((price − saved) / monthlySavingsRate)`; shows "✓ Saved" when complete
+- ✅ **Large price display** on each priced card
+- ✅ **Progress bar** (violet fill, `saved/price × 100%`, animated)
+- ✅ **"$X saved · Y%"** footer row per card
+- ✅ **"Affordable ✓" chip** when `price ≤ bi-weekly wants envelope`
+- ✅ **Inline "Add savings"** — "+ Add savings" button opens an RS-13-style inline form per card; updates `saved` in store
+- ✅ **Edit modal** includes both `price` and `saved` fields; validates `saved ≤ price`
+- ✅ **Header** shows `$X,XXX · at $X/mo savings rate` when priced items exist
+- ✅ **Sort toggle** (Default / Price ↑ / Price ↓)
+- ✅ **URL 🔗 icon button** per card
+- ✅ **Live hints in modal** — affordability + months-to-goal shown as user types
+
+#### `src/components/pages/GoalsPage.vue`
+- ✅ `monthlySavingsRate` computed added
+- ✅ `wishlistHint` computed replaces inline ternary — shows `$X · at $X/mo` when priced items exist
+
+### Tests
+- ✅ `Wishlist — RS-14 price tracking` block updated (11 existing tests) + 12 new tests:
+  - Card grid renders (`.wish-grid`, `.wish-card`)
+  - Progress bar present/absent based on price
+  - `~N mo` badge with correct month calculation
+  - `✓ Saved` badge when `saved >= price`
+  - Progress bar width reflects `saved/price` ratio
+  - `addWishlistItem` stores `saved`; `updateWishlistItem` updates `saved`
+  - "Add savings" button shown/hidden based on price
+  - `#wish-saved` field in edit modal
+  - Savings rate shown in header
+- ✅ `Wishlist CSV — RS-14 saved column` (5 new tests in `csvImportExport.spec.ts`):
+  - Round-trip price+saved; price-only; neither
+  - Legacy 5-column import (no saved) is graceful
+  - `saved: 0` round-trips as `0`
+- ✅ `buildSampleState` wishlist entry updated: `price: 1299, saved: 400`
+- ✅ `.wishlist-list` → `.wish-grid` class rename propagated in 1 existing test
+- **Total: 978 passing (↑17 from 961) across 28 spec files**
+
+### Final gate
+- ✅ 978/978 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-15 — Purchase Type: Want vs Need ✅
+
+**Branch**: `feat/redesign-sprint-15-purchase-type`
+**Status**: ✅ Complete
+**Version**: `v2.6.0`
+
+### Goal
+Expose the existing `Purchase.budgetType` field in all UIs, fix the Spending tab "By category" donut to show wants-only, add a stacked bar chart (wants + needs split by colour), and allow the quick-add modal to create either type with a live preview that reflects the correct envelope.
+
+### Changes
+
+#### SpendingPage.vue
+- ✅ `wantsPurchasesInPeriod` computed — filters period purchases to wants-only
+- ✅ `categorySpending` now uses wants-only purchases so the donut is accurate
+- ✅ "Wants purchases only" italic subtitle added under the donut total
+- ✅ `DailyBar` interface extended with `wants: number` and `needs: number` per day
+- ✅ `dailyBars` computes wants and needs totals separately per day
+- ✅ Bar chart redesigned as stacked bars: wants (accent purple, bottom) + needs (danger coral, top) using `flex-direction: column-reverse` track
+- ✅ Bar chart legend added with colour-keyed dots
+- ✅ `typeFilter` ref (`'' | 'wants' | 'needs'`) added
+- ✅ Type filter chip row (All / 🛍 Wants / 🏠 Needs) above category chips
+- ✅ `applyTypeFilter()` helper applied in `filteredPurchases` and `filteredUndated`
+- ✅ **Type** column added to purchases table (header + `<td>` in dated, undated, empty-state, divider rows)
+- ✅ `type-badge--wants` (accent) and `type-badge--needs` (danger) pill badges
+- ✅ colspan bumped from 5 → 6 in empty-state and undated-divider rows
+
+#### DashboardPage.vue
+- ✅ Button: `+ Quick add to wants` → `+ Add purchase`
+- ✅ Modal title: `Log a wants purchase` → `Log a purchase`
+- ✅ `quickAddBudgetType` ref added (default `'wants'`); reset on modal open
+- ✅ Want / Need toggle (2-button grid) inserted before the name input
+- ✅ `biWeeklyNeedsBudget`, `biWeeklyNeedsSpent`, `biWeeklyNeedsRemaining` computed refs
+- ✅ `quickAddAfter` conditionally uses wants or needs remaining based on `quickAddBudgetType`
+- ✅ `quickAddPreviewLabel` computed: `'BI-WEEKLY WANTS REMAINING AFTER'` / `'BI-WEEKLY NEEDS REMAINING AFTER'`
+- ✅ `submitQuickAdd` uses `quickAddBudgetType.value` instead of hardcoded `'wants'`
+- ✅ Toast message updated to reflect type ("added to wants" / "added to needs")
+- ✅ CSS for `.quick-add__type-row`, `.quick-add__type-btn`, `--wants`, `--needs` variants
+
+#### WantsTracker.vue (Dashboard donut)
+- ✅ `categorySpending` fixed to use wants-only purchases (was including needs) — dashboard donut now correctly represents the wants envelope
+
+### Tests
+- ✅ `DashboardPage — RS-11` test updated: button text `'Quick add to wants'` → `'Add purchase'`
+- ✅ `SpendingPage — RS-15 purchase type` (11 new tests):
+  - Mounts without throwing
+  - Renders page wrapper and table
+  - Table has "Type" column header
+  - Shows "Want" badge for wants purchase
+  - Shows "Need" badge for needs purchase
+  - Want/need badge CSS classes correct
+  - Type filter chips (All / Wants / Needs) rendered
+  - Wants filter shows only want rows
+  - Needs filter shows only need rows
+  - All filter resets after type filter
+  - Donut card has "Wants purchases only" subtitle
+  - Bar chart legend renders with Wants + Needs labels
+- ✅ `DashboardPage — RS-15 quick-add modal` (6 new tests):
+  - Modal title is "Log a purchase"
+  - Modal has Want and Need type buttons
+  - Want button active by default
+  - Need button activates and updates preview label
+  - Preview label switches back to WANTS
+  - Submitting a needs purchase saves `budgetType: 'needs'`
+- ✅ `SpendingPage — CRUD` (16 new tests):
+  - Filtered amount total shown in purchases count area
+  - Filtered total updates when type filter applied
+  - Filtered total updates when search filter applied
+  - "+ Add" button opens purchase modal
+  - Modal title "Add Purchase" for new purchase
+  - Modal has Want and Need type buttons
+  - Save button disabled when name empty
+  - Save button enabled when form valid
+  - Saving new purchase adds it to store
+  - Saving needs purchase sets budgetType needs
+  - Edit button opens modal with "Edit Purchase" title
+  - Edit modal pre-filled with purchase values
+  - Saving edit updates purchase in store
+  - Delete with confirm=true removes purchase
+  - Delete with confirm=false keeps purchase
+  - Cancel button closes modal without saving
+  - Row has `purchase-row--clickable` class
+  - Clicking a row opens the edit modal
+  - Clicking a row pre-fills the modal
+- ✅ `SpendingPage — donut wants-only fix` (2 new tests):
+  - Donut total shows wants-only spending amount
+  - Donut % is calculated against wants budget only (not total)
+- **Total: 1017 passing (↑39 from 978) across 28 spec files**
+
+### Final gate
+- ✅ 1017/1017 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-16 — Budget Type Toggle (Wants / Needs) ✅
+
+**Branch:** `feat/sprint-16-type-toggle`
+**Version:** v2.7.0
+**Status:** ✅ Complete
+
+### Goal
+Give the user a single Wants / Needs toggle on the dashboard that drives both the "Available to Spend" hero card and the "Purchases This Period" chart. Add an independent toggle to the Spending tab "By category" donut. Clean up purchase-row actions: remove inline ✎/✕ buttons; rows are clickable, and the edit modal gains a Delete button.
+
+### Changes
+
+#### 1 — SpendingPage: row-action cleanup + delete in modal
+- Removed the `.row-actions` hover-reveal edit/delete buttons from all table rows
+- Removed `col-actions` `<th>` header; colspan updated 7 → 6
+- Rows remain fully clickable (`purchase-row--clickable`) — click anywhere to open the edit modal
+- Added a `variant="danger"` **Delete** `<BaseButton>` in the modal footer, visible only when editing (`editingPurchaseId !== null`)
+- `deletePurchase()` now closes the modal after a confirmed delete
+
+#### 2 — SpendingPage: "By category" donut type toggle
+- Added `donutTypeFilter = ref<'wants' | 'needs'>('wants')` in `SpendingPage.vue`
+- Added `needsPurchasesInPeriod`, `donutPurchases`, `donutBudget`, `needsBudgetPerPeriod` computeds
+- `categorySpending`, `wantsSpentInPeriod`, `remainingBudget`, `usedPct` all react to `donutTypeFilter`
+- Added `.dtt-btn` / `.donut-type-toggle` pill toggle UI inside the "By category" card header
+- Donut hint changes: "Wants purchases only" ↔ "Needs purchases only"
+
+#### 3 — DashboardPage + PurchasesThisPeriod: shared toggle
+- Added `dashboardTypeFilter = ref<'wants' | 'needs'>('wants')` in `DashboardPage.vue`
+- Added `heroBudget`, `heroSpent`, `heroRemaining`, `heroUsedPct` computed switchboard
+- Hero card layout updated: `kpi-hero__label-row` flex row with label + `.hero-type-toggle` pill
+- Added `.htt-btn` styles (transparent pill inside dark hero background)
+- Hero subtitle, amount, caption, progress bar, and ARIA label all switch with the toggle
+- `<PurchasesThisPeriod>` now receives `:type-filter="dashboardTypeFilter"` prop
+
+#### 4 — PurchasesThisPeriod: typeFilter prop + categorySpending bug fix
+- Added `typeFilter: 'wants' | 'needs'` prop (default `'wants'`)
+- `filteredPurchases` computed filters by the active type
+- `categorySpending` now uses `filteredPurchases` (was incorrectly using all purchases — caused wrong category breakdown on dashboard)
+- `biWeeklyBudget` switches between `biWeeklyWantsBudget` / `biWeeklyNeedsBudget`
+- `deductionTotal` returns 0 when needs is active (subs/loans live in the wants envelope)
+- `isEmpty` check respects the active type filter
+- Added `.ptp__donut-type-hint` caption under the donut showing "Bi-weekly wants/needs"
+
+### Tests
+- ✅ Updated 5 CRUD tests to use row-click + modal-delete pattern (removed `.row-action-btn` references)
+- ✅ Added `SpendingPage — RS-16 donut toggle` (9 new tests):
+  - Donut card renders Wants / Needs toggle buttons
+  - Wants toggle active by default
+  - Clicking Needs activates it
+  - Hint text changes to "Needs purchases only"
+  - Hint reverts to "Wants purchases only"
+  - Donut total reflects wants-only / needs-only spending
+  - Donut total changes when type switched
+- ✅ Added `DashboardPage — RS-16 shared type toggle` (6 new tests):
+  - Hero card has Wants and Needs toggle buttons
+  - Wants active by default
+  - Clicking Needs activates it
+  - Hero subtitle changes to "needs" / "wants"
+  - Hero remaining amount differs between views
+- ✅ Added `edit modal shows a Delete button` test
+- **Total: 1032 passing (↑15 from 1017) across 28 spec files**
+
+### Final gate
+- ✅ 1032/1032 tests pass · `vue-tsc --noEmit` clean

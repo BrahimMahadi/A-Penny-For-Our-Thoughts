@@ -683,5 +683,311 @@ filter object as an argument: `getFilteredSpendingHistory(filters)`.
 
 ---
 
-*Last updated: May 2026 — v1.11.1 (BUG-015 hotfix)*  
+## BUG-017 — `form.price.trim is not a function` when editing a wishlist item
+
+**Date:** May 2026  
+**Branch:** `feat/redesign-sprint-14-wishlist-price`  
+**Severity:** High (crash — unhandled TypeError breaks the Edit modal; Vue renders a blank transition)
+
+### Symptom
+Opening "Edit Wishlist Item", then typing anything into the Price or Saved inputs, caused:
+```
+Uncaught (in promise) TypeError: form.price.trim is not a function
+  at ComputedRefImpl.fn (Wishlist.vue:155)
+```
+Vue emitted two consecutive "Unhandled error during execution of render function / component update" warnings, and the modal stopped updating.
+
+### Root Cause
+`openEdit()` correctly assigns `form.price = String(item.price)` — a string.  
+But Vue 3's `v-model` on `<input type="number">` **coerces the reactive field to a number** the moment the DOM fires an `input` event. After the first keystroke, `form.price` becomes `299` (number), not `'299'` (string). On the next reactive recompute of `formError`, `(299).trim()` throws `TypeError` because numbers don't have `.trim()`.
+
+The same issue applied to `form.saved.trim()` and to `save()` which called `.trim()` on both fields when constructing the payload.
+
+### Fix
+In `formError` and `save()`, extract local string variables using `String()` before any `.trim()` call:
+```typescript
+// Before (crashes when field is a number):
+if (form.price.trim() !== '' && ...)
+
+// After (safe for string | number | undefined):
+const priceStr = String(form.price ?? '').trim();
+if (priceStr !== '' && ...)
+```
+The same `String()` wrapper pattern applied to `form.saved` in both functions.
+
+### Prevention
+**Rule:** When using `v-model` on `<input type="number">`, always treat the reactive binding as `string | number` — Vue's DOM coercion can change the type at any moment. Wrap with `String()` before calling string methods. Alternatively, use `type="text"` with `inputmode="decimal"` to keep the value as a string throughout.
+
+---
+
+## BUG-018 — Inline "Add savings" autofocus silently broken in `v-for`
+
+**Date:** May 2026  
+**Branch:** `feat/redesign-sprint-14-wishlist-price`  
+**Severity:** Low (UX degradation — inline savings input didn't auto-focus; no crash)
+
+### Symptom
+Clicking "+ Add savings" on a wishlist card opened the inline form correctly, but the cursor never moved to the input — the user had to click manually every time.
+
+### Root Cause
+In Vue 3 Composition API, a template `ref` attribute placed inside a `v-for` loop collects **all matching elements into an array** at runtime, even though the TypeScript declaration typed it as `Ref<HTMLInputElement | null>`. The guard `typeof el.focus === 'function'` evaluated `false` on the array (arrays don't have `.focus()`), so `el.focus()` was never called.
+
+```typescript
+// Before — ref inside v-for → inlineInputEl.value is HTMLInputElement[] at runtime:
+const inlineInputEl = ref<HTMLInputElement | null>(null);
+// ...template: ref="inlineInputEl" inside v-for
+nextTick(() => {
+  const el = inlineInputEl.value; // actually an array!
+  if (el && typeof el.focus === 'function') el.focus(); // always false → no focus
+});
+```
+
+### Fix
+Removed `ref="inlineInputEl"` from the template entirely and replaced the ref lookup with `document.getElementById` using the per-item unique id (`wish-inline-${id}`). Since each inline input has a predictable, unique DOM id, the getElementById call is unambiguous regardless of list length:
+
+```typescript
+nextTick(() => {
+  const el = document.getElementById(`wish-inline-${id}`) as HTMLInputElement | null;
+  if (el && typeof el.focus === 'function') el.focus();
+});
+```
+
+### Prevention
+**Rule:** Never use a bare `ref="name"` attribute on an element that lives inside `v-for` when you need a single-element reference. In Vue 3 Composition API, such refs become arrays. Use `document.getElementById` (when elements have unique IDs) or a `:ref` callback function (e.g. `:ref="(el) => setRef(item.id, el)"`) to target a specific element in a list.
+
+---
+
+## BUG-019 — Vite HMR 500 on `Wishlist.vue` after hot-reload
+
+**Date:** May 2026  
+**Branch:** `feat/redesign-sprint-14-wishlist-price`  
+**Severity:** Medium (Vite dev server 500 on every hot-reload of Wishlist.vue — full page reload required to see changes during development)
+
+### Symptom
+After any edit to `Wishlist.vue` during `vite dev`, the browser console showed:
+```
+[vite] Failed to reload /src/components/sections/Wishlist.vue. (500)
+```
+The HMR update was rejected with a 500 status and the page required a manual hard reload.
+
+### Root Cause
+The edit modal contained a live months-to-goal hint rendered via an IIFE inside a Vue template mustache expression:
+```html
+{{
+  (() => {
+    const remaining = Math.max(0, +form.price - (+form.saved || 0));
+    if (remaining <= 0) return '✓ Already saved enough!';
+    const months = Math.ceil(remaining / monthlySavingsRate);
+    return `~${months} month${months !== 1 ? 's' : ''} to save up at ${fmt(monthlySavingsRate)}/mo`;
+  })()
+}}
+```
+Vite's HMR module transform pipeline fails when it encounters block-scoped `const`/`let` declarations inside an IIFE that is nested inside a Vue template mustache `{{ }}` expression. The transform produces invalid intermediate code that the server rejects with a 500.
+
+### Fix
+Extracted the IIFE logic into a dedicated script-side function `monthsHintText()`:
+```typescript
+function monthsHintText(): string {
+  const priceNum = +form.price;
+  const savedNum = +(form.saved || 0);
+  if (!priceNum || priceNum <= 0 || monthlySavingsRate.value <= 0) return '';
+  const remaining = Math.max(0, priceNum - savedNum);
+  if (remaining <= 0) return '✓ Already saved enough!';
+  const months = Math.ceil(remaining / monthlySavingsRate.value);
+  return `~${months} month${months !== 1 ? 's' : ''} to save up at ${fmt(monthlySavingsRate.value)}/mo`;
+}
+```
+Template replaced with a simple conditional + call:
+```html
+<p v-if="monthsHintText()" class="wish-months-hint">
+  {{ monthsHintText() }}
+</p>
+```
+
+### Prevention
+**Rule:** Never put `const`/`let` declarations inside IIFEs inside Vue template mustache `{{ }}`. Vue template expressions are not arbitrary JavaScript scopes — the template compiler and Vite's HMR transform pipeline don't handle block-scoped declarations inside template mustache IIFEs. If you need multi-step logic in a template, always extract it to a script-side function or computed ref.
+
+---
+
+## BUG-020 — "Autofocus processing was blocked" warning on Quick-Add panel open
+
+**Date:** May 2026  
+**Branch:** `feat/redesign-sprint-14-wishlist-price`  
+**Severity:** Low (browser console warning — UX not impacted, focus still lands in most cases, but the warning indicates unreliable focus behaviour)
+
+### Symptom
+Opening the Quick-Add wants panel on the Dashboard (clicking "Quick Add" or "+" button) logged a browser warning:
+```
+Autofocus processing was blocked because a document already has a focused element.
+```
+The first input in the panel would not reliably receive focus.
+
+### Root Cause
+`DashboardPage.vue` used the HTML `autofocus` attribute on the name input inside the quick-add panel:
+```html
+<input
+  v-model="quickAddName"
+  class="quick-add__input"
+  placeholder="e.g. coffee, t-shirt, dinner"
+  autofocus
+  ...
+>
+```
+The panel is conditionally rendered with `v-if="showQuickAdd"`. When `showQuickAdd` becomes `true`, Vue inserts the entire panel into the DOM. At that point the browser processes the `autofocus` attribute, but if another element (a button, link, or any interactive element on the page) already holds focus, the browser blocks the autofocus and logs the warning. In SPAs this is almost always the case — the button that triggered the panel still has focus.
+
+### Fix
+Removed `autofocus` from the input. Added a template ref `quickAddInputEl` and called programmatic `.focus()` via `nextTick` inside `openQuickAdd()`:
+```typescript
+const quickAddInputEl = ref<HTMLInputElement | null>(null);
+
+function openQuickAdd(): void {
+  quickAddName.value     = '';
+  quickAddAmount.value   = '';
+  quickAddCategory.value = defaultCategory.value;
+  showQuickAdd.value     = true;
+  nextTick(() => quickAddInputEl.value?.focus());
+}
+```
+Template:
+```html
+<input
+  ref="quickAddInputEl"
+  v-model="quickAddName"
+  class="quick-add__input"
+  placeholder="e.g. coffee, t-shirt, dinner"
+  ...
+>
+```
+`nextTick` ensures Vue has finished inserting the panel into the DOM before `.focus()` is called, making focus reliable and warning-free.
+
+### Prevention
+**Rule:** Never use the HTML `autofocus` attribute on elements inside `v-if` blocks in Vue SPAs. The browser processes `autofocus` at DOM-insertion time, which conflicts with existing focus in single-page apps. Always use programmatic focus via `nextTick(() => el?.focus())` when a conditionally-rendered element needs to receive focus on show.
+
+---
+
+## BUG-021 — Dashboard "spent" caption includes auto-deductions; Spending tab shows purchases only
+
+**Date:** May 2026  
+**Branch:** `feat/sprint-16-type-toggle` (RS-16 Wants/Needs toggle)  
+**Severity:** Medium (amount mismatch between Dashboard and Spending tab — confusing but not data-corrupting)
+
+### Symptom
+The "Purchases this period" donut on the Dashboard and the hero card caption both showed
+`$421.17 spent of $532.75`, while the Spending tab "Spent this period" tile showed `$367.08`.
+The $54.09 difference was caused by subscription/loan auto-deductions being included on the
+dashboard but not on the spending tab.
+
+### Root Cause
+In `DashboardPage.vue`, `heroSpent` was defined as:
+```ts
+const heroSpent = computed(() =>
+  dashboardTypeFilter.value === 'needs'
+    ? biWeeklyNeedsSpent.value
+    : biWeeklySpent.value + biWeeklyDeductions.value,  // ← BUG: includes $54.09 deductions
+);
+```
+
+In `PurchasesThisPeriod.vue`, both the donut caption and `usedPct` included `deductionTotal`:
+```ts
+// caption:
+{{ fmt(totalSpent + deductionTotal) }} / {{ fmt(biWeeklyBudget) }}  // ← $421.17
+
+// usedPct:
+return ((totalSpent.value + deductionTotal.value) / biWeeklyBudget.value) * 100;  // ← 79% not 69%
+```
+
+The Spending tab computes `wantsSpentInPeriod` from purchases only, giving $367.08.
+The `heroRemaining` (shown as the big "Available to spend" number) was correct in both places
+(`budget - purchases - deductions = $111.58`) — only the "spent" caption and % were wrong.
+
+### Fix
+**`DashboardPage.vue`** — removed `+ biWeeklyDeductions.value` from `heroSpent` for the wants branch:
+```ts
+const heroSpent = computed(() =>
+  dashboardTypeFilter.value === 'needs'
+    ? biWeeklyNeedsSpent.value
+    : biWeeklySpent.value,  // purchases only — matches Spending tab
+);
+```
+
+**`PurchasesThisPeriod.vue`** — changed caption and `usedPct` to purchases only:
+```ts
+// caption:
+{{ fmt(totalSpent) }} / {{ fmt(biWeeklyBudget) }}
+
+// usedPct:
+return (totalSpent.value / biWeeklyBudget.value) * 100;
+```
+
+Auto-deductions are still visible as a dedicated "Auto-deducted $XX.XX" row in the category
+list, and `heroRemaining` / `remaining` both still subtract deductions from the available total.
+
+### Prevention
+**Rule:** "Spent this period" captions must only include explicit user purchases — never
+auto-deductions. Auto-deductions affect *remaining* budget but should be surfaced as a
+separate line item, not silently folded into the "spent" figure. Always verify that the
+same metric is calculated identically on every surface where it appears (dashboard, spending
+tab, summary cards).
+
+---
+
+---
+
+## BUG-022 — Category filter chips in "All purchases" change when Wants/Needs toggle is switched
+
+**Date:** May 2026  
+**Branch:** `feat/sprint-16-type-toggle` (RS-16 Wants/Needs toggle)  
+**Severity:** Medium (UX confusion — chip list unexpectedly shrinks/changes when toggling the KPI tile)
+
+### Symptom
+In the Spending tab, clicking the 🛍 Wants / 🏠 Needs toggle on the "Spent this period"
+card also changed which category chips appeared in the "All purchases" filter row below.
+For example, with Needs selected, only needs-type categories showed as chips; switching to
+Wants removed them and showed only wants-type categories.
+
+### Root Cause
+`activeCategories` — the computed that drives the filter chips — was derived from
+`categorySpending`, which itself reads from `donutPurchases` (the toggle-filtered subset):
+
+```ts
+// BUG: categorySpending is derived from donutPurchases (toggle-filtered)
+const categorySpending = computed(() => getCategorySpending(donutPurchases.value));
+
+const activeCategories = computed(() =>
+  Object.entries(categorySpending.value)  // ← changes when donutTypeFilter changes
+    .filter(([, v]) => v > 0)
+    .sort(([, a], [, b]) => b - a)
+    .map(([name]) => name),
+);
+```
+
+The donut card and the "All purchases" table shared the same intermediate computed, so any
+change to `donutTypeFilter` rippled into the chip list.
+
+### Fix
+`activeCategories` now reads directly from `purchasesInPeriod` (all purchases in the
+period, regardless of type), completely decoupled from the donut toggle:
+
+```ts
+const activeCategories = computed(() => {
+  const spending = getCategorySpending(purchasesInPeriod.value);
+  return Object.entries(spending)
+    .filter(([, v]) => v > 0)
+    .sort(([, a], [, b]) => b - a)
+    .map(([name]) => name);
+});
+```
+
+`categorySpending` (used by the donut) is unchanged — it still reads from `donutPurchases`.
+
+### Prevention
+**Rule:** UI controls that are visually independent (a type toggle on one card vs filter chips
+on a different card) must not share a reactive intermediate computed. When two sections of a
+page need different views of the same data, give each its own dedicated computed sourced from
+the appropriate base set — never let one section's filter computed "accidentally" drive
+another section's UI.
+
+---
+
+*Last updated: May 2026 — v2.7.0 (BUG-021, BUG-022, RS-16 fixes)*  
 *See also: [PHASE_TRACKING.md](PHASE_TRACKING.md) for the full sprint history.*

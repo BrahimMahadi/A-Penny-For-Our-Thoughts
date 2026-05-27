@@ -357,6 +357,120 @@ describe('Loans', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  Loans — RS-13 inline payment
+// ─────────────────────────────────────────────────────────────────
+describe('Loans — RS-13 inline payment', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  function setupLoan() {
+    const budget = useBudgetStore();
+    budget.loans = [];
+    budget.addLoan({
+      name: 'Car Loan', remaining: 5000, original: 12000,
+      paymentAmount: 300, frequency: 'monthly', date: '2026-06-01',
+      budgetType: 'needs', cardId: null,
+    });
+    return budget;
+  }
+
+  it('each loan card has a Pay button', async () => {
+    setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    const payBtn = w.findAll('button').find(b => b.text() === 'Pay');
+    expect(payBtn).toBeDefined();
+    w.unmount();
+  });
+
+  it('clicking Pay reveals the inline payment form', async () => {
+    setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    expect(w.find('.loan-inline-pay').exists()).toBe(false);
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    expect(w.find('.loan-inline-pay').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('inline form pre-fills with scheduled payment amount', async () => {
+    setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    const input = w.find('.loan-inline-pay__input');
+    expect(Number((input.element as HTMLInputElement).value)).toBe(300);
+    w.unmount();
+  });
+
+  it('confirming payment reduces loan remaining balance', async () => {
+    const budget = setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    const input = w.find('.loan-inline-pay__input');
+    await input.setValue('300');
+    await w.find('.loan-inline-pay__confirm').trigger('click');
+    await nextTick();
+    expect(budget.loans[0].remaining).toBe(4700);
+    w.unmount();
+  });
+
+  it('payment is clamped to 0 (cannot go negative)', async () => {
+    const budget = setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    await w.find('.loan-inline-pay__input').setValue('99999');
+    await w.find('.loan-inline-pay__confirm').trigger('click');
+    await nextTick();
+    expect(budget.loans[0].remaining).toBe(0);
+    w.unmount();
+  });
+
+  it('clicking ✕ cancel closes the inline form', async () => {
+    setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    expect(w.find('.loan-inline-pay').exists()).toBe(true);
+    await w.find('.loan-inline-pay__cancel').trigger('click');
+    await nextTick();
+    expect(w.find('.loan-inline-pay').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('confirm button is disabled when amount is 0', async () => {
+    setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    await w.find('.loan-inline-pay__input').setValue('0');
+    const confirmBtn = w.find('.loan-inline-pay__confirm').element as HTMLButtonElement;
+    expect(confirmBtn.disabled).toBe(true);
+    w.unmount();
+  });
+
+  it('shows remaining-after preview that updates as amount changes', async () => {
+    setupLoan();
+    const w = mountWith(Loans);
+    await nextTick();
+    await w.findAll('button').find(b => b.text() === 'Pay')!.trigger('click');
+    await nextTick();
+    await w.find('.loan-inline-pay__input').setValue('500');
+    await nextTick();
+    expect(w.find('.loan-inline-pay__preview').text()).toContain('4,500');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 //  6. CREDIT CARDS
 // ─────────────────────────────────────────────────────────────────
 describe('CreditCards', () => {
@@ -394,6 +508,111 @@ describe('CreditCards', () => {
     await addBtn!.trigger('click');
     await nextTick();
     expect(modalOpen()).toBe(true);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  CreditCards — RS-13 inline charge/pay
+// ─────────────────────────────────────────────────────────────────
+describe('CreditCards — RS-13 inline charge/pay', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  // DEFAULT_STATE: Visa with balance: 0, limit: 1000
+
+  it('each card has a "+ Charge" and "✓ Pay" button', async () => {
+    const w = mountWith(CreditCards);
+    await nextTick();
+    const btns = w.findAll('button').map(b => b.text());
+    expect(btns.some(t => t.includes('Charge'))).toBe(true);
+    expect(btns.some(t => t.includes('Pay'))).toBe(true);
+    w.unmount();
+  });
+
+  it('clicking "+ Charge" reveals inline form with --charge class', async () => {
+    const w = mountWith(CreditCards);
+    await nextTick();
+    expect(w.find('.cc-inline-form').exists()).toBe(false);
+    await w.findAll('button').find(b => b.text().includes('Charge'))!.trigger('click');
+    await nextTick();
+    expect(w.find('.cc-inline-form').exists()).toBe(true);
+    expect(w.find('.cc-inline-form--charge').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('clicking "✓ Pay" reveals inline form with --pay class', async () => {
+    const w = mountWith(CreditCards);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Pay'))!.trigger('click');
+    await nextTick();
+    expect(w.find('.cc-inline-form--pay').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('confirming a charge increases balance', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(CreditCards);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Charge'))!.trigger('click');
+    await nextTick();
+    await w.find('.cc-inline-form__input').setValue('150');
+    await w.find('.cc-inline-form__confirm').trigger('click');
+    await nextTick();
+    expect(+budget.creditCards[0].balance).toBe(150);
+    w.unmount();
+  });
+
+  it('charge is capped at credit limit', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(CreditCards);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Charge'))!.trigger('click');
+    await nextTick();
+    await w.find('.cc-inline-form__input').setValue('9999');
+    await w.find('.cc-inline-form__confirm').trigger('click');
+    await nextTick();
+    expect(+budget.creditCards[0].balance).toBe(1000); // capped at limit
+    w.unmount();
+  });
+
+  it('confirming a payment decreases balance (clamped at 0)', async () => {
+    const budget = useBudgetStore();
+    // First set a positive balance
+    budget.updateCreditCard(budget.creditCards[0].id, { balance: 400 });
+    const w = mountWith(CreditCards);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Pay'))!.trigger('click');
+    await nextTick();
+    await w.find('.cc-inline-form__input').setValue('9999');
+    await w.find('.cc-inline-form__confirm').trigger('click');
+    await nextTick();
+    expect(+budget.creditCards[0].balance).toBe(0);
+    w.unmount();
+  });
+
+  it('cancel closes the inline form without modifying balance', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(CreditCards);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Charge'))!.trigger('click');
+    await nextTick();
+    await w.find('.cc-inline-form__input').setValue('200');
+    await w.find('.cc-inline-form__cancel').trigger('click');
+    await nextTick();
+    expect(w.find('.cc-inline-form').exists()).toBe(false);
+    expect(+budget.creditCards[0].balance).toBe(0);
+    w.unmount();
+  });
+
+  it('confirm button is disabled when amount is 0', async () => {
+    const w = mountWith(CreditCards);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Charge'))!.trigger('click');
+    await nextTick();
+    await w.find('.cc-inline-form__input').setValue('0');
+    const confirmBtn = w.find('.cc-inline-form__confirm').element as HTMLButtonElement;
+    expect(confirmBtn.disabled).toBe(true);
     w.unmount();
   });
 });
@@ -502,6 +721,124 @@ describe('Savings', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  Savings — RS-13 inline deposit/withdraw
+// ─────────────────────────────────────────────────────────────────
+describe('Savings — RS-13 inline deposit/withdraw', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  // DEFAULT_STATE: Emergency Fund + Investments with balance: 0
+
+  it('each account has a "+ Deposit" and "− Withdraw" button', async () => {
+    const w = mountWith(Savings);
+    await nextTick();
+    const btns = w.findAll('button').map(b => b.text());
+    expect(btns.some(t => t.includes('Deposit'))).toBe(true);
+    expect(btns.some(t => t.includes('Withdraw'))).toBe(true);
+    w.unmount();
+  });
+
+  it('clicking "+ Deposit" reveals inline form with --deposit class', async () => {
+    const w = mountWith(Savings);
+    await nextTick();
+    expect(w.find('.savings-inline-form').exists()).toBe(false);
+    await w.findAll('button').find(b => b.text().includes('Deposit'))!.trigger('click');
+    await nextTick();
+    expect(w.find('.savings-inline-form--deposit').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('clicking "− Withdraw" reveals inline form with --withdraw class', async () => {
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Withdraw'))!.trigger('click');
+    await nextTick();
+    expect(w.find('.savings-inline-form--withdraw').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('confirming a deposit increases account balance', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Deposit'))!.trigger('click');
+    await nextTick();
+    await w.find('.savings-inline-form__input').setValue('500');
+    await w.find('.savings-inline-form__confirm').trigger('click');
+    await nextTick();
+    expect(budget.savingsAccounts[0].balance).toBe(500);
+    w.unmount();
+  });
+
+  it('confirming a withdrawal decreases balance', async () => {
+    const budget = useBudgetStore();
+    // Pre-set a positive balance
+    budget.updateSavingsAccount(budget.savingsAccounts[0].id, { balance: 1000 });
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Withdraw'))!.trigger('click');
+    await nextTick();
+    await w.find('.savings-inline-form__input').setValue('250');
+    await w.find('.savings-inline-form__confirm').trigger('click');
+    await nextTick();
+    expect(budget.savingsAccounts[0].balance).toBe(750);
+    w.unmount();
+  });
+
+  it('withdrawal is clamped to 0 — balance cannot go negative', async () => {
+    const budget = useBudgetStore();
+    budget.updateSavingsAccount(budget.savingsAccounts[0].id, { balance: 100 });
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Withdraw'))!.trigger('click');
+    await nextTick();
+    await w.find('.savings-inline-form__input').setValue('9999');
+    await w.find('.savings-inline-form__confirm').trigger('click');
+    await nextTick();
+    expect(budget.savingsAccounts[0].balance).toBe(0);
+    w.unmount();
+  });
+
+  it('cancel closes the inline form without modifying balance', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Deposit'))!.trigger('click');
+    await nextTick();
+    await w.find('.savings-inline-form__input').setValue('999');
+    await w.find('.savings-inline-form__cancel').trigger('click');
+    await nextTick();
+    expect(w.find('.savings-inline-form').exists()).toBe(false);
+    expect(budget.savingsAccounts[0].balance).toBe(0);
+    w.unmount();
+  });
+
+  it('confirm button is disabled when amount is 0', async () => {
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Deposit'))!.trigger('click');
+    await nextTick();
+    await w.find('.savings-inline-form__input').setValue('0');
+    const confirmBtn = w.find('.savings-inline-form__confirm').element as HTMLButtonElement;
+    expect(confirmBtn.disabled).toBe(true);
+    w.unmount();
+  });
+
+  it('new-balance preview reflects typed amount', async () => {
+    const budget = useBudgetStore();
+    budget.updateSavingsAccount(budget.savingsAccounts[0].id, { balance: 1000 });
+    const w = mountWith(Savings);
+    await nextTick();
+    await w.findAll('button').find(b => b.text().includes('Deposit'))!.trigger('click');
+    await nextTick();
+    await w.find('.savings-inline-form__input').setValue('250');
+    await nextTick();
+    expect(w.find('.savings-inline-form__preview').text()).toContain('1,250');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 //  9. SAVINGS GOALS
 // ─────────────────────────────────────────────────────────────────
 describe('SavingsGoals', () => {
@@ -573,7 +910,7 @@ describe('Wishlist', () => {
     // DEFAULT_STATE has "🎯 My first wishlist item"
     const w = mountWith(Wishlist);
     await nextTick();
-    expect(w.find('.wishlist-list').exists()).toBe(true);
+    expect(w.find('.wish-grid').exists()).toBe(true);
     expect(w.find('.wish-icon').text()).toBe('🎯');
     expect(w.find('.wish-name').text()).toBe('My first wishlist item');
     w.unmount();
@@ -590,13 +927,13 @@ describe('Wishlist', () => {
     w.unmount();
   });
 
-  it('renders a link when url is provided', async () => {
+  it('renders a link icon button when url is provided', async () => {
     const budget = useBudgetStore();
     budget.wishlist = [];
     budget.addWishlistItem({ name: 'Desk', icon: '🖥', url: 'https://example.com' });
     const w = mountWith(Wishlist);
     await nextTick();
-    const link = w.find('.wish-link');
+    const link = w.find('.wish-link-btn');
     expect(link.exists()).toBe(true);
     expect(link.attributes('href')).toBe('https://example.com');
     w.unmount();
@@ -1337,22 +1674,200 @@ describe('Subscriptions — BUG-015 save regression', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-//  DashboardPage — Sprint 18 (collapsible + drag-and-drop)
+//  PurchasesThisPeriod — RS-12
+// ─────────────────────────────────────────────────────────────────
+import PurchasesThisPeriod from '@/components/sections/PurchasesThisPeriod.vue';
+
+describe('PurchasesThisPeriod', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('mounts without throwing', () => {
+    const w = mountWith(PurchasesThisPeriod);
+    expect(w.exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('shows empty state when no purchases and no deductions', async () => {
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+    expect(w.find('.ptp__empty').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders donut + category list when purchases exist', async () => {
+    const budget = useBudgetStore();
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'Food', cardId: null, budgetType: 'wants' });
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+    expect(w.find('.ptp__body').exists()).toBe(true);
+    expect(w.find('.ptp__donut-wrap').exists()).toBe(true);
+    expect(w.find('.ptp__categories').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('shows a category row for each unique category', async () => {
+    const budget = useBudgetStore();
+    budget.addPurchase({ name: 'Coffee', amount: 5,  category: 'Food',  cardId: null, budgetType: 'wants' });
+    budget.addPurchase({ name: 'Book',   amount: 15, category: 'Other', cardId: null, budgetType: 'wants' });
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+    expect(w.findAll('.ptp__cat-row').length).toBeGreaterThanOrEqual(2);
+    w.unmount();
+  });
+
+  it('renders footer text', async () => {
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+    expect(w.find('.ptp__footer').exists()).toBe(true);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  RecurringSpend — RS-12
+// ─────────────────────────────────────────────────────────────────
+import RecurringSpend from '@/components/sections/RecurringSpend.vue';
+
+describe('RecurringSpend', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('mounts without throwing', () => {
+    const w = mountWith(RecurringSpend);
+    expect(w.exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('shows empty state when no expense cards', async () => {
+    const budget = useBudgetStore();
+    budget.expenseCards.length = 0;
+    const w = mountWith(RecurringSpend);
+    await nextTick();
+    expect(w.find('.base-empty-state').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders summary + card rows when expense cards exist', async () => {
+    const budget = useBudgetStore();
+    budget.addExpenseCard('Visa');
+    budget.addExpenseCard('Mastercard');
+    const w = mountWith(RecurringSpend);
+    await nextTick();
+    expect(w.find('.rs__summary').exists()).toBe(true);
+    expect(w.find('.rs__cards').exists()).toBe(true);
+    expect(w.findAll('.rs__card').length).toBe(2);
+    w.unmount();
+  });
+
+  it('card is collapsed by default (no items visible)', async () => {
+    const budget = useBudgetStore();
+    budget.addExpenseCard('Visa');
+    const w = mountWith(RecurringSpend);
+    await nextTick();
+    expect(w.find('.rs__card-items').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('clicking card header expands and shows items', async () => {
+    const budget = useBudgetStore();
+    budget.addExpenseCard('Visa');
+    const w = mountWith(RecurringSpend);
+    await nextTick();
+    await w.find('.rs__card-header').trigger('click');
+    await nextTick();
+    expect(w.find('.rs__card-items').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('clicking card header again collapses it', async () => {
+    const budget = useBudgetStore();
+    budget.addExpenseCard('Visa');
+    const w = mountWith(RecurringSpend);
+    await nextTick();
+    const header = w.find('.rs__card-header');
+    await header.trigger('click');
+    await nextTick();
+    expect(w.find('.rs__card-items').exists()).toBe(true);
+    await header.trigger('click');
+    await nextTick();
+    expect(w.find('.rs__card-items').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('renders footer settings hint', async () => {
+    const budget = useBudgetStore();
+    budget.addExpenseCard('Visa');
+    const w = mountWith(RecurringSpend);
+    await nextTick();
+    expect(w.find('.rs__footer').exists()).toBe(true);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  MoneyFlow — RS-12
+// ─────────────────────────────────────────────────────────────────
+import MoneyFlow from '@/components/sections/MoneyFlow.vue';
+
+describe('MoneyFlow', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('mounts without throwing', () => {
+    const w = mountWith(MoneyFlow);
+    expect(w.exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders the money-flow wrapper', async () => {
+    const w = mountWith(MoneyFlow);
+    await nextTick();
+    expect(w.find('.money-flow').exists()).toBe(true);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  DashboardPage — RS-11 fixed grid layout
 // ─────────────────────────────────────────────────────────────────
 import DashboardPage from '@/components/pages/DashboardPage.vue';
 import SectionPicker from '@/components/ui/SectionPicker.vue';
 import { DEFAULT_SECTION_ORDER } from '@/constants/dashboardSections';
+import SpendingPage  from '@/components/pages/SpendingPage.vue';
 
-describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
+describe('DashboardPage — RS-11 fixed grid layout', () => {
   beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('renders all 15 section cards in the default order', async () => {
+  it('mounts without throwing', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
-    const cards = w.findAll('.base-card');
-    // 15 section cards + 4 stat cards = at least 15 sections present
-    // We check by looking for all section id attributes
+    expect(w.exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders the page wrapper', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('.page-dashboard').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders the KPI hero row with 4 cards', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('.kpi-row').exists()).toBe(true);
+    expect(w.find('.kpi-hero').exists()).toBe(true);
+    // 2 plain .kpi-card divs (due-in-7, needs-spent) + chequing-balance as BaseCard in the same row
+    expect(w.findAll('.kpi-card')).toHaveLength(2);
+    expect(w.find('.kpi-row #section-chequing-balance').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders all 9 fixed section cards', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
     DEFAULT_SECTION_ORDER.forEach(id => {
       const el = w.find(`#section-${id}`);
       expect(el.exists(), `section #section-${id} should exist`).toBe(true);
@@ -1360,12 +1875,65 @@ describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
     w.unmount();
   });
 
-  it('every section card has a drag handle (⠿)', async () => {
+  it('does NOT render removed sections (income-streams, savings-goals, wants-tracker)', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
-    const handles = w.findAll('.base-card__drag-handle');
-    // Dashboard now has 10 sections (analytics moved to Advanced; budget-allocation to Settings)
-    expect(handles.length).toBe(10);
+    expect(w.find('#section-income-streams').exists()).toBe(false);
+    expect(w.find('#section-savings-goals').exists()).toBe(false);
+    expect(w.find('#section-wants-tracker').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('renders the 2-col charts row with purchases and money-flow', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('.dash-charts-row').exists()).toBe(true);
+    expect(w.find('.dash-charts-row #section-purchases-this-period').exists()).toBe(true);
+    expect(w.find('.dash-charts-row #section-money-flow').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders the 3-col widget row', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('.dash-widget-row').exists()).toBe(true);
+    // Expense cards, loans, savings-accounts are all in the widget row
+    expect(w.find('.dash-widget-row #section-expense-cards').exists()).toBe(true);
+    expect(w.find('.dash-widget-row #section-loans').exists()).toBe(true);
+    expect(w.find('.dash-widget-row #section-savings-accounts').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('chequing balance is in the KPI row; subscriptions is full-width', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    // Chequing balance moved to the KPI row (no longer in a dash-2col-row)
+    expect(w.find('.kpi-row #section-chequing-balance').exists()).toBe(true);
+    expect(w.find('.dash-2col-row').exists()).toBe(false);
+    // Subscriptions is now a standalone full-width card
+    expect(w.find('#section-subscriptions').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders credit cards and wishlist as full-width sections', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('#section-credit-cards').exists()).toBe(true);
+    expect(w.find('#section-wishlist').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('has NO drag handles (drag-and-drop removed in RS-11)', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.findAll('.base-card__drag-handle')).toHaveLength(0);
+    w.unmount();
+  });
+
+  it('has NO section-slot wrappers (fixed grid, no drag slots)', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.findAll('.section-slot')).toHaveLength(0);
     w.unmount();
   });
 
@@ -1373,15 +1941,10 @@ describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
     const w = mountWith(DashboardPage);
     await nextTick();
     const chevrons = w.findAll('.base-card__collapse-btn');
-    expect(chevrons.length).toBe(10);
-    w.unmount();
-  });
-
-  it('each section slot is a drop zone (has dragover listener attribute region)', async () => {
-    const w = mountWith(DashboardPage);
-    await nextTick();
-    const slots = w.findAll('.section-slot');
-    expect(slots.length).toBe(10);
+    // 8 collapsible BaseCards: purchases-this-period, money-flow, expense-cards, loans,
+    // savings-accounts, subscriptions, credit-cards, wishlist.
+    // Chequing Balance is non-collapsible (now lives in the KPI row).
+    expect(chevrons.length).toBe(8);
     w.unmount();
   });
 
@@ -1389,67 +1952,29 @@ describe('DashboardPage — Sprint 18 collapsible + DnD', () => {
     const ui = useUiStore();
     const w = mountWith(DashboardPage);
     await nextTick();
-    // Toggle income-streams collapsed
-    ui.toggleSection('income-streams');
+    ui.toggleSection('subscriptions');
     await nextTick();
-    // The BaseCard body uses v-show so the element is in the DOM but hidden
-    const incomeCard = w.find('#section-income-streams');
-    const body = incomeCard.find('.base-card__body');
+    const card = w.find('#section-subscriptions');
+    const body = card.find('.base-card__body');
     expect(body.isVisible()).toBe(false);
     w.unmount();
   });
 
-  it('reordering via setSectionOrder changes rendered card order', async () => {
-    const ui = useUiStore();
+  it('renders the quick-add button in the header (RS-15: renamed to "Add purchase")', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
-
-    // Move wishlist to first position
-    const withWishlistFirst = [
-      'wishlist',
-      ...DEFAULT_SECTION_ORDER.filter(id => id !== 'wishlist'),
-    ];
-    ui.setSectionOrder(withWishlistFirst);
-    await nextTick();
-
-    // First section slot should now contain the wishlist card
-    const slots = w.findAll('.section-slot');
-    const firstSlot = slots[0];
-    expect(firstSlot.find('#section-wishlist').exists()).toBe(true);
+    const btn = w.find('.btn-primary');
+    expect(btn.exists()).toBe(true);
+    expect(btn.text()).toContain('Add purchase');
     w.unmount();
   });
 
-  it('drag-and-drop onDrop triggers setSectionOrder with new order', async () => {
-    const ui = useUiStore();
+  it('does NOT render the "Manage widgets" button (removed in RS-11)', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
-
-    const originalOrder = [...ui.sectionOrder];
-    const firstId = originalOrder[0];
-    const thirdId = originalOrder[2];
-
-    // Simulate: drag index 0 → drop on index 2
-    const slots = w.findAll('.section-slot');
-    const handle = slots[0].find('.base-card__drag-handle');
-    const targetSlot = slots[2];
-
-    // Fire dragstart from the handle of the first slot
-    await handle.trigger('dragstart', { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
-    await nextTick();
-
-    // Fire dragover + drop on the third slot
-    await targetSlot.trigger('dragover', { preventDefault: vi.fn(), dataTransfer: { dropEffect: '' } });
-    await targetSlot.trigger('drop', { preventDefault: vi.fn(), dataTransfer: {} });
-    await nextTick();
-
-    // The first section (index 0) should have moved before index 2
-    // After splice(0,1): [B,C,D,...], insertAt = 2-1 = 1 → [B,firstId,C,...]
-    expect(ui.sectionOrder).not.toEqual(originalOrder);
-    // firstId should no longer be at position 0
-    expect(ui.sectionOrder[0]).not.toBe(firstId);
-    // firstId should still be in the order (not lost)
-    expect(ui.sectionOrder).toContain(firstId);
-    expect(ui.sectionOrder).toContain(thirdId);
+    // The old "Manage widgets" button had class btn-secondary in the header
+    const headerBtns = w.findAll('.dash-header__actions .btn-secondary');
+    expect(headerBtns).toHaveLength(0);
     w.unmount();
   });
 });
@@ -1461,14 +1986,14 @@ describe('SectionPicker — Sprint 18 reorder', () => {
   beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('renders one item per section (14 items: 10 dashboard + 4 advanced)', async () => {
+  it('renders one item per section (13 items: 9 dashboard + 4 advanced)', async () => {
     const w = mount(SectionPicker, {
       props: { open: true },
       attachTo: document.body,
     });
     await nextTick();
     const items = document.body.querySelectorAll('.section-picker-item');
-    expect(items.length).toBe(14);
+    expect(items.length).toBe(13);
     w.unmount();
   });
 
@@ -1479,7 +2004,7 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const handles = document.body.querySelectorAll('.picker-drag-handle');
-    expect(handles.length).toBe(14);
+    expect(handles.length).toBe(13);
     w.unmount();
   });
 
@@ -1490,8 +2015,8 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const moveBtns = document.body.querySelectorAll('.picker-move-btn');
-    // 2 buttons per item × 14 items = 28
-    expect(moveBtns.length).toBe(28);
+    // 2 buttons per item × 13 items = 26
+    expect(moveBtns.length).toBe(26);
     w.unmount();
   });
 
@@ -1502,13 +2027,13 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const collapseBtns = document.body.querySelectorAll('.picker-collapse-btn');
-    expect(collapseBtns.length).toBe(14);
+    expect(collapseBtns.length).toBe(13);
     w.unmount();
   });
 
   it('clicking collapse toggle calls ui.toggleSection', async () => {
     const ui = useUiStore();
-    expect(ui.isSectionCollapsed('income-streams')).toBe(false);
+    expect(ui.isSectionCollapsed('expense-cards')).toBe(false);
     const w = mount(SectionPicker, {
       props: { open: true },
       attachTo: document.body,
@@ -2495,6 +3020,1190 @@ describe('Subscriptions — filter toolbar (Sprint 22)', () => {
     // Gym $55/mo > Netflix $18/mo
     expect(names[0]).toBe('Gym');
     expect(names[1]).toBe('Netflix');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Wishlist — RS-14 price tracking & affordability
+// ─────────────────────────────────────────────────────────────────
+describe('Wishlist — RS-14 price tracking', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    document.body.innerHTML = '';
+  });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('shows price on an item that has one', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'AirPods', icon: '🎧', url: '', price: 249 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-price').exists()).toBe(true);
+    expect(w.find('.wish-price').text()).toContain('249');
+    w.unmount();
+  });
+
+  it('does not show .wish-price when price is not set', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Book', icon: '📚', url: '' });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-price').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('shows "Affordable ✓" chip when price ≤ bi-weekly wants budget', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    // Set up income so bi-weekly wants budget is $300 (3000/mo × 20% wants / 2)
+    budget.incomeStreams = [];
+    budget.addIncomeStream({ name: 'Salary', amount: 3000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 20, savings: 30 };
+    budget.addWishlistItem({ name: 'Game', icon: '🎮', url: '', price: 60 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    const chip = w.find('.wish-chip--affordable');
+    expect(chip.exists()).toBe(true);
+    expect(chip.text()).toContain('Affordable');
+    w.unmount();
+  });
+
+  it('does not show affordable chip when price > bi-weekly wants budget', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.incomeStreams = [];
+    budget.addIncomeStream({ name: 'Salary', amount: 3000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 20, savings: 30 };
+    // bi-weekly wants = 3000 × 0.20 / 2 = $300; price $500 > $300
+    budget.addWishlistItem({ name: 'iPhone', icon: '📱', url: '', price: 500 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-chip--affordable').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('shows total value in header when priced items exist', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'A', icon: '🅰', url: '', price: 100 });
+    budget.addWishlistItem({ name: 'B', icon: '🅱', url: '', price: 200 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    const total = w.find('.wishlist-section__total');
+    expect(total.exists()).toBe(true);
+    expect(total.text()).toContain('300');
+    w.unmount();
+  });
+
+  it('does not show total header when no items have prices', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'NoPrice', icon: '🛒', url: '' });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wishlist-section__total').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('shows sort select when there are 2+ items', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'A', icon: '🅰', url: '' });
+    budget.addWishlistItem({ name: 'B', icon: '🅱', url: '' });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wishlist-sort').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('sort by price ascending orders items cheapest first', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Expensive', icon: '💎', url: '', price: 999 });
+    budget.addWishlistItem({ name: 'Cheap', icon: '🎯', url: '', price: 10 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    await w.find('.wishlist-sort').setValue('price-asc');
+    await nextTick();
+    const names = w.findAll('.wish-name').map(el => el.text());
+    expect(names[0]).toBe('Cheap');
+    expect(names[1]).toBe('Expensive');
+    w.unmount();
+  });
+
+  it('sort by price descending orders items most expensive first', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Cheap', icon: '🎯', url: '', price: 10 });
+    budget.addWishlistItem({ name: 'Expensive', icon: '💎', url: '', price: 999 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    await w.find('.wishlist-sort').setValue('price-desc');
+    await nextTick();
+    const names = w.findAll('.wish-name').map(el => el.text());
+    expect(names[0]).toBe('Expensive');
+    expect(names[1]).toBe('Cheap');
+    w.unmount();
+  });
+
+  it('price field appears in the add modal', async () => {
+    const w = mount(Wishlist, { attachTo: document.body });
+    await nextTick();
+    const addBtn = w.findAll('button').find(b => b.text().includes('Add Item'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    expect(document.body.querySelector('#wish-price')).not.toBeNull();
+    w.unmount();
+  });
+
+  it('addWishlistItem correctly stores price', () => {
+    const budget = useBudgetStore();
+    budget.addWishlistItem({ name: 'Chair', icon: '🪑', url: '', price: 350 });
+    const item = budget.wishlist.find(w => w.name === 'Chair');
+    expect(item?.price).toBe(350);
+  });
+
+  it('updateWishlistItem can update price', () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    const item = budget.addWishlistItem({ name: 'Desk', icon: '🖥', url: '' });
+    budget.updateWishlistItem(item.id, { price: 450 });
+    expect(budget.wishlist.find(w => w.id === item.id)?.price).toBe(450);
+  });
+
+  // ── card grid & saved tracking ────────────────────────────────
+
+  it('renders as a card grid (.wish-grid) not a list', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Monitor', icon: '🖥', url: '' });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-grid').exists()).toBe(true);
+    expect(w.find('.wish-card').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('shows progress bar when item has a price', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Keyboard', icon: '⌨️', url: '', price: 200 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-card__progress-fill').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('does not show progress bar when item has no price', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Book', icon: '📚', url: '' });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-card__progress-fill').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('shows ~N mo badge when income and savings rate are set', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.incomeStreams = [];
+    budget.addIncomeStream({ name: 'Salary', amount: 3000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 30, savings: 20 };
+    // Monthly savings = 3000 × 20% = $600/mo; price = $1200 → 2 months
+    budget.addWishlistItem({ name: 'Laptop', icon: '💻', url: '', price: 1200 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    const badge = w.find('.wish-card__months-badge');
+    expect(badge.exists()).toBe(true);
+    expect(badge.text()).toContain('2 mo');
+    w.unmount();
+  });
+
+  it('shows ✓ Saved badge when item is fully saved for', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.incomeStreams = [];
+    budget.addIncomeStream({ name: 'Salary', amount: 3000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 30, savings: 20 };
+    budget.addWishlistItem({ name: 'Headphones', icon: '🎧', url: '', price: 100, saved: 100 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    const badge = w.find('.wish-card__months-badge--done');
+    expect(badge.exists()).toBe(true);
+    expect(badge.text()).toContain('Saved');
+    w.unmount();
+  });
+
+  it('progress bar width reflects saved/price ratio', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Camera', icon: '📷', url: '', price: 400, saved: 200 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    const bar = w.find('.wish-card__progress-fill');
+    expect(bar.attributes('style')).toContain('50%');
+    w.unmount();
+  });
+
+  it('addWishlistItem correctly stores saved amount', () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'TV', icon: '📺', url: '', price: 800, saved: 150 });
+    const item = budget.wishlist.find(w => w.name === 'TV');
+    expect(item?.saved).toBe(150);
+  });
+
+  it('updateWishlistItem can update saved', () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    const item = budget.addWishlistItem({ name: 'Chair', icon: '🪑', url: '', price: 300 });
+    budget.updateWishlistItem(item.id, { saved: 75 });
+    expect(budget.wishlist.find(w => w.id === item.id)?.saved).toBe(75);
+  });
+
+  it('shows "Add savings" button for priced items', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Guitar', icon: '🎸', url: '', price: 500 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-card__add-savings').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('does not show "Add savings" button when item has no price', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Idea', icon: '💡', url: '' });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-card__add-savings').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('saved field appears in the edit modal', async () => {
+    const w = mount(Wishlist, { attachTo: document.body });
+    await nextTick();
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Tablet', icon: '📱', url: '', price: 600, saved: 50 });
+    await nextTick();
+    // Open edit for first item
+    const editBtns = w.findAll('button').filter(b => b.text().includes('Edit'));
+    if (editBtns.length > 0) {
+      await editBtns[0].trigger('click');
+      await nextTick();
+      expect(document.body.querySelector('#wish-saved')).not.toBeNull();
+    }
+    w.unmount();
+  });
+
+  it('header savings rate shown when income and savings rate set', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.incomeStreams = [];
+    budget.addIncomeStream({ name: 'Salary', amount: 2000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 30, savings: 20 };
+    budget.addWishlistItem({ name: 'Item', icon: '🎯', url: '', price: 500 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wishlist-section__rate').exists()).toBe(true);
+    expect(w.find('.wishlist-section__rate').text()).toContain('/mo');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  SpendingPage — RS-15 purchase type (want / need)
+// ─────────────────────────────────────────────────────────────────
+
+describe('SpendingPage — RS-15 purchase type', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('mounts without throwing', async () => {
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    expect(w.exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders the page wrapper and table', async () => {
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    expect(w.find('.page-spending').exists()).toBe(true);
+    expect(w.find('.purchases-table').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('table has a "Type" column header', async () => {
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const headers = w.findAll('.purchases-table thead th').map(th => th.text());
+    expect(headers).toContain('Type');
+    w.unmount();
+  });
+
+  it('shows "Want" badge for a wants purchase', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const badges = w.findAll('.type-badge');
+    expect(badges.some(b => b.text() === 'Want')).toBe(true);
+    w.unmount();
+  });
+
+  it('shows "Need" badge for a needs purchase', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Rent', amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: new Date().toISOString().split('T')[0] as never });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const badges = w.findAll('.type-badge');
+    expect(badges.some(b => b.text() === 'Need')).toBe(true);
+    w.unmount();
+  });
+
+  it('want badge has --wants CSS class, need badge has --needs CSS class', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent', amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const wantBadge = w.find('.type-badge--wants');
+    const needBadge = w.find('.type-badge--needs');
+    expect(wantBadge.exists()).toBe(true);
+    expect(needBadge.exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('type filter chips row renders with All / Wants / Needs', async () => {
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const chips = w.findAll('.cat-chips--type .cat-chip');
+    const labels = chips.map(c => c.text());
+    expect(labels).toContain('All');
+    expect(labels.some(l => l.includes('Wants'))).toBe(true);
+    expect(labels.some(l => l.includes('Needs'))).toBe(true);
+    w.unmount();
+  });
+
+  it('"Wants" filter shows only wants purchases', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent', amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    // Click the Wants filter chip
+    const chips = w.findAll('.cat-chips--type .cat-chip');
+    const wantsChip = chips.find(c => c.text().includes('Wants'));
+    await wantsChip!.trigger('click');
+    await nextTick();
+    // Only the Want badge should remain
+    const badges = w.findAll('.type-badge');
+    expect(badges.every(b => b.text() === 'Want')).toBe(true);
+    expect(badges).toHaveLength(1);
+    w.unmount();
+  });
+
+  it('"Needs" filter shows only needs purchases', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent', amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const chips = w.findAll('.cat-chips--type .cat-chip');
+    const needsChip = chips.find(c => c.text().includes('Needs'));
+    await needsChip!.trigger('click');
+    await nextTick();
+    const badges = w.findAll('.type-badge');
+    expect(badges.every(b => b.text() === 'Need')).toBe(true);
+    expect(badges).toHaveLength(1);
+    w.unmount();
+  });
+
+  it('"All" filter resets after type filter applied', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent', amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const chips = w.findAll('.cat-chips--type .cat-chip');
+    // Click needs, then all
+    await chips.find(c => c.text().includes('Needs'))!.trigger('click');
+    await nextTick();
+    await chips[0].trigger('click'); // All chip
+    await nextTick();
+    expect(w.findAll('.type-badge')).toHaveLength(2);
+    w.unmount();
+  });
+
+  it('donut card has "Wants purchases only" subtitle', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const hint = w.find('.spend-donut-hint');
+    expect(hint.exists()).toBe(true);
+    expect(hint.text()).toContain('Wants purchases only');
+    w.unmount();
+  });
+
+  it('bar chart legend renders with wants and needs items', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const legend = w.find('.spend-bars-legend');
+    expect(legend.exists()).toBe(true);
+    expect(legend.text()).toContain('Wants');
+    expect(legend.text()).toContain('Needs');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  DashboardPage — RS-15 quick-add modal updates
+// ─────────────────────────────────────────────────────────────────
+
+describe('DashboardPage — RS-15 quick-add modal', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('quick-add modal title is "Log a purchase" (not "wants purchase")', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.find('.btn-primary').trigger('click');
+    await nextTick();
+    const modal = document.body.querySelector('.base-modal');
+    expect(modal).not.toBeNull();
+    expect(modal!.textContent).toContain('Log a purchase');
+    expect(modal!.textContent).not.toContain('Log a wants purchase');
+    w.unmount();
+  });
+
+  it('quick-add modal has Want and Need type buttons', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.find('.btn-primary').trigger('click');
+    await nextTick();
+    // BaseModal is Teleported to document.body
+    const typeBtns = document.body.querySelectorAll('.quick-add__type-btn');
+    expect(typeBtns).toHaveLength(2);
+    expect(typeBtns[0].textContent).toContain('Want');
+    expect(typeBtns[1].textContent).toContain('Need');
+    w.unmount();
+  });
+
+  it('Want type button is active by default', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.find('.btn-primary').trigger('click');
+    await nextTick();
+    const wantBtn = document.body.querySelector('.quick-add__type-btn--wants');
+    expect(wantBtn).not.toBeNull();
+    w.unmount();
+  });
+
+  it('clicking Need type button activates it and updates preview label', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.find('.btn-primary').trigger('click');
+    await nextTick();
+    const needBtn = document.body.querySelectorAll('.quick-add__type-btn')[1] as HTMLButtonElement;
+    needBtn.click();
+    await nextTick();
+    expect(document.body.querySelector('.quick-add__type-btn--needs')).not.toBeNull();
+    const label = document.body.querySelector('.quick-add__preview-label');
+    expect(label!.textContent).toContain('NEEDS');
+    w.unmount();
+  });
+
+  it('preview label switches to WANTS when Want button clicked', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.find('.btn-primary').trigger('click');
+    await nextTick();
+    // Switch to needs then back to wants
+    const typeBtns = document.body.querySelectorAll('.quick-add__type-btn');
+    (typeBtns[1] as HTMLButtonElement).click();
+    await nextTick();
+    (typeBtns[0] as HTMLButtonElement).click();
+    await nextTick();
+    const label = document.body.querySelector('.quick-add__preview-label');
+    expect(label!.textContent).toContain('WANTS');
+    w.unmount();
+  });
+
+  it('submitting a needs purchase creates purchase with budgetType needs', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.find('.btn-primary').trigger('click');
+    await nextTick();
+    // Select Need type via DOM click (modal is teleported to body)
+    const needBtn = document.body.querySelectorAll('.quick-add__type-btn')[1] as HTMLButtonElement;
+    needBtn.click();
+    await nextTick();
+    // Fill in form (inputs are in the wrapper since it's attached to body)
+    const nameInput = document.body.querySelector('.quick-add__input') as HTMLInputElement;
+    const amtInput  = document.body.querySelector('.quick-add__input--amount') as HTMLInputElement;
+    nameInput.value = 'Rent payment';
+    nameInput.dispatchEvent(new Event('input'));
+    amtInput.value  = '800';
+    amtInput.dispatchEvent(new Event('input'));
+    await nextTick();
+    const addBtn = document.body.querySelector('.quick-add__footer .btn-primary') as HTMLButtonElement;
+    addBtn.click();
+    await nextTick();
+    const added = budget.purchases.find(p => p.name === 'Rent payment');
+    expect(added).toBeDefined();
+    expect(added!.budgetType).toBe('needs');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  SpendingPage — CRUD (filtered total + Add/Edit/Delete purchases)
+// ─────────────────────────────────────────────────────────────────
+
+describe('SpendingPage — CRUD', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let w: any;
+
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    document.body.innerHTML = '';
+    // Stub window.confirm — default: confirm = true
+    vi.stubGlobal('confirm', vi.fn(() => true));
+  });
+
+  afterEach(() => {
+    w?.unmount();
+    document.body.innerHTML = '';
+    vi.unstubAllGlobals();
+  });
+
+  // ── Filtered amount total ───────────────────────────────────────
+
+  it('shows filtered amount total in purchases count area', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5,   category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent',   amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    w = mountWith(SpendingPage);
+    await nextTick();
+    // Both purchases visible — total should be $805
+    expect(w.find('.purchases-count__total').text()).toContain('$805.00');
+  });
+
+  it('filtered amount total updates when type filter is applied', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5,   category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent',   amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Click "Wants" filter chip
+    const chips = w.findAll('.cat-chips--type .cat-chip');
+    await chips.find((c: ReturnType<typeof w.findAll>[number]) => c.text().includes('Wants'))!.trigger('click');
+    await nextTick();
+
+    // Only $5 coffee visible
+    expect(w.find('.purchases-count__total').text()).toContain('$5.00');
+  });
+
+  it('filtered amount total updates when search filter is applied', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5,   category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Lunch',  amount: 12,  category: 'other', cardId: null, budgetType: 'wants', date: today });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    const searchInput = w.find('.search-input');
+    await searchInput.setValue('coffee');
+    await nextTick();
+
+    expect(w.find('.purchases-count__total').text()).toContain('$5.00');
+  });
+
+  // ── Add purchase modal ──────────────────────────────────────────
+
+  it('"+ Add" button opens the purchase modal', async () => {
+    w = mountWith(SpendingPage);
+    await nextTick();
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    expect(document.body.querySelector('.base-modal')).not.toBeNull();
+  });
+
+  it('modal title is "Add Purchase" when adding a new purchase', async () => {
+    w = mountWith(SpendingPage);
+    await nextTick();
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    const modal = document.body.querySelector('.base-modal');
+    expect(modal!.textContent).toContain('Add Purchase');
+  });
+
+  it('modal has Want and Need type buttons', async () => {
+    w = mountWith(SpendingPage);
+    await nextTick();
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    const typeBtns = document.body.querySelectorAll('.mf-type-btn');
+    expect(typeBtns).toHaveLength(2);
+    expect(typeBtns[0].textContent).toContain('Want');
+    expect(typeBtns[1].textContent).toContain('Need');
+  });
+
+  it('save button is disabled when name is empty', async () => {
+    w = mountWith(SpendingPage);
+    await nextTick();
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    const saveBtn = document.body.querySelector<HTMLButtonElement>('.base-modal [disabled]');
+    expect(saveBtn).not.toBeNull();
+  });
+
+  it('save button is enabled when name and amount are valid', async () => {
+    w = mountWith(SpendingPage);
+    await nextTick();
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+
+    const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
+    const amtInput  = document.body.querySelector<HTMLInputElement>('#sp-amount');
+
+    nameInput!.value = 'Groceries';
+    nameInput!.dispatchEvent(new Event('input'));
+    amtInput!.value  = '42';
+    amtInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    // The disabled attr should be gone
+    const disabledBtn = document.body.querySelector<HTMLButtonElement>('.base-modal [disabled]');
+    expect(disabledBtn).toBeNull();
+  });
+
+  it('saving a new purchase adds it to the store', async () => {
+    const budget = useBudgetStore();
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+
+    // Fill the form
+    const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
+    const amtInput  = document.body.querySelector<HTMLInputElement>('#sp-amount');
+    nameInput!.value = 'New coffee';
+    nameInput!.dispatchEvent(new Event('input'));
+    amtInput!.value  = '4.50';
+    amtInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    // Click Save/Add button (the primary button in the modal footer)
+    const allBtns = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'));
+    const saveBtn = allBtns.find(b => b.textContent?.trim() === 'Add' && !b.disabled);
+    saveBtn!.click();
+    await nextTick();
+
+    const found = budget.purchases.find(p => p.name === 'New coffee');
+    expect(found).toBeDefined();
+    expect(found!.amount).toBe(4.5);
+  });
+
+  it('adding a needs purchase sets budgetType to needs in the store', async () => {
+    const budget = useBudgetStore();
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+
+    // Select "Need" type
+    const needBtn = document.body.querySelectorAll<HTMLButtonElement>('.mf-type-btn')[1];
+    needBtn.click();
+    await nextTick();
+
+    const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
+    const amtInput  = document.body.querySelector<HTMLInputElement>('#sp-amount');
+    nameInput!.value = 'Electric bill';
+    nameInput!.dispatchEvent(new Event('input'));
+    amtInput!.value  = '75';
+    amtInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    const allBtns = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'));
+    const saveBtn = allBtns.find(b => b.textContent?.trim() === 'Add' && !b.disabled);
+    saveBtn!.click();
+    await nextTick();
+
+    const found = budget.purchases.find(p => p.name === 'Electric bill');
+    expect(found).toBeDefined();
+    expect(found!.budgetType).toBe('needs');
+  });
+
+  // ── Edit purchase (row click → modal) ──────────────────────────
+
+  it('clicking a purchase row opens modal with title "Edit Purchase"', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.find('.purchase-row--clickable').trigger('click');
+    await nextTick();
+
+    const modal = document.body.querySelector('.base-modal');
+    expect(modal).not.toBeNull();
+    expect(modal!.textContent).toContain('Edit Purchase');
+  });
+
+  it('clicking a row pre-fills the modal with the purchase values', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Sushi dinner', amount: 55, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.find('.purchase-row--clickable').trigger('click');
+    await nextTick();
+
+    const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
+    const amtInput  = document.body.querySelector<HTMLInputElement>('#sp-amount');
+    expect(nameInput!.value).toBe('Sushi dinner');
+    expect(Number(amtInput!.value)).toBe(55);
+  });
+
+  it('saving an edit via the row-click modal updates the purchase in the store', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Old name', amount: 10, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.find('.purchase-row--clickable').trigger('click');
+    await nextTick();
+
+    const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
+    nameInput!.value = 'New name';
+    nameInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    const allBtns = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'));
+    const updateBtn = allBtns.find(b => b.textContent?.trim() === 'Update' && !b.disabled);
+    updateBtn!.click();
+    await nextTick();
+
+    expect(budget.purchases.find(p => p.name === 'New name')).toBeDefined();
+    expect(budget.purchases.find(p => p.name === 'Old name')).toBeUndefined();
+  });
+
+  it('edit modal shows a Delete button', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.find('.purchase-row--clickable').trigger('click');
+    await nextTick();
+
+    const deleteBtn = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'))
+      .find(b => b.textContent?.trim() === 'Delete');
+    expect(deleteBtn).toBeDefined();
+  });
+
+  // ── Delete purchase (from modal) ────────────────────────────────
+
+  it('Delete button in modal removes the purchase when confirm returns true', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Expense to delete', amount: 25, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    expect(budget.purchases).toHaveLength(1);
+
+    // Open edit modal by clicking the row
+    await w.find('.purchase-row--clickable').trigger('click');
+    await nextTick();
+
+    // Click Delete inside the modal
+    const deleteBtn = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'))
+      .find(b => b.textContent?.trim() === 'Delete');
+    deleteBtn!.click();
+    await nextTick();
+
+    expect(budget.purchases).toHaveLength(0);
+    // Modal should close after delete
+    expect(document.body.querySelector('.base-modal')).toBeNull();
+  });
+
+  it('Delete in modal does NOT remove purchase when confirm returns false', async () => {
+    vi.stubGlobal('confirm', vi.fn(() => false));
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Keep me', amount: 30, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.find('.purchase-row--clickable').trigger('click');
+    await nextTick();
+
+    const deleteBtn = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'))
+      .find(b => b.textContent?.trim() === 'Delete');
+    deleteBtn!.click();
+    await nextTick();
+
+    expect(budget.purchases).toHaveLength(1);
+    // Modal stays open when delete is cancelled
+    expect(document.body.querySelector('.base-modal')).not.toBeNull();
+  });
+
+  it('cancel button in modal closes it without saving', async () => {
+    const budget = useBudgetStore();
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    expect(document.body.querySelector('.base-modal')).not.toBeNull();
+
+    const cancelBtn = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'))
+      .find(b => b.textContent?.trim() === 'Cancel');
+    cancelBtn!.click();
+    await nextTick();
+
+    expect(budget.purchases).toHaveLength(0);
+    expect(document.body.querySelector('.base-modal')).toBeNull();
+  });
+
+  // ── Clickable rows ──────────────────────────────────────────────
+
+  it('purchase rows have purchase-row--clickable class', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Groceries', amount: 60, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+    expect(w.find('.purchase-row--clickable').exists()).toBe(true);
+  });
+
+  it('clicking a purchase row opens the edit modal', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Lunch', amount: 15, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.find('.purchase-row--clickable').trigger('click');
+    await nextTick();
+
+    const modal = document.body.querySelector('.base-modal');
+    expect(modal).not.toBeNull();
+    expect(modal!.textContent).toContain('Edit Purchase');
+  });
+
+  it('clicking a row pre-fills the modal with the row\'s data', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Yoga class', amount: 22, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.find('.purchase-row--clickable').trigger('click');
+    await nextTick();
+
+    const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
+    expect(nameInput!.value).toBe('Yoga class');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  SpendingPage — donut uses wants-only data (BUG fix)
+// ─────────────────────────────────────────────────────────────────
+
+describe('SpendingPage — donut wants-only fix', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); document.body.innerHTML = ''; });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('donut total shows only wants spending, not the full total', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee',  amount: 10,  category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent',    amount: 900, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    const total = w.find('.spend-donut-total');
+    // Should show $10 (wants only), NOT $910 (all purchases)
+    expect(total.text()).toContain('$10.00');
+    expect(total.text()).not.toContain('$910.00');
+    w.unmount();
+  });
+
+  it('usedPct (donut %) is based on wants spending vs wants budget', async () => {
+    const budget = useBudgetStore();
+    // Set income so wants budget = $300/period (monthly $2000 × 30% / 2)
+    budget.addIncomeStream({ name: 'Salary', amount: 2000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 30, savings: 20 };
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    // Add $150 wants — should be 50% of the $300 wants budget
+    budget.addPurchase({ name: 'Shopping', amount: 150, category: 'other', cardId: null, budgetType: 'wants', date: today });
+    // Add $500 needs — should NOT inflate the % shown in the donut
+    budget.addPurchase({ name: 'Rent',     amount: 500, category: 'other', cardId: null, budgetType: 'needs', date: today });
+
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    // The donut centre shows the wants-only % — should be ~50%, not ~217%
+    const centre = w.find('.wants-donut-centre');
+    expect(centre.exists()).toBe(true);
+    const pctText = centre.text();
+    // 50% ± rounding — definitely not > 100
+    const pct = parseInt(pctText);
+    expect(pct).toBeLessThanOrEqual(55);
+    expect(pct).toBeGreaterThanOrEqual(45);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  SpendingPage — RS-16 donut type toggle (Wants / Needs)
+// ─────────────────────────────────────────────────────────────────
+
+describe('SpendingPage — RS-16 donut toggle', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); document.body.innerHTML = ''; });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  function addPurchase(
+    budget: ReturnType<typeof useBudgetStore>,
+    name: string, amount: number, budgetType: 'wants' | 'needs',
+  ) {
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name, amount, category: 'other', cardId: null, budgetType, date: today });
+  }
+
+  it('donut card renders a Wants toggle button', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 5, 'wants');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const btn = w.findAll('.dtt-btn').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Wants'));
+    expect(btn).toBeDefined();
+    w.unmount();
+  });
+
+  it('donut card renders a Needs toggle button', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 5, 'wants');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const btn = w.findAll('.dtt-btn').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Needs'));
+    expect(btn).toBeDefined();
+    w.unmount();
+  });
+
+  it('Wants toggle button is active by default', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 5, 'wants');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const wantsBtn = w.findAll('.dtt-btn')[0];
+    expect(wantsBtn.classes()).toContain('dtt-btn--active');
+    w.unmount();
+  });
+
+  it('clicking Needs activates the Needs button', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 5, 'wants');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const needsBtn = w.findAll('.dtt-btn')[1];
+    await needsBtn.trigger('click');
+    await nextTick();
+    expect(needsBtn.classes()).toContain('dtt-btn--active');
+    w.unmount();
+  });
+
+  it('donut hint text changes to "Needs purchases only" when Needs is selected', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Rent', 800, 'needs');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.findAll('.dtt-btn')[1].trigger('click'); // Needs
+    await nextTick();
+
+    expect(w.find('.spend-donut-hint').text()).toContain('Needs purchases only');
+    w.unmount();
+  });
+
+  it('donut hint reverts to "Wants purchases only" when Wants re-selected', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 5, 'wants');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    const [wantsBtn, needsBtn] = w.findAll('.dtt-btn');
+    await needsBtn.trigger('click');
+    await nextTick();
+    await wantsBtn.trigger('click');
+    await nextTick();
+
+    expect(w.find('.spend-donut-hint').text()).toContain('Wants purchases only');
+    w.unmount();
+  });
+
+  it('donut total reflects only wants spending when Wants selected', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 10, 'wants');
+    addPurchase(budget, 'Rent',  900, 'needs');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Default is Wants — total should be $10 only
+    expect(w.find('.spend-donut-total').text()).toContain('$10.00');
+    w.unmount();
+  });
+
+  it('donut total reflects only needs spending when Needs selected', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 10, 'wants');
+    addPurchase(budget, 'Rent',  900, 'needs');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.findAll('.dtt-btn')[1].trigger('click'); // Needs
+    await nextTick();
+
+    expect(w.find('.spend-donut-total').text()).toContain('$900.00');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  DashboardPage — RS-16 shared type toggle
+// ─────────────────────────────────────────────────────────────────
+
+describe('DashboardPage — RS-16 shared type toggle', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); document.body.innerHTML = ''; });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('hero card has Wants and Needs toggle buttons', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    const btns = w.findAll('.htt-btn');
+    expect(btns).toHaveLength(2);
+    expect(btns[0].text()).toContain('Wants');
+    expect(btns[1].text()).toContain('Needs');
+    w.unmount();
+  });
+
+  it('Wants toggle is active by default', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.findAll('.htt-btn')[0].classes()).toContain('htt-btn--active');
+    w.unmount();
+  });
+
+  it('clicking Needs activates the Needs button', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    const needsBtn = w.findAll('.htt-btn')[1];
+    await needsBtn.trigger('click');
+    await nextTick();
+    expect(needsBtn.classes()).toContain('htt-btn--active');
+    w.unmount();
+  });
+
+  it('hero subtitle changes to "Bi-weekly needs" when Needs is selected', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.findAll('.htt-btn')[1].trigger('click');
+    await nextTick();
+    expect(w.find('.kpi-hero__subtitle').text()).toContain('needs');
+    w.unmount();
+  });
+
+  it('hero subtitle shows "wants" when Wants is re-selected', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    const [wantsBtn, needsBtn] = w.findAll('.htt-btn');
+    await needsBtn.trigger('click');
+    await nextTick();
+    await wantsBtn.trigger('click');
+    await nextTick();
+    expect(w.find('.kpi-hero__subtitle').text()).toContain('wants');
+    w.unmount();
+  });
+
+  it('hero remaining changes when switching to Needs with different spend', async () => {
+    const budget = useBudgetStore();
+    budget.addIncomeStream({ name: 'Salary', amount: 3000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 30, savings: 20 };
+    const today = new Date().toISOString().split('T')[0] as never;
+    // Add a wants purchase and a needs purchase
+    budget.addPurchase({ name: 'Coffee',  amount: 50,  category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent',    amount: 200, category: 'other', cardId: null, budgetType: 'needs', date: today });
+
+    const w = mountWith(DashboardPage);
+    await nextTick();
+
+    // Record wants remaining amount
+    const wantsAmountText = w.find('.kpi-hero__amount').text();
+
+    // Switch to needs
+    await w.findAll('.htt-btn')[1].trigger('click');
+    await nextTick();
+
+    const needsAmountText = w.find('.kpi-hero__amount').text();
+    // The two views should show different numbers
+    expect(needsAmountText).not.toBe(wantsAmountText);
     w.unmount();
   });
 });

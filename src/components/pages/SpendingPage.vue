@@ -9,15 +9,17 @@
 -->
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, reactive, watch } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics } from '@/composables/useAnalytics';
 import { useToast } from '@/composables/useToast';
-import { getPayPeriodForecast, getCategorySpending } from '@/utils/calculations';
+import { getPayPeriodForecast, getCategorySpending, applyRulesToName } from '@/utils/calculations';
 import { CATEGORY_FALLBACK_COLOR } from '@/data/categories';
 import WantsDonut from '@/components/charts/WantsDonut.vue';
 import StatCard from '@/components/ui/StatCard.vue';
 import BaseCard from '@/components/ui/BaseCard.vue';
+import BaseModal from '@/components/ui/BaseModal.vue';
+import BaseButton from '@/components/ui/BaseButton.vue';
 import { fmt } from '@/utils/format';
 import type { Purchase, ISODate } from '@/types/budget';
 
@@ -107,8 +109,37 @@ const topCategoryInfo = computed(() => {
   };
 });
 
-// ─── Donut chart ─────────────────────────────────────────────────
-const categorySpending = computed(() => getCategorySpending(purchasesInPeriod.value));
+// ─── Donut chart — switchable wants/needs (RS-16) ────────────────
+/** Which type the donut card shows — independent from the table typeFilter. */
+const donutTypeFilter = ref<'wants' | 'needs'>('wants');
+
+const wantsPurchasesInPeriod = computed(() =>
+  purchasesInPeriod.value.filter(p => (p.budgetType ?? 'wants') !== 'needs'),
+);
+
+const needsPurchasesInPeriod = computed(() =>
+  purchasesInPeriod.value.filter(p => p.budgetType === 'needs'),
+);
+
+/** Purchases shown in the donut — changes with donutTypeFilter. */
+const donutPurchases = computed(() =>
+  donutTypeFilter.value === 'needs' ? needsPurchasesInPeriod.value : wantsPurchasesInPeriod.value,
+);
+
+/** Total spent for the active donut type. */
+const wantsSpentInPeriod = computed(() => donutPurchases.value.reduce((s, p) => s + p.amount, 0));
+
+/** Needs bi-weekly budget = income × needs% ÷ 2. */
+const needsBudgetPerPeriod = computed(() =>
+  (totalMonthlyIncome.value * ((budget.$state.allocation.needs || 0) / 100)) / 2,
+);
+
+/** Budget for the active donut type. */
+const donutBudget = computed(() =>
+  donutTypeFilter.value === 'needs' ? needsBudgetPerPeriod.value : wantsBudgetPerPeriod.value,
+);
+
+const categorySpending = computed(() => getCategorySpending(donutPurchases.value));
 
 const categoryColorMap = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {};
@@ -116,19 +147,19 @@ const categoryColorMap = computed<Record<string, string>>(() => {
   return map;
 });
 
-const remainingBudget = computed(() =>
-  wantsBudgetPerPeriod.value - totalSpentInPeriod.value,
-);
+const remainingBudget = computed(() => donutBudget.value - wantsSpentInPeriod.value);
 
 const usedPct = computed(() => {
-  if (wantsBudgetPerPeriod.value <= 0) return 0;
-  return (totalSpentInPeriod.value / wantsBudgetPerPeriod.value) * 100;
+  if (donutBudget.value <= 0) return 0;
+  return (wantsSpentInPeriod.value / donutBudget.value) * 100;
 });
 
-// ─── Daily spend bars ─────────────────────────────────────────────
+// ─── Daily spend bars — split by want / need (RS-15) ─────────────
 interface DailyBar {
   label: string;
   total: number;
+  wants: number;
+  needs: number;
 }
 
 const dailyBars = computed<DailyBar[]>(() => {
@@ -142,10 +173,14 @@ const dailyBars = computed<DailyBar[]>(() => {
     const iso  = d.toISOString().split('T')[0] as ISODate;
     const dow  = DOW[d.getDay()];
     const day  = d.getDate();
-    const total = purchasesInPeriod.value
-      .filter(p => p.date === iso)
+    const dayPurchases = purchasesInPeriod.value.filter(p => p.date === iso);
+    const wants = dayPurchases
+      .filter(p => (p.budgetType ?? 'wants') !== 'needs')
       .reduce((s, p) => s + p.amount, 0);
-    bars.push({ label: `${dow} ${day}`, total });
+    const needs = dayPurchases
+      .filter(p => p.budgetType === 'needs')
+      .reduce((s, p) => s + p.amount, 0);
+    bars.push({ label: `${dow} ${day}`, total: wants + needs, wants, needs });
   }
   return bars;
 });
@@ -155,15 +190,19 @@ const dailyMax = computed(() => Math.max(...dailyBars.value.map(b => b.total), 1
 // ─── Search / filter / sort ───────────────────────────────────────
 const searchQuery  = ref('');
 const catFilter    = ref('');
+const typeFilter   = ref<'' | 'wants' | 'needs'>('');
 const sortKey      = ref<'newest' | 'oldest' | 'amtHigh' | 'amtLow' | 'nameAZ'>('newest');
 
-/** All categories that appear in current period purchases (sorted by amount). */
-const activeCategories = computed(() =>
-  Object.entries(categorySpending.value)
+/** All categories present in the period — ALL purchase types, independent of the
+ *  donut toggle. These drive the filter chips in the "All purchases" table, which
+ *  always shows everything and must not change when the Wants/Needs toggle flips. */
+const activeCategories = computed(() => {
+  const spending = getCategorySpending(purchasesInPeriod.value);
+  return Object.entries(spending)
     .filter(([, v]) => v > 0)
     .sort(([, a], [, b]) => b - a)
-    .map(([name]) => name),
-);
+    .map(([name]) => name);
+});
 
 function cardLabel(cardId: string | null): string {
   if (!cardId) return '';
@@ -218,10 +257,17 @@ function applySort(items: Purchase[]): Purchase[] {
   }
 }
 
+function applyTypeFilter(items: Purchase[]): Purchase[] {
+  if (!typeFilter.value) return items;
+  if (typeFilter.value === 'needs') return items.filter(p => p.budgetType === 'needs');
+  return items.filter(p => (p.budgetType ?? 'wants') !== 'needs');
+}
+
 /** Dated period purchases after all filters + sort applied. */
 const filteredPurchases = computed(() => {
   let items = purchasesInPeriod.value;
-  if (catFilter.value) items = items.filter(p => p.category === catFilter.value);
+  if (catFilter.value)  items = items.filter(p => p.category === catFilter.value);
+  items = applyTypeFilter(items);
   items = applySearch(items);
   return applySort(items);
 });
@@ -229,7 +275,8 @@ const filteredPurchases = computed(() => {
 /** Undated purchases after search + cat filter + sort applied. */
 const filteredUndated = computed(() => {
   let items = undatedPurchases.value;
-  if (catFilter.value) items = items.filter(p => p.category === catFilter.value);
+  if (catFilter.value)  items = items.filter(p => p.category === catFilter.value);
+  items = applyTypeFilter(items);
   items = applySearch(items);
   return applySort(items);
 });
@@ -240,6 +287,103 @@ const totalFiltered = computed(() =>
 const totalAll = computed(() =>
   purchasesInPeriod.value.length + undatedPurchases.value.length,
 );
+
+/** Sum of amounts for all currently-visible rows (respects all active filters). */
+const filteredAmountTotal = computed(() =>
+  [...filteredPurchases.value, ...filteredUndated.value]
+    .reduce((s, p) => s + p.amount, 0),
+);
+
+// ─── Purchase CRUD ─────────────────────────────────────────────────
+const showPurchaseModal = ref(false);
+const editingPurchaseId = ref<string | null>(null);
+
+const purchaseForm = reactive({
+  name:       '',
+  amount:     0,
+  date:       '' as string,
+  category:   'Other' as string,
+  budgetType: 'wants' as 'wants' | 'needs',
+  cardId:     null as string | null,
+});
+
+/** Auto-categorise by rules when name changes (add mode only). */
+watch(
+  () => purchaseForm.name,
+  (name) => {
+    if (editingPurchaseId.value) return;
+    const matched = applyRulesToName(budget.rules, name);
+    if (matched) purchaseForm.category = matched;
+  },
+);
+
+const categoryOptions = computed(() => budget.spendingCategories.map(c => c.name));
+
+const purchaseFormError = computed<string>(() => {
+  if (!purchaseForm.name.trim()) return 'Name is required.';
+  if (purchaseForm.amount <= 0)  return 'Amount must be greater than zero.';
+  return '';
+});
+
+function resetPurchaseForm(): void {
+  purchaseForm.name       = '';
+  purchaseForm.amount     = 0;
+  purchaseForm.date       = today.toISOString().split('T')[0];
+  purchaseForm.category   = categoryOptions.value[0] ?? 'Other';
+  purchaseForm.budgetType = 'wants';
+  purchaseForm.cardId     = null;
+  editingPurchaseId.value = null;
+}
+
+function openAddPurchase(): void {
+  resetPurchaseForm();
+  showPurchaseModal.value = true;
+}
+
+function openEditPurchase(id: string): void {
+  const p = budget.purchases.find(x => x.id === id);
+  if (!p) return;
+  purchaseForm.name       = p.name;
+  purchaseForm.amount     = p.amount;
+  purchaseForm.date       = p.date ?? '';
+  purchaseForm.category   = p.category || 'Other';
+  purchaseForm.budgetType = (p.budgetType as 'wants' | 'needs') || 'wants';
+  purchaseForm.cardId     = p.cardId;
+  editingPurchaseId.value = id;
+  showPurchaseModal.value = true;
+}
+
+function savePurchase(): void {
+  if (purchaseFormError.value) return;
+  const payload = {
+    name:       purchaseForm.name.trim(),
+    amount:     purchaseForm.amount,
+    date:       (purchaseForm.date || undefined) as ISODate | undefined,
+    category:   purchaseForm.category,
+    budgetType: purchaseForm.budgetType,
+    cardId:     purchaseForm.cardId,
+  };
+  if (editingPurchaseId.value) {
+    budget.updatePurchase(editingPurchaseId.value, payload);
+    toast.show('Purchase updated.', 'success');
+  } else {
+    budget.addPurchase(payload);
+    toast.show('Purchase added.', 'success');
+  }
+  showPurchaseModal.value = false;
+  resetPurchaseForm();
+}
+
+function deletePurchase(id: string): void {
+  const p = budget.purchases.find(x => x.id === id);
+  if (!p) return;
+  if (!window.confirm(`Delete "${p.name}"?`)) return;
+  budget.deletePurchase(id);
+  toast.show('Purchase deleted.', 'success');
+  // Close the modal if delete was triggered from inside it
+  showPurchaseModal.value = false;
+  resetPurchaseForm();
+}
 </script>
 
 <template>
@@ -287,11 +431,37 @@ const totalAll = computed(() =>
 
     <!-- ── KPI tiles ───────────────────────────────────────────── -->
     <div class="spend-kpi-row">
-      <StatCard
-        label="Spent this period"
-        :value="fmt(totalSpentInPeriod)"
-        :hint="wantsBudgetPerPeriod > 0 ? `of ${fmt(wantsBudgetPerPeriod)} wants budget` : ''"
-      />
+      <!-- "Spent this period" — inline so it can host the Wants/Needs toggle -->
+      <div class="spend-stat-typed">
+        <div class="spend-stat-typed__header">
+          <span class="spend-stat-typed__label">Spent this period</span>
+          <div class="donut-type-toggle">
+            <button
+              class="dtt-btn"
+              :class="{ 'dtt-btn--active': donutTypeFilter === 'wants' }"
+              @click="donutTypeFilter = 'wants'"
+            >
+              🛍 Wants
+            </button>
+            <button
+              class="dtt-btn"
+              :class="{ 'dtt-btn--active': donutTypeFilter === 'needs' }"
+              @click="donutTypeFilter = 'needs'"
+            >
+              🏠 Needs
+            </button>
+          </div>
+        </div>
+        <div class="spend-stat-typed__value">
+          {{ fmt(wantsSpentInPeriod) }}
+        </div>
+        <div
+          v-if="donutBudget > 0"
+          class="spend-stat-typed__hint"
+        >
+          of {{ fmt(donutBudget) }} {{ donutTypeFilter }} budget
+        </div>
+      </div>
       <StatCard
         label="Daily average"
         :value="fmt(dailyAvg)"
@@ -314,14 +484,17 @@ const totalAll = computed(() =>
       v-if="spendingPeriod && purchasesInPeriod.length > 0"
       class="spend-charts-row"
     >
-      <!-- Category donut -->
+      <!-- Category donut — type driven by the "Spent this period" toggle above -->
       <BaseCard class="spend-donut-card">
         <div class="spend-section-eyebrow">
           By category
         </div>
         <div class="spend-donut-total">
-          {{ fmt(totalSpentInPeriod) }}
+          {{ fmt(wantsSpentInPeriod) }}
         </div>
+        <p class="spend-donut-hint">
+          {{ donutTypeFilter === 'needs' ? 'Needs purchases only' : 'Wants purchases only' }}
+        </p>
         <WantsDonut
           :category-spending="categorySpending"
           :remaining="Math.max(0, remainingBudget)"
@@ -355,21 +528,41 @@ const totalAll = computed(() =>
             <div class="spend-bar-amt">
               <template v-if="bar.total > 0">{{ fmt(bar.total) }}</template>
             </div>
+            <!-- Stacked bar: wants (bottom, accent) + needs (top, danger) -->
             <div class="spend-bar-track">
+              <template v-if="bar.total > 0">
+                <div
+                  v-if="bar.wants > 0"
+                  class="spend-bar-fill spend-bar-fill--wants"
+                  :style="{ height: `${(bar.wants / dailyMax) * 100}%` }"
+                />
+                <div
+                  v-if="bar.needs > 0"
+                  class="spend-bar-fill spend-bar-fill--needs"
+                  :style="{ height: `${(bar.needs / dailyMax) * 100}%` }"
+                />
+              </template>
               <div
-                class="spend-bar-fill"
-                :style="{
-                  height: bar.total > 0
-                    ? `${Math.max((bar.total / dailyMax) * 100, 4)}%`
-                    : '4%',
-                  background: bar.total > 0 ? 'var(--accent)' : 'var(--border)',
-                }"
+                v-else
+                class="spend-bar-fill spend-bar-fill--empty"
               />
             </div>
             <div class="spend-bar-label">
               {{ bar.label }}
             </div>
           </div>
+        </div>
+
+        <!-- Bar chart legend -->
+        <div class="spend-bars-legend">
+          <span class="spend-bars-legend__item">
+            <span class="spend-bars-legend__dot spend-bars-legend__dot--wants" />
+            Wants
+          </span>
+          <span class="spend-bars-legend__item">
+            <span class="spend-bars-legend__dot spend-bars-legend__dot--needs" />
+            Needs
+          </span>
         </div>
       </BaseCard>
     </div>
@@ -384,10 +577,19 @@ const totalAll = computed(() =>
           </div>
           <div class="purchases-count">
             {{ totalFiltered }} of {{ totalAll }}
+            <span class="purchases-count__total">· {{ fmt(filteredAmountTotal) }}</span>
           </div>
         </div>
 
         <div class="purchases-controls">
+          <!-- Add purchase button -->
+          <BaseButton
+            size="sm"
+            @click="openAddPurchase"
+          >
+            + Add
+          </BaseButton>
+
           <!-- Pill search -->
           <div
             class="search-pill"
@@ -452,6 +654,33 @@ const totalAll = computed(() =>
         </div>
       </div>
 
+      <!-- Type filter chips (All / Wants / Needs) -->
+      <div class="cat-chips cat-chips--type">
+        <button
+          class="cat-chip"
+          :class="{ 'cat-chip--active': typeFilter === '' }"
+          @click="typeFilter = ''"
+        >
+          All
+        </button>
+        <button
+          class="cat-chip"
+          :class="{ 'cat-chip--active': typeFilter === 'wants' }"
+          :style="typeFilter === 'wants' ? { background: 'var(--accent)22', borderColor: 'var(--accent)', color: 'var(--accent)' } : {}"
+          @click="typeFilter = typeFilter === 'wants' ? '' : 'wants'"
+        >
+          🛍 Wants
+        </button>
+        <button
+          class="cat-chip"
+          :class="{ 'cat-chip--active': typeFilter === 'needs' }"
+          :style="typeFilter === 'needs' ? { background: 'var(--danger, #f87171)22', borderColor: 'var(--danger, #f87171)', color: 'var(--danger, #f87171)' } : {}"
+          @click="typeFilter = typeFilter === 'needs' ? '' : 'needs'"
+        >
+          🏠 Needs
+        </button>
+      </div>
+
       <!-- Category chips -->
       <div
         v-if="activeCategories.length > 0"
@@ -488,6 +717,7 @@ const totalAll = computed(() =>
               <th>Date</th>
               <th>Name</th>
               <th>Category</th>
+              <th>Type</th>
               <th>Card</th>
               <th class="col-amt">
                 Amount
@@ -495,11 +725,17 @@ const totalAll = computed(() =>
             </tr>
           </thead>
           <tbody>
-            <!-- Dated period purchases -->
+            <!-- Dated period purchases (click row to edit) -->
             <tr
               v-for="p in filteredPurchases"
               :key="p.id"
-              class="purchase-row"
+              class="purchase-row purchase-row--clickable"
+              tabindex="0"
+              role="button"
+              :aria-label="`Edit purchase: ${p.name}`"
+              @click="openEditPurchase(p.id)"
+              @keydown.enter.prevent="openEditPurchase(p.id)"
+              @keydown.space.prevent="openEditPurchase(p.id)"
             >
               <td class="col-date">
                 {{ formatDate(p.date) }}
@@ -522,6 +758,14 @@ const totalAll = computed(() =>
                   {{ p.category || 'Other' }}
                 </span>
               </td>
+              <td class="col-type">
+                <span
+                  class="type-badge"
+                  :class="p.budgetType === 'needs' ? 'type-badge--needs' : 'type-badge--wants'"
+                >
+                  {{ p.budgetType === 'needs' ? 'Need' : 'Want' }}
+                </span>
+              </td>
               <td class="col-card">
                 <span
                   v-if="cardLabel(p.cardId)"
@@ -541,7 +785,7 @@ const totalAll = computed(() =>
             <template v-if="filteredUndated.length > 0">
               <tr class="undated-divider-row">
                 <td
-                  colspan="5"
+                  colspan="6"
                   class="undated-divider-label"
                 >
                   No date
@@ -550,7 +794,13 @@ const totalAll = computed(() =>
               <tr
                 v-for="p in filteredUndated"
                 :key="`ud-${p.id}`"
-                class="purchase-row purchase-row--undated"
+                class="purchase-row purchase-row--undated purchase-row--clickable"
+                tabindex="0"
+                role="button"
+                :aria-label="`Edit purchase: ${p.name}`"
+                @click="openEditPurchase(p.id)"
+                @keydown.enter.prevent="openEditPurchase(p.id)"
+                @keydown.space.prevent="openEditPurchase(p.id)"
               >
                 <td class="col-date col-muted">
                   —
@@ -573,6 +823,14 @@ const totalAll = computed(() =>
                     {{ p.category || 'Other' }}
                   </span>
                 </td>
+                <td class="col-type">
+                  <span
+                    class="type-badge"
+                    :class="p.budgetType === 'needs' ? 'type-badge--needs' : 'type-badge--wants'"
+                  >
+                    {{ p.budgetType === 'needs' ? 'Need' : 'Want' }}
+                  </span>
+                </td>
                 <td class="col-card">
                   <span
                     v-if="cardLabel(p.cardId)"
@@ -592,7 +850,7 @@ const totalAll = computed(() =>
             <!-- Empty state row -->
             <tr v-if="filteredPurchases.length === 0 && filteredUndated.length === 0">
               <td
-                colspan="5"
+                colspan="6"
                 class="empty-row"
               >
                 <template v-if="searchQuery || catFilter">
@@ -607,6 +865,161 @@ const totalAll = computed(() =>
         </table>
       </div>
     </BaseCard>
+
+    <!-- ── Add / Edit purchase modal ──────────────────────────── -->
+    <BaseModal
+      v-model:open="showPurchaseModal"
+      :title="editingPurchaseId ? 'Edit Purchase' : 'Add Purchase'"
+      size="sm"
+    >
+      <div class="modal-form">
+        <!-- Name + Amount -->
+        <div class="mf-row-2">
+          <div class="mf-group">
+            <label
+              class="mf-label"
+              for="sp-name"
+            >Item name</label>
+            <input
+              id="sp-name"
+              v-model="purchaseForm.name"
+              class="mf-input"
+              type="text"
+              placeholder="e.g. Coffee"
+            >
+          </div>
+          <div class="mf-group">
+            <label
+              class="mf-label"
+              for="sp-amount"
+            >Amount ($)</label>
+            <input
+              id="sp-amount"
+              v-model.number="purchaseForm.amount"
+              class="mf-input"
+              type="number"
+              inputmode="decimal"
+              min="0.01"
+              step="0.01"
+            >
+          </div>
+        </div>
+
+        <!-- Date + Category -->
+        <div class="mf-row-2">
+          <div class="mf-group">
+            <label
+              class="mf-label"
+              for="sp-date"
+            >Date</label>
+            <input
+              id="sp-date"
+              v-model="purchaseForm.date"
+              class="mf-input"
+              type="date"
+            >
+          </div>
+          <div class="mf-group">
+            <label
+              class="mf-label"
+              for="sp-cat"
+            >Category</label>
+            <select
+              id="sp-cat"
+              v-model="purchaseForm.category"
+              class="mf-input"
+            >
+              <option
+                v-for="cat in categoryOptions"
+                :key="cat"
+                :value="cat"
+              >
+                {{ cat }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Type toggle -->
+        <div class="mf-group">
+          <label class="mf-label">Purchase type</label>
+          <div class="mf-type-row">
+            <button
+              class="mf-type-btn"
+              :class="{ 'mf-type-btn--wants': purchaseForm.budgetType === 'wants' }"
+              type="button"
+              @click="purchaseForm.budgetType = 'wants'"
+            >
+              🛍 Want
+            </button>
+            <button
+              class="mf-type-btn"
+              :class="{ 'mf-type-btn--needs': purchaseForm.budgetType === 'needs' }"
+              type="button"
+              @click="purchaseForm.budgetType = 'needs'"
+            >
+              🏠 Need
+            </button>
+          </div>
+        </div>
+
+        <!-- Card -->
+        <div class="mf-group">
+          <label
+            class="mf-label"
+            for="sp-card"
+          >Card</label>
+          <select
+            id="sp-card"
+            v-model="purchaseForm.cardId"
+            class="mf-input"
+          >
+            <option :value="null">
+              No card
+            </option>
+            <option
+              v-for="card in budget.expenseCards"
+              :key="card.id"
+              :value="card.id"
+            >
+              {{ card.label }}
+            </option>
+          </select>
+        </div>
+
+        <p
+          v-if="purchaseFormError"
+          class="mf-error"
+        >
+          {{ purchaseFormError }}
+        </p>
+      </div>
+
+      <template #footer>
+        <!-- Delete button — only visible when editing an existing purchase -->
+        <BaseButton
+          v-if="editingPurchaseId"
+          variant="danger"
+          class="mf-footer-delete"
+          @click="deletePurchase(editingPurchaseId)"
+        >
+          Delete
+        </BaseButton>
+        <div class="mf-footer-spacer" />
+        <BaseButton
+          variant="secondary"
+          @click="showPurchaseModal = false; resetPurchaseForm()"
+        >
+          Cancel
+        </BaseButton>
+        <BaseButton
+          :disabled="!!purchaseFormError"
+          @click="savePurchase"
+        >
+          {{ editingPurchaseId ? 'Update' : 'Add' }}
+        </BaseButton>
+      </template>
+    </BaseModal>
 
   </div>
 </template>
@@ -733,7 +1146,14 @@ const totalAll = computed(() =>
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.2rem;
+}
+
+.spend-donut-hint {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+  font-style: italic;
 }
 
 /* ── Daily bars ──────────────────────────────────────────────── */
@@ -786,19 +1206,27 @@ const totalAll = computed(() =>
   overflow: hidden;
 }
 
+/* Stacked bar track — column-reverse puts wants at bottom, needs on top */
 .spend-bar-track {
   width: 100%;
   max-width: 22px;
   height: 90px;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column-reverse;
+  align-items: stretch;
+  overflow: hidden;
+  border-radius: 4px 4px 0 0;
 }
 
 .spend-bar-fill {
   width: 100%;
-  border-radius: 4px 4px 0 0;
   transition: height 0.3s ease;
+  flex-shrink: 0;
 }
+
+.spend-bar-fill--wants { background: var(--accent); }
+.spend-bar-fill--needs { background: var(--danger, #f87171); }
+.spend-bar-fill--empty { height: 4%; background: var(--border); }
 
 .spend-bar-label {
   position: absolute;
@@ -809,6 +1237,32 @@ const totalAll = computed(() =>
   white-space: nowrap;
   text-align: center;
 }
+
+/* Bar chart legend */
+.spend-bars-legend {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.spend-bars-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.spend-bars-legend__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.spend-bars-legend__dot--wants { background: var(--accent); }
+.spend-bars-legend__dot--needs { background: var(--danger, #f87171); }
 
 /* ── Purchases card ──────────────────────────────────────────── */
 .purchases-card-header {
@@ -995,6 +1449,30 @@ const totalAll = computed(() =>
   background: rgba(255, 255, 255, 0.02);
 }
 
+.purchase-row--clickable {
+  cursor: pointer;
+}
+
+.purchase-row--clickable:hover td {
+  background: color-mix(in srgb, var(--accent, #5b3df5) 6%, transparent);
+}
+
+.purchase-row--clickable:hover td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent, #5b3df5);
+}
+
+.purchase-row--clickable:focus-visible td {
+  background: color-mix(in srgb, var(--accent, #5b3df5) 10%, transparent);
+}
+
+.purchase-row--clickable:focus-visible td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent, #5b3df5);
+}
+
+.purchase-row--clickable:focus-visible {
+  outline: none;
+}
+
 /* Table column widths */
 .col-date  { white-space: nowrap; font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .col-name  { font-weight: 600; }
@@ -1019,6 +1497,34 @@ const totalAll = computed(() =>
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+/* ── Type badge in table ─────────────────────────────────────────── */
+.col-type { white-space: nowrap; }
+
+.type-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.type-badge--wants {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.type-badge--needs {
+  background: color-mix(in srgb, var(--danger, #f87171) 14%, transparent);
+  color: var(--danger, #f87171);
+}
+
+/* ── Type filter chips separator ────────────────────────────────── */
+.cat-chips--type {
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.35rem;
 }
 
 .card-label {
@@ -1050,5 +1556,182 @@ const totalAll = computed(() =>
   color: var(--muted);
   font-size: 0.82rem;
   padding: 2rem !important;
+}
+
+/* ── Filtered total in header ────────────────────────────────────── */
+.purchases-count__total {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 0.15rem;
+}
+
+/* ── "Spent this period" stat card with inline toggle ────────────── */
+.spend-stat-typed {
+  background: var(--surface, #16161e);
+  border: 1px solid var(--border, #2a3041);
+  border-radius: 8px;
+  padding: 0.85rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.spend-stat-typed__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.spend-stat-typed__label {
+  font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted, #8b8b95);
+  font-weight: 600;
+}
+
+.spend-stat-typed__value {
+  font-size: clamp(1.2rem, 4.5vw, 1.45rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text, #e3e6ee);
+  font-variant-numeric: tabular-nums;
+}
+
+.spend-stat-typed__hint {
+  font-size: 0.78rem;
+  color: var(--muted, #8b8b95);
+}
+
+.donut-type-toggle {
+  display: flex;
+  gap: 3px;
+}
+
+.dtt-btn {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.dtt-btn--active {
+  background: color-mix(in srgb, var(--accent, #5b3df5) 12%, transparent);
+  border-color: var(--accent, #5b3df5);
+  color: var(--accent, #5b3df5);
+}
+
+.dtt-btn:not(.dtt-btn--active):hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+/* ── Modal footer layout (delete left, cancel+save right) ─────────── */
+.mf-footer-delete {
+  margin-right: auto;
+}
+
+.mf-footer-spacer {
+  flex: 1;
+}
+
+/* ── Add/Edit modal form ─────────────────────────────────────────── */
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mf-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .mf-row-2 { grid-template-columns: 1fr; }
+}
+
+.mf-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.mf-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mf-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.mf-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.mf-type-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.mf-type-btn {
+  padding: 0.5rem 0;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.mf-type-btn:hover:not(.mf-type-btn--wants):not(.mf-type-btn--needs) {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.mf-type-btn--wants {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.mf-type-btn--needs {
+  background: color-mix(in srgb, var(--danger, #f87171) 12%, transparent);
+  border-color: var(--danger, #f87171);
+  color: var(--danger, #f87171);
+}
+
+.mf-error {
+  font-size: 0.8rem;
+  color: var(--danger, #f87171);
+  margin: 0;
 }
 </style>
