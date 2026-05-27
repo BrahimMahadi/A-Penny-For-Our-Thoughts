@@ -150,6 +150,35 @@ const netWorthMomPct = computed(() => {
   return (change / Math.abs(prev)) * 100;
 });
 
+// ─── Dashboard shared type toggle (RS-16) ────────────────────────
+/** Drives the hero card + Purchases This Period. Persists per session only. */
+const dashboardTypeFilter = ref<'wants' | 'needs'>('wants');
+
+/** Hero card: budget for the active type. */
+const heroBudget = computed(() =>
+  dashboardTypeFilter.value === 'needs' ? biWeeklyNeedsBudget.value : biWeeklyBudget.value,
+);
+
+/** Hero card: amount spent for the active type. */
+const heroSpent = computed(() =>
+  dashboardTypeFilter.value === 'needs'
+    ? biWeeklyNeedsSpent.value
+    : biWeeklySpent.value + biWeeklyDeductions.value,
+);
+
+/** Hero card: remaining for the active type. */
+const heroRemaining = computed(() =>
+  dashboardTypeFilter.value === 'needs'
+    ? biWeeklyNeedsRemaining.value
+    : biWeeklyRemaining.value,
+);
+
+/** Hero card: % used for the active type. */
+const heroUsedPct = computed(() => {
+  if (heroBudget.value <= 0) return 0;
+  return Math.min(100, (heroSpent.value / heroBudget.value) * 100);
+});
+
 // ─── Quick-add modal ──────────────────────────────────────────────
 const showQuickAdd       = ref(false);
 const quickAddName       = ref('');
@@ -255,50 +284,69 @@ function submitQuickAdd(): void {
     <!-- ══ Hero KPI row ══════════════════════════════════════════════════ -->
     <div class="kpi-row">
 
-      <!-- ── Hero: bi-weekly wants envelope ── -->
+      <!-- ── Hero: bi-weekly envelope (RS-16: wants/needs toggle) ── -->
       <div class="kpi-hero">
         <div class="kpi-hero__circle kpi-hero__circle--lg" aria-hidden="true" />
         <div class="kpi-hero__circle kpi-hero__circle--sm" aria-hidden="true" />
 
         <div class="kpi-hero__content">
-          <p class="kpi-hero__label">
-            Available to spend
-          </p>
+          <div class="kpi-hero__label-row">
+            <p class="kpi-hero__label">
+              Available to spend
+            </p>
+            <!-- Wants / Needs toggle -->
+            <div class="hero-type-toggle">
+              <button
+                class="htt-btn"
+                :class="{ 'htt-btn--active': dashboardTypeFilter === 'wants' }"
+                @click="dashboardTypeFilter = 'wants'"
+              >
+                Wants
+              </button>
+              <button
+                class="htt-btn"
+                :class="{ 'htt-btn--active': dashboardTypeFilter === 'needs' }"
+                @click="dashboardTypeFilter = 'needs'"
+              >
+                Needs
+              </button>
+            </div>
+          </div>
           <p
             v-if="periodEndLabel"
             class="kpi-hero__subtitle"
           >
-            Bi-weekly wants · until {{ periodEndLabel }}
+            Bi-weekly {{ dashboardTypeFilter }} · until {{ periodEndLabel }}
           </p>
           <p
             v-else
             class="kpi-hero__subtitle"
           >
-            Bi-weekly wants · set a pay date in Settings
+            Bi-weekly {{ dashboardTypeFilter }} · set a pay date in Settings
           </p>
 
           <div class="kpi-hero__amount">
-            <span class="kpi-hero__amount-int">{{ fmt(Math.abs(biWeeklyRemaining)).split('.')[0] }}</span><span class="kpi-hero__amount-dec">.{{ fmt(Math.abs(biWeeklyRemaining)).split('.')[1] ?? '00' }}</span>
+            <span class="kpi-hero__amount-int">{{ fmt(Math.abs(heroRemaining)).split('.')[0] }}</span><span class="kpi-hero__amount-dec">.{{ fmt(Math.abs(heroRemaining)).split('.')[1] ?? '00' }}</span>
             <span
-              v-if="biWeeklyRemaining < 0"
+              v-if="heroRemaining < 0"
               class="kpi-hero__over-badge"
             >OVER</span>
           </div>
 
           <p class="kpi-hero__caption">
-            {{ fmt(biWeeklySpent + biWeeklyDeductions) }} spent of {{ fmt(biWeeklyBudget) }}
+            {{ fmt(heroSpent) }} spent of {{ fmt(heroBudget) }}
           </p>
           <div
             class="kpi-hero__track"
             role="progressbar"
-            :aria-valuenow="biWeeklyUsedPct"
+            :aria-valuenow="heroUsedPct"
             aria-valuemin="0"
             aria-valuemax="100"
-            aria-label="Bi-weekly wants spent"
+            :aria-label="`Bi-weekly ${dashboardTypeFilter} spent`"
           >
             <div
               class="kpi-hero__fill"
-              :style="{ width: `${Math.min(100, biWeeklyUsedPct)}%` }"
+              :style="{ width: `${Math.min(100, heroUsedPct)}%` }"
             />
           </div>
         </div>
@@ -415,7 +463,7 @@ function submitQuickAdd(): void {
         section-id="purchases-this-period"
         :collapsible="true"
       >
-        <PurchasesThisPeriod />
+        <PurchasesThisPeriod :type-filter="dashboardTypeFilter" />
       </BaseCard>
 
       <BaseCard
@@ -744,13 +792,56 @@ function submitQuickAdd(): void {
   width: 100%;
 }
 
+/* ── Hero label row (label + type toggle side by side) ─────────── */
+.kpi-hero__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
 .kpi-hero__label {
-  margin: 0 0 0.2rem;
+  margin: 0;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.75);
+}
+
+/* ── Wants / Needs toggle pill (inside hero card) ────────────────── */
+.hero-type-toggle {
+  display: flex;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.htt-btn {
+  padding: 3px 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.htt-btn--active {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.htt-btn:not(.htt-btn--active):hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .kpi-hero__subtitle {

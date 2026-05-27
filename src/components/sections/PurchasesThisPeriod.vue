@@ -2,10 +2,14 @@
   Module:   components/sections/PurchasesThisPeriod.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (RS-12)
-  Summary:  Read-only dashboard widget showing the bi-weekly wants
-            envelope as a donut chart (left) with a per-category
-            breakdown list (right). Mirrors WantsTracker display logic.
-            All edits live in the Spending tab.
+  Updated:  May 2026 (RS-16) — typeFilter prop; shows wants OR needs
+            breakdown driven by the dashboard shared toggle.
+            Also fixed categorySpending to use type-filtered purchases
+            (was incorrectly using all purchases regardless of type).
+  Summary:  Read-only dashboard widget showing the bi-weekly envelope
+            as a donut chart (left) with a per-category breakdown list
+            (right). The parent (DashboardPage) passes typeFilter to
+            switch between wants and needs views.
 -->
 
 <script setup lang="ts">
@@ -21,21 +25,37 @@ import {
 } from '@/utils/calculations';
 import { CATEGORY_FALLBACK_COLOR } from '@/data/categories';
 
+// ─── Props ────────────────────────────────────────────────────────
+interface Props {
+  /** Which envelope to display. Driven by the dashboard shared toggle. */
+  typeFilter?: 'wants' | 'needs';
+}
+const props = withDefaults(defineProps<Props>(), { typeFilter: 'wants' });
+
 const budget = useBudgetStore();
 const { totalMonthlyIncome } = useAnalytics();
 
 const today = new Date();
 
-// ─── Bi-weekly envelope ────────────────────────────────────────────
-const biWeeklyBudget = computed(() =>
+// ─── Bi-weekly budgets ────────────────────────────────────────────
+const biWeeklyWantsBudget = computed(() =>
   (totalMonthlyIncome.value * (budget.allocation.wants / 100)) / 2,
 );
 
-// ─── Deductions (subs/loans auto-deducted this period) ────────────
+const biWeeklyNeedsBudget = computed(() =>
+  (totalMonthlyIncome.value * (budget.allocation.needs / 100)) / 2,
+);
+
+const biWeeklyBudget = computed(() =>
+  props.typeFilter === 'needs' ? biWeeklyNeedsBudget.value : biWeeklyWantsBudget.value,
+);
+
+// ─── Deductions (subs/loans auto-deducted — wants envelope only) ──
 const subsDeducted  = computed(() => getSubsDeductedThisPeriod(budget.$state, today));
 const loansDeducted = computed(() => getLoansDeductedThisPeriod(budget.$state, today));
 
 const deductionTotal = computed(() => {
+  if (props.typeFilter === 'needs') return 0; // deductions live in the wants envelope
   const subTotal  = subsDeducted.value.reduce((s, sub) =>
     s + (+sub.amount || 0) * sub.renewalDates.length, 0);
   const loanTotal = loansDeducted.value.reduce((s, loan) =>
@@ -43,13 +63,18 @@ const deductionTotal = computed(() => {
   return subTotal + loanTotal;
 });
 
-// ─── Category spending ─────────────────────────────────────────────
-const categorySpending = computed(() => getCategorySpending(budget.purchases));
+// ─── Filtered purchases ───────────────────────────────────────────
+const filteredPurchases = computed(() =>
+  props.typeFilter === 'needs'
+    ? budget.purchases.filter(p => p.budgetType === 'needs')
+    : budget.purchases.filter(p => (p.budgetType || 'wants') === 'wants'),
+);
+
+// ─── Category spending (type-filtered) ───────────────────────────
+const categorySpending = computed(() => getCategorySpending(filteredPurchases.value));
 
 const totalSpent = computed(() =>
-  budget.purchases
-    .filter(p => (p.budgetType || 'wants') === 'wants')
-    .reduce((s, p) => s + p.amount, 0),
+  filteredPurchases.value.reduce((s, p) => s + p.amount, 0),
 );
 
 const remaining = computed(() =>
@@ -83,8 +108,14 @@ const categoryList = computed(() =>
     })),
 );
 
-const isEmpty = computed(() =>
-  categoryList.value.length === 0 && deductionTotal.value === 0,
+const isEmpty = computed(() => {
+  if (props.typeFilter === 'needs') return totalSpent.value === 0;
+  return categoryList.value.length === 0 && deductionTotal.value === 0;
+});
+
+/** Caption label below the donut. */
+const captionLabel = computed(() =>
+  props.typeFilter === 'needs' ? 'Bi-weekly needs' : 'Bi-weekly wants',
 );
 </script>
 
@@ -95,9 +126,9 @@ const isEmpty = computed(() =>
       v-if="isEmpty"
       class="ptp__empty"
     >
-      <span class="ptp__empty-icon">🛍️</span>
+      <span class="ptp__empty-icon">{{ typeFilter === 'needs' ? '🏠' : '🛍️' }}</span>
       <p class="ptp__empty-text">
-        No purchases this period yet.
+        No {{ typeFilter }} purchases this period yet.
       </p>
       <p class="ptp__empty-hint">
         Use Quick Add or the Spending tab.
@@ -120,6 +151,9 @@ const isEmpty = computed(() =>
         <p class="ptp__donut-caption">
           {{ fmt(totalSpent + deductionTotal) }} / {{ fmt(biWeeklyBudget) }}
         </p>
+        <p class="ptp__donut-type-hint">
+          {{ captionLabel }}
+        </p>
       </div>
 
       <!-- Category list -->
@@ -138,7 +172,7 @@ const isEmpty = computed(() =>
           <span class="ptp__cat-pct">{{ cat.pct.toFixed(0) }}%</span>
         </div>
 
-        <!-- Auto-deductions row -->
+        <!-- Auto-deductions row (wants envelope only) -->
         <div
           v-if="deductionTotal > 0"
           class="ptp__cat-row ptp__cat-row--deductions"
@@ -223,6 +257,15 @@ const isEmpty = computed(() =>
   color: var(--muted);
   font-family: var(--font-mono);
   text-align: center;
+  white-space: nowrap;
+}
+
+.ptp__donut-type-hint {
+  margin: 0;
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-align: center;
+  opacity: 0.7;
   white-space: nowrap;
 }
 

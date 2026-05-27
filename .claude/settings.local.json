@@ -25,7 +25,21 @@
       "Bash(git commit -m 'docs: Add CSV import template and guide for users *)",
       "Bash(mkdir -p src data docs)",
       "Bash(git mv *)",
-      "Bash(git commit -m 'refactor: Reorganize project structure for scalability *)"
+      "Bash(git commit -m 'refactor: Reorganize project structure for scalability *)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "Bash(git stash *)",
+      "Bash(git branch *)",
+      "Bash(grep -n \"^</div>$\\\\|tab-dashboard\\\\|page active\\\\|id=\\\\\"tab-\" index.html)",
+      "Bash(read fn *)",
+      "Bash(sed -i '' 's|<div class=\"section-title\">Income Overview</div>|<h2 class=\"section-title\">Income Overview</h2>|g' index.html)",
+      "Bash(sed -i '' 's|<div class=\"section-title\" style=\"margin-top:24px\">Budget vs. Actual</div>|<h2 class=\"section-title\" style=\"margin-top:24px\">Budget vs. Actual</h2>|g' index.html)",
+      "Bash(sed -i '' 's|<div class=\"section-title\">Wants Tracker</div>|<h2 class=\"section-title\">Wants Tracker</h2>|g' index.html)",
+      "Bash(sed -i '' 's|<div class=\"section-title\">Monthly Expenses</div>|<h2 class=\"section-title\">Monthly Expenses</h2>|g' index.html)",
+      "Bash(sed -i '' 's|<div class=\"section-title\">Loans</div>|<h2 class=\"section-title\">Loans</h2>|g' index.html)"
     ]
   }
 }

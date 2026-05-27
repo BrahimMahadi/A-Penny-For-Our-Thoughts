@@ -3768,17 +3768,16 @@ describe('SpendingPage — CRUD', () => {
     expect(found!.budgetType).toBe('needs');
   });
 
-  // ── Edit purchase ───────────────────────────────────────────────
+  // ── Edit purchase (row click → modal) ──────────────────────────
 
-  it('edit button opens modal with title "Edit Purchase"', async () => {
+  it('clicking a purchase row opens modal with title "Edit Purchase"', async () => {
     const budget = useBudgetStore();
     budget.payStart = new Date().toISOString().split('T')[0] as never;
     budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
     w = mountWith(SpendingPage);
     await nextTick();
 
-    const editBtn = w.find('.row-action-btn--edit');
-    await editBtn.trigger('click');
+    await w.find('.purchase-row--clickable').trigger('click');
     await nextTick();
 
     const modal = document.body.querySelector('.base-modal');
@@ -3786,15 +3785,14 @@ describe('SpendingPage — CRUD', () => {
     expect(modal!.textContent).toContain('Edit Purchase');
   });
 
-  it('edit modal is pre-filled with the purchase values', async () => {
+  it('clicking a row pre-fills the modal with the purchase values', async () => {
     const budget = useBudgetStore();
     budget.payStart = new Date().toISOString().split('T')[0] as never;
     budget.addPurchase({ name: 'Sushi dinner', amount: 55, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
     w = mountWith(SpendingPage);
     await nextTick();
 
-    const editBtn = w.find('.row-action-btn--edit');
-    await editBtn.trigger('click');
+    await w.find('.purchase-row--clickable').trigger('click');
     await nextTick();
 
     const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
@@ -3803,14 +3801,14 @@ describe('SpendingPage — CRUD', () => {
     expect(Number(amtInput!.value)).toBe(55);
   });
 
-  it('saving edit updates the purchase in the store', async () => {
+  it('saving an edit via the row-click modal updates the purchase in the store', async () => {
     const budget = useBudgetStore();
     budget.payStart = new Date().toISOString().split('T')[0] as never;
     budget.addPurchase({ name: 'Old name', amount: 10, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
     w = mountWith(SpendingPage);
     await nextTick();
 
-    await w.find('.row-action-btn--edit').trigger('click');
+    await w.find('.purchase-row--clickable').trigger('click');
     await nextTick();
 
     const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
@@ -3827,9 +3825,24 @@ describe('SpendingPage — CRUD', () => {
     expect(budget.purchases.find(p => p.name === 'Old name')).toBeUndefined();
   });
 
-  // ── Delete purchase ─────────────────────────────────────────────
+  it('edit modal shows a Delete button', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
 
-  it('delete button removes the purchase when confirm returns true', async () => {
+    await w.find('.purchase-row--clickable').trigger('click');
+    await nextTick();
+
+    const deleteBtn = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'))
+      .find(b => b.textContent?.trim() === 'Delete');
+    expect(deleteBtn).toBeDefined();
+  });
+
+  // ── Delete purchase (from modal) ────────────────────────────────
+
+  it('Delete button in modal removes the purchase when confirm returns true', async () => {
     const budget = useBudgetStore();
     budget.payStart = new Date().toISOString().split('T')[0] as never;
     budget.addPurchase({ name: 'Expense to delete', amount: 25, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
@@ -3837,13 +3850,23 @@ describe('SpendingPage — CRUD', () => {
     await nextTick();
 
     expect(budget.purchases).toHaveLength(1);
-    await w.find('.row-action-btn--delete').trigger('click');
+
+    // Open edit modal by clicking the row
+    await w.find('.purchase-row--clickable').trigger('click');
+    await nextTick();
+
+    // Click Delete inside the modal
+    const deleteBtn = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'))
+      .find(b => b.textContent?.trim() === 'Delete');
+    deleteBtn!.click();
     await nextTick();
 
     expect(budget.purchases).toHaveLength(0);
+    // Modal should close after delete
+    expect(document.body.querySelector('.base-modal')).toBeNull();
   });
 
-  it('delete does NOT remove the purchase when confirm returns false', async () => {
+  it('Delete in modal does NOT remove purchase when confirm returns false', async () => {
     vi.stubGlobal('confirm', vi.fn(() => false));
     const budget = useBudgetStore();
     budget.payStart = new Date().toISOString().split('T')[0] as never;
@@ -3851,10 +3874,17 @@ describe('SpendingPage — CRUD', () => {
     w = mountWith(SpendingPage);
     await nextTick();
 
-    await w.find('.row-action-btn--delete').trigger('click');
+    await w.find('.purchase-row--clickable').trigger('click');
+    await nextTick();
+
+    const deleteBtn = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'))
+      .find(b => b.textContent?.trim() === 'Delete');
+    deleteBtn!.click();
     await nextTick();
 
     expect(budget.purchases).toHaveLength(1);
+    // Modal stays open when delete is cancelled
+    expect(document.body.querySelector('.base-modal')).not.toBeNull();
   });
 
   it('cancel button in modal closes it without saving', async () => {
@@ -3964,6 +3994,210 @@ describe('SpendingPage — donut wants-only fix', () => {
     const pct = parseInt(pctText);
     expect(pct).toBeLessThanOrEqual(55);
     expect(pct).toBeGreaterThanOrEqual(45);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  SpendingPage — RS-16 donut type toggle (Wants / Needs)
+// ─────────────────────────────────────────────────────────────────
+
+describe('SpendingPage — RS-16 donut toggle', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); document.body.innerHTML = ''; });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  function addPurchase(
+    budget: ReturnType<typeof useBudgetStore>,
+    name: string, amount: number, budgetType: 'wants' | 'needs',
+  ) {
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name, amount, category: 'other', cardId: null, budgetType, date: today });
+  }
+
+  it('donut card renders a Wants toggle button', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 5, 'wants');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const btn = w.findAll('.dtt-btn').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Wants'));
+    expect(btn).toBeDefined();
+    w.unmount();
+  });
+
+  it('donut card renders a Needs toggle button', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 5, 'wants');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const btn = w.findAll('.dtt-btn').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Needs'));
+    expect(btn).toBeDefined();
+    w.unmount();
+  });
+
+  it('Wants toggle button is active by default', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 5, 'wants');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const wantsBtn = w.findAll('.dtt-btn')[0];
+    expect(wantsBtn.classes()).toContain('dtt-btn--active');
+    w.unmount();
+  });
+
+  it('clicking Needs activates the Needs button', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 5, 'wants');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const needsBtn = w.findAll('.dtt-btn')[1];
+    await needsBtn.trigger('click');
+    await nextTick();
+    expect(needsBtn.classes()).toContain('dtt-btn--active');
+    w.unmount();
+  });
+
+  it('donut hint text changes to "Needs purchases only" when Needs is selected', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Rent', 800, 'needs');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.findAll('.dtt-btn')[1].trigger('click'); // Needs
+    await nextTick();
+
+    expect(w.find('.spend-donut-hint').text()).toContain('Needs purchases only');
+    w.unmount();
+  });
+
+  it('donut hint reverts to "Wants purchases only" when Wants re-selected', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 5, 'wants');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    const [wantsBtn, needsBtn] = w.findAll('.dtt-btn');
+    await needsBtn.trigger('click');
+    await nextTick();
+    await wantsBtn.trigger('click');
+    await nextTick();
+
+    expect(w.find('.spend-donut-hint').text()).toContain('Wants purchases only');
+    w.unmount();
+  });
+
+  it('donut total reflects only wants spending when Wants selected', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 10, 'wants');
+    addPurchase(budget, 'Rent',  900, 'needs');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Default is Wants — total should be $10 only
+    expect(w.find('.spend-donut-total').text()).toContain('$10.00');
+    w.unmount();
+  });
+
+  it('donut total reflects only needs spending when Needs selected', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    addPurchase(budget, 'Coffee', 10, 'wants');
+    addPurchase(budget, 'Rent',  900, 'needs');
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.findAll('.dtt-btn')[1].trigger('click'); // Needs
+    await nextTick();
+
+    expect(w.find('.spend-donut-total').text()).toContain('$900.00');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  DashboardPage — RS-16 shared type toggle
+// ─────────────────────────────────────────────────────────────────
+
+describe('DashboardPage — RS-16 shared type toggle', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); document.body.innerHTML = ''; });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('hero card has Wants and Needs toggle buttons', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    const btns = w.findAll('.htt-btn');
+    expect(btns).toHaveLength(2);
+    expect(btns[0].text()).toContain('Wants');
+    expect(btns[1].text()).toContain('Needs');
+    w.unmount();
+  });
+
+  it('Wants toggle is active by default', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.findAll('.htt-btn')[0].classes()).toContain('htt-btn--active');
+    w.unmount();
+  });
+
+  it('clicking Needs activates the Needs button', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    const needsBtn = w.findAll('.htt-btn')[1];
+    await needsBtn.trigger('click');
+    await nextTick();
+    expect(needsBtn.classes()).toContain('htt-btn--active');
+    w.unmount();
+  });
+
+  it('hero subtitle changes to "Bi-weekly needs" when Needs is selected', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.findAll('.htt-btn')[1].trigger('click');
+    await nextTick();
+    expect(w.find('.kpi-hero__subtitle').text()).toContain('needs');
+    w.unmount();
+  });
+
+  it('hero subtitle shows "wants" when Wants is re-selected', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    const [wantsBtn, needsBtn] = w.findAll('.htt-btn');
+    await needsBtn.trigger('click');
+    await nextTick();
+    await wantsBtn.trigger('click');
+    await nextTick();
+    expect(w.find('.kpi-hero__subtitle').text()).toContain('wants');
+    w.unmount();
+  });
+
+  it('hero remaining changes when switching to Needs with different spend', async () => {
+    const budget = useBudgetStore();
+    budget.addIncomeStream({ name: 'Salary', amount: 3000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 30, savings: 20 };
+    const today = new Date().toISOString().split('T')[0] as never;
+    // Add a wants purchase and a needs purchase
+    budget.addPurchase({ name: 'Coffee',  amount: 50,  category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent',    amount: 200, category: 'other', cardId: null, budgetType: 'needs', date: today });
+
+    const w = mountWith(DashboardPage);
+    await nextTick();
+
+    // Record wants remaining amount
+    const wantsAmountText = w.find('.kpi-hero__amount').text();
+
+    // Switch to needs
+    await w.findAll('.htt-btn')[1].trigger('click');
+    await nextTick();
+
+    const needsAmountText = w.find('.kpi-hero__amount').text();
+    // The two views should show different numbers
+    expect(needsAmountText).not.toBe(wantsAmountText);
     w.unmount();
   });
 });

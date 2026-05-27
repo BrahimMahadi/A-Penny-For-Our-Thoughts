@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day Detail Patterns — A Penny For Our Thoughts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ─── Design tokens (matches the app) ───────────────────────────── */
+:root {
+  --surface:  #0a0f1a;
+  --surface2: #0f1829;
+  --surface3: #162035;
+  --border:   #1e2840;
+  --border2:  #253050;
+  --text:     #e3e6ee;
+  --muted:    #6b7a99;
+  --accent:   #4ade80;
+  --accent2:  #60a5fa;
+  --warn:     #f59e0b;
+  --danger:   #f87171;
+  --purple:   #a78bfa;
+
+  --col-expense: #60a5fa;
+  --col-sub:     #a78bfa;
+  --col-loan:    #f59e0b;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #060b14;
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  min-height: 100vh;
+  padding: 2rem 1.25rem 5rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Page header ────────────────────────────────────────────────── */
+.page-header {
+  max-width: 1080px;
+  margin: 0 auto 1.75rem;
+}
+
+.page-header h1 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-bottom: 0.4rem;
+  background: linear-gradient(135deg, var(--text) 60%, var(--muted));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.page-header p {
+  font-size: 0.855rem;
+  color: var(--muted);
+  max-width: 58ch;
+  line-height: 1.65;
+}
+
+.page-header p strong { color: var(--text); font-weight: 600; }
+
+/* ─── Comparison grid ────────────────────────────────────────────── */
+.comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  max-width: 1080px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .comparison { grid-template-columns: 1fr; }
+}
+
+/* ─── Option panel ───────────────────────────────────────────────── */
+.option-panel {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  position: relative;
+  overflow: visible;
+}
+
+.option-panel--a { border-top: 2px solid rgba(251,191,36,0.25); }
+.option-panel--b { border-top: 2px solid rgba(74,222,128,0.25); }
+
+/* ─── Option label / header ──────────────────────────────────────── */
+.option-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.option-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.option-pill {
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+
+.option-pill--a {
+  background: rgba(251,191,36,0.10);
+  color: var(--warn);
+  border: 1px solid rgba(251,191,36,0.22);
+}
+
+.option-pill--b {
+  background: rgba(74,222,128,0.10);
+  color: var(--accent);
+  border: 1px solid rgba(74,222,128,0.22);
+}
+
+/* ─── Month label ────────────────────────────────────────────────── */
+.month-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.month-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ─── Calendar DOW header ────────────────────────────────────────── */
+.cal-dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.cal-dow-cell {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* ─── Calendar grid ──────────────────────────────────────────────── */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+/* ─── Cell base ──────────────────────────────────────────────────── */
+.cal-cell {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 4px 3px;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.cal-cell.has-bills { background: rgba(96,165,250,0.025); }
+.cal-cell.is-today  { border-color: var(--accent); background: rgba(74,222,128,0.035); }
+.cal-cell.is-heavy  { background: rgba(248,113,113,0.04); }
+
+.cal-blank {
+  background: transparent !important;
+  border-color: transparent !important;
+  pointer-events: none;
+}
+
+/* ─── Pattern A: hover state ─────────────────────────────────────── */
+.mode-a:hover {
+  border-color: var(--accent2) !important;
+  background: rgba(96,165,250,0.07) !important;
+  cursor: pointer;
+}
+
+.mode-a.is-today:hover { border-color: var(--accent) !important; }
+
+/* ─── Pattern B: hover + selected ───────────────────────────────── */
+.mode-b { cursor: pointer; }
+
+.mode-b:hover:not(.is-selected):not(.cal-blank) {
+  border-color: var(--border2);
+  background: rgba(255,255,255,0.025);
+}
+
+.mode-b.is-selected {
+  border-color: var(--accent) !important;
+  border-width: 2px;
+  background: rgba(74,222,128,0.055) !important;
+  box-shadow: 0 0 0 2px rgba(74,222,128,0.12);
+}
+
+/* ─── Day number ─────────────────────────────────────────────────── */
+.cal-day-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.is-today .cal-day-num  { color: var(--accent); }
+.is-selected .cal-day-num { color: var(--accent); }
+
+/* ─── Bill badges in cell ────────────────────────────────────────── */
+.cal-badge {
+  border-radius: 2px;
+  padding: 1px 3px;
+  font-size: 0.58rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+
+.cal-badge--expense      { background: rgba(96,165,250,0.15);  color: var(--col-expense); }
+.cal-badge--subscription { background: rgba(167,139,250,0.15); color: var(--col-sub); }
+.cal-badge--loan         { background: rgba(251,191,36,0.15);  color: var(--col-loan); }
+.cal-badge--more         { background: var(--surface3); color: var(--muted); }
+
+/* ─── Day total in cell ──────────────────────────────────────────── */
+.cal-day-total {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--danger);
+  margin-top: auto;
+  letter-spacing: -0.02em;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PATTERN A — Floating Popover
+   ══════════════════════════════════════════════════════════════════ */
+.popover-a {
+  position: fixed;
+  z-index: 9999;
+  width: 252px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 11px;
+  padding: 0.85rem;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.04) inset,
+    0 12px 40px rgba(0,0,0,0.55),
+    0 4px 12px rgba(0,0,0,0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  /* Hidden state */
+  opacity: 0;
+  transform: translateY(-6px) scale(0.97);
+  pointer-events: none;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  will-change: transform, opacity;
+}
+
+.popover-a.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* Tiny arrow — shown when popover is to the right of the cell */
+.popover-a::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 14px;
+  width: 9px;
+  height: 9px;
+  background: var(--surface2);
+  border-left: 1px solid var(--border2);
+  border-bottom: 1px solid var(--border2);
+  transform: rotate(45deg);
+}
+
+.popover-a.flip-left::before {
+  left: auto;
+  right: -5px;
+  border-left: none;
+  border-bottom: none;
+  border-right: 1px solid var(--border2);
+  border-top: 1px solid var(--border2);
+}
+
+.pop-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.pop-date-main {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.pop-date-sub {
+  font-size: 0.63rem;
+  color: var(--muted);
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.pop-close {
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.1s, background 0.1s;
+  flex-shrink: 0;
+}
+
+.pop-close:hover { color: var(--text); background: var(--border2); }
+
+/* Popover bill row */
+.pop-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0;
+  border-bottom: 1px solid rgba(30,40,64,0.5);
+}
+
+.pop-row:last-of-type { border-bottom: none; }
+
+.pop-type-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pop-type-dot--expense      { background: var(--col-expense); }
+.pop-type-dot--subscription { background: var(--col-sub); }
+.pop-type-dot--loan         { background: var(--col-loan); }
+
+.pop-name {
+  font-size: 0.78rem;
+  font-weight: 500;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.pop-card {
+  font-size: 0.62rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.pop-amt {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  margin-left: 2px;
+}
+
+.pop-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border2);
+}
+
+.pop-total-label { font-size: 0.72rem; color: var(--muted); font-weight: 500; }
+
+.pop-total-amt {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent2);
+}
+
+.pop-empty {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 0.5rem 0 0.1rem;
+  font-style: italic;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PATTERN B — Slide Panel
+   ══════════════════════════════════════════════════════════════════ */
+.slide-wrap {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition:
+    max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.28s ease;
+}
+
+.slide-wrap.is-open {
+  max-height: 560px;
+  opacity: 1;
+}
+
+.slide-panel {
+  margin-top: 0.65rem;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 0.85rem;
+}
+
+.slide-hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.slide-date-group { display: flex; align-items: baseline; gap: 0.45rem; }
+
+.slide-date {
+  font-size: 1.0rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.slide-dow {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.slide-hd-right { display: flex; align-items: center; gap: 0.45rem; }
+
+.slide-total-chip {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(248,113,113,0.12);
+  color: var(--danger);
+  border: 1px solid rgba(248,113,113,0.2);
+  white-space: nowrap;
+}
+
+.slide-total-chip.is-zero {
+  background: rgba(107,122,153,0.08);
+  color: var(--muted);
+  border-color: rgba(107,122,153,0.15);
+}
+
+.slide-close {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-family: 'Outfit', sans-serif;
+  transition: color 0.1s, border-color 0.1s;
+  letter-spacing: 0.01em;
+}
+
+.slide-close:hover { color: var(--text); border-color: var(--muted); }
+
+/* Bill rows in slide panel */
+.slide-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 7px;
+  margin-bottom: 0.3rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+}
+
+.slide-row--expense      { border-left-color: var(--col-expense); }
+.slide-row--subscription { border-left-color: var(--col-sub); }
+.slide-row--loan         { border-left-color: var(--col-loan); }
+
+.slide-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.slide-row-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slide-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.slide-badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.slide-badge--expense      { background: rgba(96,165,250,0.12);  color: var(--col-expense); }
+.slide-badge--subscription { background: rgba(167,139,250,0.12); color: var(--col-sub); }
+.slide-badge--loan         { background: rgba(251,191,36,0.12);  color: var(--col-loan); }
+
+.slide-meta-text {
+  font-size: 0.62rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.slide-row-amt {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Empty state */
+.slide-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.75rem 0.65rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+/* ─── Tradeoff note ──────────────────────────────────────────────── */
+.tradeoff {
+  font-size: 0.775rem;
+  color: var(--muted);
+  line-height: 1.6;
+  padding: 0.55rem 0.75rem;
+  background: rgba(30,40,64,0.35);
+  border-radius: 7px;
+  border-left: 2px solid var(--border2);
+}
+
+.tradeoff strong { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Day Detail — Two Interaction Patterns</h1>
+  <p>
+    <strong>Option A (left):</strong> hover any day to see a popover — or tap on mobile.
+    <strong>Option B (right):</strong> click any day to expand the detail panel below.
+    Both use May 2026 with real bill data seeded in.
+  </p>
+</div>
+
+<div class="comparison">
+
+  <!-- ══ OPTION A: Hover Popover ══ -->
+  <div class="option-panel option-panel--a">
+    <div class="option-header">
+      <span class="option-title">Option A — Hover Popover</span>
+      <span class="option-pill option-pill--a">Your idea</span>
+    </div>
+    <div class="month-label">May 2026</div>
+    <div>
+      <div class="cal-dow" id="dow-a"></div>
+      <div class="cal-grid" id="cal-a"></div>
+    </div>
+    <div class="tradeoff">
+      <strong>Trade-off:</strong> Fast, zero layout shift, feels lightweight.
+      Requires a tap-to-toggle fallback on mobile (hover doesn't exist on touch) and a delay to keep the popover readable before it vanishes.
+    </div>
+  </div>
+
+  <!-- ══ OPTION B: Slide Panel ══ -->
+  <div class="option-panel option-panel--b">
+    <div class="option-header">
+      <span class="option-title">Option B — Slide Panel</span>
+      <span class="option-pill option-pill--b">Recommended ✓</span>
+    </div>
+    <div class="month-label">May 2026</div>
+    <div>
+      <div class="cal-dow" id="dow-b"></div>
+      <div class="cal-grid" id="cal-b"></div>
+      <div class="slide-wrap" id="slide-wrap">
+        <div class="slide-panel" id="slide-panel"></div>
+      </div>
+    </div>
+    <div class="tradeoff">
+      <strong>Trade-off:</strong> Stays visible while you read it — popovers vanish mid-read.
+      Works identically on desktop and mobile with no hover-delay hacks.
+      The content never competes visually with the calendar grid.
+    </div>
+  </div>
+
+</div>
+
+<!-- Single shared popover for Pattern A -->
+<div class="popover-a" id="popover-a" role="tooltip"></div>
+
+<script>
+// ─── Data ─────────────────────────────────────────────────────────
+const DOW_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DOW_LONG   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+// May 2026: 31 days, starts on Friday (DOW 5)
+const YEAR        = 2026;
+const FIRST_DOW   = 5;
+const DAYS        = 31;
+const TODAY_DAY   = 24; // demo "today"
+
+const BILLS = {
+  1:  [
+    { name: 'Rent',          amount: 1500, type: 'expense',      card: 'Visa',  freq: 'monthly' },
+    { name: 'Internet',      amount: 80,   type: 'expense',      card: 'Visa',  freq: 'monthly' },
+  ],
+  3:  [
+    { name: 'Netflix',       amount: 17,   type: 'subscription', card: null,    freq: 'monthly' },
+  ],
+  7:  [
+    { name: 'Car Loan',      amount: 350,  type: 'loan',         card: null,    freq: 'monthly' },
+  ],
+  15: [
+    { name: 'Spotify',       amount: 12,   type: 'subscription', card: null,    freq: 'monthly' },
+    { name: 'Car Insurance', amount: 180,  type: 'expense',      card: 'Debit', freq: 'monthly' },
+  ],
+  18: [
+    { name: 'Gym',           amount: 55,   type: 'subscription', card: null,    freq: 'monthly' },
+  ],
+  28: [
+    { name: 'Phone Bill',    amount: 85,   type: 'expense',      card: 'Visa',  freq: 'monthly' },
+    { name: 'Amazon Prime',  amount: 15,   type: 'subscription', card: null,    freq: 'yearly'  },
+    { name: 'Parking',       amount: 8,    type: 'subscription', card: null,    freq: 'monthly' },
+  ],
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────
+function fmt(n) {
+  return '$' + n.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function dayOfWeek(day) {
+  return (FIRST_DOW + day - 1) % 7;
+}
+
+function shortBadge(type) {
+  return type === 'expense' ? 'exp' : type === 'subscription' ? 'sub' : 'loan';
+}
+
+// ─── Build DOW headers ────────────────────────────────────────────
+function buildDow(el) {
+  DOW_LABELS.forEach(d => {
+    const c = document.createElement('div');
+    c.className = 'cal-dow-cell';
+    c.textContent = d;
+    el.appendChild(c);
+  });
+}
+
+// ─── Build calendar grid ──────────────────────────────────────────
+function buildCalendar(gridEl, mode) {
+  // Trailing blanks
+  const total   = FIRST_DOW + DAYS;
+  const rem     = total % 7;
+  const trailing = rem > 0 ? 7 - rem : 0;
+
+  // Leading blanks
+  for (let i = 0; i < FIRST_DOW; i++) {
+    const b = document.createElement('div');
+    b.className = 'cal-cell cal-blank';
+    gridEl.appendChild(b);
+  }
+
+  // Day cells
+  for (let d = 1; d <= DAYS; d++) {
+    const bills   = BILLS[d] || [];
+    const dayTot  = bills.reduce((s, b) => s + b.amount, 0);
+    const isToday = d === TODAY_DAY;
+    const isHeavy = dayTot > 500;
+
+    const cell = document.createElement('div');
+    cell.className = [
+      'cal-cell',
+      `mode-${mode}`,
+      bills.length ? 'has-bills' : '',
+      isToday       ? 'is-today'  : '',
+      isHeavy       ? 'is-heavy'  : '',
+    ].filter(Boolean).join(' ');
+    cell.dataset.day  = d;
+    cell.dataset.mode = mode;
+
+    // Day number
+    const dn = document.createElement('span');
+    dn.className   = 'cal-day-num';
+    dn.textContent = d;
+    cell.appendChild(dn);
+
+    // Bill badges (max 2)
+    bills.slice(0, 2).forEach(bill => {
+      const bg = document.createElement('div');
+      bg.className   = `cal-badge cal-badge--${bill.type}`;
+      bg.textContent = bill.name;
+      cell.appendChild(bg);
+    });
+
+    // +N overflow
+    if (bills.length > 2) {
+      const more = document.createElement('div');
+      more.className   = 'cal-badge cal-badge--more';
+      more.textContent = `+${bills.length - 2}`;
+      cell.appendChild(more);
+    }
+
+    // Day total
+    if (dayTot > 0) {
+      const tot = document.createElement('div');
+      tot.className   = 'cal-day-total';
+      tot.textContent = fmt(dayTot);
+      cell.appendChild(tot);
+    }
+
+    gridEl.appendChild(cell);
+  }
+
+  // Trailing blanks
+  for (let i = 0; i < trailing; i++) {
+    const b = document.createElement('div');
+    b.className = 'cal-cell cal-blank';
+    gridEl.appendChild(b);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PATTERN A — Hover Popover
+// ══════════════════════════════════════════════════════════════════
+const popEl   = document.getElementById('popover-a');
+let hideTimer = null;
+let hoveredDay = null;
+let isTouchPrimary = false;
+let activeTapDay   = null;
+
+// Detect if primary input is touch
+window.addEventListener('touchstart', () => { isTouchPrimary = true; }, { once: true, passive: true });
+
+function buildPopoverHTML(day) {
+  const bills  = BILLS[day] || [];
+  const total  = bills.reduce((s, b) => s + b.amount, 0);
+  const dow    = DOW_LONG[dayOfWeek(day)];
+  const isToday = day === TODAY_DAY;
+
+  let rows = '';
+  bills.forEach(b => {
+    const cardStr = b.card ? `<span class="pop-card">${b.card}</span>` : '';
+    rows += `
+      <div class="pop-row">
+        <span class="pop-type-dot pop-type-dot--${b.type}"></span>
+        <span class="pop-name">${b.name}</span>
+        ${cardStr}
+        <span class="pop-amt">${fmt(b.amount)}</span>
+      </div>`;
+  });
+
+  const totalRow = bills.length > 1 ? `
+    <div class="pop-total">
+      <span class="pop-total-label">Day total</span>
+      <span class="pop-total-amt">${fmt(total)}</span>
+    </div>` : '';
+
+  const emptyRow = bills.length === 0 ? `<div class="pop-empty">No payments scheduled</div>` : '';
+
+  return `
+    <div class="pop-header">
+      <div>
+        <div class="pop-date-main">${isToday ? '📅 ' : ''}May ${day}</div>
+        <div class="pop-date-sub">${dow}</div>
+      </div>
+      <button class="pop-close" data-action="close-pop">✕</button>
+    </div>
+    ${rows}${emptyRow}${totalRow}
+  `;
+}
+
+function positionPopover(cellEl) {
+  const rect = cellEl.getBoundingClientRect();
+  const PW   = 258;
+  const vw   = window.innerWidth;
+  const vh   = window.innerHeight;
+
+  let left = rect.right + 8;
+  let flipLeft = false;
+
+  if (left + PW > vw - 12) {
+    left     = rect.left - PW - 8;
+    flipLeft = true;
+  }
+
+  left = Math.max(8, left);
+
+  let top = rect.top - 2;
+  if (top + 220 > vh - 12) top = vh - 232;
+  top = Math.max(8, top);
+
+  popEl.style.left = left + 'px';
+  popEl.style.top  = top  + 'px';
+  popEl.classList.toggle('flip-left', flipLeft);
+}
+
+function showPopover(day, cellEl) {
+  clearTimeout(hideTimer);
+  if (hoveredDay !== day) {
+    hoveredDay    = day;
+    popEl.innerHTML = buildPopoverHTML(day);
+  }
+  positionPopover(cellEl);
+  popEl.classList.add('is-visible');
+}
+
+function scheduleHide() {
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => {
+    popEl.classList.remove('is-visible');
+    hoveredDay = null;
+  }, 150);
+}
+
+function hidePopover() {
+  clearTimeout(hideTimer);
+  popEl.classList.remove('is-visible');
+  hoveredDay   = null;
+  activeTapDay = null;
+}
+
+// Popover stays open when mouse enters it
+popEl.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+popEl.addEventListener('mouseleave', scheduleHide);
+
+// Close button inside popover (event delegation)
+popEl.addEventListener('click', e => {
+  if (e.target.closest('[data-action="close-pop"]')) hidePopover();
+});
+
+// Hover events on calendar A (mouse only)
+let lastHoverCell = null;
+document.getElementById('cal-a').addEventListener('mouseover', e => {
+  if (isTouchPrimary) return;
+  const cell = e.target.closest('.mode-a[data-day]');
+  if (!cell || cell === lastHoverCell) return;
+  lastHoverCell = cell;
+  showPopover(+cell.dataset.day, cell);
+});
+
+document.getElementById('cal-a').addEventListener('mouseout', e => {
+  if (isTouchPrimary) return;
+  const cell = e.target.closest('.mode-a[data-day]');
+  if (!cell) return;
+  // Only hide if cursor is leaving the cell entirely (not to a child)
+  const to = e.relatedTarget;
+  if (to && cell.contains(to)) return;
+  lastHoverCell = null;
+  scheduleHide();
+});
+
+// Click/tap on calendar A
+document.getElementById('cal-a').addEventListener('click', e => {
+  const cell = e.target.closest('.mode-a[data-day]');
+  if (!cell) return;
+  const day = +cell.dataset.day;
+  if (activeTapDay === day && popEl.classList.contains('is-visible')) {
+    hidePopover();
+  } else {
+    activeTapDay = day;
+    showPopover(day, cell);
+  }
+});
+
+// Click outside pattern A → close popover
+document.addEventListener('click', e => {
+  if (!popEl.contains(e.target) && !e.target.closest('#cal-a')) {
+    hidePopover();
+  }
+}, true);
+
+// ══════════════════════════════════════════════════════════════════
+// PATTERN B — Click → Slide Panel
+// ══════════════════════════════════════════════════════════════════
+const slideWrap  = document.getElementById('slide-wrap');
+const slidePanel = document.getElementById('slide-panel');
+let selectedDay  = null;
+
+function buildSlidePanelHTML(day) {
+  const bills   = BILLS[day] || [];
+  const total   = bills.reduce((s, b) => s + b.amount, 0);
+  const dow     = DOW_LONG[dayOfWeek(day)];
+  const isToday = day === TODAY_DAY;
+
+  const chipClass = total === 0 ? 'slide-total-chip is-zero' : 'slide-total-chip';
+  const chipText  = total > 0 ? fmt(total) : 'No bills';
+
+  let rows = '';
+  if (bills.length === 0) {
+    rows = `<div class="slide-empty">
+      <span style="font-size:1.2rem">📭</span>
+      <span>No payments on this day</span>
+    </div>`;
+  } else {
+    bills.forEach(b => {
+      const cardStr = b.card ? `<span class="slide-meta-text">via ${b.card}</span>` : '';
+      rows += `
+        <div class="slide-row slide-row--${b.type}">
+          <div class="slide-row-main">
+            <span class="slide-row-name">${b.name}</span>
+            <div class="slide-row-meta">
+              <span class="slide-badge slide-badge--${b.type}">${shortBadge(b.type)}</span>
+              ${cardStr}
+              <span class="slide-meta-text">${b.freq}</span>
+            </div>
+          </div>
+          <span class="slide-row-amt">${fmt(b.amount)}</span>
+        </div>`;
+    });
+  }
+
+  return `
+    <div class="slide-hd">
+      <div class="slide-date-group">
+        <span class="slide-date">${isToday ? '📅 ' : ''}May ${day}</span>
+        <span class="slide-dow">${dow}</span>
+      </div>
+      <div class="slide-hd-right">
+        <span class="${chipClass}">${chipText}</span>
+        <button class="slide-close" data-action="close-slide">✕ close</button>
+      </div>
+    </div>
+    ${rows}
+  `;
+}
+
+function closeSlidePanel() {
+  slideWrap.classList.remove('is-open');
+  if (selectedDay !== null) {
+    const prev = document.querySelector(`.mode-b[data-day="${selectedDay}"]`);
+    if (prev) prev.classList.remove('is-selected');
+    selectedDay = null;
+  }
+}
+
+document.getElementById('cal-b').addEventListener('click', e => {
+  const cell = e.target.closest('.mode-b[data-day]');
+  if (!cell) return;
+  const day = +cell.dataset.day;
+
+  // Toggle off if same day clicked again
+  if (day === selectedDay) {
+    closeSlidePanel();
+    return;
+  }
+
+  // Deselect previous cell
+  if (selectedDay !== null) {
+    const prev = document.querySelector(`.mode-b[data-day="${selectedDay}"]`);
+    if (prev) prev.classList.remove('is-selected');
+  }
+
+  selectedDay = day;
+  cell.classList.add('is-selected');
+  slidePanel.innerHTML = buildSlidePanelHTML(day);
+  slideWrap.classList.add('is-open');
+
+  // Close button (event delegation on slide panel)
+  slidePanel.querySelector('[data-action="close-slide"]')
+    ?.addEventListener('click', closeSlidePanel);
+
+  // Smooth scroll into view on narrow screens
+  if (window.innerWidth < 860) {
+    setTimeout(() => slideWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+  }
+});
+
+// ─── Init ─────────────────────────────────────────────────────────
+buildDow(document.getElementById('dow-a'));
+buildDow(document.getElementById('dow-b'));
+buildCalendar(document.getElementById('cal-a'), 'a');
+buildCalendar(document.getElementById('cal-b'), 'b');
+</script>
+</body>
+</html>

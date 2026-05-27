@@ -1694,6 +1694,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-13 | Inline pay/charge/deposit/withdraw interactions on loan, CC, and savings cards | `feat/redesign-sprint-13-inline-interactions` | ✅ Complete | v2.4.0 |
 | RS-14 | Wishlist card-grid redesign: savings progress, months-to-goal, inline "Add savings", DB sync fix | `feat/redesign-sprint-14-wishlist-price` | ✅ Complete | v2.5.0 |
 | RS-15 | Purchase type (Want vs Need): stacked bar chart, type column + filter in Spending tab, wants-only donut, updated quick-add modal | `feat/redesign-sprint-15-purchase-type` | ✅ Complete | v2.6.0 |
+| RS-16 | Wants/Needs toggle: dashboard hero + PurchasesThisPeriod shared toggle, spending-tab donut toggle, row-action cleanup (delete in modal) | `feat/sprint-16-type-toggle` | ✅ Complete | v2.7.0 |
 
 ---
 
@@ -2378,3 +2379,69 @@ Expose the existing `Purchase.budgetType` field in all UIs, fix the Spending tab
 
 ### Final gate
 - ✅ 1017/1017 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-16 — Budget Type Toggle (Wants / Needs) ✅
+
+**Branch:** `feat/sprint-16-type-toggle`
+**Version:** v2.7.0
+**Status:** ✅ Complete
+
+### Goal
+Give the user a single Wants / Needs toggle on the dashboard that drives both the "Available to Spend" hero card and the "Purchases This Period" chart. Add an independent toggle to the Spending tab "By category" donut. Clean up purchase-row actions: remove inline ✎/✕ buttons; rows are clickable, and the edit modal gains a Delete button.
+
+### Changes
+
+#### 1 — SpendingPage: row-action cleanup + delete in modal
+- Removed the `.row-actions` hover-reveal edit/delete buttons from all table rows
+- Removed `col-actions` `<th>` header; colspan updated 7 → 6
+- Rows remain fully clickable (`purchase-row--clickable`) — click anywhere to open the edit modal
+- Added a `variant="danger"` **Delete** `<BaseButton>` in the modal footer, visible only when editing (`editingPurchaseId !== null`)
+- `deletePurchase()` now closes the modal after a confirmed delete
+
+#### 2 — SpendingPage: "By category" donut type toggle
+- Added `donutTypeFilter = ref<'wants' | 'needs'>('wants')` in `SpendingPage.vue`
+- Added `needsPurchasesInPeriod`, `donutPurchases`, `donutBudget`, `needsBudgetPerPeriod` computeds
+- `categorySpending`, `wantsSpentInPeriod`, `remainingBudget`, `usedPct` all react to `donutTypeFilter`
+- Added `.dtt-btn` / `.donut-type-toggle` pill toggle UI inside the "By category" card header
+- Donut hint changes: "Wants purchases only" ↔ "Needs purchases only"
+
+#### 3 — DashboardPage + PurchasesThisPeriod: shared toggle
+- Added `dashboardTypeFilter = ref<'wants' | 'needs'>('wants')` in `DashboardPage.vue`
+- Added `heroBudget`, `heroSpent`, `heroRemaining`, `heroUsedPct` computed switchboard
+- Hero card layout updated: `kpi-hero__label-row` flex row with label + `.hero-type-toggle` pill
+- Added `.htt-btn` styles (transparent pill inside dark hero background)
+- Hero subtitle, amount, caption, progress bar, and ARIA label all switch with the toggle
+- `<PurchasesThisPeriod>` now receives `:type-filter="dashboardTypeFilter"` prop
+
+#### 4 — PurchasesThisPeriod: typeFilter prop + categorySpending bug fix
+- Added `typeFilter: 'wants' | 'needs'` prop (default `'wants'`)
+- `filteredPurchases` computed filters by the active type
+- `categorySpending` now uses `filteredPurchases` (was incorrectly using all purchases — caused wrong category breakdown on dashboard)
+- `biWeeklyBudget` switches between `biWeeklyWantsBudget` / `biWeeklyNeedsBudget`
+- `deductionTotal` returns 0 when needs is active (subs/loans live in the wants envelope)
+- `isEmpty` check respects the active type filter
+- Added `.ptp__donut-type-hint` caption under the donut showing "Bi-weekly wants/needs"
+
+### Tests
+- ✅ Updated 5 CRUD tests to use row-click + modal-delete pattern (removed `.row-action-btn` references)
+- ✅ Added `SpendingPage — RS-16 donut toggle` (9 new tests):
+  - Donut card renders Wants / Needs toggle buttons
+  - Wants toggle active by default
+  - Clicking Needs activates it
+  - Hint text changes to "Needs purchases only"
+  - Hint reverts to "Wants purchases only"
+  - Donut total reflects wants-only / needs-only spending
+  - Donut total changes when type switched
+- ✅ Added `DashboardPage — RS-16 shared type toggle` (6 new tests):
+  - Hero card has Wants and Needs toggle buttons
+  - Wants active by default
+  - Clicking Needs activates it
+  - Hero subtitle changes to "needs" / "wants"
+  - Hero remaining amount differs between views
+- ✅ Added `edit modal shows a Delete button` test
+- **Total: 1032 passing (↑15 from 1017) across 28 spec files**
+
+### Final gate
+- ✅ 1032/1032 tests pass · `vue-tsc --noEmit` clean

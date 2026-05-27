@@ -109,18 +109,37 @@ const topCategoryInfo = computed(() => {
   };
 });
 
-// ─── Donut chart — wants-only (RS-15) ────────────────────────────
-/** Purchases in the current period that are wants (for the donut + KPI). */
+// ─── Donut chart — switchable wants/needs (RS-16) ────────────────
+/** Which type the donut card shows — independent from the table typeFilter. */
+const donutTypeFilter = ref<'wants' | 'needs'>('wants');
+
 const wantsPurchasesInPeriod = computed(() =>
   purchasesInPeriod.value.filter(p => (p.budgetType ?? 'wants') !== 'needs'),
 );
 
-/** Total spent on wants this period (drives the donut %). */
-const wantsSpentInPeriod = computed(() =>
-  wantsPurchasesInPeriod.value.reduce((s, p) => s + p.amount, 0),
+const needsPurchasesInPeriod = computed(() =>
+  purchasesInPeriod.value.filter(p => p.budgetType === 'needs'),
 );
 
-const categorySpending = computed(() => getCategorySpending(wantsPurchasesInPeriod.value));
+/** Purchases shown in the donut — changes with donutTypeFilter. */
+const donutPurchases = computed(() =>
+  donutTypeFilter.value === 'needs' ? needsPurchasesInPeriod.value : wantsPurchasesInPeriod.value,
+);
+
+/** Total spent for the active donut type. */
+const wantsSpentInPeriod = computed(() => donutPurchases.value.reduce((s, p) => s + p.amount, 0));
+
+/** Needs bi-weekly budget = income × needs% ÷ 2. */
+const needsBudgetPerPeriod = computed(() =>
+  (totalMonthlyIncome.value * ((budget.$state.allocation.needs || 0) / 100)) / 2,
+);
+
+/** Budget for the active donut type. */
+const donutBudget = computed(() =>
+  donutTypeFilter.value === 'needs' ? needsBudgetPerPeriod.value : wantsBudgetPerPeriod.value,
+);
+
+const categorySpending = computed(() => getCategorySpending(donutPurchases.value));
 
 const categoryColorMap = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {};
@@ -128,15 +147,11 @@ const categoryColorMap = computed<Record<string, string>>(() => {
   return map;
 });
 
-/** Remaining wants budget this period (never goes below zero for the donut arc). */
-const remainingBudget = computed(() =>
-  wantsBudgetPerPeriod.value - wantsSpentInPeriod.value,
-);
+const remainingBudget = computed(() => donutBudget.value - wantsSpentInPeriod.value);
 
-/** Percentage of wants budget consumed — drives the donut centre label. */
 const usedPct = computed(() => {
-  if (wantsBudgetPerPeriod.value <= 0) return 0;
-  return (wantsSpentInPeriod.value / wantsBudgetPerPeriod.value) * 100;
+  if (donutBudget.value <= 0) return 0;
+  return (wantsSpentInPeriod.value / donutBudget.value) * 100;
 });
 
 // ─── Daily spend bars — split by want / need (RS-15) ─────────────
@@ -362,6 +377,9 @@ function deletePurchase(id: string): void {
   if (!window.confirm(`Delete "${p.name}"?`)) return;
   budget.deletePurchase(id);
   toast.show('Purchase deleted.', 'success');
+  // Close the modal if delete was triggered from inside it
+  showPurchaseModal.value = false;
+  resetPurchaseForm();
 }
 </script>
 
@@ -437,16 +455,35 @@ function deletePurchase(id: string): void {
       v-if="spendingPeriod && purchasesInPeriod.length > 0"
       class="spend-charts-row"
     >
-      <!-- Category donut (wants-only — RS-15) -->
+      <!-- Category donut (RS-16: switchable wants/needs) -->
       <BaseCard class="spend-donut-card">
-        <div class="spend-section-eyebrow">
-          By category
+        <div class="spend-donut-card-header">
+          <div class="spend-section-eyebrow">
+            By category
+          </div>
+          <!-- Wants / Needs toggle -->
+          <div class="donut-type-toggle">
+            <button
+              class="dtt-btn"
+              :class="{ 'dtt-btn--active': donutTypeFilter === 'wants' }"
+              @click="donutTypeFilter = 'wants'"
+            >
+              🛍 Wants
+            </button>
+            <button
+              class="dtt-btn"
+              :class="{ 'dtt-btn--active': donutTypeFilter === 'needs' }"
+              @click="donutTypeFilter = 'needs'"
+            >
+              🏠 Needs
+            </button>
+          </div>
         </div>
         <div class="spend-donut-total">
           {{ fmt(wantsSpentInPeriod) }}
         </div>
         <p class="spend-donut-hint">
-          Wants purchases only
+          {{ donutTypeFilter === 'needs' ? 'Needs purchases only' : 'Wants purchases only' }}
         </p>
         <WantsDonut
           :category-spending="categorySpending"
@@ -675,18 +712,17 @@ function deletePurchase(id: string): void {
               <th class="col-amt">
                 Amount
               </th>
-              <th class="col-actions" />
             </tr>
           </thead>
           <tbody>
-            <!-- Dated period purchases -->
+            <!-- Dated period purchases (click row to edit) -->
             <tr
               v-for="p in filteredPurchases"
               :key="p.id"
               class="purchase-row purchase-row--clickable"
               tabindex="0"
               role="button"
-              :aria-label="`Edit ${p.name}`"
+              :aria-label="`Edit purchase: ${p.name}`"
               @click="openEditPurchase(p.id)"
               @keydown.enter.prevent="openEditPurchase(p.id)"
               @keydown.space.prevent="openEditPurchase(p.id)"
@@ -733,31 +769,13 @@ function deletePurchase(id: string): void {
               <td class="col-amt">
                 {{ fmt(p.amount) }}
               </td>
-              <td class="col-actions">
-                <div class="row-actions">
-                  <button
-                    class="row-action-btn row-action-btn--edit"
-                    title="Edit"
-                    @click.stop="openEditPurchase(p.id)"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    class="row-action-btn row-action-btn--delete"
-                    title="Delete"
-                    @click.stop="deletePurchase(p.id)"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </td>
             </tr>
 
             <!-- Undated purchases (always shown at bottom) -->
             <template v-if="filteredUndated.length > 0">
               <tr class="undated-divider-row">
                 <td
-                  colspan="7"
+                  colspan="6"
                   class="undated-divider-label"
                 >
                   No date
@@ -769,7 +787,7 @@ function deletePurchase(id: string): void {
                 class="purchase-row purchase-row--undated purchase-row--clickable"
                 tabindex="0"
                 role="button"
-                :aria-label="`Edit ${p.name}`"
+                :aria-label="`Edit purchase: ${p.name}`"
                 @click="openEditPurchase(p.id)"
                 @keydown.enter.prevent="openEditPurchase(p.id)"
                 @keydown.space.prevent="openEditPurchase(p.id)"
@@ -816,31 +834,13 @@ function deletePurchase(id: string): void {
                 <td class="col-amt">
                   {{ fmt(p.amount) }}
                 </td>
-                <td class="col-actions">
-                  <div class="row-actions">
-                    <button
-                      class="row-action-btn row-action-btn--edit"
-                      title="Edit"
-                      @click.stop="openEditPurchase(p.id)"
-                    >
-                      ✎
-                    </button>
-                    <button
-                      class="row-action-btn row-action-btn--delete"
-                      title="Delete"
-                      @click.stop="deletePurchase(p.id)"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </td>
               </tr>
             </template>
 
             <!-- Empty state row -->
             <tr v-if="filteredPurchases.length === 0 && filteredUndated.length === 0">
               <td
-                colspan="7"
+                colspan="6"
                 class="empty-row"
               >
                 <template v-if="searchQuery || catFilter">
@@ -986,6 +986,16 @@ function deletePurchase(id: string): void {
       </div>
 
       <template #footer>
+        <!-- Delete button — only visible when editing an existing purchase -->
+        <BaseButton
+          v-if="editingPurchaseId"
+          variant="danger"
+          class="mf-footer-delete"
+          @click="deletePurchase(editingPurchaseId)"
+        >
+          Delete
+        </BaseButton>
+        <div class="mf-footer-spacer" />
         <BaseButton
           variant="secondary"
           @click="showPurchaseModal = false; resetPurchaseForm()"
@@ -1546,49 +1556,52 @@ function deletePurchase(id: string): void {
   margin-left: 0.15rem;
 }
 
-/* ── Row action buttons ──────────────────────────────────────────── */
-.col-actions {
-  width: 1px; /* shrink to fit */
-  white-space: nowrap;
-  padding-right: 0.25rem !important;
-}
-
-.row-actions {
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-
-.purchase-row:hover .row-actions {
-  opacity: 1;
-}
-
-.row-action-btn {
-  width: 24px;
-  height: 24px;
+/* ── Donut card header (eyebrow + type toggle side by side) ─────── */
+.spend-donut-card-header {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.15rem;
+}
+
+.donut-type-toggle {
+  display: flex;
+  gap: 3px;
+}
+
+.dtt-btn {
+  padding: 3px 9px;
   border: 1px solid var(--border);
-  border-radius: 5px;
-  background: var(--surface2);
+  border-radius: 999px;
+  background: transparent;
   color: var(--muted);
   font-size: 0.7rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  white-space: nowrap;
 }
 
-.row-action-btn--edit:hover {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  border-color: var(--accent);
-  color: var(--accent);
+.dtt-btn--active {
+  background: color-mix(in srgb, var(--accent, #5b3df5) 12%, transparent);
+  border-color: var(--accent, #5b3df5);
+  color: var(--accent, #5b3df5);
 }
 
-.row-action-btn--delete:hover {
-  background: color-mix(in srgb, var(--danger, #f87171) 12%, transparent);
-  border-color: var(--danger, #f87171);
-  color: var(--danger, #f87171);
+.dtt-btn:not(.dtt-btn--active):hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+/* ── Modal footer layout (delete left, cancel+save right) ─────────── */
+.mf-footer-delete {
+  margin-right: auto;
+}
+
+.mf-footer-spacer {
+  flex: 1;
 }
 
 /* ── Add/Edit modal form ─────────────────────────────────────────── */
