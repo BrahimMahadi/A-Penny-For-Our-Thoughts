@@ -19,16 +19,16 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.3.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🎨', text: 'Vivid Modern redesign — new violet palette, 64px icon sidebar, and a polished layout across all 6 tabs' },
-  { icon: '📺', text: 'Live status bar — a slim ticker at the bottom of the screen shows your 5 most recent purchases and upcoming bills, scrolling ESPN-style' },
-  { icon: '⚙️', text: 'Settings rebuilt — two-column layout with full income and expense CRUD; Dashboard shows read-only views of the same data' },
-  { icon: '📊', text: 'Goals analytics grid — Budget vs. Actual and Net Worth now appear side-by-side for easier comparison' },
-  { icon: '🌗', text: 'Full light & dark theme — every screen tested and polished in both modes with accessible colour contrast throughout' },
+  { icon: '🛍️', text: 'Purchases This Period — new dashboard widget showing your bi-weekly wants donut chart with a per-category breakdown list' },
+  { icon: '📊', text: 'Money Flow — 12-month stacked bar chart (Needs / Wants / Savings + income line) now sits in the dashboard charts row' },
+  { icon: '💳', text: 'Recurring Spend — redesigned expandable per-card view; click any card to reveal its items, linked subscriptions, and loan payments' },
+  { icon: '📐', text: 'Dashboard layout — new charts row added between KPI hero and widget grid; 9 collapsible sections total' },
+  { icon: '✅', text: '920 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

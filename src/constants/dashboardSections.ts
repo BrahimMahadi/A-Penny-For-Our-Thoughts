@@ -11,6 +11,9 @@
  *                                  (→ Goals tab); renamed expense-cards → "Recurring
  *                                  Spend" and loans → "Loan Payoff" to match new UI.
  *                                  Dashboard is now a fixed-grid layout (7 sections).
+ *           May 2026 (RS-12)    — added purchases-this-period (donut + category widget)
+ *                                  and money-flow (12-month income/spend chart) to the
+ *                                  new charts row between KPI and widget rows (9 sections).
  * Summary:  Authoritative registry of all section cards across the Dashboard
  *           and Advanced tabs. Both consumers (SectionPicker, page hosts)
  *           derive their config from these lists so they always stay in sync.
@@ -29,13 +32,30 @@ export interface DashboardSection {
 }
 
 // ─── Dashboard tab sections ──────────────────────────────────────────────────
-// Fixed-grid layout (RS-11). Sections listed top-left → bottom-right, grid order:
-//   Row 1 (3-col): Recurring Spend | Loan Payoff | Savings Accounts
-//   Row 2 (2-col): Chequing Balance | Subscriptions
-//   Row 3 (full):  Credit Cards
-//   Row 4 (full):  Wishlist
+// Fixed-grid layout (RS-12). Sections listed top-left → bottom-right, grid order:
+//   Row 1 (2-col): Purchases This Period | Money Flow
+//   Row 2 (3-col): Recurring Spend | Loan Payoff | Savings Accounts
+//   Row 3 (2-col): Chequing Balance | Subscriptions
+//   Row 4 (full):  Credit Cards
+//   Row 5 (full):  Wishlist
 
 export const DASHBOARD_SECTIONS: DashboardSection[] = [
+  // ── Wants & Analytics ────────────────────────────────────────────
+  {
+    id: 'purchases-this-period',
+    icon: '🛍️',
+    label: 'Purchases This Period',
+    title: 'Purchases This Period',
+    group: 'Spending',
+  },
+  {
+    id: 'money-flow',
+    icon: '📊',
+    label: 'Money Flow',
+    title: 'Money Flow (12 months)',
+    group: 'Spending',
+  },
+
   // ── Spending ─────────────────────────────────────────────────────
   {
     id: 'expense-cards',

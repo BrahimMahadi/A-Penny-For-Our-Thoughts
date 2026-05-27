@@ -160,13 +160,16 @@ describe('ui store — sectionOrder', () => {
     expect(store.sectionOrder).toEqual(DEFAULT_SECTION_ORDER);
   });
 
-  it('sectionOrder contains all 7 known dashboard section IDs', () => {
+  it('sectionOrder contains all 9 known dashboard section IDs', () => {
     const store = useUiStore();
     // RS-11: income-streams, wants-tracker, savings-goals removed → 7 sections remain
-    expect(store.sectionOrder).toHaveLength(7);
+    // RS-12: purchases-this-period + money-flow added → 9 sections
+    expect(store.sectionOrder).toHaveLength(9);
     expect(store.sectionOrder).toContain('expense-cards');
     expect(store.sectionOrder).toContain('subscriptions');
     expect(store.sectionOrder).toContain('wishlist');
+    expect(store.sectionOrder).toContain('purchases-this-period');
+    expect(store.sectionOrder).toContain('money-flow');
   });
 
   it('setSectionOrder updates the order and persists to localStorage', () => {
@@ -190,10 +193,10 @@ describe('ui store — sectionOrder', () => {
 
   it('setSectionOrder appends missing IDs so no section is ever lost', () => {
     const store = useUiStore();
-    // Pass an order that only contains 2 of the 7 dashboard sections
+    // Pass an order that only contains 2 of the 9 dashboard sections
     store.setSectionOrder(['subscriptions', 'loans']);
     expect(store.sectionOrder).toContain('wishlist');
-    expect(store.sectionOrder.length).toBe(7);
+    expect(store.sectionOrder.length).toBe(9);
     // The 2 provided sections come first
     expect(store.sectionOrder[0]).toBe('subscriptions');
     expect(store.sectionOrder[1]).toBe('loans');
@@ -264,7 +267,7 @@ describe('ui store — sectionOrder', () => {
     setActivePinia(createPinia());
     const store2 = useUiStore();
     expect(store2.sectionOrder).not.toContain('totally-fake-id');
-    expect(store2.sectionOrder.length).toBe(7);
+    expect(store2.sectionOrder.length).toBe(9);
   });
 
   it('migration: sections missing from stored order are appended on load', () => {
@@ -275,7 +278,7 @@ describe('ui store — sectionOrder', () => {
     }));
     setActivePinia(createPinia());
     const store2 = useUiStore();
-    expect(store2.sectionOrder.length).toBe(7);
+    expect(store2.sectionOrder.length).toBe(9);
     expect(store2.sectionOrder[0]).toBe('subscriptions');
     expect(store2.sectionOrder[1]).toBe('loans');
   });

@@ -13,15 +13,17 @@
                                    (→ RS-12), savings-goals (→ Goals tab); removed
                                    drag-and-drop and "Manage widgets"; sections now live
                                    in a responsive fixed grid matching the new mockup.
+            May 2026 (RS-12)     — Charts row added between KPI and widget rows:
+                                   Purchases This Period (donut) + Money Flow (12-month).
+                                   RecurringSpend replaces ExpenseCards :readonly on dash.
   Summary:  Dashboard tab host. Fixed-grid layout:
               Row 0 — page header (greeting + quick-add CTA)
               Row 1 — 4-col KPI hero row (wants envelope, due-in-7, needs, net worth)
-              Row 2 — 3-col widget row  (Recurring Spend | Loan Payoff | Savings Accounts)
-              Row 3 — 2-col row         (Chequing Balance | Subscriptions)
-              Row 4 — full-width        (Credit Cards)
-              Row 5 — full-width        (Wishlist)
-            RS-12 will add the charts row (Money flow + Purchases this period) between
-            Row 1 and Row 2.
+              Row 2 — 2-col charts row   (Purchases This Period | Money Flow)
+              Row 3 — 3-col widget row   (Recurring Spend | Loan Payoff | Savings Accounts)
+              Row 4 — 2-col row          (Chequing Balance | Subscriptions)
+              Row 5 — full-width         (Credit Cards)
+              Row 6 — full-width         (Wishlist)
 -->
 
 <script setup lang="ts">
@@ -41,13 +43,15 @@ import {
 import type { Purchase } from '@/types/budget';
 
 // ─── Section components ───────────────────────────────────────────
-import ExpenseCards    from '@/components/sections/ExpenseCards.vue';
-import Loans           from '@/components/sections/Loans.vue';
-import CreditCards     from '@/components/sections/CreditCards.vue';
-import Subscriptions   from '@/components/sections/Subscriptions.vue';
-import Savings         from '@/components/sections/Savings.vue';
-import Wishlist        from '@/components/sections/Wishlist.vue';
-import ChequingBalance from '@/components/sections/ChequingBalance.vue';
+import PurchasesThisPeriod from '@/components/sections/PurchasesThisPeriod.vue';
+import MoneyFlow           from '@/components/sections/MoneyFlow.vue';
+import RecurringSpend      from '@/components/sections/RecurringSpend.vue';
+import Loans               from '@/components/sections/Loans.vue';
+import CreditCards         from '@/components/sections/CreditCards.vue';
+import Subscriptions       from '@/components/sections/Subscriptions.vue';
+import Savings             from '@/components/sections/Savings.vue';
+import Wishlist            from '@/components/sections/Wishlist.vue';
+import ChequingBalance     from '@/components/sections/ChequingBalance.vue';
 
 // ─── Stores & composables ──────────────────────────────────────────
 const ui     = useUiStore();
@@ -370,9 +374,29 @@ function submitQuickAdd(): void {
       </div>
     </div><!-- /kpi-row -->
 
-    <!-- ══ Row 2 — 3-col widget row ══════════════════════════════════════
+    <!-- ══ Row 2 — 2-col charts row ════════════════════════════════════
+         Purchases This Period (donut) · Money Flow (12-month trend)
+    ═══════════════════════════════════════════════════════════════════ -->
+    <div class="dash-charts-row">
+      <BaseCard
+        title="Purchases This Period"
+        section-id="purchases-this-period"
+        :collapsible="true"
+      >
+        <PurchasesThisPeriod />
+      </BaseCard>
+
+      <BaseCard
+        title="Money Flow (12 months)"
+        section-id="money-flow"
+        :collapsible="true"
+      >
+        <MoneyFlow />
+      </BaseCard>
+    </div>
+
+    <!-- ══ Row 3 — 3-col widget row ══════════════════════════════════════
          Recurring Spend · Loan Payoff · Savings Accounts
-         (content redesigns coming in RS-12 and RS-13)
     ═══════════════════════════════════════════════════════════════════ -->
     <div class="dash-widget-row">
       <BaseCard
@@ -380,7 +404,7 @@ function submitQuickAdd(): void {
         section-id="expense-cards"
         :collapsible="true"
       >
-        <ExpenseCards :readonly="true" />
+        <RecurringSpend />
       </BaseCard>
 
       <BaseCard
@@ -400,7 +424,7 @@ function submitQuickAdd(): void {
       </BaseCard>
     </div>
 
-    <!-- ══ Row 3 — 2-col row ══════════════════════════════════════════════
+    <!-- ══ Row 4 — 2-col row ══════════════════════════════════════════════
          Chequing Balance · Subscriptions
     ═══════════════════════════════════════════════════════════════════ -->
     <div class="dash-2col-row">
@@ -421,8 +445,8 @@ function submitQuickAdd(): void {
       </BaseCard>
     </div>
 
-    <!-- ══ Row 4 — full-width: Credit Cards ══════════════════════════════
-         (bar chart removed in RS-11; inline add/withdraw redesign in RS-13)
+    <!-- ══ Row 5 — full-width: Credit Cards ══════════════════════════════
+         (inline add/withdraw redesign in RS-13)
     ═══════════════════════════════════════════════════════════════════ -->
     <BaseCard
       title="Credit Cards"
@@ -432,7 +456,7 @@ function submitQuickAdd(): void {
       <CreditCards />
     </BaseCard>
 
-    <!-- ══ Row 5 — full-width: Wishlist ══════════════════════════════════
+    <!-- ══ Row 6 — full-width: Wishlist ══════════════════════════════════
          (redesign in RS-14)
     ═══════════════════════════════════════════════════════════════════ -->
     <BaseCard
@@ -887,6 +911,20 @@ function submitQuickAdd(): void {
 }
 
 /* ─── Dashboard grid rows ──────────────────────────────────────── */
+
+/* 2-col charts row: Purchases This Period | Money Flow */
+.dash-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .dash-charts-row {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* 3-col row: Recurring Spend | Loan Payoff | Savings Accounts */
 .dash-widget-row {

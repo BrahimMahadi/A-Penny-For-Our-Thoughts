@@ -1690,6 +1690,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-9 | Polish, tests, v2.0.0 release | `feat/redesign-sprint-9-release` | ✅ Complete | v2.0.0 |
 | RS-10 | Sidebar hover-expand (icon+label, overlay mode) | `feat/sidebar-hover-expand` | ✅ Complete | v2.1.0 |
 | RS-11 | Dashboard grid restructure — fixed layout, remove legacy sections, strip bar charts | `feat/redesign-sprint-11-dashboard-grid` | ✅ Complete | v2.2.0 |
+| RS-12 | Purchases This Period + Recurring Spend + Money Flow charts row | `feat/redesign-sprint-12-purchases-recurring` | ✅ Complete | v2.3.0 |
 
 ---
 
@@ -2106,3 +2107,60 @@ Replace the old drag-and-drop dynamic section renderer with a clean fixed-grid l
 
 #### Final gate
 - ✅ 898/898 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-12 — Purchases This Period + Recurring Spend + Money Flow ✅
+**Branch**: `feat/redesign-sprint-12-purchases-recurring`
+**Status**: ✅ **COMPLETE** — May 2026
+**Version**: `v2.3.0`
+
+### Goal
+Add a new charts row to the dashboard (between the KPI hero row and the 3-col widget row) containing three new components: a bi-weekly wants donut widget, an expandable per-card recurring spend view, and a 12-month money flow bar chart.
+
+### Delivered
+
+#### `src/constants/dashboardSections.ts`
+- ✅ Added: `purchases-this-period` (icon 🛍️, group "Spending") — donut + category breakdown
+- ✅ Added: `money-flow` (icon 📊, group "Spending") — 12-month income/spend trend
+- ✅ DASHBOARD_SECTIONS: 7 → 9 sections; DEFAULT_SECTION_ORDER updated accordingly
+- ✅ Updated grid order comment to reflect new Row 1 (2-col charts row)
+
+#### `src/components/sections/PurchasesThisPeriod.vue` (new)
+- ✅ Read-only bi-weekly wants widget: donut (left) + category list (right)
+- ✅ Category list shows name, amount, % of total; sorted by spend descending
+- ✅ Auto-deductions row (subs/loans deducted this period) shown below categories
+- ✅ Empty state when no purchases and no deductions
+- ✅ Footer: "For full detail, see the Spending tab."
+
+#### `src/components/sections/RecurringSpend.vue` (new)
+- ✅ Read-only expandable per-card view replacing `ExpenseCards :readonly` on dashboard
+- ✅ Summary bar: Grand Total / mo + Needs Remaining (danger-coloured when negative)
+- ✅ Each expense card row is a click-to-expand button showing items, linked subs, linked loans
+- ✅ Linked items display Due badge (this month) or "next {date}" hint
+- ✅ Expand/collapse per-card with chevron rotation animation
+- ✅ Footer: "Edit in Settings → Expenses"
+
+#### `src/components/sections/MoneyFlow.vue` (new)
+- ✅ Thin wrapper around `SpendingTrendChart` with 12-month window via `getSpendingTrend(state, 12)`
+- ✅ Stacked Needs / Wants / Savings bars + income reference line
+- ✅ Lazy-renders via `useInView` (inherited from SpendingTrendChart)
+
+#### `src/components/pages/DashboardPage.vue`
+- ✅ Replaced `ExpenseCards :readonly` with `RecurringSpend`
+- ✅ Added `PurchasesThisPeriod` import
+- ✅ Added `MoneyFlow` import
+- ✅ Added `.dash-charts-row` (2-col: 1fr 1.4fr) between KPI row and widget row
+- ✅ `.dash-charts-row` collapses to 1-col at ≤900px
+
+#### Tests updated
+- ✅ `tests/stores/ui.spec.ts` — section count 7 → 9; added `purchases-this-period` and `money-flow` assertions
+- ✅ `tests/components/sections/sections.spec.ts`:
+  - DashboardPage: `renders all 9 fixed section cards`; chevrons 7 → 9; new `.dash-charts-row` test
+  - SectionPicker: 11 → 13 items, 11 → 13 handles, 22 → 26 move buttons, 11 → 13 collapse buttons
+  - New `PurchasesThisPeriod` describe block (5 tests)
+  - New `RecurringSpend` describe block (7 tests)
+  - New `MoneyFlow` describe block (2 tests)
+
+#### Final gate
+- ✅ 920/920 tests pass · `vue-tsc --noEmit` clean

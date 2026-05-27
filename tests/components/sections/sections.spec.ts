@@ -1337,6 +1337,161 @@ describe('Subscriptions — BUG-015 save regression', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  PurchasesThisPeriod — RS-12
+// ─────────────────────────────────────────────────────────────────
+import PurchasesThisPeriod from '@/components/sections/PurchasesThisPeriod.vue';
+
+describe('PurchasesThisPeriod', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('mounts without throwing', () => {
+    const w = mountWith(PurchasesThisPeriod);
+    expect(w.exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('shows empty state when no purchases and no deductions', async () => {
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+    expect(w.find('.ptp__empty').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders donut + category list when purchases exist', async () => {
+    const budget = useBudgetStore();
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'Food', cardId: null, budgetType: 'wants' });
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+    expect(w.find('.ptp__body').exists()).toBe(true);
+    expect(w.find('.ptp__donut-wrap').exists()).toBe(true);
+    expect(w.find('.ptp__categories').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('shows a category row for each unique category', async () => {
+    const budget = useBudgetStore();
+    budget.addPurchase({ name: 'Coffee', amount: 5,  category: 'Food',  cardId: null, budgetType: 'wants' });
+    budget.addPurchase({ name: 'Book',   amount: 15, category: 'Other', cardId: null, budgetType: 'wants' });
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+    expect(w.findAll('.ptp__cat-row').length).toBeGreaterThanOrEqual(2);
+    w.unmount();
+  });
+
+  it('renders footer text', async () => {
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+    expect(w.find('.ptp__footer').exists()).toBe(true);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  RecurringSpend — RS-12
+// ─────────────────────────────────────────────────────────────────
+import RecurringSpend from '@/components/sections/RecurringSpend.vue';
+
+describe('RecurringSpend', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('mounts without throwing', () => {
+    const w = mountWith(RecurringSpend);
+    expect(w.exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('shows empty state when no expense cards', async () => {
+    const budget = useBudgetStore();
+    budget.expenseCards.length = 0;
+    const w = mountWith(RecurringSpend);
+    await nextTick();
+    expect(w.find('.base-empty-state').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders summary + card rows when expense cards exist', async () => {
+    const budget = useBudgetStore();
+    budget.addExpenseCard('Visa');
+    budget.addExpenseCard('Mastercard');
+    const w = mountWith(RecurringSpend);
+    await nextTick();
+    expect(w.find('.rs__summary').exists()).toBe(true);
+    expect(w.find('.rs__cards').exists()).toBe(true);
+    expect(w.findAll('.rs__card').length).toBe(2);
+    w.unmount();
+  });
+
+  it('card is collapsed by default (no items visible)', async () => {
+    const budget = useBudgetStore();
+    budget.addExpenseCard('Visa');
+    const w = mountWith(RecurringSpend);
+    await nextTick();
+    expect(w.find('.rs__card-items').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('clicking card header expands and shows items', async () => {
+    const budget = useBudgetStore();
+    budget.addExpenseCard('Visa');
+    const w = mountWith(RecurringSpend);
+    await nextTick();
+    await w.find('.rs__card-header').trigger('click');
+    await nextTick();
+    expect(w.find('.rs__card-items').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('clicking card header again collapses it', async () => {
+    const budget = useBudgetStore();
+    budget.addExpenseCard('Visa');
+    const w = mountWith(RecurringSpend);
+    await nextTick();
+    const header = w.find('.rs__card-header');
+    await header.trigger('click');
+    await nextTick();
+    expect(w.find('.rs__card-items').exists()).toBe(true);
+    await header.trigger('click');
+    await nextTick();
+    expect(w.find('.rs__card-items').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('renders footer settings hint', async () => {
+    const budget = useBudgetStore();
+    budget.addExpenseCard('Visa');
+    const w = mountWith(RecurringSpend);
+    await nextTick();
+    expect(w.find('.rs__footer').exists()).toBe(true);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  MoneyFlow — RS-12
+// ─────────────────────────────────────────────────────────────────
+import MoneyFlow from '@/components/sections/MoneyFlow.vue';
+
+describe('MoneyFlow', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('mounts without throwing', () => {
+    const w = mountWith(MoneyFlow);
+    expect(w.exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders the money-flow wrapper', async () => {
+    const w = mountWith(MoneyFlow);
+    await nextTick();
+    expect(w.find('.money-flow').exists()).toBe(true);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 //  DashboardPage — RS-11 fixed grid layout
 // ─────────────────────────────────────────────────────────────────
 import DashboardPage from '@/components/pages/DashboardPage.vue';
@@ -1370,7 +1525,7 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
     w.unmount();
   });
 
-  it('renders all 7 fixed section cards', async () => {
+  it('renders all 9 fixed section cards', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
     DEFAULT_SECTION_ORDER.forEach(id => {
@@ -1386,6 +1541,15 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
     expect(w.find('#section-income-streams').exists()).toBe(false);
     expect(w.find('#section-savings-goals').exists()).toBe(false);
     expect(w.find('#section-wants-tracker').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('renders the 2-col charts row with purchases and money-flow', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('.dash-charts-row').exists()).toBe(true);
+    expect(w.find('.dash-charts-row #section-purchases-this-period').exists()).toBe(true);
+    expect(w.find('.dash-charts-row #section-money-flow').exists()).toBe(true);
     w.unmount();
   });
 
@@ -1435,8 +1599,8 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
     const w = mountWith(DashboardPage);
     await nextTick();
     const chevrons = w.findAll('.base-card__collapse-btn');
-    // 7 sections, each with a collapsible BaseCard
-    expect(chevrons.length).toBe(7);
+    // 9 sections (RS-12 added purchases-this-period + money-flow), each with a collapsible BaseCard
+    expect(chevrons.length).toBe(9);
     w.unmount();
   });
 
@@ -1478,14 +1642,14 @@ describe('SectionPicker — Sprint 18 reorder', () => {
   beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('renders one item per section (11 items: 7 dashboard + 4 advanced)', async () => {
+  it('renders one item per section (13 items: 9 dashboard + 4 advanced)', async () => {
     const w = mount(SectionPicker, {
       props: { open: true },
       attachTo: document.body,
     });
     await nextTick();
     const items = document.body.querySelectorAll('.section-picker-item');
-    expect(items.length).toBe(11);
+    expect(items.length).toBe(13);
     w.unmount();
   });
 
@@ -1496,7 +1660,7 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const handles = document.body.querySelectorAll('.picker-drag-handle');
-    expect(handles.length).toBe(11);
+    expect(handles.length).toBe(13);
     w.unmount();
   });
 
@@ -1507,8 +1671,8 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const moveBtns = document.body.querySelectorAll('.picker-move-btn');
-    // 2 buttons per item × 11 items = 22
-    expect(moveBtns.length).toBe(22);
+    // 2 buttons per item × 13 items = 26
+    expect(moveBtns.length).toBe(26);
     w.unmount();
   });
 
@@ -1519,7 +1683,7 @@ describe('SectionPicker — Sprint 18 reorder', () => {
     });
     await nextTick();
     const collapseBtns = document.body.querySelectorAll('.picker-collapse-btn');
-    expect(collapseBtns.length).toBe(11);
+    expect(collapseBtns.length).toBe(13);
     w.unmount();
   });
 
