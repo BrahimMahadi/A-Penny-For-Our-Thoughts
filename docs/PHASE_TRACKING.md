@@ -2351,7 +2351,24 @@ Expose the existing `Purchase.budgetType` field in all UIs, fix the Spending tab
   - Need button activates and updates preview label
   - Preview label switches back to WANTS
   - Submitting a needs purchase saves `budgetType: 'needs'`
-- **Total: 996 passing (↑18 from 978) across 28 spec files**
+- ✅ `SpendingPage — CRUD` (16 new tests):
+  - Filtered amount total shown in purchases count area
+  - Filtered total updates when type filter applied
+  - Filtered total updates when search filter applied
+  - "+ Add" button opens purchase modal
+  - Modal title "Add Purchase" for new purchase
+  - Modal has Want and Need type buttons
+  - Save button disabled when name empty
+  - Save button enabled when form valid
+  - Saving new purchase adds it to store
+  - Saving needs purchase sets budgetType needs
+  - Edit button opens modal with "Edit Purchase" title
+  - Edit modal pre-filled with purchase values
+  - Saving edit updates purchase in store
+  - Delete with confirm=true removes purchase
+  - Delete with confirm=false keeps purchase
+  - Cancel button closes modal without saving
+- **Total: 1012 passing (↑34 from 978) across 28 spec files**
 
 ### Final gate
-- ✅ 996/996 tests pass · `vue-tsc --noEmit` clean
+- ✅ 1012/1012 tests pass · `vue-tsc --noEmit` clean

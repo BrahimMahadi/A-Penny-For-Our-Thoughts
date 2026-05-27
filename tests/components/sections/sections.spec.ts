@@ -3572,3 +3572,307 @@ describe('DashboardPage — RS-15 quick-add modal', () => {
     w.unmount();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  SpendingPage — CRUD (filtered total + Add/Edit/Delete purchases)
+// ─────────────────────────────────────────────────────────────────
+
+describe('SpendingPage — CRUD', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let w: any;
+
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    document.body.innerHTML = '';
+    // Stub window.confirm — default: confirm = true
+    vi.stubGlobal('confirm', vi.fn(() => true));
+  });
+
+  afterEach(() => {
+    w?.unmount();
+    document.body.innerHTML = '';
+    vi.unstubAllGlobals();
+  });
+
+  // ── Filtered amount total ───────────────────────────────────────
+
+  it('shows filtered amount total in purchases count area', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5,   category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent',   amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    w = mountWith(SpendingPage);
+    await nextTick();
+    // Both purchases visible — total should be $805
+    expect(w.find('.purchases-count__total').text()).toContain('$805.00');
+  });
+
+  it('filtered amount total updates when type filter is applied', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5,   category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent',   amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Click "Wants" filter chip
+    const chips = w.findAll('.cat-chips--type .cat-chip');
+    await chips.find((c: ReturnType<typeof w.findAll>[number]) => c.text().includes('Wants'))!.trigger('click');
+    await nextTick();
+
+    // Only $5 coffee visible
+    expect(w.find('.purchases-count__total').text()).toContain('$5.00');
+  });
+
+  it('filtered amount total updates when search filter is applied', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5,   category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Lunch',  amount: 12,  category: 'other', cardId: null, budgetType: 'wants', date: today });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    const searchInput = w.find('.search-input');
+    await searchInput.setValue('coffee');
+    await nextTick();
+
+    expect(w.find('.purchases-count__total').text()).toContain('$5.00');
+  });
+
+  // ── Add purchase modal ──────────────────────────────────────────
+
+  it('"+ Add" button opens the purchase modal', async () => {
+    w = mountWith(SpendingPage);
+    await nextTick();
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    expect(document.body.querySelector('.base-modal')).not.toBeNull();
+  });
+
+  it('modal title is "Add Purchase" when adding a new purchase', async () => {
+    w = mountWith(SpendingPage);
+    await nextTick();
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    const modal = document.body.querySelector('.base-modal');
+    expect(modal!.textContent).toContain('Add Purchase');
+  });
+
+  it('modal has Want and Need type buttons', async () => {
+    w = mountWith(SpendingPage);
+    await nextTick();
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    const typeBtns = document.body.querySelectorAll('.mf-type-btn');
+    expect(typeBtns).toHaveLength(2);
+    expect(typeBtns[0].textContent).toContain('Want');
+    expect(typeBtns[1].textContent).toContain('Need');
+  });
+
+  it('save button is disabled when name is empty', async () => {
+    w = mountWith(SpendingPage);
+    await nextTick();
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    const saveBtn = document.body.querySelector<HTMLButtonElement>('.base-modal [disabled]');
+    expect(saveBtn).not.toBeNull();
+  });
+
+  it('save button is enabled when name and amount are valid', async () => {
+    w = mountWith(SpendingPage);
+    await nextTick();
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+
+    const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
+    const amtInput  = document.body.querySelector<HTMLInputElement>('#sp-amount');
+
+    nameInput!.value = 'Groceries';
+    nameInput!.dispatchEvent(new Event('input'));
+    amtInput!.value  = '42';
+    amtInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    // The disabled attr should be gone
+    const disabledBtn = document.body.querySelector<HTMLButtonElement>('.base-modal [disabled]');
+    expect(disabledBtn).toBeNull();
+  });
+
+  it('saving a new purchase adds it to the store', async () => {
+    const budget = useBudgetStore();
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+
+    // Fill the form
+    const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
+    const amtInput  = document.body.querySelector<HTMLInputElement>('#sp-amount');
+    nameInput!.value = 'New coffee';
+    nameInput!.dispatchEvent(new Event('input'));
+    amtInput!.value  = '4.50';
+    amtInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    // Click Save/Add button (the primary button in the modal footer)
+    const allBtns = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'));
+    const saveBtn = allBtns.find(b => b.textContent?.trim() === 'Add' && !b.disabled);
+    saveBtn!.click();
+    await nextTick();
+
+    const found = budget.purchases.find(p => p.name === 'New coffee');
+    expect(found).toBeDefined();
+    expect(found!.amount).toBe(4.5);
+  });
+
+  it('adding a needs purchase sets budgetType to needs in the store', async () => {
+    const budget = useBudgetStore();
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+
+    // Select "Need" type
+    const needBtn = document.body.querySelectorAll<HTMLButtonElement>('.mf-type-btn')[1];
+    needBtn.click();
+    await nextTick();
+
+    const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
+    const amtInput  = document.body.querySelector<HTMLInputElement>('#sp-amount');
+    nameInput!.value = 'Electric bill';
+    nameInput!.dispatchEvent(new Event('input'));
+    amtInput!.value  = '75';
+    amtInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    const allBtns = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'));
+    const saveBtn = allBtns.find(b => b.textContent?.trim() === 'Add' && !b.disabled);
+    saveBtn!.click();
+    await nextTick();
+
+    const found = budget.purchases.find(p => p.name === 'Electric bill');
+    expect(found).toBeDefined();
+    expect(found!.budgetType).toBe('needs');
+  });
+
+  // ── Edit purchase ───────────────────────────────────────────────
+
+  it('edit button opens modal with title "Edit Purchase"', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    const editBtn = w.find('.row-action-btn--edit');
+    await editBtn.trigger('click');
+    await nextTick();
+
+    const modal = document.body.querySelector('.base-modal');
+    expect(modal).not.toBeNull();
+    expect(modal!.textContent).toContain('Edit Purchase');
+  });
+
+  it('edit modal is pre-filled with the purchase values', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Sushi dinner', amount: 55, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    const editBtn = w.find('.row-action-btn--edit');
+    await editBtn.trigger('click');
+    await nextTick();
+
+    const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
+    const amtInput  = document.body.querySelector<HTMLInputElement>('#sp-amount');
+    expect(nameInput!.value).toBe('Sushi dinner');
+    expect(Number(amtInput!.value)).toBe(55);
+  });
+
+  it('saving edit updates the purchase in the store', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Old name', amount: 10, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.find('.row-action-btn--edit').trigger('click');
+    await nextTick();
+
+    const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
+    nameInput!.value = 'New name';
+    nameInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    const allBtns = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'));
+    const updateBtn = allBtns.find(b => b.textContent?.trim() === 'Update' && !b.disabled);
+    updateBtn!.click();
+    await nextTick();
+
+    expect(budget.purchases.find(p => p.name === 'New name')).toBeDefined();
+    expect(budget.purchases.find(p => p.name === 'Old name')).toBeUndefined();
+  });
+
+  // ── Delete purchase ─────────────────────────────────────────────
+
+  it('delete button removes the purchase when confirm returns true', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Expense to delete', amount: 25, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    expect(budget.purchases).toHaveLength(1);
+    await w.find('.row-action-btn--delete').trigger('click');
+    await nextTick();
+
+    expect(budget.purchases).toHaveLength(0);
+  });
+
+  it('delete does NOT remove the purchase when confirm returns false', async () => {
+    vi.stubGlobal('confirm', vi.fn(() => false));
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Keep me', amount: 30, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.find('.row-action-btn--delete').trigger('click');
+    await nextTick();
+
+    expect(budget.purchases).toHaveLength(1);
+  });
+
+  it('cancel button in modal closes it without saving', async () => {
+    const budget = useBudgetStore();
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Add'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    expect(document.body.querySelector('.base-modal')).not.toBeNull();
+
+    const cancelBtn = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'))
+      .find(b => b.textContent?.trim() === 'Cancel');
+    cancelBtn!.click();
+    await nextTick();
+
+    expect(budget.purchases).toHaveLength(0);
+    expect(document.body.querySelector('.base-modal')).toBeNull();
+  });
+});

@@ -9,15 +9,17 @@
 -->
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, reactive, watch } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics } from '@/composables/useAnalytics';
 import { useToast } from '@/composables/useToast';
-import { getPayPeriodForecast, getCategorySpending } from '@/utils/calculations';
+import { getPayPeriodForecast, getCategorySpending, applyRulesToName } from '@/utils/calculations';
 import { CATEGORY_FALLBACK_COLOR } from '@/data/categories';
 import WantsDonut from '@/components/charts/WantsDonut.vue';
 import StatCard from '@/components/ui/StatCard.vue';
 import BaseCard from '@/components/ui/BaseCard.vue';
+import BaseModal from '@/components/ui/BaseModal.vue';
+import BaseButton from '@/components/ui/BaseButton.vue';
 import { fmt } from '@/utils/format';
 import type { Purchase, ISODate } from '@/types/budget';
 
@@ -260,6 +262,100 @@ const totalFiltered = computed(() =>
 const totalAll = computed(() =>
   purchasesInPeriod.value.length + undatedPurchases.value.length,
 );
+
+/** Sum of amounts for all currently-visible rows (respects all active filters). */
+const filteredAmountTotal = computed(() =>
+  [...filteredPurchases.value, ...filteredUndated.value]
+    .reduce((s, p) => s + p.amount, 0),
+);
+
+// ─── Purchase CRUD ─────────────────────────────────────────────────
+const showPurchaseModal = ref(false);
+const editingPurchaseId = ref<string | null>(null);
+
+const purchaseForm = reactive({
+  name:       '',
+  amount:     0,
+  date:       '' as string,
+  category:   'Other' as string,
+  budgetType: 'wants' as 'wants' | 'needs',
+  cardId:     null as string | null,
+});
+
+/** Auto-categorise by rules when name changes (add mode only). */
+watch(
+  () => purchaseForm.name,
+  (name) => {
+    if (editingPurchaseId.value) return;
+    const matched = applyRulesToName(budget.rules, name);
+    if (matched) purchaseForm.category = matched;
+  },
+);
+
+const categoryOptions = computed(() => budget.spendingCategories.map(c => c.name));
+
+const purchaseFormError = computed<string>(() => {
+  if (!purchaseForm.name.trim()) return 'Name is required.';
+  if (purchaseForm.amount <= 0)  return 'Amount must be greater than zero.';
+  return '';
+});
+
+function resetPurchaseForm(): void {
+  purchaseForm.name       = '';
+  purchaseForm.amount     = 0;
+  purchaseForm.date       = today.toISOString().split('T')[0];
+  purchaseForm.category   = categoryOptions.value[0] ?? 'Other';
+  purchaseForm.budgetType = 'wants';
+  purchaseForm.cardId     = null;
+  editingPurchaseId.value = null;
+}
+
+function openAddPurchase(): void {
+  resetPurchaseForm();
+  showPurchaseModal.value = true;
+}
+
+function openEditPurchase(id: string): void {
+  const p = budget.purchases.find(x => x.id === id);
+  if (!p) return;
+  purchaseForm.name       = p.name;
+  purchaseForm.amount     = p.amount;
+  purchaseForm.date       = p.date ?? '';
+  purchaseForm.category   = p.category || 'Other';
+  purchaseForm.budgetType = (p.budgetType as 'wants' | 'needs') || 'wants';
+  purchaseForm.cardId     = p.cardId;
+  editingPurchaseId.value = id;
+  showPurchaseModal.value = true;
+}
+
+function savePurchase(): void {
+  if (purchaseFormError.value) return;
+  const payload = {
+    name:       purchaseForm.name.trim(),
+    amount:     purchaseForm.amount,
+    date:       (purchaseForm.date || undefined) as ISODate | undefined,
+    category:   purchaseForm.category,
+    budgetType: purchaseForm.budgetType,
+    cardId:     purchaseForm.cardId,
+  };
+  if (editingPurchaseId.value) {
+    budget.updatePurchase(editingPurchaseId.value, payload);
+    toast.show('Purchase updated.', 'success');
+  } else {
+    budget.addPurchase(payload);
+    toast.show('Purchase added.', 'success');
+  }
+  showPurchaseModal.value = false;
+  resetPurchaseForm();
+}
+
+function deletePurchase(id: string): void {
+  const p = budget.purchases.find(x => x.id === id);
+  if (!p) return;
+  if (!window.confirm(`Delete "${p.name}"?`)) return;
+  budget.deletePurchase(id);
+  toast.show('Purchase deleted.', 'success');
+}
 </script>
 
 <template>
@@ -427,10 +523,19 @@ const totalAll = computed(() =>
           </div>
           <div class="purchases-count">
             {{ totalFiltered }} of {{ totalAll }}
+            <span class="purchases-count__total">· {{ fmt(filteredAmountTotal) }}</span>
           </div>
         </div>
 
         <div class="purchases-controls">
+          <!-- Add purchase button -->
+          <BaseButton
+            size="sm"
+            @click="openAddPurchase"
+          >
+            + Add
+          </BaseButton>
+
           <!-- Pill search -->
           <div
             class="search-pill"
@@ -563,6 +668,7 @@ const totalAll = computed(() =>
               <th class="col-amt">
                 Amount
               </th>
+              <th class="col-actions" />
             </tr>
           </thead>
           <tbody>
@@ -614,13 +720,31 @@ const totalAll = computed(() =>
               <td class="col-amt">
                 {{ fmt(p.amount) }}
               </td>
+              <td class="col-actions">
+                <div class="row-actions">
+                  <button
+                    class="row-action-btn row-action-btn--edit"
+                    title="Edit"
+                    @click="openEditPurchase(p.id)"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    class="row-action-btn row-action-btn--delete"
+                    title="Delete"
+                    @click="deletePurchase(p.id)"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </td>
             </tr>
 
             <!-- Undated purchases (always shown at bottom) -->
             <template v-if="filteredUndated.length > 0">
               <tr class="undated-divider-row">
                 <td
-                  colspan="6"
+                  colspan="7"
                   class="undated-divider-label"
                 >
                   No date
@@ -673,13 +797,31 @@ const totalAll = computed(() =>
                 <td class="col-amt">
                   {{ fmt(p.amount) }}
                 </td>
+                <td class="col-actions">
+                  <div class="row-actions">
+                    <button
+                      class="row-action-btn row-action-btn--edit"
+                      title="Edit"
+                      @click="openEditPurchase(p.id)"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      class="row-action-btn row-action-btn--delete"
+                      title="Delete"
+                      @click="deletePurchase(p.id)"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </td>
               </tr>
             </template>
 
             <!-- Empty state row -->
             <tr v-if="filteredPurchases.length === 0 && filteredUndated.length === 0">
               <td
-                colspan="6"
+                colspan="7"
                 class="empty-row"
               >
                 <template v-if="searchQuery || catFilter">
@@ -694,6 +836,151 @@ const totalAll = computed(() =>
         </table>
       </div>
     </BaseCard>
+
+    <!-- ── Add / Edit purchase modal ──────────────────────────── -->
+    <BaseModal
+      v-model:open="showPurchaseModal"
+      :title="editingPurchaseId ? 'Edit Purchase' : 'Add Purchase'"
+      size="sm"
+    >
+      <div class="modal-form">
+        <!-- Name + Amount -->
+        <div class="mf-row-2">
+          <div class="mf-group">
+            <label
+              class="mf-label"
+              for="sp-name"
+            >Item name</label>
+            <input
+              id="sp-name"
+              v-model="purchaseForm.name"
+              class="mf-input"
+              type="text"
+              placeholder="e.g. Coffee"
+            >
+          </div>
+          <div class="mf-group">
+            <label
+              class="mf-label"
+              for="sp-amount"
+            >Amount ($)</label>
+            <input
+              id="sp-amount"
+              v-model.number="purchaseForm.amount"
+              class="mf-input"
+              type="number"
+              inputmode="decimal"
+              min="0.01"
+              step="0.01"
+            >
+          </div>
+        </div>
+
+        <!-- Date + Category -->
+        <div class="mf-row-2">
+          <div class="mf-group">
+            <label
+              class="mf-label"
+              for="sp-date"
+            >Date</label>
+            <input
+              id="sp-date"
+              v-model="purchaseForm.date"
+              class="mf-input"
+              type="date"
+            >
+          </div>
+          <div class="mf-group">
+            <label
+              class="mf-label"
+              for="sp-cat"
+            >Category</label>
+            <select
+              id="sp-cat"
+              v-model="purchaseForm.category"
+              class="mf-input"
+            >
+              <option
+                v-for="cat in categoryOptions"
+                :key="cat"
+                :value="cat"
+              >
+                {{ cat }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Type toggle -->
+        <div class="mf-group">
+          <label class="mf-label">Purchase type</label>
+          <div class="mf-type-row">
+            <button
+              class="mf-type-btn"
+              :class="{ 'mf-type-btn--wants': purchaseForm.budgetType === 'wants' }"
+              type="button"
+              @click="purchaseForm.budgetType = 'wants'"
+            >
+              🛍 Want
+            </button>
+            <button
+              class="mf-type-btn"
+              :class="{ 'mf-type-btn--needs': purchaseForm.budgetType === 'needs' }"
+              type="button"
+              @click="purchaseForm.budgetType = 'needs'"
+            >
+              🏠 Need
+            </button>
+          </div>
+        </div>
+
+        <!-- Card -->
+        <div class="mf-group">
+          <label
+            class="mf-label"
+            for="sp-card"
+          >Card</label>
+          <select
+            id="sp-card"
+            v-model="purchaseForm.cardId"
+            class="mf-input"
+          >
+            <option :value="null">
+              No card
+            </option>
+            <option
+              v-for="card in budget.expenseCards"
+              :key="card.id"
+              :value="card.id"
+            >
+              {{ card.label }}
+            </option>
+          </select>
+        </div>
+
+        <p
+          v-if="purchaseFormError"
+          class="mf-error"
+        >
+          {{ purchaseFormError }}
+        </p>
+      </div>
+
+      <template #footer>
+        <BaseButton
+          variant="secondary"
+          @click="showPurchaseModal = false; resetPurchaseForm()"
+        >
+          Cancel
+        </BaseButton>
+        <BaseButton
+          :disabled="!!purchaseFormError"
+          @click="savePurchase"
+        >
+          {{ editingPurchaseId ? 'Update' : 'Add' }}
+        </BaseButton>
+      </template>
+    </BaseModal>
 
   </div>
 </template>
@@ -1206,5 +1493,149 @@ const totalAll = computed(() =>
   color: var(--muted);
   font-size: 0.82rem;
   padding: 2rem !important;
+}
+
+/* ── Filtered total in header ────────────────────────────────────── */
+.purchases-count__total {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 0.15rem;
+}
+
+/* ── Row action buttons ──────────────────────────────────────────── */
+.col-actions {
+  width: 1px; /* shrink to fit */
+  white-space: nowrap;
+  padding-right: 0.25rem !important;
+}
+
+.row-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.purchase-row:hover .row-actions {
+  opacity: 1;
+}
+
+.row-action-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.row-action-btn--edit:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.row-action-btn--delete:hover {
+  background: color-mix(in srgb, var(--danger, #f87171) 12%, transparent);
+  border-color: var(--danger, #f87171);
+  color: var(--danger, #f87171);
+}
+
+/* ── Add/Edit modal form ─────────────────────────────────────────── */
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mf-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .mf-row-2 { grid-template-columns: 1fr; }
+}
+
+.mf-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.mf-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mf-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.mf-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.mf-type-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.mf-type-btn {
+  padding: 0.5rem 0;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.mf-type-btn:hover:not(.mf-type-btn--wants):not(.mf-type-btn--needs) {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.mf-type-btn--wants {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.mf-type-btn--needs {
+  background: color-mix(in srgb, var(--danger, #f87171) 12%, transparent);
+  border-color: var(--danger, #f87171);
+  color: var(--danger, #f87171);
+}
+
+.mf-error {
+  font-size: 0.8rem;
+  color: var(--danger, #f87171);
+  margin: 0;
 }
 </style>
