@@ -136,6 +136,57 @@ const needsIsOver = computed(() =>
   currentMonthActuals.value.needs > currentMonthBudgeted.value.needs,
 );
 
+// ─── Wants spent KPI (mirrors needsDelta/needsUsedPct/needsIsOver) ─
+const wantsDelta = computed(() =>
+  prevMonthActuals.value.wants > 0
+    ? currentMonthActuals.value.wants - prevMonthActuals.value.wants
+    : null,
+);
+
+const wantsUsedPct = computed(() => {
+  if (currentMonthBudgeted.value.wants <= 0) return 0;
+  return Math.min(100, (currentMonthActuals.value.wants / currentMonthBudgeted.value.wants) * 100);
+});
+
+const wantsIsOver = computed(() =>
+  currentMonthActuals.value.wants > currentMonthBudgeted.value.wants,
+);
+
+// ─── Switchable KPI card — follows the hero toggle ────────────────
+/** Label shown on the 3rd KPI card. */
+const kpiLabel = computed(() =>
+  dashboardTypeFilter.value === 'needs' ? 'Needs spent' : 'Wants spent',
+);
+
+/** Monthly spent amount for the active type. */
+const kpiSpent = computed(() =>
+  dashboardTypeFilter.value === 'needs'
+    ? currentMonthActuals.value.needs
+    : currentMonthActuals.value.wants,
+);
+
+/** Monthly budget for the active type. */
+const kpiBudgeted = computed(() =>
+  dashboardTypeFilter.value === 'needs'
+    ? currentMonthBudgeted.value.needs
+    : currentMonthBudgeted.value.wants,
+);
+
+/** Month-over-month delta for the active type (null if no prior month). */
+const kpiDelta = computed(() =>
+  dashboardTypeFilter.value === 'needs' ? needsDelta.value : wantsDelta.value,
+);
+
+/** % of monthly budget used for the active type. */
+const kpiUsedPct = computed(() =>
+  dashboardTypeFilter.value === 'needs' ? needsUsedPct.value : wantsUsedPct.value,
+);
+
+/** Whether the active type is over its monthly budget. */
+const kpiIsOver = computed(() =>
+  dashboardTypeFilter.value === 'needs' ? needsIsOver.value : wantsIsOver.value,
+);
+
 // ─── Dashboard shared type toggle (RS-16) ────────────────────────
 /** Drives the hero card + Purchases This Period. Persists per session only. */
 const dashboardTypeFilter = ref<'wants' | 'needs'>('wants');
@@ -379,33 +430,33 @@ function submitQuickAdd(): void {
         </p>
       </div>
 
-      <!-- ── Needs spent ── -->
+      <!-- ── Wants / Needs spent (follows hero toggle) ── -->
       <div class="kpi-card">
         <div class="kpi-card__header">
-          <span class="kpi-card__label">Needs spent</span>
+          <span class="kpi-card__label">{{ kpiLabel }}</span>
         </div>
         <div
           class="kpi-card__value"
-          :class="{ 'kpi-card__value--danger': needsIsOver }"
+          :class="{ 'kpi-card__value--danger': kpiIsOver }"
         >
-          {{ fmt(currentMonthActuals.needs) }}
+          {{ fmt(kpiSpent) }}
         </div>
         <div class="kpi-card__delta-row">
           <span
-            v-if="needsDelta !== null"
+            v-if="kpiDelta !== null"
             class="kpi-delta"
-            :class="needsDelta > 0 ? 'kpi-delta--bad' : 'kpi-delta--good'"
+            :class="kpiDelta > 0 ? 'kpi-delta--bad' : 'kpi-delta--good'"
           >
-            {{ needsDelta > 0 ? '↑' : '↓' }} {{ fmt(Math.abs(needsDelta)) }}
+            {{ kpiDelta > 0 ? '↑' : '↓' }} {{ fmt(Math.abs(kpiDelta)) }}
           </span>
-          <span class="kpi-card__budget-hint">of {{ fmt(currentMonthBudgeted.needs) }}</span>
+          <span class="kpi-card__budget-hint">of {{ fmt(kpiBudgeted) }}</span>
         </div>
         <ProgressBar
           class="kpi-card__bar"
-          :percent="needsUsedPct"
-          :status="needsIsOver ? 'over' : 'on-track'"
+          :percent="kpiUsedPct"
+          :status="kpiIsOver ? 'over' : 'on-track'"
           size="sm"
-          aria-label="Needs budget used"
+          :aria-label="`${kpiLabel} budget used`"
         />
       </div>
 
