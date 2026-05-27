@@ -429,7 +429,7 @@ function deletePurchase(id: string): void {
     <!-- ── KPI tiles ───────────────────────────────────────────── -->
     <div class="spend-kpi-row">
       <!-- "Spent this period" — inline so it can host the Wants/Needs toggle -->
-      <div class="base-stat-card spend-stat-typed">
+      <div class="spend-stat-typed">
         <div class="spend-stat-typed__header">
           <span class="spend-stat-typed__label">Spent this period</span>
           <div class="donut-type-toggle">
@@ -449,13 +449,14 @@ function deletePurchase(id: string): void {
             </button>
           </div>
         </div>
-        <div class="base-stat-card__value">
+        <div class="spend-stat-typed__value">
           {{ fmt(wantsSpentInPeriod) }}
         </div>
-        <div class="base-stat-card__hint">
-          <template v-if="donutBudget > 0">
-            of {{ fmt(donutBudget) }} {{ donutTypeFilter }} budget
-          </template>
+        <div
+          v-if="donutBudget > 0"
+          class="spend-stat-typed__hint"
+        >
+          of {{ fmt(donutBudget) }} {{ donutTypeFilter }} budget
         </div>
       </div>
       <StatCard
@@ -1564,7 +1565,12 @@ function deletePurchase(id: string): void {
 
 /* ── "Spent this period" stat card with inline toggle ────────────── */
 .spend-stat-typed {
-  /* inherits .base-stat-card layout; flex-col already set */
+  background: var(--surface, #16161e);
+  border: 1px solid var(--border, #2a3041);
+  border-radius: 8px;
+  padding: 0.85rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
   gap: 0.2rem;
 }
 
@@ -1581,6 +1587,19 @@ function deletePurchase(id: string): void {
   letter-spacing: 0.08em;
   color: var(--muted, #8b8b95);
   font-weight: 600;
+}
+
+.spend-stat-typed__value {
+  font-size: clamp(1.2rem, 4.5vw, 1.45rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text, #e3e6ee);
+  font-variant-numeric: tabular-nums;
+}
+
+.spend-stat-typed__hint {
+  font-size: 0.78rem;
+  color: var(--muted, #8b8b95);
 }
 
 .donut-type-toggle {
