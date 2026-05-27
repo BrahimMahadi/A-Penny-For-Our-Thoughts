@@ -151,10 +151,11 @@ const netWorthMomPct = computed(() => {
 });
 
 // ─── Quick-add modal ──────────────────────────────────────────────
-const showQuickAdd     = ref(false);
-const quickAddName     = ref('');
-const quickAddAmount   = ref('');
-const quickAddInputEl  = ref<HTMLInputElement | null>(null);
+const showQuickAdd       = ref(false);
+const quickAddName       = ref('');
+const quickAddAmount     = ref('');
+const quickAddBudgetType = ref<'wants' | 'needs'>('wants');
+const quickAddInputEl    = ref<HTMLInputElement | null>(null);
 
 const quickAddCats = computed(() => budget.spendingCategories);
 
@@ -164,10 +165,34 @@ const defaultCategory = computed(() =>
 
 const quickAddCategory = ref(defaultCategory.value);
 
+/** Bi-weekly needs envelope (income × needs% ÷ 2). */
+const biWeeklyNeedsBudget = computed(() =>
+  (totalMonthlyIncome.value * (budget.allocation.needs / 100)) / 2,
+);
+
+/** All needs purchases spent so far this period. */
+const biWeeklyNeedsSpent = computed(() =>
+  budget.purchases
+    .filter(p => p.budgetType === 'needs')
+    .reduce((s, p) => s + p.amount, 0),
+);
+
+const biWeeklyNeedsRemaining = computed(() =>
+  biWeeklyNeedsBudget.value - biWeeklyNeedsSpent.value,
+);
+
 const quickAddAfter = computed(() => {
   const amt = parseFloat(quickAddAmount.value) || 0;
-  return biWeeklyRemaining.value - amt;
+  return quickAddBudgetType.value === 'needs'
+    ? biWeeklyNeedsRemaining.value - amt
+    : biWeeklyRemaining.value - amt;
 });
+
+const quickAddPreviewLabel = computed(() =>
+  quickAddBudgetType.value === 'needs'
+    ? 'BI-WEEKLY NEEDS REMAINING AFTER'
+    : 'BI-WEEKLY WANTS REMAINING AFTER',
+);
 
 const quickAddValid = computed(() =>
   quickAddName.value.trim() !== '' &&
@@ -175,10 +200,11 @@ const quickAddValid = computed(() =>
 );
 
 function openQuickAdd(): void {
-  quickAddName.value     = '';
-  quickAddAmount.value   = '';
-  quickAddCategory.value = defaultCategory.value;
-  showQuickAdd.value     = true;
+  quickAddName.value       = '';
+  quickAddAmount.value     = '';
+  quickAddBudgetType.value = 'wants';
+  quickAddCategory.value   = defaultCategory.value;
+  showQuickAdd.value       = true;
   // BUG-020: use programmatic focus via nextTick instead of the `autofocus`
   // HTML attribute, which triggers a browser warning when another element
   // already has focus when the input is inserted into the DOM.
@@ -192,11 +218,12 @@ function submitQuickAdd(): void {
     amount:     parseFloat(quickAddAmount.value),
     category:   quickAddCategory.value,
     cardId:     null,
-    budgetType: 'wants',
+    budgetType: quickAddBudgetType.value,
     date:       today.toISOString().split('T')[0] as Purchase['date'],
   };
   budget.addPurchase(purchase);
-  toast.show(`Added "${purchase.name}" (${fmt(purchase.amount)}) to wants.`, 'success');
+  const typeLabel = quickAddBudgetType.value === 'needs' ? 'needs' : 'wants';
+  toast.show(`Added "${purchase.name}" (${fmt(purchase.amount)}) to ${typeLabel}.`, 'success');
   showQuickAdd.value = false;
 }
 </script>
@@ -220,7 +247,7 @@ function submitQuickAdd(): void {
           class="btn-primary"
           @click="openQuickAdd"
         >
-          <span aria-hidden="true">+</span> Quick add to wants
+          <span aria-hidden="true">+</span> Add purchase
         </button>
       </div>
     </header>
@@ -475,13 +502,34 @@ function submitQuickAdd(): void {
     <!-- ══ Quick-add wants modal ══════════════════════════════════════════ -->
     <BaseModal
       v-model:open="showQuickAdd"
-      title="Log a wants purchase"
+      title="Log a purchase"
       size="sm"
     >
       <div class="quick-add">
         <p class="quick-add__eyebrow">
           QUICK ADD
         </p>
+
+        <!-- Want / Need type toggle -->
+        <label class="quick-add__label">Purchase type</label>
+        <div class="quick-add__type-row">
+          <button
+            class="quick-add__type-btn"
+            :class="{ 'quick-add__type-btn--wants': quickAddBudgetType === 'wants' }"
+            type="button"
+            @click="quickAddBudgetType = 'wants'"
+          >
+            🛍 Want
+          </button>
+          <button
+            class="quick-add__type-btn"
+            :class="{ 'quick-add__type-btn--needs': quickAddBudgetType === 'needs' }"
+            type="button"
+            @click="quickAddBudgetType = 'needs'"
+          >
+            🏠 Need
+          </button>
+        </div>
 
         <label class="quick-add__label">What did you buy?</label>
         <input
@@ -527,7 +575,7 @@ function submitQuickAdd(): void {
         <div class="quick-add__preview">
           <div>
             <p class="quick-add__preview-label">
-              BI-WEEKLY REMAINING AFTER
+              {{ quickAddPreviewLabel }}
             </p>
             <p
               class="quick-add__preview-value"
@@ -1029,6 +1077,44 @@ function submitQuickAdd(): void {
   padding-left: 1.6rem;
   margin-bottom: 0;
   font-family: var(--font-mono);
+}
+
+/* ── Want / Need type toggle ───────────────────────────────────── */
+.quick-add__type-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.quick-add__type-btn {
+  padding: 0.55rem 0;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-family: inherit;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.quick-add__type-btn:hover:not(.quick-add__type-btn--wants):not(.quick-add__type-btn--needs) {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.quick-add__type-btn--wants {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.quick-add__type-btn--needs {
+  background: color-mix(in srgb, var(--danger, #f87171) 12%, transparent);
+  border-color: var(--danger, #f87171);
+  color: var(--danger, #f87171);
 }
 
 .quick-add__cats {

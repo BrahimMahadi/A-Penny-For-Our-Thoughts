@@ -107,8 +107,13 @@ const topCategoryInfo = computed(() => {
   };
 });
 
-// ─── Donut chart ─────────────────────────────────────────────────
-const categorySpending = computed(() => getCategorySpending(purchasesInPeriod.value));
+// ─── Donut chart — wants-only (RS-15) ────────────────────────────
+/** Purchases in the current period that are wants (for the donut + KPI). */
+const wantsPurchasesInPeriod = computed(() =>
+  purchasesInPeriod.value.filter(p => (p.budgetType ?? 'wants') !== 'needs'),
+);
+
+const categorySpending = computed(() => getCategorySpending(wantsPurchasesInPeriod.value));
 
 const categoryColorMap = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {};
@@ -125,10 +130,12 @@ const usedPct = computed(() => {
   return (totalSpentInPeriod.value / wantsBudgetPerPeriod.value) * 100;
 });
 
-// ─── Daily spend bars ─────────────────────────────────────────────
+// ─── Daily spend bars — split by want / need (RS-15) ─────────────
 interface DailyBar {
   label: string;
   total: number;
+  wants: number;
+  needs: number;
 }
 
 const dailyBars = computed<DailyBar[]>(() => {
@@ -142,10 +149,14 @@ const dailyBars = computed<DailyBar[]>(() => {
     const iso  = d.toISOString().split('T')[0] as ISODate;
     const dow  = DOW[d.getDay()];
     const day  = d.getDate();
-    const total = purchasesInPeriod.value
-      .filter(p => p.date === iso)
+    const dayPurchases = purchasesInPeriod.value.filter(p => p.date === iso);
+    const wants = dayPurchases
+      .filter(p => (p.budgetType ?? 'wants') !== 'needs')
       .reduce((s, p) => s + p.amount, 0);
-    bars.push({ label: `${dow} ${day}`, total });
+    const needs = dayPurchases
+      .filter(p => p.budgetType === 'needs')
+      .reduce((s, p) => s + p.amount, 0);
+    bars.push({ label: `${dow} ${day}`, total: wants + needs, wants, needs });
   }
   return bars;
 });
@@ -155,6 +166,7 @@ const dailyMax = computed(() => Math.max(...dailyBars.value.map(b => b.total), 1
 // ─── Search / filter / sort ───────────────────────────────────────
 const searchQuery  = ref('');
 const catFilter    = ref('');
+const typeFilter   = ref<'' | 'wants' | 'needs'>('');
 const sortKey      = ref<'newest' | 'oldest' | 'amtHigh' | 'amtLow' | 'nameAZ'>('newest');
 
 /** All categories that appear in current period purchases (sorted by amount). */
@@ -218,10 +230,17 @@ function applySort(items: Purchase[]): Purchase[] {
   }
 }
 
+function applyTypeFilter(items: Purchase[]): Purchase[] {
+  if (!typeFilter.value) return items;
+  if (typeFilter.value === 'needs') return items.filter(p => p.budgetType === 'needs');
+  return items.filter(p => (p.budgetType ?? 'wants') !== 'needs');
+}
+
 /** Dated period purchases after all filters + sort applied. */
 const filteredPurchases = computed(() => {
   let items = purchasesInPeriod.value;
-  if (catFilter.value) items = items.filter(p => p.category === catFilter.value);
+  if (catFilter.value)  items = items.filter(p => p.category === catFilter.value);
+  items = applyTypeFilter(items);
   items = applySearch(items);
   return applySort(items);
 });
@@ -229,7 +248,8 @@ const filteredPurchases = computed(() => {
 /** Undated purchases after search + cat filter + sort applied. */
 const filteredUndated = computed(() => {
   let items = undatedPurchases.value;
-  if (catFilter.value) items = items.filter(p => p.category === catFilter.value);
+  if (catFilter.value)  items = items.filter(p => p.category === catFilter.value);
+  items = applyTypeFilter(items);
   items = applySearch(items);
   return applySort(items);
 });
@@ -314,7 +334,7 @@ const totalAll = computed(() =>
       v-if="spendingPeriod && purchasesInPeriod.length > 0"
       class="spend-charts-row"
     >
-      <!-- Category donut -->
+      <!-- Category donut (wants-only — RS-15) -->
       <BaseCard class="spend-donut-card">
         <div class="spend-section-eyebrow">
           By category
@@ -322,6 +342,9 @@ const totalAll = computed(() =>
         <div class="spend-donut-total">
           {{ fmt(totalSpentInPeriod) }}
         </div>
+        <p class="spend-donut-hint">
+          Wants purchases only
+        </p>
         <WantsDonut
           :category-spending="categorySpending"
           :remaining="Math.max(0, remainingBudget)"
@@ -355,21 +378,41 @@ const totalAll = computed(() =>
             <div class="spend-bar-amt">
               <template v-if="bar.total > 0">{{ fmt(bar.total) }}</template>
             </div>
+            <!-- Stacked bar: wants (bottom, accent) + needs (top, danger) -->
             <div class="spend-bar-track">
+              <template v-if="bar.total > 0">
+                <div
+                  v-if="bar.wants > 0"
+                  class="spend-bar-fill spend-bar-fill--wants"
+                  :style="{ height: `${(bar.wants / dailyMax) * 100}%` }"
+                />
+                <div
+                  v-if="bar.needs > 0"
+                  class="spend-bar-fill spend-bar-fill--needs"
+                  :style="{ height: `${(bar.needs / dailyMax) * 100}%` }"
+                />
+              </template>
               <div
-                class="spend-bar-fill"
-                :style="{
-                  height: bar.total > 0
-                    ? `${Math.max((bar.total / dailyMax) * 100, 4)}%`
-                    : '4%',
-                  background: bar.total > 0 ? 'var(--accent)' : 'var(--border)',
-                }"
+                v-else
+                class="spend-bar-fill spend-bar-fill--empty"
               />
             </div>
             <div class="spend-bar-label">
               {{ bar.label }}
             </div>
           </div>
+        </div>
+
+        <!-- Bar chart legend -->
+        <div class="spend-bars-legend">
+          <span class="spend-bars-legend__item">
+            <span class="spend-bars-legend__dot spend-bars-legend__dot--wants" />
+            Wants
+          </span>
+          <span class="spend-bars-legend__item">
+            <span class="spend-bars-legend__dot spend-bars-legend__dot--needs" />
+            Needs
+          </span>
         </div>
       </BaseCard>
     </div>
@@ -452,6 +495,33 @@ const totalAll = computed(() =>
         </div>
       </div>
 
+      <!-- Type filter chips (All / Wants / Needs) -->
+      <div class="cat-chips cat-chips--type">
+        <button
+          class="cat-chip"
+          :class="{ 'cat-chip--active': typeFilter === '' }"
+          @click="typeFilter = ''"
+        >
+          All
+        </button>
+        <button
+          class="cat-chip"
+          :class="{ 'cat-chip--active': typeFilter === 'wants' }"
+          :style="typeFilter === 'wants' ? { background: 'var(--accent)22', borderColor: 'var(--accent)', color: 'var(--accent)' } : {}"
+          @click="typeFilter = typeFilter === 'wants' ? '' : 'wants'"
+        >
+          🛍 Wants
+        </button>
+        <button
+          class="cat-chip"
+          :class="{ 'cat-chip--active': typeFilter === 'needs' }"
+          :style="typeFilter === 'needs' ? { background: 'var(--danger, #f87171)22', borderColor: 'var(--danger, #f87171)', color: 'var(--danger, #f87171)' } : {}"
+          @click="typeFilter = typeFilter === 'needs' ? '' : 'needs'"
+        >
+          🏠 Needs
+        </button>
+      </div>
+
       <!-- Category chips -->
       <div
         v-if="activeCategories.length > 0"
@@ -488,6 +558,7 @@ const totalAll = computed(() =>
               <th>Date</th>
               <th>Name</th>
               <th>Category</th>
+              <th>Type</th>
               <th>Card</th>
               <th class="col-amt">
                 Amount
@@ -522,6 +593,14 @@ const totalAll = computed(() =>
                   {{ p.category || 'Other' }}
                 </span>
               </td>
+              <td class="col-type">
+                <span
+                  class="type-badge"
+                  :class="p.budgetType === 'needs' ? 'type-badge--needs' : 'type-badge--wants'"
+                >
+                  {{ p.budgetType === 'needs' ? 'Need' : 'Want' }}
+                </span>
+              </td>
               <td class="col-card">
                 <span
                   v-if="cardLabel(p.cardId)"
@@ -541,7 +620,7 @@ const totalAll = computed(() =>
             <template v-if="filteredUndated.length > 0">
               <tr class="undated-divider-row">
                 <td
-                  colspan="5"
+                  colspan="6"
                   class="undated-divider-label"
                 >
                   No date
@@ -573,6 +652,14 @@ const totalAll = computed(() =>
                     {{ p.category || 'Other' }}
                   </span>
                 </td>
+                <td class="col-type">
+                  <span
+                    class="type-badge"
+                    :class="p.budgetType === 'needs' ? 'type-badge--needs' : 'type-badge--wants'"
+                  >
+                    {{ p.budgetType === 'needs' ? 'Need' : 'Want' }}
+                  </span>
+                </td>
                 <td class="col-card">
                   <span
                     v-if="cardLabel(p.cardId)"
@@ -592,7 +679,7 @@ const totalAll = computed(() =>
             <!-- Empty state row -->
             <tr v-if="filteredPurchases.length === 0 && filteredUndated.length === 0">
               <td
-                colspan="5"
+                colspan="6"
                 class="empty-row"
               >
                 <template v-if="searchQuery || catFilter">
@@ -733,7 +820,14 @@ const totalAll = computed(() =>
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.2rem;
+}
+
+.spend-donut-hint {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+  font-style: italic;
 }
 
 /* ── Daily bars ──────────────────────────────────────────────── */
@@ -786,19 +880,27 @@ const totalAll = computed(() =>
   overflow: hidden;
 }
 
+/* Stacked bar track — column-reverse puts wants at bottom, needs on top */
 .spend-bar-track {
   width: 100%;
   max-width: 22px;
   height: 90px;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column-reverse;
+  align-items: stretch;
+  overflow: hidden;
+  border-radius: 4px 4px 0 0;
 }
 
 .spend-bar-fill {
   width: 100%;
-  border-radius: 4px 4px 0 0;
   transition: height 0.3s ease;
+  flex-shrink: 0;
 }
+
+.spend-bar-fill--wants { background: var(--accent); }
+.spend-bar-fill--needs { background: var(--danger, #f87171); }
+.spend-bar-fill--empty { height: 4%; background: var(--border); }
 
 .spend-bar-label {
   position: absolute;
@@ -809,6 +911,32 @@ const totalAll = computed(() =>
   white-space: nowrap;
   text-align: center;
 }
+
+/* Bar chart legend */
+.spend-bars-legend {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.spend-bars-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.spend-bars-legend__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.spend-bars-legend__dot--wants { background: var(--accent); }
+.spend-bars-legend__dot--needs { background: var(--danger, #f87171); }
 
 /* ── Purchases card ──────────────────────────────────────────── */
 .purchases-card-header {
@@ -1019,6 +1147,34 @@ const totalAll = computed(() =>
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+/* ── Type badge in table ─────────────────────────────────────────── */
+.col-type { white-space: nowrap; }
+
+.type-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.type-badge--wants {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.type-badge--needs {
+  background: color-mix(in srgb, var(--danger, #f87171) 14%, transparent);
+  color: var(--danger, #f87171);
+}
+
+/* ── Type filter chips separator ────────────────────────────────── */
+.cat-chips--type {
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.35rem;
 }
 
 .card-label {

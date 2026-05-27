@@ -19,16 +19,16 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.5.0';
+const APP_VERSION = '2.6.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🗂️', text: 'Wishlist redesigned as a card grid — each item shows a progress bar, months-to-goal badge, and saved amount' },
-  { icon: '💰', text: 'Track savings per item — use "Add savings" on any priced card, or set the amount directly in the edit modal' },
-  { icon: '⏱️', text: '"~N mo" badge shows how many months until you can afford each item at your current savings rate' },
-  { icon: '📊', text: 'Goals tab KPI card now shows total wishlist value plus your monthly savings rate at a glance' },
-  { icon: '✅', text: '978 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '🏷️', text: 'Every purchase is now tagged as a Want or a Need — choose the type when adding from the dashboard or the spending tab' },
+  { icon: '📊', text: 'Daily spend bars are now stacked — purple for wants, coral for needs, so you can see the breakdown at a glance' },
+  { icon: '🍩', text: 'Spending tab "By category" donut now shows wants-only purchases (needs are fixed expenses, not wants spending)' },
+  { icon: '🔍', text: 'Filter the All Purchases table by Want or Need with the new type filter chips' },
+  { icon: '✅', text: '996 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

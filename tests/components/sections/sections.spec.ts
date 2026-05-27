@@ -1834,6 +1834,7 @@ describe('MoneyFlow', () => {
 import DashboardPage from '@/components/pages/DashboardPage.vue';
 import SectionPicker from '@/components/ui/SectionPicker.vue';
 import { DEFAULT_SECTION_ORDER } from '@/constants/dashboardSections';
+import SpendingPage  from '@/components/pages/SpendingPage.vue';
 
 describe('DashboardPage — RS-11 fixed grid layout', () => {
   beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
@@ -1953,12 +1954,12 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
     w.unmount();
   });
 
-  it('renders the quick-add button in the header', async () => {
+  it('renders the quick-add button in the header (RS-15: renamed to "Add purchase")', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
     const btn = w.find('.btn-primary');
     expect(btn.exists()).toBe(true);
-    expect(btn.text()).toContain('Quick add to wants');
+    expect(btn.text()).toContain('Add purchase');
     w.unmount();
   });
 
@@ -3306,6 +3307,268 @@ describe('Wishlist — RS-14 price tracking', () => {
     await nextTick();
     expect(w.find('.wishlist-section__rate').exists()).toBe(true);
     expect(w.find('.wishlist-section__rate').text()).toContain('/mo');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  SpendingPage — RS-15 purchase type (want / need)
+// ─────────────────────────────────────────────────────────────────
+
+describe('SpendingPage — RS-15 purchase type', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('mounts without throwing', async () => {
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    expect(w.exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders the page wrapper and table', async () => {
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    expect(w.find('.page-spending').exists()).toBe(true);
+    expect(w.find('.purchases-table').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('table has a "Type" column header', async () => {
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const headers = w.findAll('.purchases-table thead th').map(th => th.text());
+    expect(headers).toContain('Type');
+    w.unmount();
+  });
+
+  it('shows "Want" badge for a wants purchase', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const badges = w.findAll('.type-badge');
+    expect(badges.some(b => b.text() === 'Want')).toBe(true);
+    w.unmount();
+  });
+
+  it('shows "Need" badge for a needs purchase', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Rent', amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: new Date().toISOString().split('T')[0] as never });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const badges = w.findAll('.type-badge');
+    expect(badges.some(b => b.text() === 'Need')).toBe(true);
+    w.unmount();
+  });
+
+  it('want badge has --wants CSS class, need badge has --needs CSS class', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent', amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const wantBadge = w.find('.type-badge--wants');
+    const needBadge = w.find('.type-badge--needs');
+    expect(wantBadge.exists()).toBe(true);
+    expect(needBadge.exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('type filter chips row renders with All / Wants / Needs', async () => {
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const chips = w.findAll('.cat-chips--type .cat-chip');
+    const labels = chips.map(c => c.text());
+    expect(labels).toContain('All');
+    expect(labels.some(l => l.includes('Wants'))).toBe(true);
+    expect(labels.some(l => l.includes('Needs'))).toBe(true);
+    w.unmount();
+  });
+
+  it('"Wants" filter shows only wants purchases', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent', amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    // Click the Wants filter chip
+    const chips = w.findAll('.cat-chips--type .cat-chip');
+    const wantsChip = chips.find(c => c.text().includes('Wants'));
+    await wantsChip!.trigger('click');
+    await nextTick();
+    // Only the Want badge should remain
+    const badges = w.findAll('.type-badge');
+    expect(badges.every(b => b.text() === 'Want')).toBe(true);
+    expect(badges).toHaveLength(1);
+    w.unmount();
+  });
+
+  it('"Needs" filter shows only needs purchases', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent', amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const chips = w.findAll('.cat-chips--type .cat-chip');
+    const needsChip = chips.find(c => c.text().includes('Needs'));
+    await needsChip!.trigger('click');
+    await nextTick();
+    const badges = w.findAll('.type-badge');
+    expect(badges.every(b => b.text() === 'Need')).toBe(true);
+    expect(badges).toHaveLength(1);
+    w.unmount();
+  });
+
+  it('"All" filter resets after type filter applied', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent', amount: 800, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const chips = w.findAll('.cat-chips--type .cat-chip');
+    // Click needs, then all
+    await chips.find(c => c.text().includes('Needs'))!.trigger('click');
+    await nextTick();
+    await chips[0].trigger('click'); // All chip
+    await nextTick();
+    expect(w.findAll('.type-badge')).toHaveLength(2);
+    w.unmount();
+  });
+
+  it('donut card has "Wants purchases only" subtitle', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const hint = w.find('.spend-donut-hint');
+    expect(hint.exists()).toBe(true);
+    expect(hint.text()).toContain('Wants purchases only');
+    w.unmount();
+  });
+
+  it('bar chart legend renders with wants and needs items', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+    const legend = w.find('.spend-bars-legend');
+    expect(legend.exists()).toBe(true);
+    expect(legend.text()).toContain('Wants');
+    expect(legend.text()).toContain('Needs');
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  DashboardPage — RS-15 quick-add modal updates
+// ─────────────────────────────────────────────────────────────────
+
+describe('DashboardPage — RS-15 quick-add modal', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('quick-add modal title is "Log a purchase" (not "wants purchase")', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.find('.btn-primary').trigger('click');
+    await nextTick();
+    const modal = document.body.querySelector('.base-modal');
+    expect(modal).not.toBeNull();
+    expect(modal!.textContent).toContain('Log a purchase');
+    expect(modal!.textContent).not.toContain('Log a wants purchase');
+    w.unmount();
+  });
+
+  it('quick-add modal has Want and Need type buttons', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.find('.btn-primary').trigger('click');
+    await nextTick();
+    // BaseModal is Teleported to document.body
+    const typeBtns = document.body.querySelectorAll('.quick-add__type-btn');
+    expect(typeBtns).toHaveLength(2);
+    expect(typeBtns[0].textContent).toContain('Want');
+    expect(typeBtns[1].textContent).toContain('Need');
+    w.unmount();
+  });
+
+  it('Want type button is active by default', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.find('.btn-primary').trigger('click');
+    await nextTick();
+    const wantBtn = document.body.querySelector('.quick-add__type-btn--wants');
+    expect(wantBtn).not.toBeNull();
+    w.unmount();
+  });
+
+  it('clicking Need type button activates it and updates preview label', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.find('.btn-primary').trigger('click');
+    await nextTick();
+    const needBtn = document.body.querySelectorAll('.quick-add__type-btn')[1] as HTMLButtonElement;
+    needBtn.click();
+    await nextTick();
+    expect(document.body.querySelector('.quick-add__type-btn--needs')).not.toBeNull();
+    const label = document.body.querySelector('.quick-add__preview-label');
+    expect(label!.textContent).toContain('NEEDS');
+    w.unmount();
+  });
+
+  it('preview label switches to WANTS when Want button clicked', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.find('.btn-primary').trigger('click');
+    await nextTick();
+    // Switch to needs then back to wants
+    const typeBtns = document.body.querySelectorAll('.quick-add__type-btn');
+    (typeBtns[1] as HTMLButtonElement).click();
+    await nextTick();
+    (typeBtns[0] as HTMLButtonElement).click();
+    await nextTick();
+    const label = document.body.querySelector('.quick-add__preview-label');
+    expect(label!.textContent).toContain('WANTS');
+    w.unmount();
+  });
+
+  it('submitting a needs purchase creates purchase with budgetType needs', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    await w.find('.btn-primary').trigger('click');
+    await nextTick();
+    // Select Need type via DOM click (modal is teleported to body)
+    const needBtn = document.body.querySelectorAll('.quick-add__type-btn')[1] as HTMLButtonElement;
+    needBtn.click();
+    await nextTick();
+    // Fill in form (inputs are in the wrapper since it's attached to body)
+    const nameInput = document.body.querySelector('.quick-add__input') as HTMLInputElement;
+    const amtInput  = document.body.querySelector('.quick-add__input--amount') as HTMLInputElement;
+    nameInput.value = 'Rent payment';
+    nameInput.dispatchEvent(new Event('input'));
+    amtInput.value  = '800';
+    amtInput.dispatchEvent(new Event('input'));
+    await nextTick();
+    const addBtn = document.body.querySelector('.quick-add__footer .btn-primary') as HTMLButtonElement;
+    addBtn.click();
+    await nextTick();
+    const added = budget.purchases.find(p => p.name === 'Rent payment');
+    expect(added).toBeDefined();
+    expect(added!.budgetType).toBe('needs');
     w.unmount();
   });
 });

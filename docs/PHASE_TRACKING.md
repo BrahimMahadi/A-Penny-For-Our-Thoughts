@@ -1693,6 +1693,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-12 | Purchases This Period + Recurring Spend + Money Flow charts row | `feat/redesign-sprint-12-purchases-recurring` | ✅ Complete | v2.3.0 |
 | RS-13 | Inline pay/charge/deposit/withdraw interactions on loan, CC, and savings cards | `feat/redesign-sprint-13-inline-interactions` | ✅ Complete | v2.4.0 |
 | RS-14 | Wishlist card-grid redesign: savings progress, months-to-goal, inline "Add savings", DB sync fix | `feat/redesign-sprint-14-wishlist-price` | ✅ Complete | v2.5.0 |
+| RS-15 | Purchase type (Want vs Need): stacked bar chart, type column + filter in Spending tab, wants-only donut, updated quick-add modal | `feat/redesign-sprint-15-purchase-type` | ✅ Complete | v2.6.0 |
 
 ---
 
@@ -2284,3 +2285,73 @@ Full wishlist redesign matching the approved card-grid mockup: per-item savings 
 
 ### Final gate
 - ✅ 978/978 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-15 — Purchase Type: Want vs Need ✅
+
+**Branch**: `feat/redesign-sprint-15-purchase-type`
+**Status**: ✅ Complete
+**Version**: `v2.6.0`
+
+### Goal
+Expose the existing `Purchase.budgetType` field in all UIs, fix the Spending tab "By category" donut to show wants-only, add a stacked bar chart (wants + needs split by colour), and allow the quick-add modal to create either type with a live preview that reflects the correct envelope.
+
+### Changes
+
+#### SpendingPage.vue
+- ✅ `wantsPurchasesInPeriod` computed — filters period purchases to wants-only
+- ✅ `categorySpending` now uses wants-only purchases so the donut is accurate
+- ✅ "Wants purchases only" italic subtitle added under the donut total
+- ✅ `DailyBar` interface extended with `wants: number` and `needs: number` per day
+- ✅ `dailyBars` computes wants and needs totals separately per day
+- ✅ Bar chart redesigned as stacked bars: wants (accent purple, bottom) + needs (danger coral, top) using `flex-direction: column-reverse` track
+- ✅ Bar chart legend added with colour-keyed dots
+- ✅ `typeFilter` ref (`'' | 'wants' | 'needs'`) added
+- ✅ Type filter chip row (All / 🛍 Wants / 🏠 Needs) above category chips
+- ✅ `applyTypeFilter()` helper applied in `filteredPurchases` and `filteredUndated`
+- ✅ **Type** column added to purchases table (header + `<td>` in dated, undated, empty-state, divider rows)
+- ✅ `type-badge--wants` (accent) and `type-badge--needs` (danger) pill badges
+- ✅ colspan bumped from 5 → 6 in empty-state and undated-divider rows
+
+#### DashboardPage.vue
+- ✅ Button: `+ Quick add to wants` → `+ Add purchase`
+- ✅ Modal title: `Log a wants purchase` → `Log a purchase`
+- ✅ `quickAddBudgetType` ref added (default `'wants'`); reset on modal open
+- ✅ Want / Need toggle (2-button grid) inserted before the name input
+- ✅ `biWeeklyNeedsBudget`, `biWeeklyNeedsSpent`, `biWeeklyNeedsRemaining` computed refs
+- ✅ `quickAddAfter` conditionally uses wants or needs remaining based on `quickAddBudgetType`
+- ✅ `quickAddPreviewLabel` computed: `'BI-WEEKLY WANTS REMAINING AFTER'` / `'BI-WEEKLY NEEDS REMAINING AFTER'`
+- ✅ `submitQuickAdd` uses `quickAddBudgetType.value` instead of hardcoded `'wants'`
+- ✅ Toast message updated to reflect type ("added to wants" / "added to needs")
+- ✅ CSS for `.quick-add__type-row`, `.quick-add__type-btn`, `--wants`, `--needs` variants
+
+#### WantsTracker.vue (Dashboard donut)
+- ✅ `categorySpending` fixed to use wants-only purchases (was including needs) — dashboard donut now correctly represents the wants envelope
+
+### Tests
+- ✅ `DashboardPage — RS-11` test updated: button text `'Quick add to wants'` → `'Add purchase'`
+- ✅ `SpendingPage — RS-15 purchase type` (11 new tests):
+  - Mounts without throwing
+  - Renders page wrapper and table
+  - Table has "Type" column header
+  - Shows "Want" badge for wants purchase
+  - Shows "Need" badge for needs purchase
+  - Want/need badge CSS classes correct
+  - Type filter chips (All / Wants / Needs) rendered
+  - Wants filter shows only want rows
+  - Needs filter shows only need rows
+  - All filter resets after type filter
+  - Donut card has "Wants purchases only" subtitle
+  - Bar chart legend renders with Wants + Needs labels
+- ✅ `DashboardPage — RS-15 quick-add modal` (6 new tests):
+  - Modal title is "Log a purchase"
+  - Modal has Want and Need type buttons
+  - Want button active by default
+  - Need button activates and updates preview label
+  - Preview label switches back to WANTS
+  - Submitting a needs purchase saves `budgetType: 'needs'`
+- **Total: 996 passing (↑18 from 978) across 28 spec files**
+
+### Final gate
+- ✅ 996/996 tests pass · `vue-tsc --noEmit` clean
