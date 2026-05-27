@@ -26,7 +26,7 @@ const { payPeriodForecast } = useAnalytics();
 /** Last 5 wants purchases, newest first. */
 const recentPurchases = computed(() =>
   [...budget.purchases]
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
     .slice(0, 5),
 );
 
@@ -115,7 +115,7 @@ function fmtDate(dateStr: string): string {
                 class="ticker-item__sep"
                 aria-hidden="true"
               >·</span>
-              <span class="ticker-item__date">{{ daysAgo(p.date) }}</span>
+              <span class="ticker-item__date">{{ daysAgo(p.date ?? '') }}</span>
             </span>
             <span
               class="ticker-bullet"
@@ -136,7 +136,7 @@ function fmtDate(dateStr: string): string {
               <span class="ticker-item__sep">·</span>
               <span class="ticker-item__amt">{{ fmt(p.amount) }}</span>
               <span class="ticker-item__sep">·</span>
-              <span class="ticker-item__date">{{ daysAgo(p.date) }}</span>
+              <span class="ticker-item__date">{{ daysAgo(p.date ?? '') }}</span>
             </span>
             <span
               class="ticker-bullet"

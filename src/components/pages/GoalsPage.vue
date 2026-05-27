@@ -64,7 +64,7 @@ const overallPct = computed(() =>
     : 0,
 );
 
-const netWorthValue = computed(() => netWorth.value.current);
+const netWorthValue = computed(() => netWorth.value.netWorth);
 </script>
 
 <template>

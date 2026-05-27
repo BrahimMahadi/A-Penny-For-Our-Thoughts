@@ -11,6 +11,68 @@ for recurring patterns and a post-mortem trail for regressions.
 
 ---
 
+## BUG-016 — `vue-tsc` CI failures on AppStatusBar + GoalsPage (v2.0.0)
+
+**Date:** May 2026  
+**Branch:** `feat/redesign-sprint-9-release` → `main` (introduced in RS-8/RS-9, caught by CI)  
+**Severity:** Build-blocking (CI `build-and-deploy` exit code 2; deploy failed)
+
+### Symptom
+GitHub Actions `build-and-deploy` failed with 5 TypeScript errors immediately after the v2.0.0 merge — the local `npx tsc --noEmit` had passed, but CI runs `npx vue-tsc --noEmit` which checks `.vue` SFCs with full template type checking.
+
+### Errors
+
+**1. `GoalsPage.vue#L67` — `Property 'current' does not exist on type 'NetWorthData'`**
+
+```ts
+// Wrong — .current does not exist on NetWorthData
+const netWorthValue = computed(() => netWorth.value.current);
+```
+
+`NetWorthData` (from `calculations.ts`) has a `.netWorth: number` field, not `.current`. This was a typo introduced when wiring up GoalsPage in RS-5.
+
+**Fix:** `netWorth.value.netWorth`
+
+---
+
+**2. `AppStatusBar.vue#L29` — `'b.date' is possibly 'undefined'` + `No overload matches this call`**
+
+```ts
+// Wrong — Purchase.date is `date?: ISODate` (optional)
+.sort((a, b) => b.date.localeCompare(a.date))
+```
+
+`Purchase.date` is declared as `date?: ISODate` in `types/budget.ts` (the `?` makes it `string | undefined`). Calling `.localeCompare()` directly on a potentially-undefined value fails strict type checking.
+
+**Fix:** `(b.date ?? '').localeCompare(a.date ?? '')`
+
+---
+
+**3. `AppStatusBar.vue#L118` + `#L139` — `Argument of type 'string | undefined' is not assignable to parameter of type 'string'`**
+
+```html
+<!-- Wrong — p.date is string | undefined, daysAgo() takes string -->
+{{ daysAgo(p.date) }}
+```
+
+Same root cause: `Purchase.date` is optional. `daysAgo(dateStr: string)` expects a non-nullable string, but `p.date` can be `undefined`.
+
+**Fix:** `{{ daysAgo(p.date ?? '') }}`
+
+### Root Cause Pattern
+Local `npx tsc --noEmit` does **not** type-check `.vue` template expressions — it only checks the `<script setup>` block. GitHub CI runs `npx vue-tsc --noEmit` which performs full template type inference, catching optional-chaining gaps and wrong property names in template expressions that plain `tsc` silently ignores.
+
+### Prevention
+**Always run `npx vue-tsc --noEmit` locally before pushing** — not just `npx tsc --noEmit`. Add it to the pre-merge checklist:
+```bash
+npx vue-tsc --noEmit   # ← catches template type errors
+npx vitest run         # ← catches runtime regressions
+npx vite build         # ← confirms bundle compiles
+```
+When accessing computed refs that return complex objects (e.g. `NetWorthData`, `PayPeriodForecast`), verify the exact property name against the interface in `calculations.ts` rather than guessing. For optional entity fields (`date?`, `cardId?`), always use `?? fallback` before passing to functions that expect non-nullable types.
+
+---
+
 ## BUG-015 — Subscriptions cannot be added or edited (save silently blocked)
 
 **Date:** May 2026
