@@ -13,16 +13,32 @@
 -->
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useThemeStore } from '@/stores/theme';
+import { useGsap } from '@/composables/useGsap';
 
 const auth  = useAuthStore();
 const theme = useThemeStore();
+const { from: gsapFrom } = useGsap();
 
-const email   = ref('');
-const sending = ref(false);
+const email    = ref('');
+const sending  = ref(false);
 const googling = ref(false);
+
+// ─── Entrance animation ─────────────────────────────────────────────────
+const loginCardRef = ref<HTMLElement | null>(null);
+
+onMounted(() => {
+  if (!loginCardRef.value) return;
+  gsapFrom(loginCardRef.value, {
+    y: 28,
+    opacity: 0,
+    duration: 0.45,
+    ease: 'power2.out',
+    delay: 0.05,
+  });
+});
 
 const emailValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value));
 
@@ -74,7 +90,10 @@ function handleKeydown(e: KeyboardEvent): void {
       {{ theme.isDark ? '🌙' : '☀️' }}
     </button>
 
-    <div class="login-card">
+    <div
+      ref="loginCardRef"
+      class="login-card"
+    >
       <!-- Branding -->
       <div class="login-brand">
         <span

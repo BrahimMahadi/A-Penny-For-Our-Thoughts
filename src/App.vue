@@ -8,6 +8,7 @@
             May 2026 — Redesign Sprint 2 (sidebar nav, 6-tab set, BottomNav)
             May 2026 — Redesign Sprint 3 (removed top header bar; full-width main)
             May 2026 — Redesign Sprint 8 (AppStatusBar wired above main)
+            May 2026 — RS-18 (GSAP tab transitions)
   Summary:  Root layout. Slim 64px icon sidebar (AppSidebar) + scrollable
             full-width main column. AppStatusBar sits at the top of the content
             column (hidden on mobile). No top header bar — pages own their own
@@ -25,9 +26,10 @@
 -->
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'; // ref used for appMainRef
+import { ref, computed, watch } from 'vue';
 import { useThemeStore } from '@/stores/theme';
 import { useUiStore } from '@/stores/ui';
+import { useGsap } from '@/composables/useGsap';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useKeyboard } from '@/composables/useKeyboard';
@@ -59,6 +61,7 @@ const ui     = useUiStore();
 const budget = useBudgetStore();
 const auth   = useAuthStore();
 const toast  = useToast();
+const { to, from } = useGsap();
 
 const supabaseEnabled = isSupabaseConfigured();
 
@@ -119,8 +122,30 @@ useKeyboard('e', () => { handleExport(); },                                  { g
 useKeyboard('t', () => { theme.toggle(); },                                  { guardFromInputs: true });
 useKeyboard('g', () => { ui.toggleSectionPicker(); }, { guardFromInputs: true });
 
-// ─── Swipe to change tab on mobile ────────────────────────────────────────
+// ─── Tab transition ────────────────────────────────────────────────────────
+// Track which direction the user is navigating so the slide goes the right way.
+// Positive = moving forward in the tab order (new content slides in from right).
+// Negative = moving backward (new content slides in from left).
 const TAB_ORDER: TabId[] = ['dashboard', 'schedule', 'spending', 'goals', 'docs', 'settings'];
+const tabDirection = ref(1);
+
+watch(
+  () => ui.activeTab as TabId,
+  (newTab, oldTab) => {
+    const prev = TAB_ORDER.indexOf(oldTab ?? 'dashboard');
+    const next = TAB_ORDER.indexOf(newTab);
+    tabDirection.value = next >= prev ? 1 : -1;
+  },
+);
+
+function onTabLeave(el: Element, done: () => void): void {
+  to(el, { x: tabDirection.value * -28, opacity: 0, duration: 0.2, ease: 'power2.in', onComplete: done });
+}
+function onTabEnter(el: Element, done: () => void): void {
+  from(el, { x: tabDirection.value * 28, opacity: 0, duration: 0.28, ease: 'power2.out', onComplete: done });
+}
+
+// ─── Swipe to change tab on mobile ────────────────────────────────────────
 const appMainRef = ref<HTMLElement | null>(null);
 
 useSwipe(
@@ -179,7 +204,17 @@ useSwipe(
         <!-- What's New banner — shown until user dismisses for this version -->
         <WhatsNewBanner />
 
-        <component :is="activePage" />
+        <Transition
+          :css="false"
+          mode="out-in"
+          @leave="onTabLeave"
+          @enter="onTabEnter"
+        >
+          <component
+            :is="activePage"
+            :key="ui.activeTab"
+          />
+        </Transition>
       </main>
     </div>
 

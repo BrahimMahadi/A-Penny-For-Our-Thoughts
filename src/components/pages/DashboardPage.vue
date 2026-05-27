@@ -27,7 +27,7 @@
 -->
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, onMounted } from 'vue';
 import BaseCard    from '@/components/ui/BaseCard.vue';
 import BaseModal   from '@/components/ui/BaseModal.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
@@ -35,6 +35,8 @@ import { useUiStore }    from '@/stores/ui';
 import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics }  from '@/composables/useAnalytics';
 import { useToast }      from '@/composables/useToast';
+import { useGsap }       from '@/composables/useGsap';
+import { useCountUp }    from '@/composables/useCountUp';
 import { fmt }           from '@/utils/format';
 import {
   getSubsDeductedThisPeriod,
@@ -57,6 +59,7 @@ import ChequingBalance     from '@/components/sections/ChequingBalance.vue';
 const ui     = useUiStore();
 const budget = useBudgetStore();
 const toast  = useToast();
+const { from: gsapFrom } = useGsap();
 const {
   totalMonthlyIncome,
   currentMonthBudgeted,
@@ -294,10 +297,39 @@ function submitQuickAdd(): void {
   toast.show(`Added "${purchase.name}" (${fmt(purchase.amount)}) to ${typeLabel}.`, 'success');
   showQuickAdd.value = false;
 }
+
+// ─── Page-load animations ─────────────────────────────────────────────────
+// dashboardRef points to the root .page-dashboard element so we can query
+// its .base-card children without selecting cards from other pages.
+const dashboardRef = ref<HTMLElement | null>(null);
+
+// Animated display value for the hero "remaining" amount — counts up from
+// $0 on mount and transitions smoothly when the Wants/Needs toggle switches.
+const animHeroRemaining = useCountUp(computed(() => Math.abs(heroRemaining.value)));
+
+onMounted(() => {
+  // Stagger all section cards up from y:18 so the dashboard "builds" in
+  // rather than appearing all at once.
+  nextTick(() => {
+    const cards = dashboardRef.value?.querySelectorAll<HTMLElement>('.base-card');
+    if (cards?.length) {
+      gsapFrom(Array.from(cards), {
+        y: 18,
+        opacity: 0,
+        duration: 0.38,
+        ease: 'power2.out',
+        stagger: 0.055,
+      });
+    }
+  });
+});
 </script>
 
 <template>
-  <div class="page-dashboard">
+  <div
+    ref="dashboardRef"
+    class="page-dashboard"
+  >
 
     <!-- ══ Page header ═══════════════════════════════════════════════════ -->
     <header class="dash-header">
@@ -362,7 +394,10 @@ function submitQuickAdd(): void {
           </p>
 
           <div class="kpi-hero__amount">
-            <span class="kpi-hero__amount-int">{{ fmt(Math.abs(heroRemaining)).split('.')[0] }}</span><span class="kpi-hero__amount-dec">.{{ fmt(Math.abs(heroRemaining)).split('.')[1] ?? '00' }}</span>
+            <!-- animHeroRemaining counts up from $0 on mount and transitions
+                 smoothly when the Wants/Needs toggle changes. heroRemaining
+                 still drives the OVER badge so it flips immediately. -->
+            <span class="kpi-hero__amount-int">{{ fmt(animHeroRemaining).split('.')[0] }}</span><span class="kpi-hero__amount-dec">.{{ fmt(animHeroRemaining).split('.')[1] ?? '00' }}</span>
             <span
               v-if="heroRemaining < 0"
               class="kpi-hero__over-badge"
