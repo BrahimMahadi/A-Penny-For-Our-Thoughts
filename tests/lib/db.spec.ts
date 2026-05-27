@@ -295,6 +295,125 @@ describe('db.loans', () => {
   });
 });
 
+// ─── db.wishlist helpers ───────────────────────────────────────────
+// BUG-023: RS-14 added price/saved to the domain type but the migration
+// to add those columns to wishlist_items was missing. These tests pin the
+// expected DB payload so a missing column regression is caught immediately.
+
+describe('db.wishlist', () => {
+  beforeEach(() => { mockFrom.mockReset(); });
+
+  it('insert sends price and saved as snake_case null-coalesced values', async () => {
+    const insertMock = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockReturnValue({ insert: insertMock });
+
+    const item = { id: 'w1', icon: '🎸', name: 'Guitar', url: 'https://example.com', price: 499, saved: 120 };
+    await db.wishlist.insert('uid', item);
+
+    expect(mockFrom).toHaveBeenCalledWith('wishlist_items');
+    const payload = insertMock.mock.calls[0][0];
+    expect(payload.id).toBe('w1');
+    expect(payload.icon).toBe('🎸');
+    expect(payload.name).toBe('Guitar');
+    expect(payload.url).toBe('https://example.com');
+    expect(payload.price).toBe(499);
+    expect(payload.saved).toBe(120);
+    expect(payload.user_id).toBe('uid');
+  });
+
+  it('insert sends price: null and saved: null when fields are undefined', async () => {
+    const insertMock = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockReturnValue({ insert: insertMock });
+
+    const item = { id: 'w2', icon: '📚', name: 'Book', url: '' };
+    await db.wishlist.insert('uid', item);
+
+    const payload = insertMock.mock.calls[0][0];
+    expect(payload.price).toBeNull();
+    expect(payload.saved).toBeNull();
+  });
+
+  it('update sends price and saved in the patch object', async () => {
+    const eqMock = vi.fn().mockReturnThis();
+    const updateMock = vi.fn().mockReturnValue({ eq: eqMock, then: (r: (v: unknown) => void) => r({ error: null }) });
+    mockFrom.mockReturnValue({ update: updateMock });
+
+    const item = { id: 'w1', icon: '🎸', name: 'Guitar', url: '', price: 599, saved: 200 };
+    await db.wishlist.update('uid', item);
+
+    const patch = updateMock.mock.calls[0][0];
+    expect(patch.price).toBe(599);
+    expect(patch.saved).toBe(200);
+    expect(patch.name).toBe('Guitar');
+  });
+
+  it('update sends price: null when field is undefined (clears the column)', async () => {
+    const eqMock = vi.fn().mockReturnThis();
+    const updateMock = vi.fn().mockReturnValue({ eq: eqMock, then: (r: (v: unknown) => void) => r({ error: null }) });
+    mockFrom.mockReturnValue({ update: updateMock });
+
+    const item = { id: 'w1', icon: '📚', name: 'Book', url: '' }; // no price/saved
+    await db.wishlist.update('uid', item);
+
+    const patch = updateMock.mock.calls[0][0];
+    expect(patch.price).toBeNull();
+    expect(patch.saved).toBeNull();
+  });
+});
+
+describe('fetchAllUserData — wishlist mapping', () => {
+  beforeEach(() => { mockFrom.mockReset(); });
+
+  it('maps wishlist rows including price and saved', async () => {
+    const profileRow = {
+      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
+      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
+      pay_start: null, funds_remaining: 0, funds_remaining_updated: '',
+      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
+    };
+    const wishRow = {
+      id: 'w1', user_id: 'uid', icon: '🎸', name: 'Guitar',
+      url: 'https://example.com', price: 499, saved: 120,
+      created_at: '', updated_at: '',
+    };
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return makeQuery(profileRow);
+      if (table === 'wishlist_items') return makeQuery([wishRow]);
+      return makeQuery([]);
+    });
+
+    const result = await fetchAllUserData('uid');
+    expect(result!.wishlist).toHaveLength(1);
+    const item = result!.wishlist![0];
+    expect(item.name).toBe('Guitar');
+    expect(item.price).toBe(499);
+    expect(item.saved).toBe(120);
+  });
+
+  it('omits price and saved from domain object when DB columns are null', async () => {
+    const profileRow = {
+      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
+      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
+      pay_start: null, funds_remaining: 0, funds_remaining_updated: '',
+      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
+    };
+    const wishRow = {
+      id: 'w2', user_id: 'uid', icon: '📚', name: 'Book', url: '',
+      price: null, saved: null, created_at: '', updated_at: '',
+    };
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return makeQuery(profileRow);
+      if (table === 'wishlist_items') return makeQuery([wishRow]);
+      return makeQuery([]);
+    });
+
+    const result = await fetchAllUserData('uid');
+    const item = result!.wishlist![0];
+    expect(item.price).toBeUndefined();
+    expect(item.saved).toBeUndefined();
+  });
+});
+
 // ─── upsertProfile ─────────────────────────────────────────────────
 
 describe('upsertProfile', () => {

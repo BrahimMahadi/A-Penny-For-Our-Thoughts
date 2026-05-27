@@ -989,5 +989,71 @@ another section's UI.
 
 ---
 
-*Last updated: May 2026 — v2.7.0 (BUG-021, BUG-022, RS-16 fixes)*  
+## BUG-023 — `wishlist_items` missing `price` and `saved` columns in Supabase; every update returns HTTP 400
+
+**Date:** May 2026  
+**Branch:** `fix/wishlist-price-saved-migration`  
+**Severity:** High (every `updateWishlistItem` / `addWishlistItem` sync call silently fails; cloud data is never persisted for price/saved fields)
+
+### Symptom
+After merging RS-14 (wishlist price tracking), the browser console showed:
+
+```
+[penny] db sync (updateWishlistItem):
+  Error: [db/update:wishlist_items] Could not find the 'price' column
+  of 'wishlist_items' in the schema cache
+```
+
+Accompanied by `Failed to load resource: the server responded with a status of 400 ()`.
+The app continued working from localStorage but wishlist price/saved data was never
+persisted to Supabase.
+
+### Root Cause
+RS-14 added `price?: number` and `saved?: number` to the `WishlistItem` domain type,
+`WishlistItemRow` in `database.ts`, and the `db.wishlist.insert/update` payloads in
+`db.ts` — but **no database migration was created** to add those columns to the live
+`wishlist_items` table.
+
+Supabase's PostgREST layer validates column names against its schema cache at runtime.
+Any `INSERT` or `UPDATE` that references a non-existent column returns HTTP 400 with
+`"Could not find the 'price' column in the schema cache"`.
+
+Since `syncDb()` is fire-and-forget (errors are caught and logged, never thrown), the
+app continued working with local state. The failure was silent to the user.
+
+The separate `[penny] DB fetch timed out after 20000 ms` warning is **unrelated** — it
+is a known Supabase free-tier cold-start behaviour where the parallel 18-table fetch
+exceeds the 20s deadline after a period of inactivity. The app correctly falls back to
+localStorage in that case.
+
+### Fix
+Created `supabase/migrations/004_wishlist_price_saved.sql`:
+```sql
+alter table wishlist_items
+  add column if not exists price  numeric(10, 2),
+  add column if not exists saved  numeric(10, 2);
+
+notify pgrst, 'reload schema';
+```
+
+Also updated `003_reset_and_rebuild.sql` so future fresh schema setups include
+both columns from creation.
+
+**To apply to the live database:** paste and run `004_wishlist_price_saved.sql`
+in the Supabase Dashboard → SQL Editor.
+
+### Prevention
+**Rule:** Any sprint that adds a new field to a domain type AND maps it through `db.ts`
+(insert/update payload) MUST include a corresponding Supabase migration SQL file in the
+same PR. The checklist in `CLAUDE.md` Release Process should also cover this:
+> If any `db.ts` insert/update payload references a new column, add a migration file
+> and apply it before merging to main.
+
+Added 6 tests in `tests/lib/db.spec.ts` (`db.wishlist` describe) that pin the exact
+insert/update payloads and the `toWishlistItem` mapper behaviour for null columns —
+so a regression of this kind would be caught by CI before merging.
+
+---
+
+*Last updated: May 2026 — v2.7.0 (BUG-021 through BUG-023)*  
 *See also: [PHASE_TRACKING.md](PHASE_TRACKING.md) for the full sprint history.*

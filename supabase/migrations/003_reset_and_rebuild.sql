@@ -285,6 +285,9 @@ create table wishlist_items (
   icon        text not null default '',
   name        text not null,
   url         text not null default '',
+  -- RS-14: optional target price and amount saved toward it (null = not set)
+  price       numeric(10, 2),
+  saved       numeric(10, 2),
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
