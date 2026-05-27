@@ -258,8 +258,13 @@ defineExpose({ openAdd });
     />
 
     <!-- ── Card grid ───────────────────────────────────────────── -->
-    <div
+    <!-- TransitionGroup renders as the grid div so CSS grid applies directly.    -->
+    <!-- name="wish-card" drives .wish-card-enter/leave/move classes below.       -->
+    <!-- FLIP move: Vue records positions before/after, then tweens the diff.     -->
+    <TransitionGroup
       v-else
+      name="wish-card"
+      tag="div"
       class="wish-grid"
     >
       <div
@@ -399,7 +404,7 @@ defineExpose({ openAdd });
           </BaseButton>
         </div>
       </div>
-    </div>
+    </TransitionGroup>
 
     <!-- ── Add / Edit modal ───────────────────────────────────── -->
     <BaseModal
@@ -614,10 +619,59 @@ defineExpose({ openAdd });
 }
 
 /* ─── Card grid ────────────────────────────────────────────────── */
+/*
+ * auto-fit (not auto-fill): empty tracks collapse to 0 so existing cards
+ * always stretch to fill the available row width. Result: fewer items →
+ * wider cards; more items → more columns. Cards grow and shrink naturally.
+ *
+ * min(220px, 100%) keeps the minmax safe on narrow containers so the
+ * minimum never exceeds the container width and causes horizontal scroll.
+ */
 .wish-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 1rem;
+}
+
+/* ─── Card enter / leave / move transitions ──────────────────── */
+
+/* Enter: card pops in with a scale-up + upward float */
+.wish-card-enter-active {
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+.wish-card-enter-from {
+  opacity: 0;
+  transform: scale(0.82) translateY(14px);
+}
+
+/*
+ * Leave: fade out quickly. Keeping it short minimises the visual "hole"
+ * the departing card leaves in the grid before the FLIP move kicks in.
+ */
+.wish-card-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.wish-card-leave-to {
+  opacity: 0;
+  transform: scale(0.88);
+}
+
+/*
+ * Move (FLIP): Vue records each card's position before and after the DOM
+ * update, then applies a CSS transform so cards appear to smoothly slide
+ * into their new positions — works for both deletions and sort changes.
+ */
+.wish-card-move {
+  transition: transform 0.32s ease;
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .wish-card-enter-active,
+  .wish-card-leave-active,
+  .wish-card-move {
+    transition: none;
+  }
 }
 
 /* ─── Individual card ─────────────────────────────────────────── */
@@ -1005,7 +1059,8 @@ defineExpose({ openAdd });
 /* ─── Responsive ────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .wish-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    /* Tighter minimum on mobile — cards still grow/shrink with auto-fit */
+    grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
   }
 }
 </style>
