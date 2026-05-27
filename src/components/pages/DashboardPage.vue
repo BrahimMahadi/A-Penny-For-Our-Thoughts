@@ -159,11 +159,13 @@ const heroBudget = computed(() =>
   dashboardTypeFilter.value === 'needs' ? biWeeklyNeedsBudget.value : biWeeklyBudget.value,
 );
 
-/** Hero card: amount spent for the active type. */
+/** Hero card: amount spent for the active type (purchases only — deductions are
+ *  excluded from the "spent" caption so the number matches the Spending tab).
+ *  `heroRemaining` still deducts subs/loans from the available-to-spend total. */
 const heroSpent = computed(() =>
   dashboardTypeFilter.value === 'needs'
     ? biWeeklyNeedsSpent.value
-    : biWeeklySpent.value + biWeeklyDeductions.value,
+    : biWeeklySpent.value,
 );
 
 /** Hero card: remaining for the active type. */

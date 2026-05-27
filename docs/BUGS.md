@@ -865,5 +865,71 @@ Template:
 
 ---
 
-*Last updated: May 2026 — v2.5.0 (BUG-017 through BUG-020, RS-14 wishlist redesign)*  
+## BUG-021 — Dashboard "spent" caption includes auto-deductions; Spending tab shows purchases only
+
+**Date:** May 2026  
+**Branch:** `feat/sprint-16-type-toggle` (RS-16 Wants/Needs toggle)  
+**Severity:** Medium (amount mismatch between Dashboard and Spending tab — confusing but not data-corrupting)
+
+### Symptom
+The "Purchases this period" donut on the Dashboard and the hero card caption both showed
+`$421.17 spent of $532.75`, while the Spending tab "Spent this period" tile showed `$367.08`.
+The $54.09 difference was caused by subscription/loan auto-deductions being included on the
+dashboard but not on the spending tab.
+
+### Root Cause
+In `DashboardPage.vue`, `heroSpent` was defined as:
+```ts
+const heroSpent = computed(() =>
+  dashboardTypeFilter.value === 'needs'
+    ? biWeeklyNeedsSpent.value
+    : biWeeklySpent.value + biWeeklyDeductions.value,  // ← BUG: includes $54.09 deductions
+);
+```
+
+In `PurchasesThisPeriod.vue`, both the donut caption and `usedPct` included `deductionTotal`:
+```ts
+// caption:
+{{ fmt(totalSpent + deductionTotal) }} / {{ fmt(biWeeklyBudget) }}  // ← $421.17
+
+// usedPct:
+return ((totalSpent.value + deductionTotal.value) / biWeeklyBudget.value) * 100;  // ← 79% not 69%
+```
+
+The Spending tab computes `wantsSpentInPeriod` from purchases only, giving $367.08.
+The `heroRemaining` (shown as the big "Available to spend" number) was correct in both places
+(`budget - purchases - deductions = $111.58`) — only the "spent" caption and % were wrong.
+
+### Fix
+**`DashboardPage.vue`** — removed `+ biWeeklyDeductions.value` from `heroSpent` for the wants branch:
+```ts
+const heroSpent = computed(() =>
+  dashboardTypeFilter.value === 'needs'
+    ? biWeeklyNeedsSpent.value
+    : biWeeklySpent.value,  // purchases only — matches Spending tab
+);
+```
+
+**`PurchasesThisPeriod.vue`** — changed caption and `usedPct` to purchases only:
+```ts
+// caption:
+{{ fmt(totalSpent) }} / {{ fmt(biWeeklyBudget) }}
+
+// usedPct:
+return (totalSpent.value / biWeeklyBudget.value) * 100;
+```
+
+Auto-deductions are still visible as a dedicated "Auto-deducted $XX.XX" row in the category
+list, and `heroRemaining` / `remaining` both still subtract deductions from the available total.
+
+### Prevention
+**Rule:** "Spent this period" captions must only include explicit user purchases — never
+auto-deductions. Auto-deductions affect *remaining* budget but should be surfaced as a
+separate line item, not silently folded into the "spent" figure. Always verify that the
+same metric is calculated identically on every surface where it appears (dashboard, spending
+tab, summary cards).
+
+---
+
+*Last updated: May 2026 — v2.7.0 (BUG-021, RS-16 amount mismatch fix)*  
 *See also: [PHASE_TRACKING.md](PHASE_TRACKING.md) for the full sprint history.*

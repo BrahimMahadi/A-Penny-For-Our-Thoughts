@@ -83,7 +83,9 @@ const remaining = computed(() =>
 
 const usedPct = computed(() => {
   if (biWeeklyBudget.value <= 0) return 0;
-  return ((totalSpent.value + deductionTotal.value) / biWeeklyBudget.value) * 100;
+  // Purchases only — deductions are shown as a separate "Auto-deducted" row
+  // so the donut % matches the caption and the Spending tab figure.
+  return (totalSpent.value / biWeeklyBudget.value) * 100;
 });
 
 // ─── Category color map ────────────────────────────────────────────
@@ -149,7 +151,7 @@ const captionLabel = computed(() =>
           :category-colors="categoryColorMap"
         />
         <p class="ptp__donut-caption">
-          {{ fmt(totalSpent + deductionTotal) }} / {{ fmt(biWeeklyBudget) }}
+          {{ fmt(totalSpent) }} / {{ fmt(biWeeklyBudget) }}
         </p>
         <p class="ptp__donut-type-hint">
           {{ captionLabel }}
