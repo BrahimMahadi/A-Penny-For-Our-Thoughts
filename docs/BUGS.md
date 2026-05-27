@@ -683,5 +683,79 @@ filter object as an argument: `getFilteredSpendingHistory(filters)`.
 
 ---
 
-*Last updated: May 2026 — v1.11.1 (BUG-015 hotfix)*  
+## BUG-017 — `form.price.trim is not a function` when editing a wishlist item
+
+**Date:** May 2026  
+**Branch:** `feat/redesign-sprint-14-wishlist-price`  
+**Severity:** High (crash — unhandled TypeError breaks the Edit modal; Vue renders a blank transition)
+
+### Symptom
+Opening "Edit Wishlist Item", then typing anything into the Price or Saved inputs, caused:
+```
+Uncaught (in promise) TypeError: form.price.trim is not a function
+  at ComputedRefImpl.fn (Wishlist.vue:155)
+```
+Vue emitted two consecutive "Unhandled error during execution of render function / component update" warnings, and the modal stopped updating.
+
+### Root Cause
+`openEdit()` correctly assigns `form.price = String(item.price)` — a string.  
+But Vue 3's `v-model` on `<input type="number">` **coerces the reactive field to a number** the moment the DOM fires an `input` event. After the first keystroke, `form.price` becomes `299` (number), not `'299'` (string). On the next reactive recompute of `formError`, `(299).trim()` throws `TypeError` because numbers don't have `.trim()`.
+
+The same issue applied to `form.saved.trim()` and to `save()` which called `.trim()` on both fields when constructing the payload.
+
+### Fix
+In `formError` and `save()`, extract local string variables using `String()` before any `.trim()` call:
+```typescript
+// Before (crashes when field is a number):
+if (form.price.trim() !== '' && ...)
+
+// After (safe for string | number | undefined):
+const priceStr = String(form.price ?? '').trim();
+if (priceStr !== '' && ...)
+```
+The same `String()` wrapper pattern applied to `form.saved` in both functions.
+
+### Prevention
+**Rule:** When using `v-model` on `<input type="number">`, always treat the reactive binding as `string | number` — Vue's DOM coercion can change the type at any moment. Wrap with `String()` before calling string methods. Alternatively, use `type="text"` with `inputmode="decimal"` to keep the value as a string throughout.
+
+---
+
+## BUG-018 — Inline "Add savings" autofocus silently broken in `v-for`
+
+**Date:** May 2026  
+**Branch:** `feat/redesign-sprint-14-wishlist-price`  
+**Severity:** Low (UX degradation — inline savings input didn't auto-focus; no crash)
+
+### Symptom
+Clicking "+ Add savings" on a wishlist card opened the inline form correctly, but the cursor never moved to the input — the user had to click manually every time.
+
+### Root Cause
+In Vue 3 Composition API, a template `ref` attribute placed inside a `v-for` loop collects **all matching elements into an array** at runtime, even though the TypeScript declaration typed it as `Ref<HTMLInputElement | null>`. The guard `typeof el.focus === 'function'` evaluated `false` on the array (arrays don't have `.focus()`), so `el.focus()` was never called.
+
+```typescript
+// Before — ref inside v-for → inlineInputEl.value is HTMLInputElement[] at runtime:
+const inlineInputEl = ref<HTMLInputElement | null>(null);
+// ...template: ref="inlineInputEl" inside v-for
+nextTick(() => {
+  const el = inlineInputEl.value; // actually an array!
+  if (el && typeof el.focus === 'function') el.focus(); // always false → no focus
+});
+```
+
+### Fix
+Removed `ref="inlineInputEl"` from the template entirely and replaced the ref lookup with `document.getElementById` using the per-item unique id (`wish-inline-${id}`). Since each inline input has a predictable, unique DOM id, the getElementById call is unambiguous regardless of list length:
+
+```typescript
+nextTick(() => {
+  const el = document.getElementById(`wish-inline-${id}`) as HTMLInputElement | null;
+  if (el && typeof el.focus === 'function') el.focus();
+});
+```
+
+### Prevention
+**Rule:** Never use a bare `ref="name"` attribute on an element that lives inside `v-for` when you need a single-element reference. In Vue 3 Composition API, such refs become arrays. Use `document.getElementById` (when elements have unique IDs) or a `:ref` callback function (e.g. `:ref="(el) => setRef(item.id, el)"`) to target a specific element in a list.
+
+---
+
+*Last updated: May 2026 — v2.5.0 (BUG-017 + BUG-018, RS-14 wishlist redesign)*  
 *See also: [PHASE_TRACKING.md](PHASE_TRACKING.md) for the full sprint history.*
