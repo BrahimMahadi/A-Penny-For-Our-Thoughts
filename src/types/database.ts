@@ -1,270 +1,775 @@
-/**
- * Module:   types/database.ts
- * Project:  A Penny For Our Thoughts
- * Created:  May 2026 (Sprint 23 — Supabase DB Integration)
- * Summary:  TypeScript types for every Supabase Postgres table.
- *           Mirrors the schema in supabase/migrations/001_initial_schema.sql.
- *
- *           Convention:
- *             - Row   — what SELECT returns (all columns present)
- *             - Insert — what INSERT accepts (id + user_id required, rest optional)
- *             - Update — what UPDATE accepts (all columns optional)
- *
- *           The `Database` type is the root type passed to createClient<Database>().
- */
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
-// ─── Row types ─────────────────────────────────────────────────────
-
-export interface ProfileRow {
-  id: string;
-  allocation: { needs: number; wants: number; savings: number };
-  budget_display_mode: { needs: string; wants: string; savings: string };
-  pay_start: string | null;
-  funds_remaining: number;
-  funds_remaining_updated: string;
-  has_onboarded: boolean;
-  dismissed_version: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface IncomeStreamRow {
-  id: string;
-  user_id: string;
-  name: string;
-  amount: number;
-  biweekly: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ExpenseCardRow {
-  id: string;
-  user_id: string;
-  label: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ExpenseItemRow {
-  id: string;
-  user_id: string;
-  expense_card_id: string;
-  name: string;
-  amount: number;
-  biweekly: boolean;
-  due_day: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface PurchaseRow {
-  id: string;
-  user_id: string;
-  name: string;
-  amount: number;
-  category: string;
-  card_id: string | null;
-  budget_type: string;
-  date: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface SpendingHistoryPeriodRow {
-  id: string;
-  user_id: string;
-  date: string;
-  label: string | null;
-  total: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface SpendingHistoryItemRow {
-  id: string;
-  user_id: string;
-  period_id: string;
-  name: string;
-  amount: number;
-  category: string;
-  date: string | null;
-  created_at: string;
-}
-
-export interface LoanRow {
-  id: string;
-  user_id: string;
-  name: string;
-  remaining: number;
-  original: number;
-  payment_amount: number;
-  frequency: string;
-  date: string;
-  budget_type: string;
-  card_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreditCardRow {
-  id: string;
-  user_id: string;
-  name: string;
-  balance: number;
-  limit: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface SubscriptionRow {
-  id: string;
-  user_id: string;
-  name: string;
-  amount: number;
-  frequency: string;
-  date: string;
-  category: string;
-  budget_type: string;
-  card_id: string | null;
-  days_of_week: number[];
-  created_at: string;
-  updated_at: string;
-}
-
-export interface WishlistItemRow {
-  id: string;
-  user_id: string;
-  icon: string;
-  name: string;
-  url: string;
-  /** RS-14: optional target price; null if not set */
-  price: number | null;
-  /** RS-14: amount saved toward this item; null if not set */
-  saved: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface SavingsAccountRow {
-  id: string;
-  user_id: string;
-  name: string;
-  balance: number;
-  default_allocated: number;
-  monthly_allocations: Record<string, number>;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface GoalRow {
-  id: string;
-  user_id: string;
-  account_id: string;
-  target_amount: number;
-  target_date: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AssetRow {
-  id: string;
-  user_id: string;
-  name: string;
-  category: string;
-  value: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface NetWorthSnapshotRow {
-  id: string;
-  user_id: string;
-  date: string;
-  net_worth: number;
-  total_assets: number;
-  total_liabilities: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface RuleRow {
-  id: string;
-  user_id: string;
-  pattern: string;
-  match_type: string;
-  category: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BudgetAlertRow {
-  id: string;
-  user_id: string;
-  category: string;
-  threshold: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface SpendingCategoryRow {
-  id: string;
-  user_id: string;
-  name: string;
-  color: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// ─── Insert types (omit auto-set columns) ──────────────────────────
-
-type AutoCols = 'created_at' | 'updated_at';
-
-export type ProfileInsert   = Omit<ProfileRow, AutoCols>;
-export type IncomeStreamInsert = Omit<IncomeStreamRow, AutoCols>;
-export type ExpenseCardInsert  = Omit<ExpenseCardRow, AutoCols>;
-export type ExpenseItemInsert  = Omit<ExpenseItemRow, AutoCols>;
-export type PurchaseInsert     = Omit<PurchaseRow, AutoCols>;
-export type SpendingHistoryPeriodInsert = Omit<SpendingHistoryPeriodRow, AutoCols>;
-export type SpendingHistoryItemInsert   = Omit<SpendingHistoryItemRow, 'created_at'>;
-export type LoanInsert            = Omit<LoanRow, AutoCols>;
-export type CreditCardInsert      = Omit<CreditCardRow, AutoCols>;
-export type SubscriptionInsert    = Omit<SubscriptionRow, AutoCols>;
-export type WishlistItemInsert    = Omit<WishlistItemRow, AutoCols>;
-export type SavingsAccountInsert  = Omit<SavingsAccountRow, AutoCols>;
-export type GoalInsert            = Omit<GoalRow, AutoCols>;
-export type AssetInsert           = Omit<AssetRow, AutoCols>;
-export type NetWorthSnapshotInsert = Omit<NetWorthSnapshotRow, AutoCols>;
-export type RuleInsert            = Omit<RuleRow, AutoCols>;
-export type BudgetAlertInsert     = Omit<BudgetAlertRow, AutoCols>;
-export type SpendingCategoryInsert = Omit<SpendingCategoryRow, AutoCols>;
-
-// ─── Database root type (passed to createClient<Database>) ─────────
-
-export interface Database {
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
-      profiles:                  { Row: ProfileRow;                  Insert: ProfileInsert;                  Update: Partial<ProfileInsert> };
-      income_streams:            { Row: IncomeStreamRow;             Insert: IncomeStreamInsert;             Update: Partial<IncomeStreamInsert> };
-      expense_cards:             { Row: ExpenseCardRow;              Insert: ExpenseCardInsert;              Update: Partial<ExpenseCardInsert> };
-      expense_items:             { Row: ExpenseItemRow;              Insert: ExpenseItemInsert;              Update: Partial<ExpenseItemInsert> };
-      purchases:                 { Row: PurchaseRow;                 Insert: PurchaseInsert;                 Update: Partial<PurchaseInsert> };
-      spending_history_periods:  { Row: SpendingHistoryPeriodRow;    Insert: SpendingHistoryPeriodInsert;    Update: Partial<SpendingHistoryPeriodInsert> };
-      spending_history_items:    { Row: SpendingHistoryItemRow;      Insert: SpendingHistoryItemInsert;      Update: Partial<SpendingHistoryItemInsert> };
-      loans:                     { Row: LoanRow;                     Insert: LoanInsert;                     Update: Partial<LoanInsert> };
-      credit_cards:              { Row: CreditCardRow;               Insert: CreditCardInsert;               Update: Partial<CreditCardInsert> };
-      subscriptions:             { Row: SubscriptionRow;             Insert: SubscriptionInsert;             Update: Partial<SubscriptionInsert> };
-      wishlist_items:            { Row: WishlistItemRow;             Insert: WishlistItemInsert;             Update: Partial<WishlistItemInsert> };
-      savings_accounts:          { Row: SavingsAccountRow;           Insert: SavingsAccountInsert;           Update: Partial<SavingsAccountInsert> };
-      goals:                     { Row: GoalRow;                     Insert: GoalInsert;                     Update: Partial<GoalInsert> };
-      assets:                    { Row: AssetRow;                    Insert: AssetInsert;                    Update: Partial<AssetInsert> };
-      net_worth_snapshots:       { Row: NetWorthSnapshotRow;         Insert: NetWorthSnapshotInsert;         Update: Partial<NetWorthSnapshotInsert> };
-      rules:                     { Row: RuleRow;                     Insert: RuleInsert;                     Update: Partial<RuleInsert> };
-      budget_alerts:             { Row: BudgetAlertRow;              Insert: BudgetAlertInsert;              Update: Partial<BudgetAlertInsert> };
-      spending_categories:       { Row: SpendingCategoryRow;         Insert: SpendingCategoryInsert;         Update: Partial<SpendingCategoryInsert> };
-    };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
-    Enums: Record<string, never>;
-  };
+      assets: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id: string
+          name: string
+          updated_at?: string
+          user_id: string
+          value?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      budget_alerts: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          threshold: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id: string
+          threshold?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          threshold?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      credit_cards: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          limit: number
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id: string
+          limit?: number
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          limit?: number
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      expense_cards: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          label: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      expense_items: {
+        Row: {
+          amount: number
+          biweekly: boolean
+          created_at: string
+          due_day: number | null
+          expense_card_id: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          biweekly?: boolean
+          created_at?: string
+          due_day?: number | null
+          expense_card_id: string
+          id: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          biweekly?: boolean
+          created_at?: string
+          due_day?: number | null
+          expense_card_id?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_items_expense_card_id_fkey"
+            columns: ["expense_card_id"]
+            isOneToOne: false
+            referencedRelation: "expense_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          target_amount: number
+          target_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id: string
+          target_amount?: number
+          target_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          target_amount?: number
+          target_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "savings_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      income_streams: {
+        Row: {
+          amount: number
+          biweekly: boolean
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          biweekly?: boolean
+          created_at?: string
+          id: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          biweekly?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      loans: {
+        Row: {
+          budget_type: string
+          card_id: string | null
+          created_at: string
+          date: string
+          frequency: string
+          id: string
+          name: string
+          original: number
+          payment_amount: number
+          remaining: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          budget_type?: string
+          card_id?: string | null
+          created_at?: string
+          date?: string
+          frequency?: string
+          id: string
+          name: string
+          original?: number
+          payment_amount?: number
+          remaining?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          budget_type?: string
+          card_id?: string | null
+          created_at?: string
+          date?: string
+          frequency?: string
+          id?: string
+          name?: string
+          original?: number
+          payment_amount?: number
+          remaining?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      net_worth_snapshots: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          net_worth: number
+          total_assets: number
+          total_liabilities: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id: string
+          net_worth?: number
+          total_assets?: number
+          total_liabilities?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          net_worth?: number
+          total_assets?: number
+          total_liabilities?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          allocation: Json
+          budget_display_mode: Json
+          created_at: string
+          dismissed_version: string | null
+          funds_remaining: number
+          funds_remaining_updated: string
+          has_onboarded: boolean
+          id: string
+          pay_start: string | null
+          updated_at: string
+        }
+        Insert: {
+          allocation?: Json
+          budget_display_mode?: Json
+          created_at?: string
+          dismissed_version?: string | null
+          funds_remaining?: number
+          funds_remaining_updated?: string
+          has_onboarded?: boolean
+          id: string
+          pay_start?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allocation?: Json
+          budget_display_mode?: Json
+          created_at?: string
+          dismissed_version?: string | null
+          funds_remaining?: number
+          funds_remaining_updated?: string
+          has_onboarded?: boolean
+          id?: string
+          pay_start?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      purchases: {
+        Row: {
+          amount: number
+          budget_type: string
+          card_id: string | null
+          category: string
+          created_at: string
+          date: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          budget_type?: string
+          card_id?: string | null
+          category?: string
+          created_at?: string
+          date?: string | null
+          id: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          budget_type?: string
+          card_id?: string | null
+          category?: string
+          created_at?: string
+          date?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      rules: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          match_type: string
+          pattern: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id: string
+          match_type?: string
+          pattern: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          match_type?: string
+          pattern?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      savings_accounts: {
+        Row: {
+          balance: number
+          created_at: string
+          default_allocated: number
+          id: string
+          monthly_allocations: Json
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          default_allocated?: number
+          id: string
+          monthly_allocations?: Json
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          default_allocated?: number
+          id?: string
+          monthly_allocations?: Json
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      spending_categories: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      spending_history_items: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          date: string | null
+          id: string
+          name: string
+          period_id: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          category?: string
+          created_at?: string
+          date?: string | null
+          id: string
+          name: string
+          period_id: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          date?: string | null
+          id?: string
+          name?: string
+          period_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spending_history_items_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "spending_history_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spending_history_periods: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          label: string | null
+          total: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id: string
+          label?: string | null
+          total?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          label?: string | null
+          total?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          amount: number
+          budget_type: string
+          card_id: string | null
+          category: string
+          created_at: string
+          date: string
+          days_of_week: number[]
+          frequency: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          budget_type?: string
+          card_id?: string | null
+          category?: string
+          created_at?: string
+          date: string
+          days_of_week?: number[]
+          frequency?: string
+          id: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          budget_type?: string
+          card_id?: string | null
+          category?: string
+          created_at?: string
+          date?: string
+          days_of_week?: number[]
+          frequency?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wishlist_items: {
+        Row: {
+          created_at: string
+          icon: string
+          id: string
+          name: string
+          price: number | null
+          saved: number | null
+          updated_at: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          icon?: string
+          id: string
+          name: string
+          price?: number | null
+          saved?: number | null
+          updated_at?: string
+          url?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string
+          id?: string
+          name?: string
+          price?: number | null
+          saved?: number | null
+          updated_at?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const
