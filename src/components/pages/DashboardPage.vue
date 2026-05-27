@@ -67,9 +67,6 @@ const {
 
 // ─── Page header ───────────────────────────────────────────────────
 const today = new Date();
-const monthLabel = computed(() =>
-  today.toLocaleDateString('en-CA', { month: 'long', year: 'numeric' }),
-);
 
 // ─── Hero KPI: bi-weekly wants envelope ───────────────────────────
 const biWeeklyBudget = computed(() =>
@@ -254,11 +251,8 @@ function submitQuickAdd(): void {
     <!-- ══ Page header ═══════════════════════════════════════════════════ -->
     <header class="dash-header">
       <div class="dash-header__text">
-        <p class="dash-header__eyebrow">
-          Welcome back, Brahim
-        </p>
         <h1 class="dash-header__title">
-          Your money, {{ monthLabel }}
+          Welcome back, Brahim
         </h1>
       </div>
 
@@ -635,13 +629,6 @@ function submitQuickAdd(): void {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-}
-
-.dash-header__eyebrow {
-  margin: 0 0 0.25rem;
-  font-size: 0.8rem;
-  color: var(--muted);
-  font-weight: 500;
 }
 
 .dash-header__title {
