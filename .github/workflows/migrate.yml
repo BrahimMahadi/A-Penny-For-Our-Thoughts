@@ -46,6 +46,18 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
 
+      - name: Baseline pre-CLI migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          # Migrations 001–003 were applied manually to Supabase before this
+          # workflow existed, so the CLI's migration history table is empty.
+          # Mark them as already applied so `db push` skips them and only
+          # runs genuinely new migrations (004 onward).
+          supabase migration repair --status applied 001 || true
+          supabase migration repair --status applied 002 || true
+          supabase migration repair --status applied 003 || true
+
       - name: Push pending migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
