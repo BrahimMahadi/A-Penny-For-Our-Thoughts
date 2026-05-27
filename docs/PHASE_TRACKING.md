@@ -1700,6 +1700,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-19 | List & micro-interaction animations: `useListTransition`, Wishlist stagger, Subscriptions TransitionGroup, BaseButton spring press | `feat/rs-19-micro-animations` | ✅ Complete | v2.10.0 |
 | BUG-020 | Tab blank screen + ToastContainer Vue warning: `onInterrupt: done`, `fromTo()`, `@before-enter`, `move-class` fix | `fix/bug-020-tab-blank-screen` | ✅ Complete | v2.10.1 |
 | BUG-020b | CSS tab transition: replace GSAP `mode="out-in"` hooks with directional CSS transitions to fix persistent blank screen | `fix/bug-020b-css-tab-transition` | ✅ Complete | v2.10.2 |
+| BUG-020c | Drop `mode="out-in"` + absolute-position leaving page: definitively eliminates Vue transition state-machine deadlock | `fix/bug-020c-tab-transition-rework` | ✅ Complete | v2.10.3 |
 
 ---
 
@@ -2703,6 +2704,65 @@ The GSAP `done()` pattern is appropriate for animations that cannot be expressed
 - `src/App.vue` — removed `useGsap` import and all three GSAP tab hook functions; added `tabTransitionName` computed; updated template and CSS
 - `src/components/onboarding/WhatsNewBanner.vue` — `APP_VERSION` bumped to `'2.10.2'`; `RELEASE_NOTES` updated
 - `tests/components/onboarding.spec.ts` — version strings updated to `'2.10.2'`
+
+### Tests
+- All 1069 existing tests continue to pass — no new test cases needed
+- `vue-tsc --noEmit` clean
+
+### Final gate
+- ✅ 1069/1069 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## BUG-020c — Tab Blank Screen (Definitive Fix) ✅
+
+**Branch:** `fix/bug-020c-tab-transition-rework`
+**Version:** v2.10.3
+**Status:** ✅ Fixed
+
+### Symptom
+After BUG-020b's CSS transition fix (v2.10.2), the blank screen persisted. Switching tabs left the main content area invisible while WhatsNewBanner and AppStatusBar (rendered outside the `<Transition>`) continued to show correctly. The bug reproduced on every deliberate tab switch, not just rapid ones.
+
+### Root Cause — `mode="out-in"` state-machine deadlock
+
+`mode="out-in"` requires Vue to receive exactly `propCount` `transitionend` events from the leaving element's root before it mounts the entering element. `propCount` is derived from `getComputedStyle(el).transitionDuration` at the time the leave transition starts.
+
+Several factors can prevent that count from being reached:
+
+1. **GSAP child-element RAF timing** — DashboardPage's `onMounted` stagger calls `gsap.from()` on `.base-card` children. GSAP schedules tween initialization on the next `requestAnimationFrame`. During the leave transition, these RAF callbacks interact with the browser's compositing pipeline in ways that can discard or delay `transitionend` events on the parent element.
+
+2. **Compositing-layer promotion** — `will-change: opacity, transform` (present in BUG-020b's CSS) creates a new compositing layer. In some browser/GPU configurations, promoted layers handle `transitionend` differently, causing the event to fire on the layer instead of the DOM element.
+
+3. **Two-property transition (`propCount = 2`)** — Both `opacity` and `transform` must each fire `transitionend`. If one property's transition is superseded (e.g., by a GSAP inline style that matches the end state on the first RAF), one event is never emitted and `propCount` never reaches 0.
+
+Any one of these can leave Vue permanently waiting. The leaving page stays invisible (`opacity:0` from `tab-fwd-leave-to`), the entering page is never mounted — **blank screen**.
+
+### Fix
+
+**Drop `mode="out-in"` entirely.** Without it:
+- The entering component is mounted immediately — blank screen is architecturally impossible.
+- The leaving component starts its exit animation simultaneously.
+- No `transitionend` counting; no state-machine to hang.
+
+**Prevent layout jump** — without `mode`, both components are briefly in the DOM at the same time. To stop them stacking vertically, wrap `<Transition>` in a `.tab-switcher` container (`position: relative; overflow: hidden`) and set `position: absolute; top: 0; left: 0; width: 100%` on the leaving element. The leaving page overlays the entering page during the 0.18 s crossfade; the entering page takes its natural height in the flow.
+
+**Remove `will-change`** from transition-active classes — eliminated as a potential compositing trigger.
+
+**Add `clearProps: 'opacity,y,transform'`** to DashboardPage and Wishlist GSAP staggers — ensures no inline `opacity:0` or `transform` style lingers on child elements if the component is unmounted mid-animation and remounted on a later tab switch.
+
+### Files Changed
+- `src/App.vue` — removed `mode="out-in"`; added `.tab-switcher` wrapper div; overhauled CSS (`.tab-switcher`, `leave-active position:absolute`, removed `will-change`, reduced duration to 0.18s)
+- `src/components/pages/DashboardPage.vue` — added `clearProps: 'opacity,y,transform'` to `onMounted` stagger
+- `src/components/sections/Wishlist.vue` — added `clearProps: 'opacity,y,transform'` to `onMounted` stagger
+- `src/components/onboarding/WhatsNewBanner.vue` — `APP_VERSION` bumped to `'2.10.3'`; release note updated
+- `tests/components/onboarding.spec.ts` — version strings updated to `'2.10.3'`
+
+### Why This Is Definitive
+The blank screen requires two things simultaneously:
+1. The leaving element's `transitionend` count is never satisfied → entering element never mounted
+2. Both can only happen with `mode="out-in"`
+
+Without `mode="out-in"`, condition (1) cannot cause condition (2). The entering element is always mounted immediately. There is no mechanism left that can produce a blank screen via this transition.
 
 ### Tests
 - All 1069 existing tests continue to pass — no new test cases needed

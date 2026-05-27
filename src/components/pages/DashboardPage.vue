@@ -319,6 +319,7 @@ onMounted(() => {
         duration: 0.38,
         ease: 'power2.out',
         stagger: 0.055,
+        clearProps: 'opacity,y,transform',
       });
     }
   });
