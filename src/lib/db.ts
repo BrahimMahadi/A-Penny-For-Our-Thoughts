@@ -135,7 +135,7 @@ function toSavingsAccount(r: SavingsAccountRow): SavingsAccount {
     name: r.name,
     balance: r.balance,
     defaultAllocated: r.default_allocated,
-    monthlyAllocations: r.monthly_allocations,
+    monthlyAllocations: r.monthly_allocations as Record<string, number>,
   };
 }
 
@@ -286,8 +286,8 @@ export async function fetchAllUserData(userId: string): Promise<Partial<BudgetSt
   const histItems = (histItemsRes.data ?? []) as SpendingHistoryItemRow[];
 
   return {
-    allocation:          profile.allocation as BudgetAllocation,
-    budgetDisplayMode:   profile.budget_display_mode as BudgetDisplayModes,
+    allocation:          profile.allocation as unknown as BudgetAllocation,
+    budgetDisplayMode:   profile.budget_display_mode as unknown as BudgetDisplayModes,
     payStart:            profile.pay_start ?? null,
     fundsRemaining:      profile.funds_remaining,
     fundsRemainingUpdated: profile.funds_remaining_updated as string,

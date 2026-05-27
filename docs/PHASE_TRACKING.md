@@ -2501,3 +2501,50 @@ Install GSAP 3 and establish the animation foundation: a central `useGsap` compo
 
 ### Final gate
 - ✅ 1052/1052 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-18 — Page Load & Navigation Animations ✅
+
+**Branch:** `feat/rs-18-page-animations`
+**Version:** v2.9.0
+**Status:** ✅ Complete
+
+### Goal
+Make the app feel alive the moment any page loads. Tab transitions give a sense of spatial direction; the dashboard entrance stagger, number counter, and banner animations create a cohesive "it just launched" feel.
+
+### Changes
+
+#### 1 — `src/composables/useCountUp.ts` (new)
+- Reusable composable: returns a `ComputedRef<number>` that animates from 0 → source on mount, and smoothly tweens old → new on every reactive change
+- Powered by GSAP via `useGsap()` (reduced-motion aware); GSAP mock in tests calls `onComplete` immediately so the displayed value always equals the final value in tests
+
+#### 2 — `App.vue` — tab slide transitions
+- Added `tabDirection` ref + `watch(ui.activeTab)` to detect forward/backward navigation
+- Wrapped `<component :is>` in `<Transition :css="false" mode="out-in">` with `onTabLeave` / `onTabEnter` GSAP hooks
+- Forward tabs slide old page left, new page in from right; backward slides in the opposite direction
+- Durations: leave 0.2s `power2.in`, enter 0.28s `power2.out`
+
+#### 3 — `DashboardPage.vue` — entrance stagger + hero counter
+- Added `dashboardRef` + `onMounted` stagger: all `.base-card` elements animate from `y:18, opacity:0` with `0.055s` stagger, `power2.out` 0.38s
+- Added `animHeroRemaining = useCountUp(...)` — the hero "Available to Spend" number counts up from $0 on first render and transitions smoothly when the Wants/Needs toggle fires
+- `heroRemaining < 0` OVER badge still uses the raw computed (not the animated value) so it flips instantly
+
+#### 4 — `WhatsNewBanner.vue` — GSAP hooks
+- Replaced CSS `<Transition name="wnb">` with `<Transition :css="false">` + GSAP hooks
+- Enter: `from(el, { opacity:0, y:-10, ... })` slide down from above
+- Leave: fade+slide out then collapse height + margin-bottom so content reflows smoothly
+
+#### 5 — `LoginPage.vue` — entrance animation
+- Added `loginCardRef` + `onMounted` fade-in: entire `.login-card` animates from `y:28, opacity:0`, `power2.out` 0.45s
+
+#### 6 — Bug fixes (pre-existing, found during type check)
+- `src/types/database.ts`: appended `*Row` type aliases so `db.ts` imports resolve correctly (previously caused 18 `TS2305` type errors on every `vue-tsc` run)
+- `src/lib/db.ts`: added `as unknown as` double-cast for JSONB → domain type conversions (`allocation`, `budgetDisplayMode`) and `as Record<string, number>` for `monthlyAllocations`
+
+### Tests
+- No new tests (all changes are purely additive animations; existing 1052 tests cover component behaviour)
+- ✅ Verified GSAP mock calls `onComplete` correctly for all new JS hook patterns
+
+### Final gate
+- ✅ 1052/1052 tests pass · `vue-tsc --noEmit` clean

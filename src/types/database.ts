@@ -773,3 +773,27 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
+// ─── Convenience Row type aliases ─────────────────────────────────────────────
+// db.ts and tests import these named types rather than the verbose
+// Database['public']['Tables']['...']['Row'] path.
+type _DbTables = Database['public']['Tables']
+
+export type ProfileRow               = _DbTables['profiles']['Row']
+export type IncomeStreamRow          = _DbTables['income_streams']['Row']
+export type ExpenseCardRow           = _DbTables['expense_cards']['Row']
+export type ExpenseItemRow           = _DbTables['expense_items']['Row']
+export type PurchaseRow              = _DbTables['purchases']['Row']
+export type SpendingHistoryPeriodRow = _DbTables['spending_history_periods']['Row']
+export type SpendingHistoryItemRow   = _DbTables['spending_history_items']['Row']
+export type LoanRow                  = _DbTables['loans']['Row']
+export type CreditCardRow            = _DbTables['credit_cards']['Row']
+export type SubscriptionRow          = _DbTables['subscriptions']['Row']
+export type WishlistItemRow          = _DbTables['wishlist_items']['Row']
+export type SavingsAccountRow        = _DbTables['savings_accounts']['Row']
+export type GoalRow                  = _DbTables['goals']['Row']
+export type AssetRow                 = _DbTables['assets']['Row']
+export type NetWorthSnapshotRow      = _DbTables['net_worth_snapshots']['Row']
+export type RuleRow                  = _DbTables['rules']['Row']
+export type BudgetAlertRow           = _DbTables['budget_alerts']['Row']
+export type SpendingCategoryRow      = _DbTables['spending_categories']['Row']

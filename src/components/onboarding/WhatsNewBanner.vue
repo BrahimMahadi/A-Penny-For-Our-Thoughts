@@ -17,17 +17,20 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
+import { useGsap } from '@/composables/useGsap';
+
+const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.8.0';
+const APP_VERSION = '2.9.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '✨', text: 'App animations powered by GSAP — cards, modals, toasts, and progress bars now animate smoothly' },
-  { icon: '🪗', text: 'Section collapse/expand uses a fluid height tween instead of snapping' },
-  { icon: '🔔', text: 'Toast notifications slide in with a spring bounce and slide back out on dismiss' },
-  { icon: '📊', text: 'Progress bars fill from 0% on page load and animate when values change (e.g. Wants ↔ Needs toggle)' },
+  { icon: '🎬', text: 'Switching tabs now plays a directional slide transition — forward tabs slide left, backward tabs slide right' },
+  { icon: '📋', text: 'Dashboard cards cascade in on page load — each card staggers in from below for a polished entrance' },
+  { icon: '🔢', text: 'Hero "Available to Spend" amount counts up from $0 on load and transitions smoothly when you toggle Wants ↔ Needs' },
+  { icon: '🔔', text: 'What\'s New banner now animates in from above and collapses smoothly when dismissed' },
   { icon: '✅', text: '1032 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
@@ -40,10 +43,27 @@ const visible = computed(
 function dismiss(): void {
   budget.dismissWhatsNew(APP_VERSION);
 }
+
+// ─── GSAP transition hooks ────────────────────────────────────────────────
+function onWnbEnter(el: Element, done: () => void): void {
+  from(el, { opacity: 0, y: -10, duration: 0.25, ease: 'power2.out', onComplete: done });
+}
+
+function onWnbLeave(el: Element, done: () => void): void {
+  const tl = timeline({ onComplete: done });
+  tl.to(el, { opacity: 0, y: -8, duration: 0.15, ease: 'power2.in' });
+  // Collapse height + margin so subsequent content flows up smoothly
+  tl.to(el, { height: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0,
+               duration: 0.2, ease: 'power2.inOut' }, '-=0.05');
+}
 </script>
 
 <template>
-  <Transition name="wnb">
+  <Transition
+    :css="false"
+    @enter="onWnbEnter"
+    @leave="onWnbLeave"
+  >
     <div
       v-if="visible"
       class="wnb"
@@ -161,23 +181,5 @@ function dismiss(): void {
   font-size: 0.9rem;
 }
 
-/* Slide-down enter / slide-up leave */
-.wnb-enter-active,
-.wnb-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease, margin-bottom 0.2s ease;
-}
-
-.wnb-enter-from,
-.wnb-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-  margin-bottom: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .wnb-enter-active,
-  .wnb-leave-active {
-    transition: none;
-  }
-}
+/* prefers-reduced-motion is handled by useGsap — no CSS overrides needed */
 </style>
