@@ -91,13 +91,14 @@ function isAffordable(price: number | undefined): boolean {
 
 const inlineWishId  = ref<string | null>(null);
 const inlineAmount  = ref('');
-const inlineInputEl = ref<HTMLInputElement | null>(null);
 
 function openInlineSavings(id: string): void {
   inlineWishId.value = id;
   inlineAmount.value = '';
+  // Bug fix: refs inside v-for become arrays in Composition API — use getElementById
+  // instead so we target the correct per-item input regardless of list length.
   nextTick(() => {
-    const el = inlineInputEl.value;
+    const el = document.getElementById(`wish-inline-${id}`) as HTMLInputElement | null;
     if (el && typeof el.focus === 'function') el.focus();
   });
 }
@@ -151,18 +152,19 @@ function openEdit(id: string): void {
 }
 
 const formError = computed<string>(() => {
+  // Bug fix: Vue 3 v-model on <input type="number"> coerces the reactive field
+  // from string → number after the first user keystroke. Wrap with String() so
+  // .trim() is always safe regardless of which type the field currently holds.
   if (!form.name.trim()) return 'Name is required.';
-  if (form.price.trim() !== '' && (isNaN(+form.price) || +form.price < 0)) {
+  const priceStr = String(form.price ?? '').trim();
+  const savedStr = String(form.saved ?? '').trim();
+  if (priceStr !== '' && (isNaN(+priceStr) || +priceStr < 0)) {
     return 'Price must be a positive number.';
   }
-  if (form.saved.trim() !== '' && (isNaN(+form.saved) || +form.saved < 0)) {
+  if (savedStr !== '' && (isNaN(+savedStr) || +savedStr < 0)) {
     return 'Saved amount must be a positive number.';
   }
-  if (
-    form.saved.trim() !== '' &&
-    form.price.trim() !== '' &&
-    +form.saved > +form.price
-  ) {
+  if (savedStr !== '' && priceStr !== '' && +savedStr > +priceStr) {
     return 'Saved amount cannot exceed the price.';
   }
   return '';
@@ -170,8 +172,10 @@ const formError = computed<string>(() => {
 
 function save(): void {
   if (formError.value) return;
-  const parsedPrice = form.price.trim() !== '' ? +form.price : undefined;
-  const parsedSaved = form.saved.trim() !== '' ? +form.saved : undefined;
+  const priceStr = String(form.price ?? '').trim();
+  const savedStr = String(form.saved ?? '').trim();
+  const parsedPrice = priceStr !== '' ? +priceStr : undefined;
+  const parsedSaved = savedStr !== '' ? +savedStr : undefined;
   const payload = {
     name:  form.name.trim(),
     icon:  form.icon || '🛒',
@@ -334,7 +338,6 @@ defineExpose({ openAdd });
             <span class="wish-inline-prefix">$</span>
             <input
               :id="`wish-inline-${item.id}`"
-              ref="inlineInputEl"
               v-model="inlineAmount"
               class="wish-inline-input"
               type="number"
