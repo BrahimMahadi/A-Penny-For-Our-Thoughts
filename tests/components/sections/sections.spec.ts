@@ -927,13 +927,13 @@ describe('Wishlist', () => {
     w.unmount();
   });
 
-  it('renders a link when url is provided', async () => {
+  it('renders a link icon button when url is provided', async () => {
     const budget = useBudgetStore();
     budget.wishlist = [];
     budget.addWishlistItem({ name: 'Desk', icon: '🖥', url: 'https://example.com' });
     const w = mountWith(Wishlist);
     await nextTick();
-    const link = w.find('.wish-link');
+    const link = w.find('.wish-link-btn');
     expect(link.exists()).toBe(true);
     expect(link.attributes('href')).toBe('https://example.com');
     w.unmount();
@@ -3014,5 +3014,156 @@ describe('Subscriptions — filter toolbar (Sprint 22)', () => {
     expect(names[0]).toBe('Gym');
     expect(names[1]).toBe('Netflix');
     w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Wishlist — RS-14 price tracking & affordability
+// ─────────────────────────────────────────────────────────────────
+describe('Wishlist — RS-14 price tracking', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    document.body.innerHTML = '';
+  });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('shows price on an item that has one', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'AirPods', icon: '🎧', url: '', price: 249 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-price').exists()).toBe(true);
+    expect(w.find('.wish-price').text()).toContain('249');
+    w.unmount();
+  });
+
+  it('does not show .wish-price when price is not set', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Book', icon: '📚', url: '' });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-price').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('shows "Affordable ✓" chip when price ≤ bi-weekly wants budget', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    // Set up income so bi-weekly wants budget is $300 (3000/mo × 20% wants / 2)
+    budget.incomeStreams = [];
+    budget.addIncomeStream({ name: 'Salary', amount: 3000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 20, savings: 30 };
+    budget.addWishlistItem({ name: 'Game', icon: '🎮', url: '', price: 60 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    const chip = w.find('.wish-chip--affordable');
+    expect(chip.exists()).toBe(true);
+    expect(chip.text()).toContain('Affordable');
+    w.unmount();
+  });
+
+  it('does not show affordable chip when price > bi-weekly wants budget', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.incomeStreams = [];
+    budget.addIncomeStream({ name: 'Salary', amount: 3000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 20, savings: 30 };
+    // bi-weekly wants = 3000 × 0.20 / 2 = $300; price $500 > $300
+    budget.addWishlistItem({ name: 'iPhone', icon: '📱', url: '', price: 500 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-chip--affordable').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('shows total value in header when priced items exist', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'A', icon: '🅰', url: '', price: 100 });
+    budget.addWishlistItem({ name: 'B', icon: '🅱', url: '', price: 200 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    const total = w.find('.wishlist-section__total');
+    expect(total.exists()).toBe(true);
+    expect(total.text()).toContain('300');
+    w.unmount();
+  });
+
+  it('does not show total header when no items have prices', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'NoPrice', icon: '🛒', url: '' });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wishlist-section__total').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('shows sort select when there are 2+ items', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'A', icon: '🅰', url: '' });
+    budget.addWishlistItem({ name: 'B', icon: '🅱', url: '' });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wishlist-sort').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('sort by price ascending orders items cheapest first', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Expensive', icon: '💎', url: '', price: 999 });
+    budget.addWishlistItem({ name: 'Cheap', icon: '🎯', url: '', price: 10 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    await w.find('.wishlist-sort').setValue('price-asc');
+    await nextTick();
+    const names = w.findAll('.wish-name').map(el => el.text());
+    expect(names[0]).toBe('Cheap');
+    expect(names[1]).toBe('Expensive');
+    w.unmount();
+  });
+
+  it('sort by price descending orders items most expensive first', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Cheap', icon: '🎯', url: '', price: 10 });
+    budget.addWishlistItem({ name: 'Expensive', icon: '💎', url: '', price: 999 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    await w.find('.wishlist-sort').setValue('price-desc');
+    await nextTick();
+    const names = w.findAll('.wish-name').map(el => el.text());
+    expect(names[0]).toBe('Expensive');
+    expect(names[1]).toBe('Cheap');
+    w.unmount();
+  });
+
+  it('price field appears in the add modal', async () => {
+    const w = mount(Wishlist, { attachTo: document.body });
+    await nextTick();
+    const addBtn = w.findAll('button').find(b => b.text().includes('Add Item'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    expect(document.body.querySelector('#wish-price')).not.toBeNull();
+    w.unmount();
+  });
+
+  it('addWishlistItem correctly stores price', () => {
+    const budget = useBudgetStore();
+    budget.addWishlistItem({ name: 'Chair', icon: '🪑', url: '', price: 350 });
+    const item = budget.wishlist.find(w => w.name === 'Chair');
+    expect(item?.price).toBe(350);
+  });
+
+  it('updateWishlistItem can update price', () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    const item = budget.addWishlistItem({ name: 'Desk', icon: '🖥', url: '' });
+    budget.updateWishlistItem(item.id, { price: 450 });
+    expect(budget.wishlist.find(w => w.id === item.id)?.price).toBe(450);
   });
 });

@@ -192,6 +192,8 @@ export interface WishlistItem {
   name: string;
   /** Optional product URL */
   url: string;
+  /** Optional target price — drives affordability chip and total value KPI */
+  price?: number;
 }
 
 // ─── Savings accounts & goals ────────────────────────────────────

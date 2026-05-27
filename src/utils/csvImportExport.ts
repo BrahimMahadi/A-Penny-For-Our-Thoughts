@@ -140,9 +140,9 @@ export function exportStateToCSV(state: BudgetState): string {
   rows.push('');
 
   // ── wishlist ──
-  rows.push('SECTION:wishlist', 'id,icon,name,url');
+  rows.push('SECTION:wishlist', 'id,icon,name,url,price');
   (state.wishlist ?? []).forEach((w) =>
-    rows.push(`${e(w.id)},${e(w.icon ?? '')},${e(w.name)},${e(w.url ?? '')}`),
+    rows.push(`${e(w.id)},${e(w.icon ?? '')},${e(w.name)},${e(w.url ?? '')},${w.price != null ? w.price : ''}`),
   );
   rows.push('');
 
@@ -398,10 +398,12 @@ export function parseCSVToState(text: string): BudgetState {
       case 'wishlist':
         if (!parsed.wishlist) parsed.wishlist = [];
         parsed.wishlist.push({
-          id:   vals[0],
-          icon: vals[1],
-          name: vals[2],
-          url:  vals[3] || '',
+          id:    vals[0],
+          icon:  vals[1],
+          name:  vals[2],
+          url:   vals[3] || '',
+          // vals[4] is price (may be absent in legacy CSVs)
+          ...(vals[4] && vals[4].trim() !== '' ? { price: +vals[4] } : {}),
         });
         break;
 

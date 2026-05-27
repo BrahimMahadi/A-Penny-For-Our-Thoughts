@@ -65,6 +65,15 @@ const overallPct = computed(() =>
 );
 
 const netWorthValue = computed(() => netWorth.value.netWorth);
+
+/** Total price of all priced wishlist items. */
+const wishlistTotalValue = computed(() =>
+  budget.wishlist.reduce((s, w) => s + (w.price ?? 0), 0),
+);
+
+const hasPricedWishlistItems = computed(() =>
+  budget.wishlist.some(w => w.price != null && w.price > 0),
+);
 </script>
 
 <template>
@@ -114,7 +123,9 @@ const netWorthValue = computed(() => netWorth.value.netWorth);
       <StatCard
         label="Wishlist items"
         :value="String(budget.wishlist.length)"
-        :hint="budget.wishlist.length > 0 ? `${budget.wishlist.length} item${budget.wishlist.length !== 1 ? 's' : ''} tracked` : 'None added yet'"
+        :hint="hasPricedWishlistItems
+          ? `Total value: ${fmt(wishlistTotalValue)}`
+          : budget.wishlist.length > 0 ? `${budget.wishlist.length} item${budget.wishlist.length !== 1 ? 's' : ''} tracked` : 'None added yet'"
       />
     </div>
 

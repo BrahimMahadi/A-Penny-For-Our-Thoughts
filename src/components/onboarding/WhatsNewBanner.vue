@@ -19,16 +19,16 @@ import { computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.4.0';
+const APP_VERSION = '2.5.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '💳', text: 'Inline Pay — click "Pay" on any loan card to instantly reduce the remaining balance without opening the edit modal' },
-  { icon: '⚡', text: 'Inline Charge / Pay — "+ Charge" and "✓ Pay" buttons on each credit card bar let you update your balance in one click' },
-  { icon: '🏦', text: 'Inline Deposit / Withdraw — savings accounts now have "+ Deposit" and "− Withdraw" quick-action buttons with a live balance preview' },
-  { icon: '🔒', text: 'All inline forms are color-coded (violet = deposit/pay, red = charge, amber = withdraw) and clamp values to valid ranges automatically' },
-  { icon: '✅', text: '945 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '🛒', text: 'Wishlist prices — add an optional price to any wishlist item to track total value and see affordability signals' },
+  { icon: '✓', text: '"Affordable ✓" chip appears when an item\'s price fits within your bi-weekly wants budget' },
+  { icon: '📊', text: 'Total wishlist value shown in the header and in the Goals tab KPI card whenever priced items exist' },
+  { icon: '↕️', text: 'Sort wishlist by default order, price ascending, or price descending' },
+  { icon: '✅', text: '961 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

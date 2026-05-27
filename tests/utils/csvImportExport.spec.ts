@@ -78,7 +78,7 @@ function buildSampleState(): BudgetState {
   ];
 
   s.wishlist = [
-    { id: 'wish1', icon: '🎯', name: 'New Laptop', url: 'https://example.com' },
+    { id: 'wish1', icon: '🎯', name: 'New Laptop', url: 'https://example.com', price: 1299 },
   ];
 
   s.savingsAccounts = [
@@ -399,10 +399,10 @@ describe('round-trip: exportStateToCSV → parseCSVToState', () => {
     });
   });
 
-  it('preserves wishlist items', () => {
+  it('preserves wishlist items including price', () => {
     const state = buildSampleState();
     const parsed = parseCSVToState(exportStateToCSV(state));
-    expect(parsed.wishlist[0]).toMatchObject({ id: 'wish1', icon: '🎯', name: 'New Laptop', url: 'https://example.com' });
+    expect(parsed.wishlist[0]).toMatchObject({ id: 'wish1', icon: '🎯', name: 'New Laptop', url: 'https://example.com', price: 1299 });
   });
 
   it('preserves savings accounts with monthlyAllocations', () => {
@@ -562,5 +562,42 @@ describe('CSV round-trip — custom-days subscriptions', () => {
     const parsed = parseCSVToState(csv);
     // 99 is out of range 0-6 and should be filtered out
     expect(parsed.subscriptions[0].daysOfWeek).toEqual([1, 3]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Wishlist — RS-14 CSV price column
+// ─────────────────────────────────────────────────────────────────
+describe('Wishlist CSV — RS-14 price column', () => {
+  it('round-trips a wishlist item that has a price', () => {
+    const state = makeBlankState();
+    state.wishlist = [{ id: 'w1', icon: '🎧', name: 'AirPods', url: '', price: 249 }];
+    const parsed = parseCSVToState(exportStateToCSV(state));
+    expect(parsed.wishlist[0].price).toBe(249);
+  });
+
+  it('round-trips a wishlist item without a price (price undefined)', () => {
+    const state = makeBlankState();
+    state.wishlist = [{ id: 'w1', icon: '🛒', name: 'No Price', url: '' }];
+    const parsed = parseCSVToState(exportStateToCSV(state));
+    expect(parsed.wishlist[0].price).toBeUndefined();
+  });
+
+  it('exports the price column header correctly', () => {
+    const state = makeBlankState();
+    const csv = exportStateToCSV(state);
+    expect(csv).toContain('id,icon,name,url,price');
+  });
+
+  it('imports a legacy CSV without price column gracefully (price stays undefined)', () => {
+    const csv = [
+      'SECTION:wishlist',
+      'id,icon,name,url',   // old 4-column header (no price)
+      'w1,🛒,Old Item,',
+      '',
+    ].join('\n');
+    const parsed = parseCSVToState(csv);
+    expect(parsed.wishlist[0].price).toBeUndefined();
+    expect(parsed.wishlist[0].name).toBe('Old Item');
   });
 });
