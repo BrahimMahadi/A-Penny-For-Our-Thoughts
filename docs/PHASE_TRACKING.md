@@ -2591,3 +2591,47 @@ Bring tactile life to every list-level interaction. Wishlist cards stagger in on
 
 ### Final gate
 - ✅ 1069/1069 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## BUG-020 — Tab Blank Screen + ToastContainer Vue Warning ✅
+
+**Branch:** `fix/bug-020-tab-blank-screen`
+**Version:** v2.10.1
+**Status:** ✅ Fixed
+
+### Symptoms
+1. Switching tabs (especially rapidly) left the main content area completely blank — the What's New banner was visible but the page component below it was not.
+2. Console showed: `[Vue warn]: Extraneous non-emits event listeners (move) were passed to component but could not be automatically inherited because component renders fragment or text root nodes.`
+
+### Root Causes
+
+#### Bug A — `App.vue` tab enter transition (blank screen)
+`onTabEnter` used `gsap.from(el, { opacity:0, ..., onComplete: done })`. Two failure modes:
+
+1. **Interrupted tween on rapid tab switching** — `mode="out-in"` starts a new leave/enter cycle while a previous enter animation is in progress. GSAP does not call `onComplete` on an overwritten/killed tween, so Vue's `done()` callback was swallowed. Vue then waited indefinitely for `done()`, with the page stuck at `opacity:0` from GSAP's initial `from` state → **blank screen**.
+
+2. **Ambiguous final value** — `gsap.from()` captures the element's natural computed value as the "to" target at call time. If a prior interrupted tween had left an `opacity:0` inline style on the element, GSAP would animate 0→0 → **blank screen**.
+
+#### Bug B — `ToastContainer.vue` @move warning
+`@move` is not a valid JavaScript hook on `<TransitionGroup>`. Move (FLIP) animations are CSS-class-only via `move-class`. Vue treated `onMove` as an unknown external event listener that `TransitionGroup` (which renders a fragment) can't inherit, generating the warning.
+
+### Fixes
+
+#### `src/App.vue`
+- Added `@before-enter="onTabBeforeEnter"` hook — uses `gsap.set()` to pre-hide the element synchronously before first paint (skipped when `prefersReducedMotion()` is true)
+- `onTabEnter`: switched from `gsap.from()` → `gsap.fromTo()` — both start (`{opacity:0, x:28}`) and end (`{opacity:1, x:0}`) states are explicit; no ambiguity about final values
+- Both `onTabLeave` and `onTabEnter`: added `onInterrupt: done` — ensures Vue's `done()` fires even when a tween is killed mid-animation (rapid tab switching), unblocking `mode="out-in"` 
+- `onTabEnter` to-vars: added `clearProps: 'opacity,x'` — removes GSAP inline styles on completion so the element returns to its natural CSS state
+
+#### `src/components/ui/ToastContainer.vue`
+- Removed `@move="onToastMove"` from `<TransitionGroup>` (not a valid JS hook)
+- Removed `onToastMove` function
+- Added `move-class="toast-move"` to `<TransitionGroup>` — CSS FLIP transition now correctly handles toast reordering when a toast is dismissed
+- Added `.toast-move { transition: transform 0.22s ease }` CSS with `prefers-reduced-motion` media query
+
+### Tests
+- All 1069 existing tests continue to pass — no new test cases needed (the existing `App.spec.ts` tab navigation tests verify the corrected behavior; the GSAP mock calls `onComplete` synchronously so `done()` always fires in tests)
+
+### Final gate
+- ✅ 1069/1069 tests pass · `vue-tsc --noEmit` clean

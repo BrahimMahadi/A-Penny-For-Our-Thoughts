@@ -32,6 +32,11 @@ onMounted(() => {
 });
 
 // ─── GSAP transition hooks for each toast ─────────────────────────────────
+// Note: @move is NOT a valid JS hook on <TransitionGroup>. Moves (FLIP) are
+// handled exclusively via the move-class CSS prop — see .toast-move below.
+// BUG-020 fix: removed the invalid @move="onToastMove" handler that was
+// causing the Vue warning "Extraneous non-emits event listeners (move) were
+// passed to component but could not be automatically inherited".
 function onToastEnter(el: Element, done: () => void): void {
   from(el, { x: 110, opacity: 0, duration: 0.38, ease: 'back.out(1.5)',
              onComplete: done });
@@ -39,10 +44,6 @@ function onToastEnter(el: Element, done: () => void): void {
 function onToastLeave(el: Element, done: () => void): void {
   to(el, { x: 110, opacity: 0, duration: 0.26, ease: 'power2.in',
            onComplete: done });
-}
-function onToastMove(el: Element): void {
-  // Keeps stacked toasts sliding smoothly when one is dismissed
-  to(el, { y: 0, duration: 0.22, ease: 'power2.out' });
 }
 
 // Watch new toasts and schedule exits as they arrive.
@@ -66,11 +67,12 @@ watch(
       aria-live="polite"
       aria-atomic="false"
     >
+      <!-- move-class (not @move) is the correct way to animate TransitionGroup FLIP moves -->
       <TransitionGroup
         :css="false"
+        move-class="toast-move"
         @enter="onToastEnter"
         @leave="onToastLeave"
-        @move="onToastMove"
       >
         <div
           v-for="t in toasts"
@@ -136,5 +138,17 @@ watch(
   }
 }
 
-/* prefers-reduced-motion is handled inside useGsap — no CSS overrides needed */
+/* FLIP move: when a toast is dismissed, remaining toasts slide into position */
+.toast-move {
+  transition: transform 0.22s ease;
+}
+
+/* Disable FLIP for reduced-motion users */
+@media (prefers-reduced-motion: reduce) {
+  .toast-move {
+    transition: none;
+  }
+}
+
+/* Enter / leave are handled by GSAP (useGsap respects prefers-reduced-motion) */
 </style>

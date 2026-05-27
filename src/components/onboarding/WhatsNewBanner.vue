@@ -22,7 +22,7 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.10.0';
+const APP_VERSION = '2.10.1';
 
 interface ReleaseNote { icon: string; text: string }
 
@@ -30,7 +30,7 @@ const RELEASE_NOTES: ReleaseNote[] = [
   { icon: '🃏', text: 'Wishlist cards stagger in from below on page load, and add/remove now uses a smooth GSAP fade instead of a CSS pop' },
   { icon: '📋', text: 'Subscription list rows animate in/out with GSAP when items are added or removed' },
   { icon: '🖱️', text: 'Every button now gives tactile press feedback — scales down on press and springs back with an elastic ease' },
-  { icon: '🔀', text: 'Wishlist card reorder (sort change) still uses CSS FLIP so moves glide smoothly without the Flip plugin' },
+  { icon: '🐛', text: 'Fixed: switching tabs no longer leaves the page blank — rapid tab switching is now robust against interrupted animations' },
   { icon: '✅', text: '1069 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
