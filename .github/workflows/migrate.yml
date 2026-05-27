@@ -1,0 +1,88 @@
+name: Supabase Migrations
+
+# Runs on every merge to main and on manual trigger.
+# Two jobs in sequence:
+#   1. migrate  — apply any pending migration files to the live DB
+#   2. sync-types — regenerate src/types/database.ts from the live schema
+#                   and commit it back if it drifted (catches the BUG-023 pattern)
+#
+# Required GitHub secrets (Settings → Secrets → Actions):
+#   SUPABASE_ACCESS_TOKEN  — personal access token from supabase.com/dashboard/account/tokens
+#   SUPABASE_PROJECT_ID    — reference ID from Supabase Dashboard → Project Settings → General
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/migrations/**'   # only run when a migration file actually changed
+      - '.github/workflows/migrate.yml'
+  workflow_dispatch:               # allow manual trigger from the Actions tab
+
+permissions:
+  contents: write                  # needed to commit regenerated types back to main
+
+concurrency:
+  group: supabase-migrate
+  cancel-in-progress: false        # never cancel a running migration
+
+jobs:
+  # ─── Job 1: apply pending migrations ──────────────────────────────
+  migrate:
+    name: Apply DB migrations
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+
+      - name: Push pending migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db push
+
+  # ─── Job 2: regenerate TypeScript types from live schema ──────────
+  sync-types:
+    name: Sync database.ts types
+    runs-on: ubuntu-latest
+    needs: migrate              # always run after migrations so types reflect the new schema
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Regenerate src/types/database.ts
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase gen types typescript \
+            --project-id ${{ secrets.SUPABASE_PROJECT_ID }} \
+            > src/types/database.ts
+
+      - name: Commit updated types (if schema drifted)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/types/database.ts
+          if git diff --cached --quiet; then
+            echo "✓ database.ts is already in sync — no commit needed"
+          else
+            echo "⚠ database.ts drifted from live schema — committing fix"
+            git commit -m "chore: sync database.ts with live Supabase schema [skip ci]"
+            git push
+          fi
