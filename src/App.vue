@@ -213,15 +213,26 @@ useSwipe(
         <!-- What's New banner — shown until user dismisses for this version -->
         <WhatsNewBanner />
 
-        <Transition
-          :name="tabTransitionName"
-          mode="out-in"
-        >
-          <component
-            :is="activePage"
-            :key="ui.activeTab"
-          />
-        </Transition>
+        <!--
+          BUG-020c: No mode="out-in" here.
+          mode="out-in" requires Vue to receive exactly propCount transitionend
+          events from the leaving element before mounting the entering element.
+          Any timing issue (GSAP child RAF, compositing-layer promotions, etc.)
+          can prevent that count from being reached, leaving the state machine
+          stuck with the leaving page at opacity:0 — the "blank screen" bug.
+
+          Without mode: entering component is mounted immediately; leaving component
+          fades out simultaneously as position:absolute so it doesn't shift layout.
+          Blank screen is structurally impossible with this pattern.
+        -->
+        <div class="tab-switcher">
+          <Transition :name="tabTransitionName">
+            <component
+              :is="activePage"
+              :key="ui.activeTab"
+            />
+          </Transition>
+        </div>
       </main>
     </div>
 
@@ -469,31 +480,58 @@ useSwipe(
   }
 }
 
-/* ─── Tab slide transitions (CSS — no done() callback required) ─── */
+/* ─── Tab switcher wrapper ─────────────────────────────────────── */
 /*
- * Two named transitions so the slide direction matches navigation intent.
- * tab-fwd: forward (Dashboard→Settings order) — old page exits left, new enters from right.
- * tab-bwd: backward — old page exits right, new enters from left.
- *
- * Using CSS rather than GSAP JS hooks because mode="out-in" with done() is
- * fragile: if GSAP defers execution or a tween is abandoned, done() is never
- * called and Vue's transition state machine gets permanently stuck (BUG-020).
+ * position:relative constrains the leaving page (position:absolute below)
+ * to this box. overflow:hidden clips the outgoing slide at the boundary.
  */
-.tab-fwd-enter-active,
-.tab-fwd-leave-active,
-.tab-bwd-enter-active,
-.tab-bwd-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  will-change: opacity, transform;
+.tab-switcher {
+  position: relative;
+  overflow: hidden;
 }
 
-/* Forward: leaving page exits left, entering page slides in from right */
-.tab-fwd-leave-to   { opacity: 0; transform: translateX(-22px); }
-.tab-fwd-enter-from { opacity: 0; transform: translateX(22px);  }
+/* ─── Tab slide transitions (CSS — no mode="out-in") ─────────── */
+/*
+ * BUG-020c: why no mode="out-in"
+ *
+ * mode="out-in" requires Vue to receive exactly propCount transitionend
+ * events from the leaving element before it mounts the entering element.
+ * Several factors — GSAP RAF callbacks on child elements, browser
+ * compositing-layer promotions, will-change — can prevent that count
+ * from reaching zero, leaving the state machine permanently stuck with
+ * the leaving page hidden and the entering page never mounted (blank screen).
+ *
+ * Without mode: entering page is mounted immediately (blank screen impossible).
+ * Leaving page uses position:absolute so it's taken out of normal flow —
+ * no layout jump. Both fade+slide over 0.18 s simultaneously.
+ *
+ * tab-fwd  (Dashboard→Settings): old exits left,  new enters from right.
+ * tab-bwd  (Settings→Dashboard): old exits right, new enters from left.
+ */
 
-/* Backward: leaving page exits right, entering page slides in from left */
-.tab-bwd-leave-to   { opacity: 0; transform: translateX(22px);  }
-.tab-bwd-enter-from { opacity: 0; transform: translateX(-22px); }
+/* Leaving page: removed from flow so entering page can take its height */
+.tab-fwd-leave-active,
+.tab-bwd-leave-active {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+/* Entering page: normal flow */
+.tab-fwd-enter-active,
+.tab-bwd-enter-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+/* Forward: old exits left, new enters from right */
+.tab-fwd-leave-to   { opacity: 0; transform: translateX(-20px); }
+.tab-fwd-enter-from { opacity: 0; transform: translateX(20px);  }
+
+/* Backward: old exits right, new enters from left */
+.tab-bwd-leave-to   { opacity: 0; transform: translateX(20px);  }
+.tab-bwd-enter-from { opacity: 0; transform: translateX(-20px); }
 
 /* ─── prefers-reduced-motion ──────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
@@ -502,13 +540,11 @@ useSwipe(
     animation: none;
   }
 
-  /* Disable tab slide for motion-sensitive users */
-  .tab-fwd-enter-active,
   .tab-fwd-leave-active,
-  .tab-bwd-enter-active,
-  .tab-bwd-leave-active {
+  .tab-bwd-leave-active,
+  .tab-fwd-enter-active,
+  .tab-bwd-enter-active {
     transition: none;
-    will-change: auto;
   }
 }
 </style>
