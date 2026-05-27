@@ -87,6 +87,21 @@ function isAffordable(price: number | undefined): boolean {
   return wantsBudgetPerPeriod.value > 0 && price <= wantsBudgetPerPeriod.value;
 }
 
+/**
+ * Live hint shown below the "Saved amount" field in the edit modal.
+ * Extracted from template mustache to avoid a Vite HMR 500 caused by
+ * `const` declarations inside IIFE expressions inside {{ }} (BUG-019).
+ */
+function monthsHintText(): string {
+  const priceNum = +form.price;
+  const savedNum = +(form.saved || 0);
+  if (!priceNum || priceNum <= 0 || monthlySavingsRate.value <= 0) return '';
+  const remaining = Math.max(0, priceNum - savedNum);
+  if (remaining <= 0) return '✓ Already saved enough!';
+  const months = Math.ceil(remaining / monthlySavingsRate.value);
+  return `~${months} month${months !== 1 ? 's' : ''} to save up at ${fmt(monthlySavingsRate.value)}/mo`;
+}
+
 // ─── Inline "Add savings" (RS-13 pattern) ─────────────────────────────────────
 
 const inlineWishId  = ref<string | null>(null);
@@ -513,19 +528,12 @@ defineExpose({ openAdd });
           }}
         </p>
 
-        <!-- Live months-to-goal hint -->
+        <!-- Live months-to-goal hint (BUG-019: extracted from IIFE to script fn) -->
         <p
-          v-if="form.price && +form.price > 0 && monthlySavingsRate > 0"
+          v-if="monthsHintText()"
           class="wish-months-hint"
         >
-          {{
-            (() => {
-              const remaining = Math.max(0, +form.price - (+form.saved || 0));
-              if (remaining <= 0) return '✓ Already saved enough!';
-              const months = Math.ceil(remaining / monthlySavingsRate);
-              return `~${months} month${months !== 1 ? 's' : ''} to save up at ${fmt(monthlySavingsRate)}/mo`;
-            })()
-          }}
+          {{ monthsHintText() }}
         </p>
 
         <p

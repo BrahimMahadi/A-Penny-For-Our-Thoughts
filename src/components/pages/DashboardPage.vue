@@ -27,7 +27,7 @@
 -->
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import BaseCard    from '@/components/ui/BaseCard.vue';
 import BaseModal   from '@/components/ui/BaseModal.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
@@ -151,9 +151,10 @@ const netWorthMomPct = computed(() => {
 });
 
 // ─── Quick-add modal ──────────────────────────────────────────────
-const showQuickAdd   = ref(false);
-const quickAddName   = ref('');
-const quickAddAmount = ref('');
+const showQuickAdd     = ref(false);
+const quickAddName     = ref('');
+const quickAddAmount   = ref('');
+const quickAddInputEl  = ref<HTMLInputElement | null>(null);
 
 const quickAddCats = computed(() => budget.spendingCategories);
 
@@ -178,6 +179,10 @@ function openQuickAdd(): void {
   quickAddAmount.value   = '';
   quickAddCategory.value = defaultCategory.value;
   showQuickAdd.value     = true;
+  // BUG-020: use programmatic focus via nextTick instead of the `autofocus`
+  // HTML attribute, which triggers a browser warning when another element
+  // already has focus when the input is inserted into the DOM.
+  nextTick(() => quickAddInputEl.value?.focus());
 }
 
 function submitQuickAdd(): void {
@@ -480,10 +485,10 @@ function submitQuickAdd(): void {
 
         <label class="quick-add__label">What did you buy?</label>
         <input
+          ref="quickAddInputEl"
           v-model="quickAddName"
           class="quick-add__input"
           placeholder="e.g. coffee, t-shirt, dinner"
-          autofocus
           @keydown.enter="submitQuickAdd"
           @keydown.esc="showQuickAdd = false"
         >

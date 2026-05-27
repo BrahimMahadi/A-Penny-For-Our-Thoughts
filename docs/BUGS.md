@@ -757,5 +757,113 @@ nextTick(() => {
 
 ---
 
-*Last updated: May 2026 — v2.5.0 (BUG-017 + BUG-018, RS-14 wishlist redesign)*  
+## BUG-019 — Vite HMR 500 on `Wishlist.vue` after hot-reload
+
+**Date:** May 2026  
+**Branch:** `feat/redesign-sprint-14-wishlist-price`  
+**Severity:** Medium (Vite dev server 500 on every hot-reload of Wishlist.vue — full page reload required to see changes during development)
+
+### Symptom
+After any edit to `Wishlist.vue` during `vite dev`, the browser console showed:
+```
+[vite] Failed to reload /src/components/sections/Wishlist.vue. (500)
+```
+The HMR update was rejected with a 500 status and the page required a manual hard reload.
+
+### Root Cause
+The edit modal contained a live months-to-goal hint rendered via an IIFE inside a Vue template mustache expression:
+```html
+{{
+  (() => {
+    const remaining = Math.max(0, +form.price - (+form.saved || 0));
+    if (remaining <= 0) return '✓ Already saved enough!';
+    const months = Math.ceil(remaining / monthlySavingsRate);
+    return `~${months} month${months !== 1 ? 's' : ''} to save up at ${fmt(monthlySavingsRate)}/mo`;
+  })()
+}}
+```
+Vite's HMR module transform pipeline fails when it encounters block-scoped `const`/`let` declarations inside an IIFE that is nested inside a Vue template mustache `{{ }}` expression. The transform produces invalid intermediate code that the server rejects with a 500.
+
+### Fix
+Extracted the IIFE logic into a dedicated script-side function `monthsHintText()`:
+```typescript
+function monthsHintText(): string {
+  const priceNum = +form.price;
+  const savedNum = +(form.saved || 0);
+  if (!priceNum || priceNum <= 0 || monthlySavingsRate.value <= 0) return '';
+  const remaining = Math.max(0, priceNum - savedNum);
+  if (remaining <= 0) return '✓ Already saved enough!';
+  const months = Math.ceil(remaining / monthlySavingsRate.value);
+  return `~${months} month${months !== 1 ? 's' : ''} to save up at ${fmt(monthlySavingsRate.value)}/mo`;
+}
+```
+Template replaced with a simple conditional + call:
+```html
+<p v-if="monthsHintText()" class="wish-months-hint">
+  {{ monthsHintText() }}
+</p>
+```
+
+### Prevention
+**Rule:** Never put `const`/`let` declarations inside IIFEs inside Vue template mustache `{{ }}`. Vue template expressions are not arbitrary JavaScript scopes — the template compiler and Vite's HMR transform pipeline don't handle block-scoped declarations inside template mustache IIFEs. If you need multi-step logic in a template, always extract it to a script-side function or computed ref.
+
+---
+
+## BUG-020 — "Autofocus processing was blocked" warning on Quick-Add panel open
+
+**Date:** May 2026  
+**Branch:** `feat/redesign-sprint-14-wishlist-price`  
+**Severity:** Low (browser console warning — UX not impacted, focus still lands in most cases, but the warning indicates unreliable focus behaviour)
+
+### Symptom
+Opening the Quick-Add wants panel on the Dashboard (clicking "Quick Add" or "+" button) logged a browser warning:
+```
+Autofocus processing was blocked because a document already has a focused element.
+```
+The first input in the panel would not reliably receive focus.
+
+### Root Cause
+`DashboardPage.vue` used the HTML `autofocus` attribute on the name input inside the quick-add panel:
+```html
+<input
+  v-model="quickAddName"
+  class="quick-add__input"
+  placeholder="e.g. coffee, t-shirt, dinner"
+  autofocus
+  ...
+>
+```
+The panel is conditionally rendered with `v-if="showQuickAdd"`. When `showQuickAdd` becomes `true`, Vue inserts the entire panel into the DOM. At that point the browser processes the `autofocus` attribute, but if another element (a button, link, or any interactive element on the page) already holds focus, the browser blocks the autofocus and logs the warning. In SPAs this is almost always the case — the button that triggered the panel still has focus.
+
+### Fix
+Removed `autofocus` from the input. Added a template ref `quickAddInputEl` and called programmatic `.focus()` via `nextTick` inside `openQuickAdd()`:
+```typescript
+const quickAddInputEl = ref<HTMLInputElement | null>(null);
+
+function openQuickAdd(): void {
+  quickAddName.value     = '';
+  quickAddAmount.value   = '';
+  quickAddCategory.value = defaultCategory.value;
+  showQuickAdd.value     = true;
+  nextTick(() => quickAddInputEl.value?.focus());
+}
+```
+Template:
+```html
+<input
+  ref="quickAddInputEl"
+  v-model="quickAddName"
+  class="quick-add__input"
+  placeholder="e.g. coffee, t-shirt, dinner"
+  ...
+>
+```
+`nextTick` ensures Vue has finished inserting the panel into the DOM before `.focus()` is called, making focus reliable and warning-free.
+
+### Prevention
+**Rule:** Never use the HTML `autofocus` attribute on elements inside `v-if` blocks in Vue SPAs. The browser processes `autofocus` at DOM-insertion time, which conflicts with existing focus in single-page apps. Always use programmatic focus via `nextTick(() => el?.focus())` when a conditionally-rendered element needs to receive focus on show.
+
+---
+
+*Last updated: May 2026 — v2.5.0 (BUG-017 through BUG-020, RS-14 wishlist redesign)*  
 *See also: [PHASE_TRACKING.md](PHASE_TRACKING.md) for the full sprint history.*
