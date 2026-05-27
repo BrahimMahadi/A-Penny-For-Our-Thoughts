@@ -41,7 +41,7 @@ This checklist must be completed in the same commit/PR as the feature work. Neve
 **All changes must be done in separate branches, tested thoroughly, and have all documentation updated to reflect the change before being ready to merge into the main branch.**
 
 - Branch naming convention: `feat/sprint-N-short-description` for features, `fix/short-description` for bug fixes.
-- Every branch must pass the full test suite (`npx vitest run`) and TypeScript check (`npx tsc --noEmit`) with zero errors before opening a PR.
+- Every branch must pass the full test suite (`npx vitest run`) and **`npx vue-tsc --noEmit`** (not plain `tsc`) with zero errors before opening a PR. `vue-tsc` performs full template type inference on `.vue` files — plain `tsc --noEmit` silently skips Vue template expressions and will miss type errors in component templates.
 - All documentation (CLAUDE.md test count, PHASE_TRACKING.md, WhatsNewBanner, DocsPage, ARCHITECTURE.md) must be updated in the same branch as the feature work.
 - Never commit directly to `main`. Direct pushes to `main` are reserved solely for the initial project bootstrap or emergency hotfixes that cannot wait for a PR cycle — and must be flagged as such.
 
@@ -68,8 +68,13 @@ This checklist must be completed in the same commit/PR as the feature work. Neve
 - [Specific convention 2]
 - [Forbidden action] -->
 
-<!-- ## Gotchas
-- [Non-obvious behavior] -->
+## Gotchas
+
+- **Always use `vue-tsc`, not `tsc`, for the pre-merge type check.** `npx tsc --noEmit` only checks `<script setup>` blocks — it silently skips all template expressions. `npx vue-tsc --noEmit` runs full template type inference and is what CI (`build-and-deploy`) executes. Passing `tsc` locally but failing CI on template type errors is BUG-016 pattern.
+
+- **`Purchase.date` is optional (`date?: ISODate`).** Always guard with `?? ''` before passing to functions that expect `string`, and use `(a.date ?? '').localeCompare(b.date ?? '')` in sort comparators.
+
+- **`NetWorthData` uses `.netWorth`, not `.current`.** The property that holds the computed net worth scalar is `NetWorthData.netWorth` (same name as the interface). There is no `.current` alias.
 
 
 
