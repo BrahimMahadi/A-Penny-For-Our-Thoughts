@@ -3875,4 +3875,95 @@ describe('SpendingPage — CRUD', () => {
     expect(budget.purchases).toHaveLength(0);
     expect(document.body.querySelector('.base-modal')).toBeNull();
   });
+
+  // ── Clickable rows ──────────────────────────────────────────────
+
+  it('purchase rows have purchase-row--clickable class', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Groceries', amount: 60, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+    expect(w.find('.purchase-row--clickable').exists()).toBe(true);
+  });
+
+  it('clicking a purchase row opens the edit modal', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Lunch', amount: 15, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.find('.purchase-row--clickable').trigger('click');
+    await nextTick();
+
+    const modal = document.body.querySelector('.base-modal');
+    expect(modal).not.toBeNull();
+    expect(modal!.textContent).toContain('Edit Purchase');
+  });
+
+  it('clicking a row pre-fills the modal with the row\'s data', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Yoga class', amount: 22, category: 'other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.find('.purchase-row--clickable').trigger('click');
+    await nextTick();
+
+    const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name');
+    expect(nameInput!.value).toBe('Yoga class');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  SpendingPage — donut uses wants-only data (BUG fix)
+// ─────────────────────────────────────────────────────────────────
+
+describe('SpendingPage — donut wants-only fix', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); document.body.innerHTML = ''; });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('donut total shows only wants spending, not the full total', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee',  amount: 10,  category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Rent',    amount: 900, category: 'other', cardId: null, budgetType: 'needs', date: today });
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    const total = w.find('.spend-donut-total');
+    // Should show $10 (wants only), NOT $910 (all purchases)
+    expect(total.text()).toContain('$10.00');
+    expect(total.text()).not.toContain('$910.00');
+    w.unmount();
+  });
+
+  it('usedPct (donut %) is based on wants spending vs wants budget', async () => {
+    const budget = useBudgetStore();
+    // Set income so wants budget = $300/period (monthly $2000 × 30% / 2)
+    budget.addIncomeStream({ name: 'Salary', amount: 2000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 30, savings: 20 };
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    const today = new Date().toISOString().split('T')[0] as never;
+    // Add $150 wants — should be 50% of the $300 wants budget
+    budget.addPurchase({ name: 'Shopping', amount: 150, category: 'other', cardId: null, budgetType: 'wants', date: today });
+    // Add $500 needs — should NOT inflate the % shown in the donut
+    budget.addPurchase({ name: 'Rent',     amount: 500, category: 'other', cardId: null, budgetType: 'needs', date: today });
+
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    // The donut centre shows the wants-only % — should be ~50%, not ~217%
+    const centre = w.find('.wants-donut-centre');
+    expect(centre.exists()).toBe(true);
+    const pctText = centre.text();
+    // 50% ± rounding — definitely not > 100
+    const pct = parseInt(pctText);
+    expect(pct).toBeLessThanOrEqual(55);
+    expect(pct).toBeGreaterThanOrEqual(45);
+    w.unmount();
+  });
 });

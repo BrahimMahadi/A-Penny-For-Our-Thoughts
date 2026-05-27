@@ -115,6 +115,11 @@ const wantsPurchasesInPeriod = computed(() =>
   purchasesInPeriod.value.filter(p => (p.budgetType ?? 'wants') !== 'needs'),
 );
 
+/** Total spent on wants this period (drives the donut %). */
+const wantsSpentInPeriod = computed(() =>
+  wantsPurchasesInPeriod.value.reduce((s, p) => s + p.amount, 0),
+);
+
 const categorySpending = computed(() => getCategorySpending(wantsPurchasesInPeriod.value));
 
 const categoryColorMap = computed<Record<string, string>>(() => {
@@ -123,13 +128,15 @@ const categoryColorMap = computed<Record<string, string>>(() => {
   return map;
 });
 
+/** Remaining wants budget this period (never goes below zero for the donut arc). */
 const remainingBudget = computed(() =>
-  wantsBudgetPerPeriod.value - totalSpentInPeriod.value,
+  wantsBudgetPerPeriod.value - wantsSpentInPeriod.value,
 );
 
+/** Percentage of wants budget consumed — drives the donut centre label. */
 const usedPct = computed(() => {
   if (wantsBudgetPerPeriod.value <= 0) return 0;
-  return (totalSpentInPeriod.value / wantsBudgetPerPeriod.value) * 100;
+  return (wantsSpentInPeriod.value / wantsBudgetPerPeriod.value) * 100;
 });
 
 // ─── Daily spend bars — split by want / need (RS-15) ─────────────
@@ -436,7 +443,7 @@ function deletePurchase(id: string): void {
           By category
         </div>
         <div class="spend-donut-total">
-          {{ fmt(totalSpentInPeriod) }}
+          {{ fmt(wantsSpentInPeriod) }}
         </div>
         <p class="spend-donut-hint">
           Wants purchases only
@@ -676,7 +683,13 @@ function deletePurchase(id: string): void {
             <tr
               v-for="p in filteredPurchases"
               :key="p.id"
-              class="purchase-row"
+              class="purchase-row purchase-row--clickable"
+              tabindex="0"
+              role="button"
+              :aria-label="`Edit ${p.name}`"
+              @click="openEditPurchase(p.id)"
+              @keydown.enter.prevent="openEditPurchase(p.id)"
+              @keydown.space.prevent="openEditPurchase(p.id)"
             >
               <td class="col-date">
                 {{ formatDate(p.date) }}
@@ -725,14 +738,14 @@ function deletePurchase(id: string): void {
                   <button
                     class="row-action-btn row-action-btn--edit"
                     title="Edit"
-                    @click="openEditPurchase(p.id)"
+                    @click.stop="openEditPurchase(p.id)"
                   >
                     ✎
                   </button>
                   <button
                     class="row-action-btn row-action-btn--delete"
                     title="Delete"
-                    @click="deletePurchase(p.id)"
+                    @click.stop="deletePurchase(p.id)"
                   >
                     ✕
                   </button>
@@ -753,7 +766,13 @@ function deletePurchase(id: string): void {
               <tr
                 v-for="p in filteredUndated"
                 :key="`ud-${p.id}`"
-                class="purchase-row purchase-row--undated"
+                class="purchase-row purchase-row--undated purchase-row--clickable"
+                tabindex="0"
+                role="button"
+                :aria-label="`Edit ${p.name}`"
+                @click="openEditPurchase(p.id)"
+                @keydown.enter.prevent="openEditPurchase(p.id)"
+                @keydown.space.prevent="openEditPurchase(p.id)"
               >
                 <td class="col-date col-muted">
                   —
@@ -802,14 +821,14 @@ function deletePurchase(id: string): void {
                     <button
                       class="row-action-btn row-action-btn--edit"
                       title="Edit"
-                      @click="openEditPurchase(p.id)"
+                      @click.stop="openEditPurchase(p.id)"
                     >
                       ✎
                     </button>
                     <button
                       class="row-action-btn row-action-btn--delete"
                       title="Delete"
-                      @click="deletePurchase(p.id)"
+                      @click.stop="deletePurchase(p.id)"
                     >
                       ✕
                     </button>
@@ -1408,6 +1427,30 @@ function deletePurchase(id: string): void {
 
 .purchase-row:hover td {
   background: rgba(255, 255, 255, 0.02);
+}
+
+.purchase-row--clickable {
+  cursor: pointer;
+}
+
+.purchase-row--clickable:hover td {
+  background: color-mix(in srgb, var(--accent, #5b3df5) 6%, transparent);
+}
+
+.purchase-row--clickable:hover td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent, #5b3df5);
+}
+
+.purchase-row--clickable:focus-visible td {
+  background: color-mix(in srgb, var(--accent, #5b3df5) 10%, transparent);
+}
+
+.purchase-row--clickable:focus-visible td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent, #5b3df5);
+}
+
+.purchase-row--clickable:focus-visible {
+  outline: none;
 }
 
 /* Table column widths */

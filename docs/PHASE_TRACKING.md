@@ -2368,7 +2368,13 @@ Expose the existing `Purchase.budgetType` field in all UIs, fix the Spending tab
   - Delete with confirm=true removes purchase
   - Delete with confirm=false keeps purchase
   - Cancel button closes modal without saving
-- **Total: 1012 passing (↑34 from 978) across 28 spec files**
+  - Row has `purchase-row--clickable` class
+  - Clicking a row opens the edit modal
+  - Clicking a row pre-fills the modal
+- ✅ `SpendingPage — donut wants-only fix` (2 new tests):
+  - Donut total shows wants-only spending amount
+  - Donut % is calculated against wants budget only (not total)
+- **Total: 1017 passing (↑39 from 978) across 28 spec files**
 
 ### Final gate
-- ✅ 1012/1012 tests pass · `vue-tsc --noEmit` clean
+- ✅ 1017/1017 tests pass · `vue-tsc --noEmit` clean
