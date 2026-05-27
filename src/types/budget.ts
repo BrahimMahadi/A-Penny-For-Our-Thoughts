@@ -192,8 +192,10 @@ export interface WishlistItem {
   name: string;
   /** Optional product URL */
   url: string;
-  /** Optional target price — drives affordability chip and total value KPI */
+  /** Optional target price — drives affordability chip, progress bar, and total-value KPI */
   price?: number;
+  /** Amount already saved toward this item — tracked independently via "Add savings" */
+  saved?: number;
 }
 
 // ─── Savings accounts & goals ────────────────────────────────────

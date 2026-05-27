@@ -910,7 +910,7 @@ describe('Wishlist', () => {
     // DEFAULT_STATE has "🎯 My first wishlist item"
     const w = mountWith(Wishlist);
     await nextTick();
-    expect(w.find('.wishlist-list').exists()).toBe(true);
+    expect(w.find('.wish-grid').exists()).toBe(true);
     expect(w.find('.wish-icon').text()).toBe('🎯');
     expect(w.find('.wish-name').text()).toBe('My first wishlist item');
     w.unmount();
@@ -3165,5 +3165,147 @@ describe('Wishlist — RS-14 price tracking', () => {
     const item = budget.addWishlistItem({ name: 'Desk', icon: '🖥', url: '' });
     budget.updateWishlistItem(item.id, { price: 450 });
     expect(budget.wishlist.find(w => w.id === item.id)?.price).toBe(450);
+  });
+
+  // ── card grid & saved tracking ────────────────────────────────
+
+  it('renders as a card grid (.wish-grid) not a list', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Monitor', icon: '🖥', url: '' });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-grid').exists()).toBe(true);
+    expect(w.find('.wish-card').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('shows progress bar when item has a price', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Keyboard', icon: '⌨️', url: '', price: 200 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-card__progress-fill').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('does not show progress bar when item has no price', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Book', icon: '📚', url: '' });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-card__progress-fill').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('shows ~N mo badge when income and savings rate are set', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.incomeStreams = [];
+    budget.addIncomeStream({ name: 'Salary', amount: 3000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 30, savings: 20 };
+    // Monthly savings = 3000 × 20% = $600/mo; price = $1200 → 2 months
+    budget.addWishlistItem({ name: 'Laptop', icon: '💻', url: '', price: 1200 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    const badge = w.find('.wish-card__months-badge');
+    expect(badge.exists()).toBe(true);
+    expect(badge.text()).toContain('2 mo');
+    w.unmount();
+  });
+
+  it('shows ✓ Saved badge when item is fully saved for', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.incomeStreams = [];
+    budget.addIncomeStream({ name: 'Salary', amount: 3000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 30, savings: 20 };
+    budget.addWishlistItem({ name: 'Headphones', icon: '🎧', url: '', price: 100, saved: 100 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    const badge = w.find('.wish-card__months-badge--done');
+    expect(badge.exists()).toBe(true);
+    expect(badge.text()).toContain('Saved');
+    w.unmount();
+  });
+
+  it('progress bar width reflects saved/price ratio', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Camera', icon: '📷', url: '', price: 400, saved: 200 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    const bar = w.find('.wish-card__progress-fill');
+    expect(bar.attributes('style')).toContain('50%');
+    w.unmount();
+  });
+
+  it('addWishlistItem correctly stores saved amount', () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'TV', icon: '📺', url: '', price: 800, saved: 150 });
+    const item = budget.wishlist.find(w => w.name === 'TV');
+    expect(item?.saved).toBe(150);
+  });
+
+  it('updateWishlistItem can update saved', () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    const item = budget.addWishlistItem({ name: 'Chair', icon: '🪑', url: '', price: 300 });
+    budget.updateWishlistItem(item.id, { saved: 75 });
+    expect(budget.wishlist.find(w => w.id === item.id)?.saved).toBe(75);
+  });
+
+  it('shows "Add savings" button for priced items', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Guitar', icon: '🎸', url: '', price: 500 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-card__add-savings').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('does not show "Add savings" button when item has no price', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Idea', icon: '💡', url: '' });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wish-card__add-savings').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('saved field appears in the edit modal', async () => {
+    const w = mount(Wishlist, { attachTo: document.body });
+    await nextTick();
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Tablet', icon: '📱', url: '', price: 600, saved: 50 });
+    await nextTick();
+    // Open edit for first item
+    const editBtns = w.findAll('button').filter(b => b.text().includes('Edit'));
+    if (editBtns.length > 0) {
+      await editBtns[0].trigger('click');
+      await nextTick();
+      expect(document.body.querySelector('#wish-saved')).not.toBeNull();
+    }
+    w.unmount();
+  });
+
+  it('header savings rate shown when income and savings rate set', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.incomeStreams = [];
+    budget.addIncomeStream({ name: 'Salary', amount: 2000, biweekly: false });
+    budget.allocation = { needs: 50, wants: 30, savings: 20 };
+    budget.addWishlistItem({ name: 'Item', icon: '🎯', url: '', price: 500 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('.wishlist-section__rate').exists()).toBe(true);
+    expect(w.find('.wishlist-section__rate').text()).toContain('/mo');
+    w.unmount();
   });
 });

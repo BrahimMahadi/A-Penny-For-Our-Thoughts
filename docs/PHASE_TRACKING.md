@@ -1692,7 +1692,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-11 | Dashboard grid restructure — fixed layout, remove legacy sections, strip bar charts | `feat/redesign-sprint-11-dashboard-grid` | ✅ Complete | v2.2.0 |
 | RS-12 | Purchases This Period + Recurring Spend + Money Flow charts row | `feat/redesign-sprint-12-purchases-recurring` | ✅ Complete | v2.3.0 |
 | RS-13 | Inline pay/charge/deposit/withdraw interactions on loan, CC, and savings cards | `feat/redesign-sprint-13-inline-interactions` | ✅ Complete | v2.4.0 |
-| RS-14 | Wishlist price tracking, affordability chips, total value KPI, sort toggle | `feat/redesign-sprint-14-wishlist-price` | ✅ Complete | v2.5.0 |
+| RS-14 | Wishlist card-grid redesign: savings progress, months-to-goal, inline "Add savings", DB sync fix | `feat/redesign-sprint-14-wishlist-price` | ✅ Complete | v2.5.0 |
 
 ---
 
@@ -2216,52 +2216,71 @@ Add quick inline action forms directly on loan cards, credit card bars, and savi
 
 ---
 
-## RS-14 — Wishlist Price Tracking & Affordability Signals ✅
+## RS-14 — Wishlist Card-Grid Redesign & Savings Progress Tracking ✅
 **Branch**: `feat/redesign-sprint-14-wishlist-price`
 **Status**: ✅ **COMPLETE** — May 2026
 **Version**: `v2.5.0`
 
 ### Goal
-Make the Wishlist financially meaningful: track optional per-item prices, show a green "Affordable ✓" chip when a price fits within the bi-weekly wants budget, display a total value header, and allow sorting by price.
+Full wishlist redesign matching the approved card-grid mockup: per-item savings tracking, months-to-goal badges, progress bars, inline "Add savings" interaction, and savings-rate header. Also fixes the Supabase sync bug where `price` and `saved` were silently dropped.
 
 ### Delivered
 
 #### `src/types/budget.ts`
-- ✅ `WishlistItem.price?: number` — new optional field (backward-compat; existing items default to `undefined`)
+- ✅ `WishlistItem.price?: number` — optional target price (RS-14 original)
+- ✅ `WishlistItem.saved?: number` — amount saved toward this item (RS-14 redesign)
+
+#### `src/types/database.ts`
+- ✅ `WishlistItemRow.price: number | null` — DB column (was missing)
+- ✅ `WishlistItemRow.saved: number | null` — DB column (was missing)
+
+#### `src/lib/db.ts` (bug fix — price/saved were never synced)
+- ✅ `toWishlistItem` mapper now reads `r.price` and `r.saved`
+- ✅ `db.wishlist.insert` now writes `price` and `saved`
+- ✅ `db.wishlist.update` now writes `price` and `saved`
 
 #### `src/utils/csvImportExport.ts`
-- ✅ Export header updated to `id,icon,name,url,price`
-- ✅ Export row serialises `price` as empty string when `undefined`
-- ✅ Import parser reads `vals[4]` as price (skipped when absent or blank — legacy CSV safe)
+- ✅ Export header updated to `id,icon,name,url,price,saved`
+- ✅ Export row serialises both `price` and `saved` (empty string when undefined)
+- ✅ Import reads `vals[5]` as saved; backward-compat with 4-col and 5-col legacy exports
 
-#### `src/components/sections/Wishlist.vue` (redesign)
-- ✅ **Price field** in Add/Edit modal (dollar-prefixed number input, optional)
-- ✅ **"Affordable ✓" chip** per item when `price ≤ wantsBudgetPerPeriod` (bi-weekly wants envelope)
-- ✅ **Total value header** (`Total: $X`) shown when any items have prices
-- ✅ **Sort toggle** (3 options: Default / Price ↑ / Price ↓) — hidden when ≤ 1 item
-- ✅ **URL as 🔗 icon button** replacing plain "Link ↗" text — cleaner row layout
-- ✅ **Live affordability hint in modal** — green "Fits within budget" / amber "Over budget by $X" shown as the user types a price
-- ✅ Validation: price must be ≥ 0 when entered; empty price = no price (valid)
+#### `src/components/sections/Wishlist.vue` (full card-grid redesign)
+- ✅ **Card grid** — `repeat(auto-fill, minmax(220px, 1fr))` responsive grid
+- ✅ **Violet icon box** per card with emoji icon
+- ✅ **`~N mo` badge** — months to goal = `ceil((price − saved) / monthlySavingsRate)`; shows "✓ Saved" when complete
+- ✅ **Large price display** on each priced card
+- ✅ **Progress bar** (violet fill, `saved/price × 100%`, animated)
+- ✅ **"$X saved · Y%"** footer row per card
+- ✅ **"Affordable ✓" chip** when `price ≤ bi-weekly wants envelope`
+- ✅ **Inline "Add savings"** — "+ Add savings" button opens an RS-13-style inline form per card; updates `saved` in store
+- ✅ **Edit modal** includes both `price` and `saved` fields; validates `saved ≤ price`
+- ✅ **Header** shows `$X,XXX · at $X/mo savings rate` when priced items exist
+- ✅ **Sort toggle** (Default / Price ↑ / Price ↓)
+- ✅ **URL 🔗 icon button** per card
+- ✅ **Live hints in modal** — affordability + months-to-goal shown as user types
 
 #### `src/components/pages/GoalsPage.vue`
-- ✅ `wishlistTotalValue` + `hasPricedWishlistItems` computed refs added
-- ✅ "Wishlist items" KPI stat card hint shows `Total value: $X` when any items have prices
+- ✅ `monthlySavingsRate` computed added
+- ✅ `wishlistHint` computed replaces inline ternary — shows `$X · at $X/mo` when priced items exist
 
 ### Tests
-- ✅ `Wishlist — RS-14 price tracking` (11 new tests in `sections.spec.ts`):
-  - Price shown on item, hidden when not set
-  - Affordable chip present/absent (budget thresholds verified)
-  - Total value header shown/hidden
-  - Sort by price ascending/descending
-  - Price field in add modal
-  - `addWishlistItem` stores price; `updateWishlistItem` updates price
-- ✅ `Wishlist CSV — RS-14 price column` (4 new tests in `csvImportExport.spec.ts`):
-  - Round-trip with price set; round-trip with no price (undefined preserved)
-  - Price column header in export
-  - Legacy 4-column CSV parsed without error (price stays undefined)
-- ✅ Existing `.wish-link` test updated to `.wish-link-btn`
-- ✅ Existing `buildSampleState` wishlist entry updated with `price: 1299`
-- **Total: 961 passing (↑16 from 945) across 28 spec files**
+- ✅ `Wishlist — RS-14 price tracking` block updated (11 existing tests) + 12 new tests:
+  - Card grid renders (`.wish-grid`, `.wish-card`)
+  - Progress bar present/absent based on price
+  - `~N mo` badge with correct month calculation
+  - `✓ Saved` badge when `saved >= price`
+  - Progress bar width reflects `saved/price` ratio
+  - `addWishlistItem` stores `saved`; `updateWishlistItem` updates `saved`
+  - "Add savings" button shown/hidden based on price
+  - `#wish-saved` field in edit modal
+  - Savings rate shown in header
+- ✅ `Wishlist CSV — RS-14 saved column` (5 new tests in `csvImportExport.spec.ts`):
+  - Round-trip price+saved; price-only; neither
+  - Legacy 5-column import (no saved) is graceful
+  - `saved: 0` round-trips as `0`
+- ✅ `buildSampleState` wishlist entry updated: `price: 1299, saved: 400`
+- ✅ `.wishlist-list` → `.wish-grid` class rename propagated in 1 existing test
+- **Total: 978 passing (↑17 from 961) across 28 spec files**
 
 ### Final gate
-- ✅ 961/961 tests pass · `vue-tsc --noEmit` clean
+- ✅ 978/978 tests pass · `vue-tsc --noEmit` clean

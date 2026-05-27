@@ -24,11 +24,11 @@ const APP_VERSION = '2.5.0';
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🛒', text: 'Wishlist prices — add an optional price to any wishlist item to track total value and see affordability signals' },
-  { icon: '✓', text: '"Affordable ✓" chip appears when an item\'s price fits within your bi-weekly wants budget' },
-  { icon: '📊', text: 'Total wishlist value shown in the header and in the Goals tab KPI card whenever priced items exist' },
-  { icon: '↕️', text: 'Sort wishlist by default order, price ascending, or price descending' },
-  { icon: '✅', text: '961 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '🗂️', text: 'Wishlist redesigned as a card grid — each item shows a progress bar, months-to-goal badge, and saved amount' },
+  { icon: '💰', text: 'Track savings per item — use "Add savings" on any priced card, or set the amount directly in the edit modal' },
+  { icon: '⏱️', text: '"~N mo" badge shows how many months until you can afford each item at your current savings rate' },
+  { icon: '📊', text: 'Goals tab KPI card now shows total wishlist value plus your monthly savings rate at a glance' },
+  { icon: '✅', text: '978 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

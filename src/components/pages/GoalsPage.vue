@@ -30,7 +30,7 @@ import NetWorth             from '@/components/sections/NetWorth.vue';
 import { fmt } from '@/utils/format';
 
 const budget = useBudgetStore();
-const { netWorth } = useAnalytics();
+const { netWorth, totalMonthlyIncome } = useAnalytics();
 
 // ─── Section refs — to trigger modals from the page-level CTAs ───────
 const savingsGoalsRef = ref<InstanceType<typeof SavingsGoals> | null>(null);
@@ -74,6 +74,24 @@ const wishlistTotalValue = computed(() =>
 const hasPricedWishlistItems = computed(() =>
   budget.wishlist.some(w => w.price != null && w.price > 0),
 );
+
+/** Monthly savings envelope — shown in the wishlist KPI hint. */
+const monthlySavingsRate = computed(() =>
+  totalMonthlyIncome.value * ((budget.allocation.savings ?? 0) / 100),
+);
+
+/** Hint text for the wishlist KPI card. */
+const wishlistHint = computed(() => {
+  if (!hasPricedWishlistItems.value) {
+    return budget.wishlist.length > 0
+      ? `${budget.wishlist.length} item${budget.wishlist.length !== 1 ? 's' : ''} tracked`
+      : 'None added yet';
+  }
+  const rateText = monthlySavingsRate.value > 0
+    ? ` · at ${fmt(monthlySavingsRate.value)}/mo`
+    : '';
+  return `${fmt(wishlistTotalValue.value)}${rateText}`;
+});
 </script>
 
 <template>
@@ -123,9 +141,7 @@ const hasPricedWishlistItems = computed(() =>
       <StatCard
         label="Wishlist items"
         :value="String(budget.wishlist.length)"
-        :hint="hasPricedWishlistItems
-          ? `Total value: ${fmt(wishlistTotalValue)}`
-          : budget.wishlist.length > 0 ? `${budget.wishlist.length} item${budget.wishlist.length !== 1 ? 's' : ''} tracked` : 'None added yet'"
+        :hint="wishlistHint"
       />
     </div>
 

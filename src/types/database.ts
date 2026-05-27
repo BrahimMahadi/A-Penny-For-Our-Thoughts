@@ -138,6 +138,10 @@ export interface WishlistItemRow {
   icon: string;
   name: string;
   url: string;
+  /** RS-14: optional target price; null if not set */
+  price: number | null;
+  /** RS-14: amount saved toward this item; null if not set */
+  saved: number | null;
   created_at: string;
   updated_at: string;
 }

@@ -78,7 +78,7 @@ function buildSampleState(): BudgetState {
   ];
 
   s.wishlist = [
-    { id: 'wish1', icon: '🎯', name: 'New Laptop', url: 'https://example.com', price: 1299 },
+    { id: 'wish1', icon: '🎯', name: 'New Laptop', url: 'https://example.com', price: 1299, saved: 400 },
   ];
 
   s.savingsAccounts = [
@@ -402,7 +402,7 @@ describe('round-trip: exportStateToCSV → parseCSVToState', () => {
   it('preserves wishlist items including price', () => {
     const state = buildSampleState();
     const parsed = parseCSVToState(exportStateToCSV(state));
-    expect(parsed.wishlist[0]).toMatchObject({ id: 'wish1', icon: '🎯', name: 'New Laptop', url: 'https://example.com', price: 1299 });
+    expect(parsed.wishlist[0]).toMatchObject({ id: 'wish1', icon: '🎯', name: 'New Laptop', url: 'https://example.com', price: 1299, saved: 400 });
   });
 
   it('preserves savings accounts with monthlyAllocations', () => {
@@ -583,10 +583,10 @@ describe('Wishlist CSV — RS-14 price column', () => {
     expect(parsed.wishlist[0].price).toBeUndefined();
   });
 
-  it('exports the price column header correctly', () => {
+  it('exports the price+saved column header correctly', () => {
     const state = makeBlankState();
     const csv = exportStateToCSV(state);
-    expect(csv).toContain('id,icon,name,url,price');
+    expect(csv).toContain('id,icon,name,url,price,saved');
   });
 
   it('imports a legacy CSV without price column gracefully (price stays undefined)', () => {
@@ -599,5 +599,55 @@ describe('Wishlist CSV — RS-14 price column', () => {
     const parsed = parseCSVToState(csv);
     expect(parsed.wishlist[0].price).toBeUndefined();
     expect(parsed.wishlist[0].name).toBe('Old Item');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  Wishlist — RS-14 CSV saved column
+// ─────────────────────────────────────────────────────────────────
+describe('Wishlist CSV — RS-14 saved column', () => {
+  it('round-trips a wishlist item that has both price and saved', () => {
+    const state = makeBlankState();
+    state.wishlist = [{ id: 'w1', icon: '🎧', name: 'AirPods', url: '', price: 249, saved: 100 }];
+    const parsed = parseCSVToState(exportStateToCSV(state));
+    expect(parsed.wishlist[0].price).toBe(249);
+    expect(parsed.wishlist[0].saved).toBe(100);
+  });
+
+  it('round-trips a wishlist item with price but no saved (saved undefined)', () => {
+    const state = makeBlankState();
+    state.wishlist = [{ id: 'w1', icon: '🛒', name: 'Chair', url: '', price: 300 }];
+    const parsed = parseCSVToState(exportStateToCSV(state));
+    expect(parsed.wishlist[0].price).toBe(300);
+    expect(parsed.wishlist[0].saved).toBeUndefined();
+  });
+
+  it('round-trips a wishlist item with no price and no saved', () => {
+    const state = makeBlankState();
+    state.wishlist = [{ id: 'w1', icon: '📚', name: 'Book', url: '' }];
+    const parsed = parseCSVToState(exportStateToCSV(state));
+    expect(parsed.wishlist[0].price).toBeUndefined();
+    expect(parsed.wishlist[0].saved).toBeUndefined();
+  });
+
+  it('imports a price-only CSV (5-column, no saved column) gracefully', () => {
+    const csv = [
+      'SECTION:wishlist',
+      'id,icon,name,url,price',   // 5-column header (no saved)
+      'w1,🛒,Old Item,,500',
+      '',
+    ].join('\n');
+    const parsed = parseCSVToState(csv);
+    expect(parsed.wishlist[0].price).toBe(500);
+    expect(parsed.wishlist[0].saved).toBeUndefined();
+    expect(parsed.wishlist[0].name).toBe('Old Item');
+  });
+
+  it('exported saved=0 round-trips correctly as 0', () => {
+    const state = makeBlankState();
+    state.wishlist = [{ id: 'w1', icon: '🎯', name: 'Item', url: '', price: 100, saved: 0 }];
+    const parsed = parseCSVToState(exportStateToCSV(state));
+    // '0' is a truthy string, so the parser will include it as the number 0
+    expect(parsed.wishlist[0].saved).toBe(0);
   });
 });
