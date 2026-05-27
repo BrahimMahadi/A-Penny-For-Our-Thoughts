@@ -16,10 +16,12 @@
 -->
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick } from 'vue';
+import { ref, reactive, computed, nextTick, onMounted } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useAnalytics } from '@/composables/useAnalytics';
+import { useGsap } from '@/composables/useGsap';
+import { useListTransition } from '@/composables/useListTransition';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -29,6 +31,28 @@ import type { WishlistItem } from '@/types/budget';
 const budget = useBudgetStore();
 const toast  = useToast();
 const { totalMonthlyIncome } = useAnalytics();
+
+// ─── GSAP animations ──────────────────────────────────────────────────────────
+
+const sectionRef = ref<HTMLElement | null>(null);
+const { from: gsapFrom } = useGsap();
+const { onItemEnter, onItemLeave } = useListTransition({ enterY: 16, enterDuration: 0.3 });
+
+/** Stagger-in all visible cards on first mount. */
+onMounted(() => {
+  nextTick(() => {
+    const cards = sectionRef.value?.querySelectorAll<HTMLElement>('.wish-card');
+    if (cards?.length) {
+      gsapFrom(Array.from(cards), {
+        opacity: 0,
+        y: 18,
+        duration: 0.35,
+        ease: 'power2.out',
+        stagger: 0.055,
+      });
+    }
+  });
+});
 
 // ─── Budget maths ─────────────────────────────────────────────────────────────
 
@@ -222,7 +246,7 @@ defineExpose({ openAdd });
 </script>
 
 <template>
-  <div class="wishlist-section">
+  <div ref="sectionRef" class="wishlist-section">
 
     <!-- ── Header ──────────────────────────────────────────────── -->
     <div class="wishlist-section__header">
@@ -273,14 +297,16 @@ defineExpose({ openAdd });
     />
 
     <!-- ── Card grid ───────────────────────────────────────────── -->
-    <!-- TransitionGroup renders as the grid div so CSS grid applies directly.    -->
-    <!-- name="wish-card" drives .wish-card-enter/leave/move classes below.       -->
-    <!-- FLIP move: Vue records positions before/after, then tweens the diff.     -->
+    <!-- :css="false" → GSAP handles enter/leave; move-class keeps CSS FLIP       -->
+    <!-- so card reordering still animates smoothly without the Flip plugin.      -->
     <TransitionGroup
       v-else
-      name="wish-card"
+      :css="false"
+      move-class="wish-card-move"
       tag="div"
       class="wish-grid"
+      @enter="onItemEnter"
+      @leave="onItemLeave"
     >
       <div
         v-for="item in sortedWishlist"
@@ -641,42 +667,19 @@ defineExpose({ openAdd });
   gap: 1rem;
 }
 
-/* ─── Card enter / leave / move transitions ──────────────────── */
-
-/* Enter: card pops in with a scale-up + upward float */
-.wish-card-enter-active {
-  transition: opacity 0.28s ease, transform 0.28s ease;
-}
-.wish-card-enter-from {
-  opacity: 0;
-  transform: scale(0.82) translateY(14px);
-}
-
+/* ─── Card FLIP move transition (reorder on sort / delete) ──── */
 /*
- * Leave: fade out quickly. Keeping it short minimises the visual "hole"
- * the departing card leaves in the grid before the FLIP move kicks in.
- */
-.wish-card-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-.wish-card-leave-to {
-  opacity: 0;
-  transform: scale(0.88);
-}
-
-/*
- * Move (FLIP): Vue records each card's position before and after the DOM
- * update, then applies a CSS transform so cards appear to smoothly slide
- * into their new positions — works for both deletions and sort changes.
+ * Enter / leave are handled by GSAP in useListTransition (see <script>).
+ * The move-class is still CSS-based: Vue records element positions before
+ * and after the DOM update, then applies a transform diff so cards slide
+ * smoothly to their new positions when sorted or when a peer is deleted.
  */
 .wish-card-move {
   transition: transform 0.32s ease;
 }
 
-/* Respect reduced-motion preference */
+/* Disable move animation for users who prefer reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .wish-card-enter-active,
-  .wish-card-leave-active,
   .wish-card-move {
     transition: none;
   }

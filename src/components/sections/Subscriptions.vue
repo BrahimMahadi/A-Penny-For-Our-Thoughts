@@ -13,6 +13,7 @@ import { useToast } from '@/composables/useToast';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
 import { useAnalytics } from '@/composables/useAnalytics';
 import { useListFilter } from '@/composables/useListFilter';
+import { useListTransition } from '@/composables/useListTransition';
 import type { Subscription } from '@/types/budget';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
@@ -25,6 +26,7 @@ import type { Frequency } from '@/types/budget';
 const budget = useBudgetStore();
 const toast  = useToast();
 const { totalMonthlyIncome } = useAnalytics();
+const { onItemEnter, onItemLeave } = useListTransition({ enterY: 12, enterDuration: 0.25 });
 
 // ─── Frequency rate maps ──────────────────────────────────────────
 // custom-days rate is variable (depends on how many days are selected), so it
@@ -607,10 +609,14 @@ function remove(id: string): void {
       </BaseButton>
     </EmptyState>
 
-    <!-- Subscription list -->
-    <ul
+    <!-- Subscription list — GSAP JS hooks handle enter/leave -->
+    <TransitionGroup
       v-else
+      tag="ul"
       class="subs-list"
+      :css="false"
+      @enter="onItemEnter"
+      @leave="onItemLeave"
     >
       <li
         v-for="sub in filteredSubs"
@@ -670,7 +676,7 @@ function remove(id: string): void {
           </div>
         </div>
       </li>
-    </ul>
+    </TransitionGroup>
 
     <!-- Add / Edit modal -->
     <BaseModal
