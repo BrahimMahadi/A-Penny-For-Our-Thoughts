@@ -59,6 +59,16 @@ const SECTION_COMPONENTS: Record<string, Component> = {
   'wishlist':         Wishlist,
 };
 
+/**
+ * Per-section props. Income streams and expense cards are also
+ * rendered in the Settings tab with full CRUD; the Dashboard shows
+ * them in display-only (read-only) mode.
+ */
+const SECTION_PROPS: Record<string, Record<string, unknown>> = {
+  'income-streams': { readonly: true },
+  'expense-cards':  { readonly: true },
+};
+
 // ─── Stores & composables ──────────────────────────────────────────
 const ui     = useUiStore();
 const budget = useBudgetStore();
@@ -472,7 +482,10 @@ function cleanup(): void {
           :collapsible="true"
           :draggable="true"
         >
-          <component :is="SECTION_COMPONENTS[sectionId]" />
+          <component
+            :is="SECTION_COMPONENTS[sectionId]"
+            v-bind="SECTION_PROPS[sectionId] ?? {}"
+          />
         </BaseCard>
       </div>
     </template>

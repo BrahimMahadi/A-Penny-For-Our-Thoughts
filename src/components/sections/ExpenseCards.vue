@@ -18,6 +18,11 @@ import { fmt } from '@/utils/format';
 import { monthlyAmount } from '@/utils/date';
 import { getRenewalDatesBetween, getNextRenewal } from '@/utils/calculations';
 
+interface Props {
+  readonly?: boolean
+}
+const props = withDefaults(defineProps<Props>(), { readonly: false });
+
 const budget = useBudgetStore();
 const toast  = useToast();
 const { grandTotalExpenses, totalMonthlyIncome } = useAnalytics();
@@ -236,6 +241,7 @@ function removeItem(cardId: string, itemId: string): void {
         </div>
       </div>
       <BaseButton
+        v-if="!props.readonly"
         size="sm"
         class="expense-cards__add"
         @click="openAddCard"
@@ -265,7 +271,10 @@ function removeItem(cardId: string, itemId: string): void {
         <!-- Card header -->
         <div class="expense-card__header">
           <span class="expense-card__label">{{ card.label }}</span>
-          <div class="expense-card__actions">
+          <div
+            v-if="!props.readonly"
+            class="expense-card__actions"
+          >
             <BaseButton
               size="xs"
               variant="secondary"
@@ -294,13 +303,17 @@ function removeItem(cardId: string, itemId: string): void {
               <span class="expense-item__name">{{ item.name }}</span>
               <span class="expense-item__amount">{{ fmt(monthlyAmount(item)) }}</span>
             </div>
-            <div class="expense-item__row-2">
+            <div
+              v-if="item.biweekly || !props.readonly"
+              class="expense-item__row-2"
+            >
               <span
                 v-if="item.biweekly"
                 class="expense-item__badge"
               >bi-wk ×2</span>
               <span class="expense-item__row-spacer" />
               <BaseButton
+                v-if="!props.readonly"
                 size="xs"
                 variant="secondary"
                 @click="openEditItem(card.id, item.id)"
@@ -308,6 +321,7 @@ function removeItem(cardId: string, itemId: string): void {
                 Edit
               </BaseButton>
               <BaseButton
+                v-if="!props.readonly"
                 size="xs"
                 variant="danger"
                 @click="removeItem(card.id, item.id)"
@@ -370,6 +384,7 @@ function removeItem(cardId: string, itemId: string): void {
 
         <!-- Add item inline -->
         <BaseButton
+          v-if="!props.readonly"
           size="sm"
           variant="secondary"
           class="expense-card__add-item"
@@ -628,7 +643,7 @@ function removeItem(cardId: string, itemId: string): void {
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 3px;
-  background: rgba(74, 222, 128, 0.12);
+  background: var(--accent-soft);
   color: var(--accent);
 }
 

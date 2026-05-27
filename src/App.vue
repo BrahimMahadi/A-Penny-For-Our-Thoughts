@@ -7,8 +7,10 @@
             May 2026 — Sprint 25 (Advanced tab; Option B floating section handle)
             May 2026 — Redesign Sprint 2 (sidebar nav, 6-tab set, BottomNav)
             May 2026 — Redesign Sprint 3 (removed top header bar; full-width main)
+            May 2026 — Redesign Sprint 8 (AppStatusBar wired above main)
   Summary:  Root layout. Slim 64px icon sidebar (AppSidebar) + scrollable
-            full-width main column. No top header bar — pages own their own
+            full-width main column. AppStatusBar sits at the top of the content
+            column (hidden on mobile). No top header bar — pages own their own
             headers. Mobile (≤768px): sidebar hidden, BottomNav fixed to bottom.
             Page routed via ui store's activeTab. A floating handle on the right
             edge opens SectionPicker.
@@ -44,6 +46,7 @@ import ToastContainer   from '@/components/ui/ToastContainer.vue';
 import BaseModal        from '@/components/ui/BaseModal.vue';
 import SectionPicker    from '@/components/ui/SectionPicker.vue';
 import AppSidebar       from '@/components/ui/AppSidebar.vue';
+import AppStatusBar     from '@/components/ui/AppStatusBar.vue';
 import BottomNav        from '@/components/ui/BottomNav.vue';
 import OnboardingModal  from '@/components/onboarding/OnboardingModal.vue';
 import WhatsNewBanner   from '@/components/onboarding/WhatsNewBanner.vue';
@@ -161,8 +164,11 @@ useSwipe(
     <!-- ── Sidebar (desktop) ──────────────────────────────── -->
     <AppSidebar />
 
-    <!-- ── Content column (page area only — no top header bar) ─── -->
+    <!-- ── Content column (status bar + page area) ─────────────── -->
     <div class="app-content">
+      <!-- Status bar: recent purchases ticker + up-next bill (desktop only) -->
+      <AppStatusBar />
+
       <!-- Page content -->
       <main
         :id="`page-${ui.activeTab}`"
@@ -278,6 +284,8 @@ useSwipe(
   padding: 1.75rem 2rem 5rem;
   /* Right gutter accounts for the floating section handle (32px + gap) */
   padding-right: calc(2rem + 40px);
+  /* Extra bottom room for the fixed AppStatusBar (36px + breathing space) */
+  padding-bottom: calc(5rem + 44px);
   box-sizing: border-box;
   min-width: 0;
 }

@@ -4,12 +4,16 @@
   Created:  May 2026 (Vue 3 migration — Sprint 7)
   Updated:  May 2026 (Sprint 19) — added CategoryManager; moved chequing
             balance to Dashboard (ChequingBalance.vue)
-  Summary:  Settings tab. Hosts:
-              • Pay Start Date — bi-weekly cycle anchor
-              • Spending Categories — user-defined category CRUD
-              • Transaction Rules — auto-categorisation CRUD
-              • Budget Alerts — spending threshold CRUD
-              • Danger Zone — clear all data
+            May 2026 (RS-7)     — deep rebuild: two-column grid layout,
+            settings-panel cards with title + subtitle, inline Income
+            Sources and Expense Cards (full CRUD), BudgetAllocation with
+            inline sliders, lower 3-col grid for Categories / Rules /
+            Alerts.
+  Summary:  Settings tab. Layout:
+              Left col  — Budget Rules (50/30/20 sliders) + Pay Period
+              Right col — Income Sources (full CRUD) + Expense Cards (full CRUD)
+              Lower grid — Spending Categories + Transaction Rules + Budget Alerts
+              Full-width  — Data Management + Account + Danger Zone
 -->
 
 <script setup lang="ts">
@@ -18,13 +22,14 @@ import { useBudgetStore } from '@/stores/budget';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import BaseCard from '@/components/ui/BaseCard.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BudgetAllocation from '@/components/sections/BudgetAllocation.vue';
 import PayStartDate from '@/components/sections/PayStartDate.vue';
 import RulesEngine from '@/components/sections/RulesEngine.vue';
 import BudgetAlerts from '@/components/sections/BudgetAlerts.vue';
 import CategoryManager from '@/components/sections/CategoryManager.vue';
+import IncomeStreams from '@/components/sections/IncomeStreams.vue';
+import ExpenseCards from '@/components/sections/ExpenseCards.vue';
 
 const budget = useBudgetStore();
 const auth   = useAuthStore();
@@ -103,7 +108,7 @@ function handleJSONFile(event: Event): void {
   reader.readAsText(file);
 }
 
-// ─── Danger zone ─────────────────────────────────────────────────────────────
+// ─── Danger zone ─────────────────────────────────────────────────
 const confirmClear = ref(false);
 
 function handleClearAll(): void {
@@ -123,36 +128,95 @@ function handleClearAll(): void {
     <!-- ── Page header ───────────────────────────────────────────── -->
     <div class="settings-page-header">
       <div class="settings-eyebrow">Settings</div>
-      <h1 class="settings-page-title">Your preferences</h1>
+      <h1 class="settings-page-title">Configure A Penny For Our Thoughts</h1>
+      <p class="settings-page-subtitle">
+        Manage your financial setup and preferences
+      </p>
     </div>
 
-    <!-- Budget Allocation ──────────────────────────────────────────── -->
-    <BaseCard title="Budget Allocation (50/30/20)">
-      <BudgetAllocation />
-    </BaseCard>
+    <!-- ── Main two-column grid ──────────────────────────────────── -->
+    <div class="settings-main-grid">
 
-    <!-- Pay Start Date ─────────────────────────────────────────────── -->
-    <BaseCard title="Pay Period Anchor">
-      <PayStartDate />
-    </BaseCard>
+      <!-- Left column: Budget Rules + Pay Period -->
+      <div class="settings-col">
 
-    <!-- Spending Categories ────────────────────────────────────────── -->
-    <BaseCard title="Spending Categories">
-      <CategoryManager />
-    </BaseCard>
+        <div class="settings-panel">
+          <div class="settings-panel__header">
+            <h2 class="settings-panel__title">Budget Rules</h2>
+            <p class="settings-panel__subtitle">Your 50/30/20 split — drag to adjust</p>
+          </div>
+          <BudgetAllocation />
+        </div>
 
-    <!-- Transaction Rules ──────────────────────────────────────────── -->
-    <BaseCard title="Transaction Rules">
-      <RulesEngine />
-    </BaseCard>
+        <div class="settings-panel">
+          <div class="settings-panel__header">
+            <h2 class="settings-panel__title">Pay Period</h2>
+            <p class="settings-panel__subtitle">Set your bi-weekly cycle anchor</p>
+          </div>
+          <PayStartDate />
+        </div>
 
-    <!-- Budget Alerts ──────────────────────────────────────────────── -->
-    <BaseCard title="Budget Alerts">
-      <BudgetAlerts />
-    </BaseCard>
+      </div><!-- /left col -->
 
-    <!-- Data Management ────────────────────────────────────────────── -->
-    <BaseCard title="Data Management">
+      <!-- Right column: Income Sources + Expense Cards -->
+      <div class="settings-col">
+
+        <div class="settings-panel">
+          <div class="settings-panel__header">
+            <h2 class="settings-panel__title">Income Sources</h2>
+            <p class="settings-panel__subtitle">Your paycheques and other income</p>
+          </div>
+          <IncomeStreams />
+        </div>
+
+        <div class="settings-panel">
+          <div class="settings-panel__header">
+            <h2 class="settings-panel__title">Expense Cards</h2>
+            <p class="settings-panel__subtitle">Organize recurring bills by account</p>
+          </div>
+          <ExpenseCards />
+        </div>
+
+      </div><!-- /right col -->
+
+    </div><!-- /main grid -->
+
+    <!-- ── Lower 3-column grid ───────────────────────────────────── -->
+    <div class="settings-lower-grid">
+
+      <div class="settings-panel">
+        <div class="settings-panel__header">
+          <h2 class="settings-panel__title">Spending Categories</h2>
+          <p class="settings-panel__subtitle">Labels for your wants purchases</p>
+        </div>
+        <CategoryManager />
+      </div>
+
+      <div class="settings-panel">
+        <div class="settings-panel__header">
+          <h2 class="settings-panel__title">Transaction Rules</h2>
+          <p class="settings-panel__subtitle">Auto-categorise purchases as you type</p>
+        </div>
+        <RulesEngine />
+      </div>
+
+      <div class="settings-panel">
+        <div class="settings-panel__header">
+          <h2 class="settings-panel__title">Budget Alerts</h2>
+          <p class="settings-panel__subtitle">Warnings when a category overspends</p>
+        </div>
+        <BudgetAlerts />
+      </div>
+
+    </div><!-- /lower grid -->
+
+    <!-- ── Data Management ───────────────────────────────────────── -->
+    <div class="settings-panel">
+      <div class="settings-panel__header">
+        <h2 class="settings-panel__title">Data Management</h2>
+        <p class="settings-panel__subtitle">Export, import, or back up your budget data</p>
+      </div>
+
       <div class="data-mgmt">
         <p class="data-mgmt__desc">
           Export to CSV for spreadsheet analysis or JSON for a full backup.
@@ -227,13 +291,16 @@ function handleClearAll(): void {
         tabindex="-1"
         @change="handleJSONFile"
       >
-    </BaseCard>
+    </div>
 
-    <!-- Account ─────────────────────────────────────────────────────── -->
-    <BaseCard
+    <!-- ── Account ───────────────────────────────────────────────── -->
+    <div
       v-if="supabaseEnabled && auth.user"
-      title="Account"
+      class="settings-panel"
     >
+      <div class="settings-panel__header">
+        <h2 class="settings-panel__title">Account</h2>
+      </div>
       <div class="settings-account">
         <p class="settings-account__email">
           Signed in as <strong>{{ auth.userEmail }}</strong>
@@ -246,13 +313,20 @@ function handleClearAll(): void {
           Sign out
         </BaseButton>
       </div>
-    </BaseCard>
+    </div>
 
-    <!-- Danger Zone ────────────────────────────────────────────────── -->
-    <BaseCard
-      title="Danger Zone"
-      section-id="danger-zone"
+    <!-- ── Danger Zone ───────────────────────────────────────────── -->
+    <div
+      class="settings-panel settings-panel--danger"
+      id="danger-zone"
     >
+      <div class="settings-panel__header">
+        <h2 class="settings-panel__title settings-panel__title--danger">
+          Danger Zone
+        </h2>
+        <p class="settings-panel__subtitle">Irreversible actions — proceed with care</p>
+      </div>
+
       <div class="settings-danger">
         <p class="settings-danger__desc">
           Permanently clear all budget data — income, expenses, loans, savings, history,
@@ -275,7 +349,8 @@ function handleClearAll(): void {
           </BaseButton>
         </div>
       </div>
-    </BaseCard>
+    </div>
+
   </div>
 </template>
 
@@ -302,12 +377,103 @@ function handleClearAll(): void {
 }
 
 .settings-page-title {
-  margin: 0;
+  margin: 0 0 0.3rem;
   font-size: clamp(1.3rem, 3.5vw, 1.6rem);
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.1;
   color: var(--text);
+}
+
+.settings-page-subtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* ─── Main two-column grid ───────────────────────────────────────── */
+.settings-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .settings-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ─── Lower 3-column grid ────────────────────────────────────────── */
+.settings-lower-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .settings-lower-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .settings-lower-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Settings panel card ────────────────────────────────────────── */
+.settings-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.1rem 1.2rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.settings-panel__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-panel__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.settings-panel__title--danger {
+  color: var(--danger);
+}
+
+.settings-panel__subtitle {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* Danger zone panel variant */
+.settings-panel--danger {
+  background: color-mix(in srgb, var(--danger) 3%, var(--surface));
+  border-color: color-mix(in srgb, var(--danger) 15%, transparent);
 }
 
 /* ─── Data management ────────────────────────────────────────────── */
@@ -400,11 +566,6 @@ function handleClearAll(): void {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding: 0.75rem;
-  background: color-mix(in srgb, var(--danger) 4%, transparent);
-  border: 1px solid color-mix(in srgb, var(--danger) 18%, transparent);
-  border-radius: 10px;
-  margin: -0.25rem;
 }
 
 .settings-danger__desc {
@@ -422,7 +583,7 @@ function handleClearAll(): void {
   flex-wrap: wrap;
 }
 
-/* ─── Responsive ─────────────────────────────────────────────────── */
+/* ─── Responsive tweaks ─────────────────────────────────────────── */
 @media (max-width: 480px) {
   .data-mgmt__groups {
     flex-direction: column;

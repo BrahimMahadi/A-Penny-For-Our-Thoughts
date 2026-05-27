@@ -17,6 +17,11 @@ import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import { fmt } from '@/utils/format';
 
+interface Props {
+  readonly?: boolean
+}
+const props = withDefaults(defineProps<Props>(), { readonly: false });
+
 const budget = useBudgetStore();
 const toast  = useToast();
 
@@ -109,6 +114,7 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
         Total: <strong>{{ fmt(budget.totalMonthlyIncome) }}</strong>/mo
       </span>
       <BaseButton
+        v-if="!props.readonly"
         size="sm"
         @click="openAdd"
       >
@@ -126,7 +132,7 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
         : 'Your income is the foundation of your budget. Adding it here unlocks the 50/30/20 breakdown, savings goals, and spending envelope.'"
     >
       <BaseButton
-        v-if="!budget.hasOnboarded"
+        v-if="!budget.hasOnboarded && !props.readonly"
         size="sm"
         @click="openAdd"
       >
@@ -161,7 +167,10 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
           >
             {{ fmt(stream.amount) }} per cheque
           </span>
-          <div class="income-stream-item__actions">
+          <div
+            v-if="!props.readonly"
+            class="income-stream-item__actions"
+          >
             <BaseButton
               size="xs"
               variant="secondary"
@@ -331,7 +340,7 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
   letter-spacing: 0.04em;
   padding: 2px 7px;
   border-radius: 4px;
-  background: rgba(74, 222, 128, 0.12);
+  background: var(--accent-soft);
   color: var(--accent);
   white-space: nowrap;
 }

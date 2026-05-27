@@ -170,13 +170,11 @@ describe('BudgetAllocation', () => {
     w.unmount();
   });
 
-  it('opens edit modal on "Edit %" click', async () => {
+  it('has inline range sliders for needs and wants allocation', async () => {
     const w = mountWith(BudgetAllocation);
     await nextTick();
-    const editBtn = w.findAll('button').find(b => b.text().includes('Edit'));
-    await editBtn!.trigger('click');
-    await nextTick();
-    expect(modalOpen()).toBe(true);
+    // Needs + Wants are adjustable sliders; Savings is auto-calculated
+    expect(w.findAll('input[type="range"]')).toHaveLength(2);
     w.unmount();
   });
 });

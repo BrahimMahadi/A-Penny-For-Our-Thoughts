@@ -1685,8 +1685,8 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-5 | Goals tab — full implementation + Advanced folded in | `feat/redesign-sprint-5-goals` | ✅ Complete | — |
 | fix | `--accent2` contrast — add `--accent2-text` token | `fix/accent2-contrast` | ✅ Complete | — |
 | RS-6 | Docs tab reskin | `feat/redesign-sprint-6-docs` | ✅ Complete | — |
-| RS-7 | Settings redesign | `feat/redesign-sprint-7-settings` | ✅ Complete | — |
-| RS-8 | Bottom status bar (sticky ticker) | `feat/redesign-sprint-8-statusbar` | 🔲 Planned | — |
+| RS-7 | Settings redesign (initial polish + deep two-col rebuild, readonly props, inline sliders) | `feat/redesign-sprint-7-settings` | ✅ Complete | — |
+| RS-8 | Bottom status bar (sticky ticker + next-bill, 7 tests) | `feat/redesign-sprint-8-statusbar` | ✅ Complete | — |
 | RS-9 | Polish, tests, v2.0.0 release | `feat/redesign-sprint-9-release` | 🔲 Planned | v2.0.0 |
 
 ---
@@ -1906,20 +1906,83 @@ Added a companion token `--accent2-text` that is:
 - ✅ `cat-badge` "built-in" chip: plain muted outline → accent-soft pill (matches badge pattern)
 - ✅ Color preview panel: `border-radius: 6px → 8px`
 
+### RS-7 Part 2 — Deep Settings Rebuild (two-column layout + full CRUD)
+
+**`src/components/sections/IncomeStreams.vue`**
+- ✅ Added `readonly?: boolean` prop (default `false`) — hides "+ Add Stream", Edit, Delete, and onboarding add button when `true`
+- ✅ Fixed hardcoded `rgba(74, 222, 128, 0.12)` bi-weekly chip background → `var(--accent-soft)` (was leaking botanical green in both themes)
+
+**`src/components/sections/ExpenseCards.vue`**
+- ✅ Added `readonly?: boolean` prop — hides "+ Add Card", Rename/Delete card buttons, item Edit/Delete buttons, and "+ Add Expense" when `true`
+- ✅ `expense-item__row-2` hidden entirely in readonly mode when there's no badge to show (avoids empty row)
+- ✅ Fixed `expense-item__badge` hardcoded `rgba(74, 222, 128, 0.12)` → `var(--accent-soft)`
+
+**`src/components/pages/DashboardPage.vue`**
+- ✅ Added `SECTION_PROPS` map; `income-streams` and `expense-cards` entries set `{ readonly: true }`
+- ✅ Dynamic `<component>` now binds `v-bind="SECTION_PROPS[sectionId] ?? {}"` — Dashboard shows display-only views of both sections
+
+**`src/components/sections/BudgetAllocation.vue`**
+- ✅ Replaced modal-edit approach with inline range sliders (Needs + Wants independently draggable; Savings auto-calculated as remainder)
+- ✅ Sliders are mutually clamped — Needs max = `100 - wants`, Wants max = `100 - needs`, so Savings is always ≥ 0
+- ✅ Draft state (`draftNeeds` / `draftWants` / computed `draftSavings`) — watched against store, resets on external changes (import / clearAll)
+- ✅ "Unsaved changes" save row with animated fade-in appears only when draft ≠ saved allocation
+- ✅ "Auto" chip on Savings card makes the auto-calculation pattern clear to the user
+- ✅ Removed the old BaseModal for allocation editing; `BudgetAllocation` no longer imports or uses `BaseModal`
+
+**`src/components/pages/SettingsPage.vue`**
+- ✅ Title changed: "Your preferences" → "Configure A Penny For Our Thoughts" with subtitle
+- ✅ Full two-column CSS grid layout (`settings-main-grid`): left col = Budget Rules + Pay Period, right col = Income Sources (full CRUD) + Expense Cards (full CRUD)
+- ✅ Lower 3-column grid (`settings-lower-grid`): Spending Categories + Transaction Rules + Budget Alerts
+- ✅ All sections wrapped in `.settings-panel` cards (title + subtitle header, `border-radius: 14px`, consistent padding)
+- ✅ Data Management, Account (conditional), Danger Zone at full-width below
+- ✅ Removed `BaseCard` import (no longer used in this page)
+- ✅ Danger Zone panel uses `settings-panel--danger` variant (tinted background + danger border)
+- ✅ Responsive: main grid collapses at 860px, lower grid collapses 3→2→1 at 1024/640px
+
+**`tests/components/sections/sections.spec.ts`**
+- ✅ Updated `BudgetAllocation` test: replaced "opens edit modal on 'Edit %' click" → "has inline range sliders for needs and wants allocation" (checks for 2 `input[type="range"]` elements)
+
 - ✅ 866/866 tests pass · `tsc --noEmit` clean
 
 ---
 
-## RS-8 — Bottom Status Bar 🔲
+## RS-8 — Bottom Status Bar ✅
 **Branch**: `feat/redesign-sprint-8-statusbar`  
-**Status**: 🔲 **PLANNED**
+**Status**: ✅ **COMPLETE** — May 2026
 
-### Scope
-- New `AppStatusBar.vue` component — sticky strip between the header and page content (above the page, not the bottom nav)
-- **Left**: recent purchases ticker (last 3 purchases, cycling)
-- **Right**: "Up next" bill reminder (nearest upcoming scheduled item)
-- Wired to `useBudgetStore` for live data
-- Hidden on mobile (bottom nav takes that space)
+### Delivered
+
+**`src/components/ui/AppStatusBar.vue`** *(new)*
+- ✅ Slim 36px strip at the top of `.app-content`, above `<main>` (`position: sticky; top: 0; z-index: 50`)
+- ✅ Hidden at ≤768px (mobile BottomNav handles that space); CSS `@media` rule inside component
+- ✅ **Left zone** — recent-purchases ticker: last 3 wants purchases sorted by date desc, cycling every 3 s via `setInterval`; shows name, amount (accent mono), days-ago label; pagination dots track current index; "No purchases logged yet" fallback when list empty
+- ✅ **Right zone** — Up-next bill: first item in `payPeriodForecast.dated` with `periodDate ≥ today`; shows "UP NEXT" label, name, amount (warn color), formatted date; "Nothing due soon" fallback when forecast has no upcoming items
+- ✅ `<Transition name="ticker" mode="out-in">` fade animation between ticker items (guarded by `prefers-reduced-motion`)
+- ✅ `watch(recentPurchases)` resets `tickerIdx` to 0 when the purchase list changes
+- ✅ `watch(() => budget.allocation)` ensures ticker clears up on store resets
+- ✅ `onUnmounted` clears the interval — no memory leak
+- ✅ `backdrop-filter: blur(8px)` — page content ghosting looks polished as it scrolls under the bar
+
+**`src/App.vue`**
+- ✅ Imported `AppStatusBar`; placed above `<main>` inside `.app-content`
+- ✅ Comment updated to document RS-8
+
+**`tests/components/pages/pages.spec.ts`**
+- ✅ Added 7 new `AppStatusBar` tests: mounts, renders two zones, empty states (no purchases / no forecast), ticker with data, pagination dots
+
+- ✅ 873/873 tests pass (was 866; +7 new) · `tsc --noEmit` clean
+
+### RS-8 revision — bottom placement + CSS scroll ticker
+
+- ✅ Bar moved to `position: fixed; bottom: 0; left: 64px; right: 0` — always visible, never scrolls away
+- ✅ Cycling `setInterval` and fade `<Transition>` replaced with continuous CSS `@keyframes ticker-scroll` animation (`translateX(0) → translateX(-50%)`)
+- ✅ Items rendered twice (original pass + `aria-hidden` duplicate pass) for a seamless loop; no JS interval needed
+- ✅ Animation duration scales with item count (`~6s per item`, min 12s)
+- ✅ `ticker-wrap:hover .ticker-inner { animation-play-state: paused }` — hover to pause
+- ✅ CSS `mask-image` gradient fades the ticker edges for a polished bleed effect
+- ✅ `App.vue` `.app-main` gets `padding-bottom: calc(5rem + 44px)` so the last content item is never hidden behind the fixed bar
+- ✅ Tests updated: `.status-bar__zone / .status-bar__muted / .status-bar__dot` class refs replaced with `.ticker-zone / .bill-zone / .ticker-empty / .ticker-inner / .ticker-item`; "6 ticker-item elements" test verifies original + duplicate pass
+- ✅ 874/874 tests pass · `tsc --noEmit` clean
 
 ---
 

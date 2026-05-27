@@ -2,9 +2,11 @@
  * Module:   tests/components/pages/pages.spec.ts
  * Project:  A Penny For Our Thoughts
  * Created:  May 2026 (Vue 3 migration — Sprint 7)
+ * Updated:  May 2026 (RS-8) — added AppStatusBar suite
  * Summary:  Mount-level tests for the page-level SFCs added/replaced in Sprint 7:
  *             • DocsPage  — 5 sections, sidebar nav, mobile nav
  *             • SettingsPage — hosts 4 cards + danger zone
+ *             • AppStatusBar — recent-purchases ticker + up-next bill (RS-8)
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -30,8 +32,9 @@ vi.mock('@/components/sections/RulesEngine.vue',   () => ({ default: { template:
 vi.mock('@/components/sections/BudgetAlerts.vue',  () => ({ default: { template: '<div data-testid="budget-alerts" />' } }));
 
 // ─── Pages under test ─────────────────────────────────────────────
-import DocsPage     from '@/components/pages/DocsPage.vue';
-import SettingsPage from '@/components/pages/SettingsPage.vue';
+import DocsPage      from '@/components/pages/DocsPage.vue';
+import SettingsPage  from '@/components/pages/SettingsPage.vue';
+import AppStatusBar  from '@/components/ui/AppStatusBar.vue';
 
 // ─── Store access ─────────────────────────────────────────────────
 import { useBudgetStore } from '@/stores/budget';
@@ -373,6 +376,101 @@ describe('SettingsPage', () => {
     expect(budget.incomeStreams).toHaveLength(1);
     // Button should revert to "Clear All Data"
     expect(w.findAll('button').find(b => b.text().includes('Clear All Data'))).toBeDefined();
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  3. APP STATUS BAR  (RS-8)
+// ─────────────────────────────────────────────────────────────────
+describe('AppStatusBar', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('mounts without throwing', () => {
+    const w = mountWith(AppStatusBar);
+    expect(w.exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders the status bar wrapper', async () => {
+    const w = mountWith(AppStatusBar);
+    await nextTick();
+    expect(w.find('.app-status-bar').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders two zones — ticker and bill', async () => {
+    const w = mountWith(AppStatusBar);
+    await nextTick();
+    expect(w.find('.ticker-zone').exists()).toBe(true);
+    expect(w.find('.bill-zone').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('shows empty-state hint when no purchases exist (DEFAULT_STATE)', async () => {
+    const w = mountWith(AppStatusBar);
+    await nextTick();
+    // Should find the "No recent purchases" fallback
+    const emptyEl = w.find('.ticker-empty');
+    expect(emptyEl.exists()).toBe(true);
+    expect(emptyEl.text()).toContain('No recent purchases');
+    w.unmount();
+  });
+
+  it('shows purchase name and amount in ticker when purchases exist', async () => {
+    const budget = useBudgetStore();
+    // Add a single purchase so the ticker renders it
+    budget.addPurchase({
+      name: 'Tim Hortons',
+      amount: 4.75,
+      category: 'other',
+      cardId: null,
+      budgetType: 'wants',
+      date: new Date().toISOString().split('T')[0] as never,
+    });
+
+    const w = mountWith(AppStatusBar);
+    await nextTick();
+
+    expect(w.find('.ticker-item__name').text()).toContain('Tim Hortons');
+    expect(w.find('.ticker-item__amt').text()).toContain('4.75');
+    w.unmount();
+  });
+
+  it('shows "Nothing due soon" when no pay period forecast exists (DEFAULT_STATE)', async () => {
+    // DEFAULT_STATE has payStart: null → payPeriodForecast is null → no upcoming bills
+    const w = mountWith(AppStatusBar);
+    await nextTick();
+    const emptyEls = w.findAll('.ticker-empty');
+    expect(emptyEls.some(el => el.text().includes('Nothing due soon'))).toBe(true);
+    w.unmount();
+  });
+
+  it('renders all purchases in the scrolling ticker (original + duplicate pass)', async () => {
+    const budget = useBudgetStore();
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee',    amount: 5,  category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Lunch',     amount: 12, category: 'other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Groceries', amount: 45, category: 'other', cardId: null, budgetType: 'wants', date: today });
+
+    const w = mountWith(AppStatusBar);
+    await nextTick();
+
+    // ticker-inner holds original + duplicate passes for seamless loop
+    expect(w.find('.ticker-inner').exists()).toBe(true);
+    // 3 purchases × 2 (original + duplicate) = 6 ticker-item elements
+    expect(w.findAll('.ticker-item')).toHaveLength(6);
+    w.unmount();
+  });
+
+  it('renders the bill ticker zone with "UPCOMING" label', async () => {
+    const w = mountWith(AppStatusBar);
+    await nextTick();
+    expect(w.find('.bill-zone').exists()).toBe(true);
+    // New scrolling-ticker structure: static label + scroll window
+    expect(w.find('.bill-label').exists()).toBe(true);
+    expect(w.find('.bill-label').text()).toContain('UPCOMING');
     w.unmount();
   });
 });

@@ -2,17 +2,19 @@
   Module:   components/sections/BudgetAllocation.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 4)
+  Updated:  May 2026 (RS-7) — replaced modal with inline range sliders;
+            Needs + Wants are independently adjustable, Savings is
+            auto-calculated as the remainder. A Save row appears whenever
+            the draft differs from the stored allocation.
   Summary:  Three allocation stat cards (Needs / Wants / Savings) with
-            monthly/bi-weekly toggle, a segmented progress bar, and an
-            edit-allocation modal. Mirrors legacy renderIncome() output.
+            monthly/bi-weekly toggle and inline sliders for live editing.
 -->
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useAnalytics } from '@/composables/useAnalytics';
-import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import { fmt } from '@/utils/format';
 
@@ -28,19 +30,74 @@ function toggleDisplay(): void {
   displayMode.value = displayMode.value === 'monthly' ? 'biweekly' : 'monthly';
 }
 
+// ─── Draft allocation (inline sliders) ───────────────────────────
+const draftNeeds = ref(budget.allocation.needs);
+const draftWants = ref(budget.allocation.wants);
+
+/** Savings is always the remainder; always >= 0 because sliders are clamped. */
+const draftSavings = computed(() => 100 - draftNeeds.value - draftWants.value);
+
+/** Max value for the Needs slider — keeps Savings >= 0 */
+const needsMax = computed(() => 100 - draftWants.value);
+
+/** Max value for the Wants slider — keeps Savings >= 0 */
+const wantsMax = computed(() => 100 - draftNeeds.value);
+
+/**
+ * When Needs changes, re-clamp Wants so Savings never goes below 0.
+ * We wait for next tick so the model binding settles first.
+ */
+watch(draftNeeds, (newNeeds) => {
+  if (newNeeds + draftWants.value > 100) {
+    draftWants.value = 100 - newNeeds;
+  }
+});
+
+watch(draftWants, (newWants) => {
+  if (draftNeeds.value + newWants > 100) {
+    draftNeeds.value = 100 - newWants;
+  }
+});
+
+const isDirty = computed(() =>
+  draftNeeds.value   !== budget.allocation.needs   ||
+  draftWants.value   !== budget.allocation.wants   ||
+  draftSavings.value !== budget.allocation.savings,
+);
+
+function saveDraft(): void {
+  budget.setAllocation({
+    needs:   draftNeeds.value,
+    wants:   draftWants.value,
+    savings: draftSavings.value,
+  });
+  toast.show('Budget allocation saved.', 'success');
+}
+
+function resetDraft(): void {
+  draftNeeds.value = budget.allocation.needs;
+  draftWants.value = budget.allocation.wants;
+}
+
+// Sync draft when the store changes externally (e.g. JSON import, clearAll)
+watch(() => budget.allocation, (a) => {
+  draftNeeds.value = a.needs;
+  draftWants.value = a.wants;
+}, { deep: true });
+
 // ─── Allocation amounts ───────────────────────────────────────────
 const needsAmt = computed(() => {
-  const mo = totalMonthlyIncome.value * (budget.allocation.needs / 100);
+  const mo = totalMonthlyIncome.value * (draftNeeds.value / 100);
   return displayMode.value === 'biweekly' ? mo / 2 : mo;
 });
 
 const wantsAmt = computed(() => {
-  const mo = totalMonthlyIncome.value * (budget.allocation.wants / 100);
+  const mo = totalMonthlyIncome.value * (draftWants.value / 100);
   return displayMode.value === 'biweekly' ? mo / 2 : mo;
 });
 
 const savingsAmt = computed(() => {
-  const mo = totalMonthlyIncome.value * (budget.allocation.savings / 100);
+  const mo = totalMonthlyIncome.value * (draftSavings.value / 100);
   return displayMode.value === 'biweekly' ? mo / 2 : mo;
 });
 
@@ -56,35 +113,6 @@ const fundsLabel = computed(() => {
 });
 
 const suffix = computed(() => (displayMode.value === 'biweekly' ? '/pay' : '/mo'));
-
-// ─── Edit modal ───────────────────────────────────────────────────
-const showModal = ref(false);
-const form = reactive({
-  needs:   budget.allocation.needs,
-  wants:   budget.allocation.wants,
-  savings: budget.allocation.savings,
-});
-
-const formSum = computed(() => form.needs + form.wants + form.savings);
-const formError = computed(() => {
-  if (form.needs < 0 || form.wants < 0 || form.savings < 0) return 'Values cannot be negative.';
-  if (formSum.value !== 100) return `Must sum to 100% (currently ${formSum.value}%).`;
-  return '';
-});
-
-function openEdit(): void {
-  form.needs   = budget.allocation.needs;
-  form.wants   = budget.allocation.wants;
-  form.savings = budget.allocation.savings;
-  showModal.value = true;
-}
-
-function save(): void {
-  if (formError.value) return;
-  budget.setAllocation({ needs: form.needs, wants: form.wants, savings: form.savings });
-  toast.show('Budget allocation updated.', 'success');
-  showModal.value = false;
-}
 </script>
 
 <template>
@@ -98,20 +126,14 @@ function save(): void {
       >
         {{ displayMode === 'monthly' ? 'Monthly' : 'Bi-weekly' }}
       </button>
-      <BaseButton
-        size="sm"
-        variant="secondary"
-        @click="openEdit"
-      >
-        Edit %
-      </BaseButton>
     </div>
 
-    <!-- Three allocation cards -->
+    <!-- Three allocation slider-cards -->
     <div class="alloc-cards">
+      <!-- Needs -->
       <div class="alloc-card alloc-card--needs">
         <div class="alloc-card__pct">
-          {{ budget.allocation.needs }}%
+          {{ draftNeeds }}%
         </div>
         <div class="alloc-card__label">
           Needs
@@ -119,11 +141,21 @@ function save(): void {
         <div class="alloc-card__amount">
           {{ fmt(needsAmt) }}{{ suffix }}
         </div>
+        <input
+          v-model.number="draftNeeds"
+          type="range"
+          min="0"
+          :max="needsMax"
+          step="1"
+          class="alloc-slider alloc-slider--needs"
+          :aria-label="`Needs allocation: ${draftNeeds}%`"
+        >
       </div>
 
+      <!-- Wants -->
       <div class="alloc-card alloc-card--wants">
         <div class="alloc-card__pct">
-          {{ budget.allocation.wants }}%
+          {{ draftWants }}%
         </div>
         <div class="alloc-card__label">
           Wants
@@ -131,17 +163,30 @@ function save(): void {
         <div class="alloc-card__amount">
           {{ fmt(wantsAmt) }}{{ suffix }}
         </div>
+        <input
+          v-model.number="draftWants"
+          type="range"
+          min="0"
+          :max="wantsMax"
+          step="1"
+          class="alloc-slider alloc-slider--wants"
+          :aria-label="`Wants allocation: ${draftWants}%`"
+        >
       </div>
 
+      <!-- Savings (auto-calculated) -->
       <div class="alloc-card alloc-card--savings">
         <div class="alloc-card__pct">
-          {{ budget.allocation.savings }}%
+          {{ draftSavings }}%
         </div>
         <div class="alloc-card__label">
           Savings
         </div>
         <div class="alloc-card__amount">
           {{ fmt(savingsAmt) }}{{ suffix }}
+        </div>
+        <div class="alloc-slider-auto">
+          Auto
         </div>
       </div>
     </div>
@@ -150,20 +195,43 @@ function save(): void {
     <div
       class="alloc-bar"
       role="img"
-      :aria-label="`Needs ${budget.allocation.needs}%, Wants ${budget.allocation.wants}%, Savings ${budget.allocation.savings}%`"
+      :aria-label="`Needs ${draftNeeds}%, Wants ${draftWants}%, Savings ${draftSavings}%`"
     >
       <div
         class="alloc-bar__segment alloc-bar__segment--needs"
-        :style="{ width: `${budget.allocation.needs}%` }"
+        :style="{ width: `${draftNeeds}%` }"
       />
       <div
         class="alloc-bar__segment alloc-bar__segment--wants"
-        :style="{ width: `${budget.allocation.wants}%` }"
+        :style="{ width: `${draftWants}%` }"
       />
       <div
         class="alloc-bar__segment alloc-bar__segment--savings"
-        :style="{ width: `${budget.allocation.savings}%` }"
+        :style="{ width: `${draftSavings}%` }"
       />
+    </div>
+
+    <!-- Save row (visible when draft differs from saved allocation) -->
+    <div
+      v-if="isDirty"
+      class="alloc-save-row"
+    >
+      <span class="alloc-save-hint">Unsaved changes</span>
+      <div class="alloc-save-actions">
+        <BaseButton
+          size="sm"
+          variant="ghost"
+          @click="resetDraft"
+        >
+          Cancel
+        </BaseButton>
+        <BaseButton
+          size="sm"
+          @click="saveDraft"
+        >
+          Save
+        </BaseButton>
+      </div>
     </div>
 
     <!-- Needs remaining hint -->
@@ -174,99 +242,6 @@ function save(): void {
     >
       {{ fundsLabel }}
     </p>
-
-    <!-- Edit allocation modal -->
-    <BaseModal
-      v-model:open="showModal"
-      title="Edit Budget Allocation"
-      size="sm"
-    >
-      <div class="modal-form">
-        <p class="modal-note">
-          Enter percentages for Needs, Wants, and Savings. They must sum to exactly 100%.
-        </p>
-
-        <div class="form-row">
-          <label
-            class="form-label"
-            for="alloc-needs"
-          >Needs %</label>
-          <input
-            id="alloc-needs"
-            v-model.number="form.needs"
-            class="form-input"
-            type="number"
-            inputmode="numeric"
-            min="0"
-            max="100"
-            step="1"
-          >
-        </div>
-
-        <div class="form-row">
-          <label
-            class="form-label"
-            for="alloc-wants"
-          >Wants %</label>
-          <input
-            id="alloc-wants"
-            v-model.number="form.wants"
-            class="form-input"
-            type="number"
-            inputmode="numeric"
-            min="0"
-            max="100"
-            step="1"
-          >
-        </div>
-
-        <div class="form-row">
-          <label
-            class="form-label"
-            for="alloc-savings"
-          >Savings %</label>
-          <input
-            id="alloc-savings"
-            v-model.number="form.savings"
-            class="form-input"
-            type="number"
-            inputmode="numeric"
-            min="0"
-            max="100"
-            step="1"
-          >
-        </div>
-
-        <div
-          class="form-sum"
-          :class="{ 'form-sum--ok': formSum === 100, 'form-sum--bad': formSum !== 100 }"
-        >
-          Total: {{ formSum }}%
-        </div>
-
-        <p
-          v-if="formError"
-          class="form-error"
-        >
-          {{ formError }}
-        </p>
-      </div>
-
-      <template #footer>
-        <BaseButton
-          variant="secondary"
-          @click="showModal = false"
-        >
-          Cancel
-        </BaseButton>
-        <BaseButton
-          :disabled="!!formError"
-          @click="save"
-        >
-          Save
-        </BaseButton>
-      </template>
-    </BaseModal>
   </div>
 </template>
 
@@ -302,6 +277,7 @@ function save(): void {
   border-color: var(--accent);
 }
 
+/* ─── Allocation cards ───────────────────────────────────────────── */
 .alloc-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -321,6 +297,10 @@ function save(): void {
   background: var(--surface2);
   text-align: center;
   border-top-width: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
 }
 
 .alloc-card--needs   { border-top-color: var(--accent); }
@@ -354,7 +334,73 @@ function save(): void {
   font-variant-numeric: tabular-nums;
 }
 
-/* Segmented bar */
+/* ─── Range sliders ─────────────────────────────────────────────── */
+.alloc-slider {
+  width: 100%;
+  margin-top: 0.55rem;
+  height: 4px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  outline: none;
+}
+
+/* Track */
+.alloc-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+}
+.alloc-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+/* Thumb */
+.alloc-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  margin-top: -6px;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.alloc-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  cursor: pointer;
+}
+.alloc-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* Color the thumb per category */
+.alloc-slider--needs::-webkit-slider-thumb { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+.alloc-slider--needs::-moz-range-thumb     { background: var(--accent); }
+.alloc-slider--wants::-webkit-slider-thumb { background: var(--accent2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 20%, transparent); }
+.alloc-slider--wants::-moz-range-thumb     { background: var(--accent2); }
+
+/* Auto label for savings (no slider) */
+.alloc-slider-auto {
+  margin-top: 0.85rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+}
+
+/* ─── Segmented bar ─────────────────────────────────────────────── */
 .alloc-bar {
   height: 10px;
   border-radius: 5px;
@@ -368,13 +414,43 @@ function save(): void {
 .alloc-bar__segment {
   height: 100%;
   border-radius: 2px;
-  transition: width 0.35s ease;
+  transition: width 0.25s ease;
 }
 
 .alloc-bar__segment--needs   { background: var(--accent); }
 .alloc-bar__segment--wants   { background: var(--accent2); }
 .alloc-bar__segment--savings { background: var(--warn); }
 
+/* ─── Save row ──────────────────────────────────────────────────── */
+.alloc-save-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-radius: 8px;
+  animation: fade-in 0.15s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.alloc-save-hint {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.alloc-save-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* ─── Needs remaining hint ──────────────────────────────────────── */
 .alloc-hint {
   font-size: 0.8rem;
   color: var(--muted);
@@ -384,67 +460,5 @@ function save(): void {
 
 .alloc-hint--danger {
   color: var(--danger);
-}
-
-/* Modal */
-.modal-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.modal-note {
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin: 0;
-}
-
-.form-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.form-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--muted);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  width: 70px;
-}
-
-.form-input {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.45rem 0.65rem;
-  font-size: 0.9rem;
-  color: var(--text);
-  flex: 1;
-  transition: border-color 0.15s;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.form-sum {
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-align: right;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.form-sum--ok  { color: var(--accent); }
-.form-sum--bad { color: var(--danger); }
-
-.form-error {
-  font-size: 0.8rem;
-  color: var(--danger);
-  margin: 0;
 }
 </style>
