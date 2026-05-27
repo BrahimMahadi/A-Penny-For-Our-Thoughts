@@ -1688,6 +1688,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-7 | Settings redesign (initial polish + deep two-col rebuild, readonly props, inline sliders) | `feat/redesign-sprint-7-settings` | ✅ Complete | — |
 | RS-8 | Bottom status bar (sticky ticker + next-bill, 7 tests) | `feat/redesign-sprint-8-statusbar` | ✅ Complete | — |
 | RS-9 | Polish, tests, v2.0.0 release | `feat/redesign-sprint-9-release` | ✅ Complete | v2.0.0 |
+| RS-10 | Sidebar hover-expand (icon+label, overlay mode) | `feat/sidebar-hover-expand` | ✅ Complete | v2.1.0 |
 
 ---
 
@@ -2018,3 +2019,51 @@ Added a companion token `--accent2-text` that is:
 #### Final gate
 - ✅ 874/874 tests pass · `tsc --noEmit` clean · `vite build` green
 - ✅ Merged all redesign branches → `main`, tagged **v2.0.0**
+
+---
+
+## RS-10 — Sidebar Hover-Expand ✅
+**Branch**: `feat/sidebar-hover-expand`  
+**Status**: ✅ **COMPLETE** — May 2026  
+**Version**: `v2.1.0`
+
+### Goal
+Add smooth hover-expand behaviour to the 64px icon sidebar: on hover it widens to 220px (icon + label), with a CSS transition and fade-in labels; collapses back to icon-only on mouse-out.  Content behind the sidebar is never reflowed (overlay mode).
+
+### Design decisions
+- **Overlay mode** — ghost spacer (`<aside>` stays at `width: 64px` in flex flow) + `position: fixed` panel overlays content. Zero layout shift on expand.
+- **Icon stays left** — glyph is in a fixed 64px column; label fades in to the right.
+- **Label animation** — `opacity 0→1` + `translateX(-6px → 0)` with 80ms delay so the width transition leads.
+- **`prefers-reduced-motion` respected** — all transitions disabled when OS accessibility setting is active.
+- **Mobile unchanged** — both `<aside>` and `<div.app-sidebar__panel>` have `display:none` at ≤768px.
+
+### Delivered
+
+#### `src/components/ui/AppSidebar.vue`
+- ✅ Two-element wrapper: ghost `<aside class="app-sidebar">` (64px flex-spacer) + `<div class="app-sidebar__panel">` (position:fixed overlay)
+- ✅ `isExpanded = ref(false)` driven by `@mouseenter` / `@mouseleave` on the panel
+- ✅ `app-sidebar__panel--expanded` class applies `width: 220px` + `box-shadow`
+- ✅ `<span class="app-sidebar__label">` added to all 6 nav buttons + Shortcuts + Theme toggle
+- ✅ Glyph cell is `width: 64px; min-width: 64px` so icon never shifts
+- ✅ Label uses `opacity/transform` transition with `80ms` delay on expand, `0ms` on collapse
+- ✅ `prefers-reduced-motion` block disables all transitions
+
+#### `tests/components/ui/AppSidebar.spec.ts` (new — 24 tests)
+- ✅ Mounts without throwing
+- ✅ Ghost spacer + fixed panel exist in DOM
+- ✅ Brand logo glyph renders
+- ✅ Exactly 6 nav buttons with correct labels (`Dashboard`, `Schedule`, `Spending`, `Goals`, `Docs`, `Settings`)
+- ✅ Active tab gets `--active` modifier; inactive tabs do not
+- ✅ Clicking nav buttons calls `ui.setActiveTab()` and updates store
+- ✅ Panel has no `--expanded` class initially
+- ✅ `mouseenter` adds `--expanded`; `mouseleave` removes it
+- ✅ Utility buttons (Shortcuts, theme toggle) present and have label spans
+- ✅ Accessibility: `role="tablist"`, `role="tab"`, `aria-selected` correct
+- ✅ Avatar fallback renders when Supabase not configured
+
+#### Doc updates
+- ✅ `CLAUDE.md` — test count updated to 898/28
+- ✅ `docs/PHASE_TRACKING.md` — RS-10 entry added; summary table row added
+
+#### Final gate
+- ✅ 898/898 tests pass · `vue-tsc --noEmit` clean
