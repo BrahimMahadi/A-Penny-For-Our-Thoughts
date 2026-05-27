@@ -428,11 +428,36 @@ function deletePurchase(id: string): void {
 
     <!-- ── KPI tiles ───────────────────────────────────────────── -->
     <div class="spend-kpi-row">
-      <StatCard
-        label="Spent this period"
-        :value="fmt(totalSpentInPeriod)"
-        :hint="wantsBudgetPerPeriod > 0 ? `of ${fmt(wantsBudgetPerPeriod)} wants budget` : ''"
-      />
+      <!-- "Spent this period" — inline so it can host the Wants/Needs toggle -->
+      <div class="base-stat-card spend-stat-typed">
+        <div class="spend-stat-typed__header">
+          <span class="spend-stat-typed__label">Spent this period</span>
+          <div class="donut-type-toggle">
+            <button
+              class="dtt-btn"
+              :class="{ 'dtt-btn--active': donutTypeFilter === 'wants' }"
+              @click="donutTypeFilter = 'wants'"
+            >
+              🛍 Wants
+            </button>
+            <button
+              class="dtt-btn"
+              :class="{ 'dtt-btn--active': donutTypeFilter === 'needs' }"
+              @click="donutTypeFilter = 'needs'"
+            >
+              🏠 Needs
+            </button>
+          </div>
+        </div>
+        <div class="base-stat-card__value">
+          {{ fmt(wantsSpentInPeriod) }}
+        </div>
+        <div class="base-stat-card__hint">
+          <template v-if="donutBudget > 0">
+            of {{ fmt(donutBudget) }} {{ donutTypeFilter }} budget
+          </template>
+        </div>
+      </div>
       <StatCard
         label="Daily average"
         :value="fmt(dailyAvg)"
@@ -455,29 +480,10 @@ function deletePurchase(id: string): void {
       v-if="spendingPeriod && purchasesInPeriod.length > 0"
       class="spend-charts-row"
     >
-      <!-- Category donut (RS-16: switchable wants/needs) -->
+      <!-- Category donut — type driven by the "Spent this period" toggle above -->
       <BaseCard class="spend-donut-card">
-        <div class="spend-donut-card-header">
-          <div class="spend-section-eyebrow">
-            By category
-          </div>
-          <!-- Wants / Needs toggle -->
-          <div class="donut-type-toggle">
-            <button
-              class="dtt-btn"
-              :class="{ 'dtt-btn--active': donutTypeFilter === 'wants' }"
-              @click="donutTypeFilter = 'wants'"
-            >
-              🛍 Wants
-            </button>
-            <button
-              class="dtt-btn"
-              :class="{ 'dtt-btn--active': donutTypeFilter === 'needs' }"
-              @click="donutTypeFilter = 'needs'"
-            >
-              🏠 Needs
-            </button>
-          </div>
+        <div class="spend-section-eyebrow">
+          By category
         </div>
         <div class="spend-donut-total">
           {{ fmt(wantsSpentInPeriod) }}
@@ -1556,13 +1562,25 @@ function deletePurchase(id: string): void {
   margin-left: 0.15rem;
 }
 
-/* ── Donut card header (eyebrow + type toggle side by side) ─────── */
-.spend-donut-card-header {
+/* ── "Spent this period" stat card with inline toggle ────────────── */
+.spend-stat-typed {
+  /* inherits .base-stat-card layout; flex-col already set */
+  gap: 0.2rem;
+}
+
+.spend-stat-typed__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 0.15rem;
+}
+
+.spend-stat-typed__label {
+  font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted, #8b8b95);
+  font-weight: 600;
 }
 
 .donut-type-toggle {
