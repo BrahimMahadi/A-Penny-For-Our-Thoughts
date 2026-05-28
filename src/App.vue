@@ -33,6 +33,7 @@ import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useKeyboard } from '@/composables/useKeyboard';
 import { useSwipe } from '@/composables/useSwipe';
+import { usePeriodRollover } from '@/composables/usePeriodRollover';
 import type { TabId } from '@/types/state';
 
 import DashboardPage from '@/components/pages/DashboardPage.vue';
@@ -60,6 +61,13 @@ const ui     = useUiStore();
 const budget = useBudgetStore();
 const auth   = useAuthStore();
 const toast  = useToast();
+
+// RS-23: bi-weekly pay-period rollover. Watches budget.payStart for hydration
+// + listens for document visibilitychange. When one or more periods have
+// elapsed since lastArchivedPeriodStart, archives them to spendingHistory,
+// resets the Schedule nav offset, and shows a toast. No-op until payStart
+// is configured by the user in Settings.
+usePeriodRollover();
 
 const supabaseEnabled = isSupabaseConfigured();
 

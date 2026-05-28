@@ -70,6 +70,21 @@ export interface BudgetState {
   // Pay period anchor (bi-weekly cycle)
   /** ISO date 'YYYY-MM-DD' or null when unconfigured */
   payStart: ISODate | null;
+  /**
+   * Period-start date (ISO 'YYYY-MM-DD') of the most recent bi-weekly window
+   * that has been archived to `spendingHistory` by the auto-rollover system
+   * (RS-23). null when the user has never archived — either because `payStart`
+   * is unconfigured or because they're still inside their first tracked period.
+   *
+   * Used by `autoArchiveMissedPeriods` to make rollover idempotent: when
+   * `getCurrentPeriodStart()` advances past this value, the rollover archives
+   * every missed period (date-bucketed) and bumps this anchor forward.
+   *
+   * Stored in localStorage only — multi-device sync of this bookkeeping field
+   * is intentionally not implemented (a stale value on a second device just
+   * causes a one-time benign re-archive of empty periods).
+   */
+  lastArchivedPeriodStart: ISODate | null;
 
   // Rules + alerts
   rules: Rule[];

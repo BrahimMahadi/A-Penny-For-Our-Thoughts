@@ -608,3 +608,244 @@ describe('migrateState — spendingCategories migration (Sprint 19)', () => {
     expect((migrated.spendingCategories as Array<{id:string}>).some(c => c.id === 'other')).toBe(true);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  RS-23 — autoArchiveMissedPeriods
+//
+//  Tests cover the full decision matrix:
+//    • no payStart                              → no-op
+//    • first-run init (lastArchived was null)   → set anchor, archive 0
+//    • already up to date                       → 0
+//    • 1 period missed                          → 1 archive
+//    • 3 periods missed                         → 3 archives (empty included)
+//    • undated purchases                        → newest missed bucket
+//    • backdated purchases                      → oldest missed bucket
+//    • current-period purchases                 → preserved in live array
+//    • date bucketing into the right period     → exact bucket assignment
+//    • lastArchivedPeriodStart bumped forward   → idempotent on re-run
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('budget store — autoArchiveMissedPeriods (RS-23)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+  });
+
+  // Helper: build a purchase with sensible defaults so tests stay focused.
+  // (Includes a fake id since we push directly onto the array, bypassing the
+  // addPurchase action which would otherwise assign one.)
+  let _pId = 0;
+  function P(name: string, amount: number, date: string | undefined, budgetType: 'wants' | 'needs' = 'wants') {
+    return { id: `p${++_pId}`, name, amount, category: 'Other', date, budgetType, cardId: null };
+  }
+
+  it('returns 0 and changes nothing when payStart is null', () => {
+    const store = useBudgetStore();
+    expect(store.payStart).toBeNull();
+    const result = store.autoArchiveMissedPeriods(new Date('2026-05-15T12:00:00'));
+    expect(result).toBe(0);
+    expect(store.lastArchivedPeriodStart).toBeNull();
+    expect(store.spendingHistory.length).toBe(0);
+  });
+
+  it('first-run init: anchors lastArchivedPeriodStart without archiving anything', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.purchases.push(P('Coffee', 5, '2026-05-02'));
+
+    const result = store.autoArchiveMissedPeriods(new Date('2026-05-10T12:00:00'));
+
+    expect(result).toBe(0);
+    expect(store.lastArchivedPeriodStart).toBe('2026-05-01');
+    expect(store.purchases.length).toBe(1);          // not cleared
+    expect(store.spendingHistory.length).toBe(0);    // no archive
+  });
+
+  it('no-op when currentStart == lastArchivedPeriodStart', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.autoArchiveMissedPeriods(new Date('2026-05-10T12:00:00')); // init → 2026-05-01
+    store.purchases.push(P('Coffee', 5, '2026-05-02'));
+
+    const result = store.autoArchiveMissedPeriods(new Date('2026-05-10T12:00:00'));
+
+    expect(result).toBe(0);
+    expect(store.lastArchivedPeriodStart).toBe('2026-05-01');
+    expect(store.purchases.length).toBe(1);
+    expect(store.spendingHistory.length).toBe(0);
+  });
+
+  it('archives exactly 1 period when the user opens the app at day 14', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.autoArchiveMissedPeriods(new Date('2026-05-10T12:00:00')); // init
+    store.purchases.push(P('Coffee',   5, '2026-05-02'));
+    store.purchases.push(P('Lunch',   15, '2026-05-10'));
+
+    const result = store.autoArchiveMissedPeriods(new Date('2026-05-15T12:00:00'));
+
+    expect(result).toBe(1);
+    expect(store.lastArchivedPeriodStart).toBe('2026-05-15');
+    expect(store.spendingHistory).toHaveLength(1);
+
+    const archived = store.spendingHistory[0];
+    expect(archived.date).toBe('2026-05-01');     // PERIOD START
+    expect(archived.total).toBe(20);
+    expect(archived.items).toHaveLength(2);
+    expect(store.purchases).toEqual([]);          // all cleared
+  });
+
+  it('archives 3 periods when the user returns after 42 days (empty periods included)', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.autoArchiveMissedPeriods(new Date('2026-05-10T12:00:00')); // init
+
+    // Spread purchases across only some of the missed periods
+    store.purchases.push(P('A',  10, '2026-05-02'));  // period 1 (2026-05-01)
+    store.purchases.push(P('B',  20, '2026-05-30'));  // period 3 (2026-05-29)
+    // No purchases land in period 2 (2026-05-15) → empty archive expected
+
+    const result = store.autoArchiveMissedPeriods(new Date('2026-06-12T12:00:00'));
+
+    expect(result).toBe(3);
+    expect(store.lastArchivedPeriodStart).toBe('2026-06-12');
+    expect(store.spendingHistory).toHaveLength(3);
+
+    const [p1, p2, p3] = store.spendingHistory;
+    expect(p1.date).toBe('2026-05-01'); expect(p1.total).toBe(10); expect(p1.items).toHaveLength(1);
+    expect(p2.date).toBe('2026-05-15'); expect(p2.total).toBe(0);  expect(p2.items).toHaveLength(0);
+    expect(p3.date).toBe('2026-05-29'); expect(p3.total).toBe(20); expect(p3.items).toHaveLength(1);
+
+    expect(store.purchases).toEqual([]);
+  });
+
+  it('undated purchases land in the MOST RECENT missed period', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.autoArchiveMissedPeriods(new Date('2026-05-10T12:00:00')); // init
+
+    store.purchases.push(P('UndatedPurchase', 30, undefined));
+
+    const result = store.autoArchiveMissedPeriods(new Date('2026-06-12T12:00:00'));
+
+    expect(result).toBe(3);
+    const newest = store.spendingHistory[store.spendingHistory.length - 1];
+    expect(newest.date).toBe('2026-05-29');
+    expect(newest.items).toHaveLength(1);
+    expect(newest.items[0].name).toBe('UndatedPurchase');
+  });
+
+  it('backdated purchases (older than lastArchived) land in the OLDEST missed period', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.autoArchiveMissedPeriods(new Date('2026-05-20T12:00:00')); // init → 2026-05-15
+
+    // Backdated to before 2026-05-15
+    store.purchases.push(P('Backdated', 42, '2026-04-20'));
+
+    const result = store.autoArchiveMissedPeriods(new Date('2026-06-12T12:00:00'));
+
+    expect(result).toBeGreaterThanOrEqual(1);
+    const oldest = store.spendingHistory[0];
+    expect(oldest.date).toBe('2026-05-15');     // oldest missed period
+    expect(oldest.items.find(it => it.name === 'Backdated')).toBeDefined();
+  });
+
+  it('current-period purchases (date >= currentStart) are preserved in the live array', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.autoArchiveMissedPeriods(new Date('2026-05-10T12:00:00')); // init
+
+    store.purchases.push(P('OldOne', 10, '2026-05-02'));       // missed
+    store.purchases.push(P('CurrentOne', 25, '2026-05-16'));   // current period
+
+    store.autoArchiveMissedPeriods(new Date('2026-05-20T12:00:00')); // currentStart = 2026-05-15
+
+    expect(store.lastArchivedPeriodStart).toBe('2026-05-15');
+    expect(store.spendingHistory).toHaveLength(1);
+    expect(store.spendingHistory[0].total).toBe(10);
+    expect(store.purchases).toHaveLength(1);
+    expect(store.purchases[0].name).toBe('CurrentOne');
+  });
+
+  it('bucket assignment is exact (purchase on the seam goes to the new period)', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.autoArchiveMissedPeriods(new Date('2026-05-10T12:00:00')); // init
+
+    // 2026-05-15 IS the start of the NEXT period — not part of [2026-05-01, 2026-05-15).
+    store.purchases.push(P('OnSeam', 7, '2026-05-15'));
+
+    // Roll over far enough that 2026-05-15 is itself archived.
+    store.autoArchiveMissedPeriods(new Date('2026-05-29T12:00:00'));
+
+    // Two missed periods archived: 2026-05-01 (empty) and 2026-05-15 (holds OnSeam)
+    const [p1, p2] = store.spendingHistory;
+    expect(p1.date).toBe('2026-05-01'); expect(p1.items).toHaveLength(0);
+    expect(p2.date).toBe('2026-05-15'); expect(p2.items.map(i => i.name)).toEqual(['OnSeam']);
+  });
+
+  it('is idempotent: calling twice in the same period archives only once', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.autoArchiveMissedPeriods(new Date('2026-05-10T12:00:00')); // init
+    store.purchases.push(P('A', 10, '2026-05-02'));
+
+    const r1 = store.autoArchiveMissedPeriods(new Date('2026-05-20T12:00:00'));
+    const r2 = store.autoArchiveMissedPeriods(new Date('2026-05-20T12:00:00'));
+
+    expect(r1).toBe(1);
+    expect(r2).toBe(0);
+    expect(store.spendingHistory).toHaveLength(1);
+  });
+
+  it('preserves Purchase metadata (category) when archiving', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.autoArchiveMissedPeriods(new Date('2026-05-10T12:00:00'));
+
+    store.purchases.push({
+      id: 'concert-1',
+      name: 'Concert', amount: 80, category: 'Entertainment',
+      date: '2026-05-03', budgetType: 'wants', cardId: null,
+    });
+
+    store.autoArchiveMissedPeriods(new Date('2026-05-20T12:00:00'));
+
+    const item = store.spendingHistory[0].items[0];
+    expect(item.name).toBe('Concert');
+    expect(item.amount).toBe(80);
+    expect(item.category).toBe('Entertainment');
+    expect(item.date).toBe('2026-05-03');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  RS-23 — lastArchivedPeriodStart field & migration
+// ─────────────────────────────────────────────────────────────────────────────
+describe('budget store — lastArchivedPeriodStart field (RS-23)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+  });
+
+  it('makeDefaultState includes lastArchivedPeriodStart = null', () => {
+    expect(makeDefaultState().lastArchivedPeriodStart).toBeNull();
+  });
+
+  it('makeBlankState includes lastArchivedPeriodStart = null', () => {
+    expect(makeBlankState().lastArchivedPeriodStart).toBeNull();
+  });
+
+  it('migrateState adds lastArchivedPeriodStart = null for legacy state without it', () => {
+    const legacy = { allocation: { needs: 50, wants: 30, savings: 20 } };
+    const migrated = migrateState(legacy);
+    expect(migrated.lastArchivedPeriodStart).toBeNull();
+  });
+
+  it('migrateState preserves an existing lastArchivedPeriodStart value', () => {
+    const s = { ...makeDefaultState(), lastArchivedPeriodStart: '2026-05-15' };
+    expect(migrateState(s).lastArchivedPeriodStart).toBe('2026-05-15');
+  });
+});
+
