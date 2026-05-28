@@ -1497,8 +1497,9 @@ export interface EnvelopeForecast {
  * Linear envelope forecast: extrapolates the current spend rate to
  * the end of the active bi-weekly wants period.
  *
- * Mirrors the same `totalSpent + deductionTotal` logic used in
- * WantsTracker so the numbers are always consistent.
+ * Mirrors the same `totalSpent + deductionTotal` logic used in the
+ * PurchasesThisPeriod dashboard widget (and the Dashboard hero KPI) so
+ * the numbers are always consistent.
  */
 export function getEnvelopeForecast(
   state: Pick<

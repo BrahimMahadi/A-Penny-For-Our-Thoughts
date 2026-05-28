@@ -3,7 +3,7 @@
  * Project:  A Penny For Our Thoughts
  * Created:  May 2026 (Sprint 22)
  * Summary:  Generic search / sort / filter state for the expandable-drawer
- *           (Option B) interaction pattern used by WantsTracker (purchases)
+ *           (Option B) interaction pattern used by SpendingPage (purchases)
  *           and Subscriptions.
  *
  *           The composable owns:
