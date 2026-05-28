@@ -37,6 +37,7 @@ import { useAnalytics }  from '@/composables/useAnalytics';
 import { useToast }      from '@/composables/useToast';
 import { useGsap }       from '@/composables/useGsap';
 import { useCountUp }    from '@/composables/useCountUp';
+import { useFormValidation, rules } from '@/composables/useFormValidation';
 import { fmt }           from '@/utils/format';
 import {
   getSubsDeductedThisPeriod,
@@ -227,6 +228,12 @@ const quickAddName       = ref('');
 const quickAddAmount     = ref('');
 const quickAddBudgetType = ref<'wants' | 'needs'>('wants');
 const quickAddInputEl    = ref<HTMLInputElement | null>(null);
+const quickAddCardId     = ref<string | null>(null);
+
+const quickAddValidation = useFormValidation(() => ({
+  name:   rules.required(quickAddName.value, 'Name'),
+  amount: rules.positiveNumber(parseFloat(quickAddAmount.value) || 0, 'Amount'),
+}));
 
 const quickAddCats = computed(() => budget.spendingCategories);
 
@@ -265,16 +272,14 @@ const quickAddPreviewLabel = computed(() =>
     : 'BI-WEEKLY WANTS REMAINING AFTER',
 );
 
-const quickAddValid = computed(() =>
-  quickAddName.value.trim() !== '' &&
-  parseFloat(quickAddAmount.value) > 0,
-);
 
 function openQuickAdd(): void {
   quickAddName.value       = '';
   quickAddAmount.value     = '';
   quickAddBudgetType.value = 'wants';
   quickAddCategory.value   = defaultCategory.value;
+  quickAddCardId.value     = null;
+  quickAddValidation.reset();
   showQuickAdd.value       = true;
   // BUG-020: use programmatic focus via nextTick instead of the `autofocus`
   // HTML attribute, which triggers a browser warning when another element
@@ -283,12 +288,13 @@ function openQuickAdd(): void {
 }
 
 function submitQuickAdd(): void {
-  if (!quickAddValid.value) return;
+  quickAddValidation.touchAll();
+  if (!quickAddValidation.isValid.value) return;
   const purchase: Omit<Purchase, 'id'> = {
     name:       quickAddName.value.trim(),
     amount:     parseFloat(quickAddAmount.value),
     category:   quickAddCategory.value,
-    cardId:     null,
+    cardId:     quickAddCardId.value,
     budgetType: quickAddBudgetType.value,
     date:       today.toISOString().split('T')[0] as Purchase['date'],
   };
@@ -625,10 +631,18 @@ onMounted(() => {
           ref="quickAddInputEl"
           v-model="quickAddName"
           class="quick-add__input"
+          :class="{ 'form-input--error': quickAddValidation.errors.value.name }"
           placeholder="e.g. coffee, t-shirt, dinner"
+          @blur="quickAddValidation.touch('name')"
           @keydown.enter="submitQuickAdd"
           @keydown.esc="showQuickAdd = false"
         >
+        <p
+          v-if="quickAddValidation.errors.value.name"
+          class="quick-add__field-error"
+        >
+          {{ quickAddValidation.errors.value.name }}
+        </p>
 
         <label class="quick-add__label">Amount</label>
         <div class="quick-add__amount-wrap">
@@ -636,14 +650,22 @@ onMounted(() => {
           <input
             v-model="quickAddAmount"
             class="quick-add__input quick-add__input--amount"
+            :class="{ 'form-input--error': quickAddValidation.errors.value.amount }"
             type="number"
             step="0.01"
             min="0"
             placeholder="0.00"
+            @blur="quickAddValidation.touch('amount')"
             @keydown.enter="submitQuickAdd"
             @keydown.esc="showQuickAdd = false"
           >
         </div>
+        <p
+          v-if="quickAddValidation.errors.value.amount"
+          class="quick-add__field-error"
+        >
+          {{ quickAddValidation.errors.value.amount }}
+        </p>
 
         <label class="quick-add__label">Category</label>
         <div class="quick-add__cats">
@@ -659,6 +681,26 @@ onMounted(() => {
             {{ c.name }}
           </button>
         </div>
+
+        <!-- Card (optional — only shown when expense cards exist) -->
+        <template v-if="budget.expenseCards.length > 0">
+          <label class="quick-add__label">Card (optional)</label>
+          <select
+            v-model="quickAddCardId"
+            class="quick-add__input quick-add__select"
+          >
+            <option :value="null">
+              No card
+            </option>
+            <option
+              v-for="card in budget.expenseCards"
+              :key="card.id"
+              :value="card.id"
+            >
+              {{ card.label }}
+            </option>
+          </select>
+        </template>
 
         <!-- Remaining preview -->
         <div class="quick-add__preview">
@@ -690,7 +732,7 @@ onMounted(() => {
           <button
             class="btn-primary"
             type="button"
-            :disabled="!quickAddValid"
+            :disabled="!quickAddValidation.isValid.value"
             @click="submitQuickAdd"
           >
             Add purchase
@@ -1304,6 +1346,19 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 0.6rem;
+}
+
+/* Select element reuses .quick-add__input styles; keep native arrow */
+.quick-add__select {
+  cursor: pointer;
+  appearance: auto;
+}
+
+/* Per-field error text — negative top-margin pulls message close to the input */
+.quick-add__field-error {
+  font-size: 0.75rem;
+  color: var(--danger, #f87171);
+  margin: -0.65rem 0 0.75rem;
 }
 
 /* ─── Responsive ──────────────────────────────────────────────── */

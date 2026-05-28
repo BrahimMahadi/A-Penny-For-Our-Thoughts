@@ -1701,6 +1701,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-020 | Tab blank screen + ToastContainer Vue warning: `onInterrupt: done`, `fromTo()`, `@before-enter`, `move-class` fix | `fix/bug-020-tab-blank-screen` | ✅ Complete | v2.10.1 |
 | BUG-020b | CSS tab transition: replace GSAP `mode="out-in"` hooks with directional CSS transitions to fix persistent blank screen | `fix/bug-020b-css-tab-transition` | ✅ Complete | v2.10.2 |
 | BUG-020c | Drop `mode="out-in"` + absolute-position leaving page: definitively eliminates Vue transition state-machine deadlock | `fix/bug-020c-tab-transition-rework` | ✅ Complete | v2.10.3 |
+| RS-20 | Form improvements: card field in dashboard quick-add, remaining preview in Spending modal, global `.form-input--error` red highlighting across all forms | `feat/rs-20-form-improvements` | ✅ Complete | v2.11.0 |
 
 ---
 
@@ -2766,6 +2767,70 @@ Without `mode="out-in"`, condition (1) cannot cause condition (2). The entering 
 
 ### Tests
 - All 1069 existing tests continue to pass — no new test cases needed
+- `vue-tsc --noEmit` clean
+
+---
+
+## RS-20 — Form Improvements ✅
+
+**Branch:** `feat/rs-20-form-improvements`
+**Version:** v2.11.0
+**Status:** ✅ Complete
+
+### Changes
+
+Three improvements shipped together:
+
+**1. Payment card field in Dashboard quick-add modal**
+- Added `quickAddCardId` ref to `DashboardPage.vue`; resets to `null` on `openQuickAdd()`
+- Card `<select>` appears between the category chips and remaining preview, hidden when no expense cards exist
+- `submitQuickAdd()` now passes `cardId: quickAddCardId.value` to `budget.addPurchase()`
+
+**2. Bi-weekly remaining preview in Spending tab "Add Purchase" modal**
+- Added `spendingFormAfter` computed: bi-weekly budget for selected type − all same-type purchases − current form amount
+- Added `spendingFormPreviewLabel` computed: toggles "BI-WEEKLY NEEDS/WANTS REMAINING AFTER" with the type toggle
+- Preview block (`.mf-preview`) shown above the footer in add mode only; shows "OVER BUDGET" badge when negative
+- Mirrors the existing dashboard quick-add preview in behaviour
+
+**3. Global form validation with red field highlighting**
+- Added `.form-input--error` and `.field-error` to `src/css/forms.css` globally
+  - `border-color: var(--danger)` with `!important` overrides both scoped and focus-state borders
+  - `box-shadow` ring provides accessible non-colour cue
+- Applied `useFormValidation` + `rules.required` / `rules.positiveNumber` to:
+  - **DashboardPage** quick-add (name, amount) — replaced `quickAddValid` computed
+  - **SpendingPage** purchase modal (name, amount) — replaced `purchaseFormError` computed
+  - **Wishlist** add/edit modal (name) — added alongside existing `formError`
+  - **ExpenseCards** card modal (label) + item modal (name, amount)
+- `SavingsGoals`, `IncomeStreams`, `Subscriptions` were already using `useFormValidation`
+- `OnboardingModal` already had inline `ob-input--error` class — no change needed
+
+### Pattern used consistently
+```
+const validation = useFormValidation(() => ({
+  name: rules.required(form.name, 'Name'),
+}));
+
+// Template:
+<input :class="{ 'form-input--error': validation.errors.value.name }"
+       @blur="validation.touch('name')" ...>
+<p v-if="validation.errors.value.name" class="field-error">
+  {{ validation.errors.value.name }}
+</p>
+
+// On open: validation.reset()
+// On save: validation.touchAll(); if (!validation.isValid.value) return;
+```
+
+### Files Changed
+- `src/css/forms.css` — added `.form-input--error` and `.field-error` global classes
+- `src/components/pages/DashboardPage.vue` — card field, `useFormValidation` for name/amount
+- `src/components/pages/SpendingPage.vue` — remaining preview, `useFormValidation` for name/amount
+- `src/components/sections/Wishlist.vue` — `useFormValidation` for name
+- `src/components/sections/ExpenseCards.vue` — `useFormValidation` for card label + item name/amount
+- `src/components/onboarding/WhatsNewBanner.vue` — `APP_VERSION` bumped to `'2.11.0'`; release notes updated
+
+### Tests
+- All 1069 existing tests pass — no test regressions
 - `vue-tsc --noEmit` clean
 
 ### Final gate
