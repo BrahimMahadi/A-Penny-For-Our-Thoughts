@@ -1706,7 +1706,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-22 | Manage Sections cleanup: Advanced group removed from picker, drag/reorder UI stripped from Dashboard list, list reordered to match page, ui store `sectionOrder` + 4 reorder actions removed | `feat/rs-22-section-picker-cleanup` | ✅ Complete | v2.13.0 |
 | RS-23 | Automatic bi-weekly pay-period rollover: `autoArchiveMissedPeriods` store action with date-bucketed multi-period catch-up + `usePeriodRollover` composable triggered on app load and `visibilitychange` | `feat/rs-23-period-rollover` | ✅ Complete | v2.14.0 |
 | RS-24 | Pay-period rollover UX: "Rolls over in N days" countdown + "Close period now" button in Settings; per-period budgets+spent snapshot captured at archive time; surplus/overage rollup row in Spending Analytics | `feat/rs-24-rollover-ux` | ✅ Complete | v2.15.0 |
-| RS-25 | Remove orphaned `WantsTracker.vue` (section not rendered since RS-11; close-period button made redundant by RS-23 auto-rollover and RS-24 manual close) | `feat/rs-25-remove-wants-tracker` | 🔲 Planned | — |
+| RS-25 | Remove orphaned `WantsTracker.vue` (section not rendered since RS-11; close-period button made redundant by RS-23 auto-rollover and RS-24 manual close) | `feat/rs-25-remove-wants-tracker` | ✅ Complete | v2.16.0 |
 | RS-26 | Update `DocsPage.vue` release-notes section — currently stops at v1.18.0 and is missing every v2.x sprint (Vue 3 migration, redesign sprints RS-1 to RS-24) | `feat/rs-26-docs-page-refresh` | 🔲 Planned | — |
 | RS-27 | Advanced tab decision — either re-surface it in the sidebar with proper navigation or remove it entirely (currently keyboard-only via `7` shortcut, partially-hidden state) | `feat/rs-27-advanced-tab-decision` | 🔲 Planned | — |
 
@@ -3163,22 +3163,61 @@ Build on RS-23's auto-rollover foundation by giving users:
 
 ---
 
-## RS-25 — Remove orphaned `WantsTracker.vue` 🔲 PLANNED
+## RS-25 — Remove orphaned `WantsTracker.vue` ✅
 **Branch**: `feat/rs-25-remove-wants-tracker`
-**Status**: 🔲 Planned
+**Version**: v2.16.0
+**Status**: ✅ Complete
 
 ### Goal
-Delete the now-fully-orphaned `WantsTracker.vue` component. It was replaced on the dashboard by `PurchasesThisPeriod.vue` in RS-11, and its only remaining feature — the manual `closePeriod` button — was made redundant by RS-23's auto-rollover and RS-24's "Close period now" button in Settings.
+Delete the fully-orphaned `WantsTracker.vue` component. It was replaced on the dashboard by `PurchasesThisPeriod.vue` in RS-11, and its only remaining feature — the manual `closePeriod` button — was made redundant by RS-23's auto-rollover and RS-24's "Close period now" button in Settings.
 
-### Scope
-- Delete `src/components/sections/WantsTracker.vue`
-- Remove import + usage from `tests/components/sections/settings.spec.ts`
-- Remove the orphaned test block "WantsTracker — Sprint 7"
-- Check for any lingering string references in DocsPage or PHASE_TRACKING
-- Update CLAUDE.md test count
+### Pre-flight audit
+Confirmed via `grep` that the only production references to WantsTracker were the file itself and two test imports — zero references from routers, page hosts, or component compositions. Safe to delete.
 
-### Risk
-Low — the file is not referenced by any router, page host, or component composition.
+### Removals
+- **`src/components/sections/WantsTracker.vue`** — entire file deleted
+- **`tests/components/sections/sections.spec.ts`** — removed three describe blocks:
+  - "WantsTracker" (basic) — 5 tests
+  - "WantsTracker — categoryColorMap integration (BUG-FIX Sprint 21)" — 4 tests
+  - "WantsTracker — filter toolbar (Sprint 22)" — 16 tests
+  - Renamed the comment marker on section #3 to "EXPENSE CARDS  (former section #3 'WantsTracker' removed in RS-25)" so future readers can map old issue references
+  - The `import WantsTracker` line removed
+- **`tests/components/sections/settings.spec.ts`** — removed:
+  - "WantsTracker — Sprint 7" describe block — 5 tests
+  - The `import WantsTracker` line
+  - Updated the file header comment to note the block was removed in RS-25
+- **Kept** the `does NOT render removed sections (income-streams, savings-goals, wants-tracker)` assertion in `sections.spec.ts` line 2004 — it tests the absence of the `#section-wants-tracker` element on the Dashboard, which remains a valid invariant.
+
+### Stale doc-comment cleanups
+- `src/utils/calculations.ts:1501` — comment referenced "the same `totalSpent + deductionTotal` logic used in WantsTracker"; now points at PurchasesThisPeriod + Dashboard hero KPI (the actual current consumers).
+- `src/composables/useListFilter.ts:6` — comment said the composable was used by "WantsTracker (purchases) and Subscriptions"; corrected to SpendingPage + Subscriptions.
+
+### Deliberately left alone (historical accuracy)
+- Migration-log comments in `src/constants/dashboardSections.ts` and `src/components/pages/DashboardPage.vue` — these document the *historical* RS-11 sprint that removed WantsTracker from the dashboard; rewriting them would distort history.
+- `src/components/pages/DocsPage.vue` historical v1.x release notes — already queued for RS-26 refresh.
+- `docs/USER_GUIDE.md`, `docs/ARCHITECTURE.md`, `docs/VUE3_MIGRATION_PLAN.md`, `docs/design_handoff_*` — historical project docs; out of scope for an orphaned-code-removal sprint.
+
+### Test math
+- Removed: 5 + 4 + 16 + 5 = **30 tests**
+- Before: 1150 → After: 1120 (exact match to prediction)
+
+### Files Changed
+- DELETED: `src/components/sections/WantsTracker.vue`
+- `src/utils/calculations.ts` — 1-line comment update
+- `src/composables/useListFilter.ts` — 1-line comment update
+- `tests/components/sections/sections.spec.ts` — removed import + 3 describe blocks
+- `tests/components/sections/settings.spec.ts` — removed import + 1 describe block + header comment refresh
+- `src/components/onboarding/WhatsNewBanner.vue` — bumped to v2.16.0; cleanup-themed release notes
+- `tests/components/onboarding.spec.ts` — version strings updated
+- `CLAUDE.md` — test count → 1120 across 33 spec files
+
+### Tests
+- 30 tests removed; no new tests added
+- All 1120 remaining tests pass — no behavioural regressions
+- `vue-tsc --noEmit` clean
+
+### Final gate
+- ✅ 1120/1120 tests pass · `vue-tsc --noEmit` clean
 
 ---
 

@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.15.0';
+const APP_VERSION = '2.16.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '⏳', text: 'Settings → Pay Cycle now shows a "Rolls over in N days" countdown — turns amber when ≤ 2 days away so you always know when the next bi-weekly reset is coming' },
-  { icon: '🔚', text: 'New "Close period now" button in Settings lets you force-end the current period early — handy for skipping to a fresh budget without waiting for the natural 14-day boundary' },
-  { icon: '📊', text: 'Spending Analytics now shows per-period surplus/overage: "Wants: $234 / $300 · under $66 ✓" or "Needs: $612 / $500 · over $112 ✗" for each archived period' },
-  { icon: '🛡️', text: 'Manual close advances the rollover anchor so the natural auto-rollover never double-archives the same window' },
-  { icon: '✅', text: '1150 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '🧹', text: 'Internal cleanup: the orphaned WantsTracker component has been removed — its features were already replaced by PurchasesThisPeriod (dashboard widget, RS-11) and Settings → Close period now (RS-24)' },
+  { icon: '📉', text: 'Smaller code surface: 1 .vue file + 4 test blocks (30 tests) + 2 stale doc-comments cleaned up; nothing user-visible changed' },
+  { icon: '🪪', text: 'Stale references to WantsTracker in calculations.ts and useListFilter.ts comments updated to point at PurchasesThisPeriod and SpendingPage — the actual current homes for those features' },
+  { icon: '🗂️', text: 'Future-sprint stubs RS-26 (refresh DocsPage release notes) and RS-27 (decide Advanced tab\'s fate) still on the board' },
+  { icon: '✅', text: '1120 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

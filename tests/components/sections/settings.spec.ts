@@ -3,12 +3,12 @@
  * Project:  A Penny For Our Thoughts
  * Created:  May 2026 (Vue 3 migration — Sprint 7)
  * Summary:  Mount-level tests for the three new Settings section SFCs:
- *             • PayStartDate
+ *             • PayStartDate (incl. RS-24 countdown + manual close)
  *             • RulesEngine
  *             • BudgetAlerts
- *           Also tests the WantsTracker additions from Sprint 7:
- *             • Alert banner when a budget alert is triggered
- *             • Auto-categorise purchase name via rules watcher
+ *
+ *           (The WantsTracker — Sprint 7 block was removed in RS-25 when
+ *           WantsTracker.vue itself was deleted as fully orphaned code.)
  *
  * Invariants:
  *   - DEFAULT_STATE has payStart: null, rules: [], budgetAlerts: []
@@ -36,7 +36,6 @@ vi.mock('chart.js', () => ({
 import PayStartDate  from '@/components/sections/PayStartDate.vue';
 import RulesEngine   from '@/components/sections/RulesEngine.vue';
 import BudgetAlerts  from '@/components/sections/BudgetAlerts.vue';
-import WantsTracker  from '@/components/sections/WantsTracker.vue';
 
 // ─── Store access ─────────────────────────────────────────────────
 import { useBudgetStore } from '@/stores/budget';
@@ -624,100 +623,6 @@ describe('BudgetAlerts', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────
-//  4. WANTS TRACKER — Sprint 7 additions
-// ─────────────────────────────────────────────────────────────────
-describe('WantsTracker — Sprint 7', () => {
-  beforeEach(() => { setActivePinia(createPinia()); });
-  afterEach(() => { document.body.innerHTML = ''; });
-
-  it('renders no alert banner when no budget alerts are triggered', async () => {
-    const w = mountWith(WantsTracker);
-    await nextTick();
-    expect(w.find('.wants-tracker__alerts').exists()).toBe(false);
-    w.unmount();
-  });
-
-  it('renders alert banner when an alert is triggered', async () => {
-    const budget = useBudgetStore();
-    // Alert fires when spending > threshold
-    budget.addBudgetAlert({ category: 'Food & Drink', threshold: 1 });
-    budget.addPurchase({
-      name:       'Lunch',
-      amount:     15,
-      category:   'Food & Drink',
-      date:       new Date().toISOString().split('T')[0],
-      cardId:     null,
-      budgetType: 'wants',
-    });
-    const w = mountWith(WantsTracker);
-    await nextTick();
-    expect(w.find('.wants-tracker__alerts').exists()).toBe(true);
-    w.unmount();
-  });
-
-  it('alert banner contains category name when triggered', async () => {
-    const budget = useBudgetStore();
-    budget.addBudgetAlert({ category: 'Shopping', threshold: 5 });
-    budget.addPurchase({
-      name:       'T-shirt',
-      amount:     50,
-      category:   'Shopping',
-      date:       new Date().toISOString().split('T')[0],
-      cardId:     null,
-      budgetType: 'wants',
-    });
-    const w = mountWith(WantsTracker);
-    await nextTick();
-    expect(w.find('.wants-tracker__alerts').text()).toContain('Shopping');
-    w.unmount();
-  });
-
-  it('alert banner has role="alert" for accessibility', async () => {
-    const budget = useBudgetStore();
-    budget.addBudgetAlert({ category: 'Entertainment', threshold: 1 });
-    budget.addPurchase({
-      name:       'Movie',
-      amount:     18,
-      category:   'Entertainment',
-      date:       new Date().toISOString().split('T')[0],
-      cardId:     null,
-      budgetType: 'wants',
-    });
-    const w = mountWith(WantsTracker);
-    await nextTick();
-    const alerts = w.find('.wants-tracker__alerts');
-    expect(alerts.attributes('role')).toBe('alert');
-    w.unmount();
-  });
-
-  it('auto-fills category when purchase name matches a rule', async () => {
-    const budget = useBudgetStore();
-    budget.addRule({ pattern: 'tim hortons', matchType: 'contains', category: 'Food & Drink' });
-
-    const w = mountWith(WantsTracker);
-    await nextTick();
-
-    // Open add purchase modal
-    const addBtn = w.findAll('button').find(b => b.text().includes('Add Purchase'));
-    await addBtn!.trigger('click');
-    await nextTick();
-
-    // Type into the name field (id="p-name" in WantsTracker template)
-    const nameInput = document.body.querySelector<HTMLInputElement>('#p-name');
-    if (nameInput) {
-      nameInput.value = 'Tim Hortons Medium Coffee';
-      nameInput.dispatchEvent(new Event('input'));
-    }
-    await nextTick();
-    await nextTick(); // allow watcher to run
-
-    // Category should have been auto-filled (id="p-cat" in WantsTracker template)
-    const categorySelect = document.body.querySelector<HTMLSelectElement>('#p-cat');
-    expect(categorySelect?.value).toBe('Food & Drink');
-    w.unmount();
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────
 //  Sprint 19: CategoryManager
