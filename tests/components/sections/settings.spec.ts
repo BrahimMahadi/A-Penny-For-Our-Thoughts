@@ -87,8 +87,9 @@ describe('PayStartDate', () => {
     const w = mountWith(PayStartDate);
     await nextTick();
     expect(w.find('.pay-start__preview').exists()).toBe(true);
-    // Preview should show two rows: current and next period
-    expect(w.findAll('.pay-start__preview-item')).toHaveLength(2);
+    // Preview shows three rows: current period start, next period start,
+    // and (RS-24) the rollover countdown.
+    expect(w.findAll('.pay-start__preview-item')).toHaveLength(3);
     w.unmount();
   });
 
@@ -182,6 +183,114 @@ describe('PayStartDate', () => {
     await nextTick();
 
     expect(budget.payStart).toBeNull();
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  PayStartDate — RS-24 countdown + manual close
+// ─────────────────────────────────────────────────────────────────
+describe('PayStartDate — RS-24 countdown + manual close', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(()  => { document.body.innerHTML = ''; vi.useRealTimers(); });
+
+  it('does NOT render the countdown row when payStart is null', async () => {
+    const w = mountWith(PayStartDate);
+    await nextTick();
+    expect(w.find('[data-testid="rollover-countdown"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('renders the countdown row when payStart is set', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-01');
+    const w = mountWith(PayStartDate);
+    await nextTick();
+    expect(w.find('[data-testid="rollover-countdown"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('countdown row exposes a "Rolls over in" key', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-01');
+    const w = mountWith(PayStartDate);
+    await nextTick();
+    const row = w.find('[data-testid="rollover-countdown"]');
+    expect(row.text()).toContain('Rolls over in');
+    w.unmount();
+  });
+
+  it('renders the Close-period button when payStart is set', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-01');
+    const w = mountWith(PayStartDate);
+    await nextTick();
+    expect(w.find('[data-testid="close-period-btn"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('does NOT render the Close-period button when payStart is null', async () => {
+    const w = mountWith(PayStartDate);
+    await nextTick();
+    expect(w.find('[data-testid="close-period-btn"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('disables Close-period button when there are no purchases AND nothing to anchor', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-01');
+    // lastArchivedPeriodStart is null here → not first-run-anchored yet → disabled
+    const w = mountWith(PayStartDate);
+    await nextTick();
+    const btn = w.find('[data-testid="close-period-btn"]');
+    expect((btn.element as HTMLButtonElement).disabled).toBe(true);
+    w.unmount();
+  });
+
+  it('enables Close-period button when purchases exist', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-01');
+    budget.purchases = [{ id: 'p1', name: 'Coffee', amount: 5, category: 'Other', cardId: null, budgetType: 'wants', date: '2026-05-03' } as any];
+    const w = mountWith(PayStartDate);
+    await nextTick();
+    const btn = w.find('[data-testid="close-period-btn"]');
+    expect((btn.element as HTMLButtonElement).disabled).toBe(false);
+    w.unmount();
+  });
+
+  it('clicking Close-period (confirmed) archives the period and clears purchases', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-01');
+    budget.purchases = [{ id: 'p1', name: 'Coffee', amount: 5, category: 'Other', cardId: null, budgetType: 'wants', date: '2026-05-03' } as any];
+
+    const spy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    const w = mountWith(PayStartDate);
+    await nextTick();
+    await w.find('[data-testid="close-period-btn"]').trigger('click');
+    await nextTick();
+
+    expect(budget.spendingHistory).toHaveLength(1);
+    expect(budget.purchases).toEqual([]);
+    spy.mockRestore();
+    w.unmount();
+  });
+
+  it('clicking Close-period and cancelling the confirm dialog does NOTHING', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-01');
+    budget.purchases = [{ id: 'p1', name: 'Coffee', amount: 5, category: 'Other', cardId: null, budgetType: 'wants', date: '2026-05-03' } as any];
+
+    const spy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    const w = mountWith(PayStartDate);
+    await nextTick();
+    await w.find('[data-testid="close-period-btn"]').trigger('click');
+    await nextTick();
+
+    expect(budget.spendingHistory).toHaveLength(0);
+    expect(budget.purchases).toHaveLength(1);
+    spy.mockRestore();
     w.unmount();
   });
 });

@@ -16,7 +16,7 @@ import { exportStateToCSV, parseCSVToState, triggerCSVDownload } from '@/utils/c
 import { exportStateToJSON, parseJSONToState, triggerJSONDownload } from '@/utils/jsonBackup';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { db, fetchAllUserData, upsertProfile, deleteAllUserData } from '@/lib/db';
-import { getCurrentPeriodStart, getPeriodStartsBetween } from '@/utils/calculations';
+import { getCurrentPeriodStart, getPeriodStartsBetween, getTotalMonthlyIncome } from '@/utils/calculations';
 import { useToast } from '@/composables/useToast';
 import { migrateIfNeeded, runMigration } from '@/lib/migrateLocalStorage';
 import type {
@@ -341,6 +341,46 @@ let _syncInProgress = false;
 function syncDb(op: () => Promise<void>, ctx: string): void {
   if (!isSupabaseConfigured()) return;
   op().catch(err => console.error(`[penny] db sync (${ctx}):`, err));
+}
+
+// ─── RS-24: helpers for per-period budget / spent snapshots ──────
+// These are extracted so closeCurrentPeriod, closeCurrentPeriodManually, and
+// autoArchiveMissedPeriods all populate SpendingHistoryPeriod.budgets and
+// .spent in exactly the same way. Both helpers are pure.
+
+/** Add `n` days to an ISO date string ('YYYY-MM-DD'), returning ISO. */
+function addDaysISO(iso: string, n: number): string {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+
+/** Bi-weekly dollar envelopes derived from current allocation + income. */
+function buildBudgetsSnapshot(state: BudgetState): {
+  needs: number;
+  wants: number;
+  savings: number;
+} {
+  const monthly = getTotalMonthlyIncome(state);
+  const alloc = state.allocation;
+  return {
+    needs:   (monthly * (alloc.needs   ?? 0) / 100) / 2,
+    wants:   (monthly * (alloc.wants   ?? 0) / 100) / 2,
+    savings: (monthly * (alloc.savings ?? 0) / 100) / 2,
+  };
+}
+
+/** Actual spend totals (purchases only, deductions excluded). */
+function buildSpentSnapshot(items: Array<{ amount: number; budgetType?: string }>): {
+  needs: number;
+  wants: number;
+} {
+  let needs = 0, wants = 0;
+  for (const p of items) {
+    if (p.budgetType === 'needs') needs += p.amount;
+    else wants += p.amount;
+  }
+  return { needs, wants };
 }
 
 /**
@@ -674,23 +714,90 @@ export const useBudgetStore = defineStore('budget', {
       item.category = newCategory;
     },
 
-    /** Close the current period: snapshot purchases → history, then clear. */
+    /**
+     * Close the current period: snapshot purchases → history, then clear.
+     *
+     * RS-24: now also captures `budgets` + `spent` snapshots so Spending
+     * Analytics can show per-period surplus/overage. Both fields are derived
+     * from current state at archive time (allocation %, total monthly income,
+     * and the purchases being archived).
+     */
     closeCurrentPeriod(periodDate: ISODate): SpendingHistoryPeriod {
-      const total = this.purchases.reduce((s, p) => s + p.amount, 0);
+      const itemsToArchive = [...this.purchases];
+      const total = itemsToArchive.reduce((s, p) => s + p.amount, 0);
       const period: SpendingHistoryPeriod = {
         id: genId(),
         date: periodDate,
         total,
-        items: this.purchases.map((p) => ({
+        items: itemsToArchive.map((p) => ({
           name: p.name,
           amount: p.amount,
           category: p.category,
           date: p.date,
         })),
+        budgets: buildBudgetsSnapshot(this.$state),
+        spent: buildSpentSnapshot(itemsToArchive),
       };
       this.spendingHistory.push(period);
       this.purchases = [];
       syncDb(() => db.spendingHistory.insertPeriod(_userId, period), 'closeCurrentPeriod');
+      return period;
+    },
+
+    /**
+     * RS-24 — Manually close the current pay period. Power-user affordance
+     * for force-ending a period before its natural 14-day boundary.
+     *
+     * Behaviour:
+     *   • Archives `purchases` with date = `currentPeriodStart` (matches the
+     *     auto-rollover semantic from RS-23).
+     *   • Captures `budgets` + `spent` snapshots like `closeCurrentPeriod`.
+     *   • Sets `lastArchivedPeriodStart` to the NEXT period start so the
+     *     natural auto-rollover doesn't double-archive when it eventually
+     *     fires. Any purchases the user makes between now and that next
+     *     natural rollover will be archived as part of that next period.
+     *   • Returns null when there's nothing meaningful to do — either
+     *     payStart is unconfigured, OR the period is already archived
+     *     (lastArchivedPeriodStart is already past the current period).
+     *     Callers (UI) should disable their trigger when purchases is
+     *     empty, but this guard belongs in the action too.
+     *
+     * @returns The archived period, or null when nothing was archived.
+     */
+    closeCurrentPeriodManually(today: Date = new Date()): SpendingHistoryPeriod | null {
+      if (!this.payStart) return null;
+      const currentStart = getCurrentPeriodStart(this.$state, today);
+      if (!currentStart) return null;
+
+      // Already advanced past this period — manual close would create a
+      // future-dated archive, which is wrong. Bail.
+      if (this.lastArchivedPeriodStart && this.lastArchivedPeriodStart > currentStart) {
+        return null;
+      }
+
+      const itemsToArchive = [...this.purchases];
+      const total = itemsToArchive.reduce((s, p) => s + p.amount, 0);
+      const period: SpendingHistoryPeriod = {
+        id: genId(),
+        date: currentStart,
+        total,
+        items: itemsToArchive.map((p) => ({
+          name: p.name,
+          amount: p.amount,
+          category: p.category,
+          date: p.date,
+        })),
+        budgets: buildBudgetsSnapshot(this.$state),
+        spent: buildSpentSnapshot(itemsToArchive),
+      };
+
+      this.spendingHistory.push(period);
+      this.purchases = [];
+      // Advance the rollover anchor to the NEXT period start so the natural
+      // auto-rollover skips this window (it's already archived).
+      this.lastArchivedPeriodStart = addDaysISO(currentStart, 14);
+
+      syncDb(() => db.spendingHistory.insertPeriod(_userId, period), 'closeCurrentPeriodManually');
       return period;
     },
 
@@ -784,6 +891,11 @@ export const useBudgetStore = defineStore('budget', {
       }
 
       // Emit one SpendingHistoryPeriod per missed period (empty rows included).
+      // RS-24: each period also gets its own budgets + spent snapshot. The
+      // budgets snapshot is the SAME for every missed period — we use the
+      // current allocation × income because the app has no allocation history.
+      // The `spent` snapshot is per-period, derived from the bucketed items.
+      const budgetsSnapshot = buildBudgetsSnapshot(this.$state);
       const newPeriods: SpendingHistoryPeriod[] = missedStarts.map((start) => {
         const items = buckets[start];
         const total = items.reduce((s, p) => s + p.amount, 0);
@@ -797,6 +909,8 @@ export const useBudgetStore = defineStore('budget', {
             category: p.category,
             date: p.date,
           })),
+          budgets: budgetsSnapshot,
+          spent: buildSpentSnapshot(items),
         };
       });
 

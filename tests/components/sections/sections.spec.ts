@@ -1106,6 +1106,132 @@ describe('SpendingAnalytics', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  SpendingAnalytics — RS-24 per-period budget vs spent rollup
+// ─────────────────────────────────────────────────────────────────
+describe('SpendingAnalytics — RS-24 rollup row', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  /** Open the analytics panel so the period list renders. */
+  function openPanel() {
+    const ui = useUiStore();
+    ui.analyticsPanelOpen = true;
+  }
+
+  it('does NOT render the rollup row when archive has no budgets/spent fields (legacy)', async () => {
+    openPanel();
+    const budget = useBudgetStore();
+    budget.spendingHistory = [{
+      id: 'old-1', date: '2026-04-01', total: 100,
+      items: [{ name: 'Coffee', amount: 100, category: 'Other' }],
+    }] as any;
+    const w = mountWith(SpendingAnalytics);
+    await nextTick();
+    expect(w.find('[data-testid="period-rollup"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('renders the rollup row when archive has budgets + spent', async () => {
+    openPanel();
+    const budget = useBudgetStore();
+    budget.spendingHistory = [{
+      id: 'new-1', date: '2026-05-01', total: 100,
+      items: [{ name: 'Coffee', amount: 100, category: 'Other' }],
+      budgets: { needs: 1000, wants: 600, savings: 400 },
+      spent:   { wants: 100, needs: 0 },
+    }] as any;
+    const w = mountWith(SpendingAnalytics);
+    await nextTick();
+    expect(w.find('[data-testid="period-rollup"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('shows an "under" status when spent < budget', async () => {
+    openPanel();
+    const budget = useBudgetStore();
+    budget.spendingHistory = [{
+      id: 'p1', date: '2026-05-01', total: 100,
+      items: [],
+      budgets: { needs: 1000, wants: 600, savings: 400 },
+      spent:   { wants: 100, needs: 0 },
+    }] as any;
+    const w = mountWith(SpendingAnalytics);
+    await nextTick();
+    const row = w.find('[data-testid="rollup-wants"]');
+    expect(row.text().toLowerCase()).toContain('under');
+    expect(row.classes()).toContain('period-rollup-row--under');
+    w.unmount();
+  });
+
+  it('shows an "over" status when spent > budget', async () => {
+    openPanel();
+    const budget = useBudgetStore();
+    budget.spendingHistory = [{
+      id: 'p1', date: '2026-05-01', total: 800,
+      items: [],
+      budgets: { needs: 1000, wants: 600, savings: 400 },
+      spent:   { wants: 800, needs: 0 },
+    }] as any;
+    const w = mountWith(SpendingAnalytics);
+    await nextTick();
+    const row = w.find('[data-testid="rollup-wants"]');
+    expect(row.text().toLowerCase()).toContain('over');
+    expect(row.classes()).toContain('period-rollup-row--over');
+    w.unmount();
+  });
+
+  it('shows an "on target" status when spent == budget', async () => {
+    openPanel();
+    const budget = useBudgetStore();
+    budget.spendingHistory = [{
+      id: 'p1', date: '2026-05-01', total: 600,
+      items: [],
+      budgets: { needs: 0, wants: 600, savings: 0 },
+      spent:   { wants: 600, needs: 0 },
+    }] as any;
+    const w = mountWith(SpendingAnalytics);
+    await nextTick();
+    const row = w.find('[data-testid="rollup-wants"]');
+    expect(row.text().toLowerCase()).toContain('on target');
+    expect(row.classes()).toContain('period-rollup-row--on-target');
+    w.unmount();
+  });
+
+  it('omits a type row when its spent AND budget are both zero', async () => {
+    openPanel();
+    const budget = useBudgetStore();
+    // Only wants is populated; needs is fully zero → should NOT render a row.
+    budget.spendingHistory = [{
+      id: 'p1', date: '2026-05-01', total: 100,
+      items: [],
+      budgets: { needs: 0, wants: 600, savings: 400 },
+      spent:   { wants: 100, needs: 0 },
+    }] as any;
+    const w = mountWith(SpendingAnalytics);
+    await nextTick();
+    expect(w.find('[data-testid="rollup-wants"]').exists()).toBe(true);
+    expect(w.find('[data-testid="rollup-needs"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('renders both wants and needs rows when both have data', async () => {
+    openPanel();
+    const budget = useBudgetStore();
+    budget.spendingHistory = [{
+      id: 'p1', date: '2026-05-01', total: 800,
+      items: [],
+      budgets: { needs: 1000, wants: 600, savings: 400 },
+      spent:   { wants: 100, needs: 500 },
+    }] as any;
+    const w = mountWith(SpendingAnalytics);
+    await nextTick();
+    expect(w.find('[data-testid="rollup-wants"]').exists()).toBe(true);
+    expect(w.find('[data-testid="rollup-needs"]').exists()).toBe(true);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 //  SpendingAnalytics — history item tag editing
 // ─────────────────────────────────────────────────────────────────
 describe('SpendingAnalytics — history tag editing', () => {
