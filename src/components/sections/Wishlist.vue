@@ -26,6 +26,7 @@ import { useFormValidation, rules } from '@/composables/useFormValidation';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import CardHoverFX from '@/components/ui/CardHoverFX.vue';
 import { fmt } from '@/utils/format';
 import type { WishlistItem } from '@/types/budget';
 
@@ -319,7 +320,7 @@ defineExpose({ openAdd });
       <div
         v-for="item in sortedWishlist"
         :key="item.id"
-        class="wish-card"
+        class="wish-card card-hfx"
       >
         <!-- Icon + months badge -->
         <div class="wish-card__top">
@@ -452,6 +453,7 @@ defineExpose({ openAdd });
             Delete
           </BaseButton>
         </div>
+        <CardHoverFX />
       </div>
     </TransitionGroup>
 

@@ -15,6 +15,7 @@ import { useFormValidation, rules } from '@/composables/useFormValidation';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import CardHoverFX from '@/components/ui/CardHoverFX.vue';
 import { fmt } from '@/utils/format';
 
 interface Props {
@@ -148,7 +149,7 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
       <li
         v-for="stream in budget.incomeStreams"
         :key="stream.id"
-        class="income-stream-item"
+        class="income-stream-item card-hfx"
       >
         <div class="income-stream-item__left">
           <span class="income-stream-item__name">{{ stream.name }}</span>
@@ -187,6 +188,7 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
             </BaseButton>
           </div>
         </div>
+        <CardHoverFX :tiles="false" />
       </li>
     </ul>
 

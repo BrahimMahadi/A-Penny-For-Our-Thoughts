@@ -9,6 +9,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import CardHoverFX from '@/components/ui/CardHoverFX.vue';
 
 interface Props {
   label: string;
@@ -55,7 +56,7 @@ const deltaInfo = computed(() => {
 
 <template>
   <div
-    class="base-stat-card"
+    class="base-stat-card card-hfx"
     :class="`base-stat-card--${variant}`"
   >
     <div class="base-stat-card__label">
@@ -78,6 +79,7 @@ const deltaInfo = computed(() => {
     >
       {{ hint }}
     </div>
+    <CardHoverFX />
   </div>
 </template>
 

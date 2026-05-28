@@ -1702,6 +1702,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-020b | CSS tab transition: replace GSAP `mode="out-in"` hooks with directional CSS transitions to fix persistent blank screen | `fix/bug-020b-css-tab-transition` | ✅ Complete | v2.10.2 |
 | BUG-020c | Drop `mode="out-in"` + absolute-position leaving page: definitively eliminates Vue transition state-machine deadlock | `fix/bug-020c-tab-transition-rework` | ✅ Complete | v2.10.3 |
 | RS-20 | Form improvements: card field in dashboard quick-add, remaining preview in Spending modal, global `.form-input--error` red highlighting across all forms | `feat/rs-20-form-improvements` | ✅ Complete | v2.11.0 |
+| RS-21 | Card hover effects: shine glow + tile grid + staggered lines via `CardHoverFX` component; applied to StatCard (full), BaseCard (subtle), Wishlist / ExpenseCard / GoalItem / IncomeStreamItem | `feat/rs-21-card-hover-effects` | ✅ Complete | v2.12.0 |
 
 ---
 
@@ -2835,3 +2836,62 @@ const validation = useFormValidation(() => ({
 
 ### Final gate
 - ✅ 1069/1069 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-21 — Card Hover Effects ✅
+**Branch**: `feat/rs-21-card-hover-effects`
+**Version**: v2.12.0
+**Status**: ✅ Complete
+
+### Goal
+Implement the CodePen-inspired card hover effect across the app's card components, adapted to use `var(--accent)` and other design tokens instead of hardcoded emerald colours.
+
+### Effect layers
+| Layer | Mechanism |
+|---|---|
+| **Shine** | `div.chfx-shine::before` — conic gradient radial blur, opacity 0 → 1 |
+| **Tiles** | 10 `div.chfx-tile` blocks — CSS `@keyframes chfx-tile` blink, staggered delays |
+| **Grid lines** | 3 `div.chfx-line` pairs — `scaleX`/`scaleY` 0 → 1 with entry/exit cascade |
+| **Mask** | `.chfx-bg { mask-image: radial-gradient(circle at 60% 5%) }` — clips to top-right |
+
+### Architecture
+- **`CardHoverFX.vue`** — fragment component (two root nodes: `.chfx-shine` + `.chfx-bg`); `tiles` prop disables tile layer; `aria-hidden="true"` on both roots
+- **`card-hover.css`** — all animation/transition CSS; `.card-hfx` host class adds `position: relative; isolation: isolate`; `.chfx-*` use `z-index: -1` so they are always below card content without touching any existing z-index values
+- Dark/light theme: shine opacity and gradient differ between `:root` (light) and `[data-theme="dark"]`; tile/line colours use `color-mix(in srgb, var(--accent) …%, transparent)`
+
+### Z-stacking approach
+`isolation: isolate` on `.card-hfx` creates a new stacking context. `.chfx-*` at `z-index: -1` paint above the host's background but below ALL content — no child modifications needed. Each `.chfx-*` manages its own `overflow: hidden`; the host card does NOT need it.
+
+### Targets
+| Card | Tiles | Notes |
+|---|---|---|
+| `StatCard.vue` | ✅ Full | KPI tiles — perfect size match |
+| `BaseCard.vue` | ❌ Subtle | Large section container; `v-if="!bare"` skips bare variant |
+| `Wishlist.vue` `.wish-card` | ✅ Full | Grid cards; existing hover (translateY/border) preserved |
+| `ExpenseCards.vue` `.expense-card` | ✅ Full | Card grid items |
+| `SavingsGoals.vue` `.goal-item` | ❌ Subtle | Left-border status indicator preserved |
+| `IncomeStreams.vue` `.income-stream-item` | ❌ Subtle | Small pill items |
+
+### Files Changed
+- `src/css/card-hover.css` — NEW: full animation CSS + `.card-hfx`/`.chfx-*` classes + `prefers-reduced-motion` guard
+- `src/components/ui/CardHoverFX.vue` — NEW: decoration fragment component
+- `src/main.ts` — added `import './css/card-hover.css'`
+- `src/components/ui/StatCard.vue` — added `.card-hfx` + `<CardHoverFX />`
+- `src/components/ui/BaseCard.vue` — added `.card-hfx` + `<CardHoverFX :tiles="false" v-if="!bare" />`
+- `src/components/sections/Wishlist.vue` — added `.card-hfx` + `<CardHoverFX />` to `.wish-card`
+- `src/components/sections/ExpenseCards.vue` — added `.card-hfx` + `<CardHoverFX />` to `.expense-card`
+- `src/components/sections/SavingsGoals.vue` — added `.card-hfx` + `<CardHoverFX :tiles="false" />` to `.goal-item`
+- `src/components/sections/IncomeStreams.vue` — added `.card-hfx` + `<CardHoverFX :tiles="false" />` to `.income-stream-item`
+- `src/components/onboarding/WhatsNewBanner.vue` — `APP_VERSION` bumped to `'2.12.0'`; release notes updated
+- `tests/components/onboarding.spec.ts` — version strings updated to `'2.12.0'`
+- `tests/components/card-hover-fx.spec.ts` — NEW: 12 tests covering structure, tiles prop, and lines
+- `CLAUDE.md` — test count updated to 1081 across 31 spec files
+
+### Tests
+- 12 new tests added in `card-hover-fx.spec.ts`
+- All 1081 tests pass — no regressions
+- `vue-tsc --noEmit` clean
+
+### Final gate
+- ✅ 1081/1081 tests pass · `vue-tsc --noEmit` clean

@@ -24,6 +24,7 @@
 import { computed } from 'vue';
 import { useUiStore } from '@/stores/ui';
 import { useGsap } from '@/composables/useGsap';
+import CardHoverFX from '@/components/ui/CardHoverFX.vue';
 
 const { to, fromTo, raw: gsap } = useGsap();
 
@@ -110,7 +111,7 @@ function onCollapseLeave(el: Element, done: () => void): void {
 
 <template>
   <section
-    class="base-card"
+    class="base-card card-hfx"
     :class="{ 'base-card--bare': bare, 'base-card--compact': compact }"
     v-bind="sectionId ? { id: `section-${sectionId}` } : {}"
   >
@@ -184,6 +185,12 @@ function onCollapseLeave(el: Element, done: () => void): void {
     >
       <slot name="footer" />
     </footer>
+
+    <!-- Hover effect — omitted on bare variant (no bg/border to shine against) -->
+    <CardHoverFX
+      v-if="!bare"
+      :tiles="false"
+    />
   </section>
 </template>
 

@@ -1,0 +1,282 @@
+/*
+  Module:   css/card-hover.css
+  Project:  A Penny For Our Thoughts
+  Created:  May 2026 (Sprint RS-21 — Card Hover Effects)
+  Summary:  CodePen-inspired card hover effect — shine glow, blinking tile
+            grid, and staggered expanding lines — adapted to use the app's
+            --accent / --border design tokens instead of hardcoded colours.
+
+  Architecture
+  ─────────────
+  .card-hfx           Host class. Add alongside existing card class.
+  <CardHoverFX />     Vue component that injects the markup below.
+
+  .chfx-shine         Conic-gradient radial glow (opacity 0 → 1 on hover).
+  .chfx-bg            Mask container (radial-gradient clips to top-right).
+    .chfx-tiles       10 blinking grid tiles (CSS keyframe, staggered delays).
+    .chfx-line--1/2/3 H + V line pairs that scaleX/scaleY in on hover.
+
+  Z-stacking
+  ──────────
+  .card-hfx uses isolation:isolate (new stacking context).
+  .chfx-* use z-index:-1 so they sit above the card background but below
+  ALL card content without needing to touch any child z-index values.
+  Each .chfx-* manages its own overflow:hidden — the host card does NOT
+  need overflow:hidden, preserving any content that legitimately overflows.
+
+  Icon hook (reserved)
+  ────────────────────
+  .card-hfx__icon  Add to any icon wrapper inside .card-hfx to enable the
+                   accent colour + ring transition on hover. No card
+                   currently uses this; it is ready for future use.
+
+  Reduced motion
+  ──────────────
+  Tile animation and all transitions are suppressed for users who prefer
+  reduced motion.
+*/
+
+/* ── Host ────────────────────────────────────────────────────────────────── */
+
+.card-hfx {
+  position: relative;
+  isolation: isolate;
+}
+
+/* ── Shine ───────────────────────────────────────────────────────────────── */
+
+.chfx-shine {
+  border-radius: inherit;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity .5s;
+}
+
+/* Light theme (default): wide, bright conic sweep */
+.chfx-shine::before {
+  content: '';
+  width: 150%;
+  padding-bottom: 150%;
+  border-radius: 50%;
+  position: absolute;
+  left: 50%;
+  bottom: 55%;
+  filter: blur(35px);
+  transform: translateX(-50%);
+  background-image: conic-gradient(
+    from 225deg at 50% 50%,
+    transparent 0deg,
+    var(--accent, #5b3df5) 25deg,
+    color-mix(in srgb, var(--accent, #5b3df5) 10%, white) 285deg,
+    white 345deg,
+    transparent 360deg
+  );
+  opacity: .32;
+}
+
+/* Dark theme: tighter, more saturated sweep */
+[data-theme="dark"] .chfx-shine::before {
+  background-image: conic-gradient(
+    from 205deg at 50% 50%,
+    transparent 0deg,
+    var(--accent, #5b3df5) 25deg,
+    color-mix(in srgb, var(--accent, #5b3df5) 18%, transparent) 295deg,
+    transparent 360deg
+  );
+  opacity: .14;
+}
+
+/* ── Background (tiles + lines container) ────────────────────────────────── */
+
+.chfx-bg {
+  border-radius: inherit;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  /* Clip tiles/lines to top-right corner — matches CodePen mask */
+  -webkit-mask-image: radial-gradient(circle at 60% 5%, black 0%, black 15%, transparent 60%);
+          mask-image: radial-gradient(circle at 60% 5%, black 0%, black 15%, transparent 60%);
+}
+
+/* ── Tiles ───────────────────────────────────────────────────────────────── */
+
+.chfx-tiles {
+  opacity: 0;
+  transition: opacity .25s;
+}
+
+.chfx-tile {
+  position: absolute;
+  background-color: color-mix(in srgb, var(--accent, #5b3df5) 6%, transparent);
+  animation-duration: 8s;
+  animation-iteration-count: infinite;
+  opacity: 0;
+}
+
+/* Staggered delays so tiles blink asynchronously */
+.chfx-tile--4,
+.chfx-tile--6,
+.chfx-tile--10 { animation-delay: -2s; }
+
+.chfx-tile--3,
+.chfx-tile--5,
+.chfx-tile--8  { animation-delay: -4s; }
+
+.chfx-tile--2,
+.chfx-tile--9  { animation-delay: -6s; }
+
+/* Percentage-based grid (mirrors CodePen positions) */
+.chfx-tile--1  { top: 0;     left: 0;     height: 10%;   width: 22.5%; }
+.chfx-tile--2  { top: 0;     left: 22.5%; height: 10%;   width: 27.5%; }
+.chfx-tile--3  { top: 0;     left: 50%;   height: 10%;   width: 27.5%; }
+.chfx-tile--4  { top: 0;     left: 77.5%; height: 10%;   width: 22.5%; }
+.chfx-tile--5  { top: 10%;   left: 0;     height: 22.5%; width: 22.5%; }
+.chfx-tile--6  { top: 10%;   left: 22.5%; height: 22.5%; width: 27.5%; }
+.chfx-tile--7  { top: 10%;   left: 50%;   height: 22.5%; width: 27.5%; }
+.chfx-tile--8  { top: 10%;   left: 77.5%; height: 22.5%; width: 22.5%; }
+.chfx-tile--9  { top: 32.5%; left: 50%;   height: 22.5%; width: 27.5%; }
+.chfx-tile--10 { top: 32.5%; left: 77.5%; height: 22.5%; width: 22.5%; }
+
+@keyframes chfx-tile {
+  0%, 12.5%, 100% { opacity: 1; }
+  25%,  82.5%     { opacity: 0; }
+}
+
+/* ── Lines ───────────────────────────────────────────────────────────────── */
+
+.chfx-line {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s;
+}
+
+.chfx-line::before,
+.chfx-line::after {
+  content: '';
+  position: absolute;
+  background-color: var(--border, #2a3041);
+  transition: transform .35s;
+}
+
+/* Horizontal rule (::before) — scales in from left */
+.chfx-line::before {
+  left: 0;
+  right: 0;
+  height: 1px;
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+
+/* Vertical rule (::after) — scales in from top */
+.chfx-line::after {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  transform-origin: 50% 0;
+  transform: scaleY(0);
+}
+
+/* Row / column positions */
+.chfx-line--1::before { top: 10%; }
+.chfx-line--1::after  { left: 22.5%; }
+.chfx-line--2::before { top: 32.5%; }
+.chfx-line--2::after  { left: 50%; }
+.chfx-line--3::before { top: 55%; }
+.chfx-line--3::after  { left: auto; right: 22.5%; }
+
+/* Resting transition-delays — exit cascade (line-3 first, line-1 last) */
+.chfx-line--1::before,
+.chfx-line--1::after  { transition-delay: .3s; }
+.chfx-line--2::before,
+.chfx-line--2::after  { transition-delay: .15s; }
+/* line-3 has no extra delay → exits first */
+
+/* ── Hover states ─────────────────────────────────────────────────────────── */
+
+.card-hfx:hover .chfx-shine {
+  opacity: 1;
+  transition-duration: .5s;
+  transition-delay: 0s;
+}
+
+.card-hfx:hover .chfx-tiles {
+  opacity: 1;
+  transition-delay: .25s;
+}
+
+.card-hfx:hover .chfx-tile {
+  animation-name: chfx-tile;
+}
+
+.card-hfx:hover .chfx-line {
+  opacity: 1;
+  transition-duration: .15s;
+}
+
+/* Pseudo-elements expand (scaleX for H, scaleY for V) */
+.card-hfx:hover .chfx-line::before { transform: scaleX(1); }
+.card-hfx:hover .chfx-line::after  { transform: scaleY(1); }
+
+/* Entry cascade delays (line-1 first, line-3 last) */
+.card-hfx:hover .chfx-line--1::before,
+.card-hfx:hover .chfx-line--1::after  { transition-delay: 0s; }
+.card-hfx:hover .chfx-line--2::before,
+.card-hfx:hover .chfx-line--2::after  { transition-delay: .15s; }
+.card-hfx:hover .chfx-line--3::before,
+.card-hfx:hover .chfx-line--3::after  { transition-delay: .3s; }
+
+/* ── Icon hover hook (reserved — not applied to any card yet) ────────────── */
+/*
+  Add class="card-hfx__icon" to an icon wrapper inside a .card-hfx to get
+  accent-colour ring + colour transition on hover. Example:
+    <span class="card-hfx__icon"><svg>…</svg></span>
+*/
+
+.card-hfx__icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .25s;
+}
+
+.card-hfx__icon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-color: color-mix(in srgb, var(--accent, #5b3df5)  8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #5b3df5) 12%, transparent);
+  transition: background-color .25s, border-color .25s;
+}
+
+.card-hfx:hover .card-hfx__icon {
+  color: var(--accent, #5b3df5);
+}
+
+.card-hfx:hover .card-hfx__icon::after {
+  background-color: color-mix(in srgb, var(--accent, #5b3df5) 15%, transparent);
+  border-color:     color-mix(in srgb, var(--accent, #5b3df5) 25%, transparent);
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .chfx-tile               { animation: none !important; }
+  .chfx-shine,
+  .chfx-tiles              { transition: none !important; }
+  .chfx-line,
+  .chfx-line::before,
+  .chfx-line::after        { transition: none !important; }
+  .card-hfx__icon,
+  .card-hfx__icon::after   { transition: none !important; }
+}
