@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.11.0';
+const APP_VERSION = '2.12.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '💳', text: 'Dashboard quick-add modal now has a payment card selector — charge purchases directly to an expense card from the header shortcut' },
-  { icon: '📊', text: 'Spending tab "Add Purchase" modal now shows a live bi-weekly remaining preview that updates as you type the amount and switch between Want/Need' },
-  { icon: '🔴', text: 'Form validation now highlights invalid fields in red on blur — name and amount fields across all modals (Wishlist, Expense Cards, quick-add, and more) show per-field error messages' },
-  { icon: '🔁', text: 'Validation state resets cleanly when modals are opened or cancelled — no stale red borders between sessions' },
-  { icon: '✅', text: '1069 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '✨', text: 'Cards now have a polished hover effect — a conic-gradient shine glow, blinking tile grid, and staggered expanding lines appear in the top-right corner on hover' },
+  { icon: '🃏', text: 'Effect applied across all card tiers: StatCard KPI tiles (full effect), BaseCard section containers (subtle — shine + lines only), and Wishlist, Expense Card, Savings Goal, and Income Stream item cards' },
+  { icon: '🎨', text: 'Effect adapts to the active theme — brighter sweep in light mode, more saturated in dark mode — driven by the --accent design token throughout' },
+  { icon: '♿', text: 'Tile animation and all transitions are automatically disabled for users who prefer reduced motion' },
+  { icon: '✅', text: '1081 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

@@ -29,6 +29,7 @@ import './css/features.css';
 import './css/ui.css';
 import './css/responsive.css';
 import './css/extras.css';
+import './css/card-hover.css';
 
 // ─── Stores & composables ─────────────────────────────────────────
 import { useBudgetStore, saveStateToStorage } from './stores/budget';

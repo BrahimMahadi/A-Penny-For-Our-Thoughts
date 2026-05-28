@@ -17,6 +17,7 @@ import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import CardHoverFX from '@/components/ui/CardHoverFX.vue';
 import { fmt } from '@/utils/format';
 
 const budget = useBudgetStore();
@@ -164,7 +165,7 @@ defineExpose({ openAdd });
       <div
         v-for="goal in budget.goals"
         :key="goal.id"
-        class="goal-item"
+        class="goal-item card-hfx"
         :class="statusClass(progressForGoal(goal)?.status ?? 'off-track')"
       >
         <template v-if="progressForGoal(goal) as any">
@@ -258,6 +259,7 @@ defineExpose({ openAdd });
             </span>
           </div>
         </template>
+        <CardHoverFX :tiles="false" />
       </div>
     </div>
 

@@ -15,6 +15,7 @@ import { useFormValidation, rules } from '@/composables/useFormValidation';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import CardHoverFX from '@/components/ui/CardHoverFX.vue';
 import { fmt } from '@/utils/format';
 import { monthlyAmount } from '@/utils/date';
 import { getRenewalDatesBetween, getNextRenewal } from '@/utils/calculations';
@@ -282,7 +283,7 @@ function removeItem(cardId: string, itemId: string): void {
       <div
         v-for="card in budget.expenseCards"
         :key="card.id"
-        class="expense-card"
+        class="expense-card card-hfx"
       >
         <!-- Card header -->
         <div class="expense-card__header">
@@ -408,6 +409,7 @@ function removeItem(cardId: string, itemId: string): void {
         >
           + Add Expense
         </BaseButton>
+        <CardHoverFX />
       </div>
     </div>
 
