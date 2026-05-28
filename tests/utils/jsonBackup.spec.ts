@@ -30,6 +30,7 @@ function makeMinimalState(overrides: Partial<BudgetState> = {}): BudgetState {
     assets: [],
     netWorthHistory: [],
     payStart: null,
+    lastArchivedPeriodStart: null,
     rules: [],
     budgetAlerts: [],
     spendingCategories: [],

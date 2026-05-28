@@ -229,6 +229,40 @@ export function getCurrentPeriodStart(
   return result.toISOString().split('T')[0];
 }
 
+/**
+ * Enumerate every bi-weekly period START ISO date in the inclusive-exclusive
+ * window `[fromInclusive, toExclusive)`, stepping by 14 days.
+ *
+ * Both inputs must be valid ISO 'YYYY-MM-DD' strings. Both boundaries are
+ * expected to be valid period-start anchors (i.e. each is a multiple of 14
+ * days from a common `payStart`), but the function does not enforce that —
+ * it simply steps by 14 days from `fromInclusive` until it reaches or passes
+ * `toExclusive`.
+ *
+ * Returns an empty array when `fromInclusive >= toExclusive`.
+ *
+ * Used by the RS-23 auto-rollover to derive the list of missed periods
+ * between `lastArchivedPeriodStart` (inclusive) and `currentPeriodStart`
+ * (exclusive — the current period is NOT archived; it's still in progress).
+ */
+export function getPeriodStartsBetween(
+  fromInclusive: ISODate,
+  toExclusive: ISODate,
+): ISODate[] {
+  const from = new Date(fromInclusive + 'T00:00:00');
+  const to   = new Date(toExclusive   + 'T00:00:00');
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return [];
+  if (from.getTime() >= to.getTime()) return [];
+
+  const out: ISODate[] = [];
+  const cursor = new Date(from);
+  while (cursor.getTime() < to.getTime()) {
+    out.push(cursor.toISOString().split('T')[0]);
+    cursor.setDate(cursor.getDate() + 14);
+  }
+  return out;
+}
+
 // ─── Deductions (subs + loans) ───────────────────────────────────
 
 export interface SubscriptionWithRenewals extends Subscription {

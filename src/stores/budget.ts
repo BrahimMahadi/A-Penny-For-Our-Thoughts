@@ -16,6 +16,7 @@ import { exportStateToCSV, parseCSVToState, triggerCSVDownload } from '@/utils/c
 import { exportStateToJSON, parseJSONToState, triggerJSONDownload } from '@/utils/jsonBackup';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { db, fetchAllUserData, upsertProfile, deleteAllUserData } from '@/lib/db';
+import { getCurrentPeriodStart, getPeriodStartsBetween } from '@/utils/calculations';
 import { useToast } from '@/composables/useToast';
 import { migrateIfNeeded, runMigration } from '@/lib/migrateLocalStorage';
 import type {
@@ -91,6 +92,7 @@ export function makeDefaultState(): BudgetState {
     netWorthHistory: [],
 
     payStart: null,
+    lastArchivedPeriodStart: null,
     rules: [],
     budgetAlerts: [],
     fundsRemaining: 0,
@@ -124,6 +126,7 @@ export function makeBlankState(): BudgetState {
     assets: [],
     netWorthHistory: [],
     payStart: null,
+    lastArchivedPeriodStart: null,
     rules: [],
     budgetAlerts: [],
     fundsRemaining: 0,
@@ -238,6 +241,11 @@ export function migrateState(raw: unknown): BudgetState {
   if (!s.assets) s.assets = [];
   if (!s.netWorthHistory) s.netWorthHistory = [];
   if (s.payStart === undefined) s.payStart = null;
+  // RS-23: lastArchivedPeriodStart bookkeeping field for auto-rollover.
+  // Legacy states without it start at null; the first rollover check after
+  // upgrade will initialise it to the current period start without archiving
+  // any retro periods.
+  if (s.lastArchivedPeriodStart === undefined) s.lastArchivedPeriodStart = null;
   if (!s.rules) s.rules = [];
   if (!s.budgetAlerts) s.budgetAlerts = [];
   if (s.fundsRemaining === undefined) s.fundsRemaining = 0;
@@ -684,6 +692,128 @@ export const useBudgetStore = defineStore('budget', {
       this.purchases = [];
       syncDb(() => db.spendingHistory.insertPeriod(_userId, period), 'closeCurrentPeriod');
       return period;
+    },
+
+    /**
+     * RS-23 — Auto-archive every bi-weekly pay period that has elapsed since
+     * `lastArchivedPeriodStart`. Idempotent: calling it twice in the same
+     * period is a no-op. Safe to call from app load and visibility-change
+     * handlers without coordination.
+     *
+     * Behaviour:
+     *   • Returns 0 (and does nothing) when `payStart` is unconfigured.
+     *   • On first run after upgrade — when `lastArchivedPeriodStart` is null
+     *     and `payStart` is set — anchors `lastArchivedPeriodStart` to the
+     *     current period start without archiving anything. The current
+     *     window's purchases remain in place.
+     *   • When the current period equals (or precedes) `lastArchivedPeriodStart`,
+     *     returns 0 — nothing to archive yet.
+     *   • Otherwise, archives every missed period [last, current) as its own
+     *     `SpendingHistoryPeriod` row (empty periods included — keeps the
+     *     timeline contiguous). Each row's `date` is the PERIOD START.
+     *
+     * Purchase bucketing:
+     *   • A purchase with `p.date` in `[periodStart, periodStart+14)` falls
+     *     into that period.
+     *   • Undated purchases (`p.date` falsy) go into the MOST RECENT missed
+     *     period (the one immediately before the current period).
+     *   • Backdated purchases older than `lastArchivedPeriodStart` go into
+     *     the OLDEST missed period (so no purchase is ever lost).
+     *   • Purchases with `p.date >= currentPeriodStart` are preserved in the
+     *     live `purchases` array — they belong to the in-progress period.
+     *
+     * Sync: each new SpendingHistoryPeriod is also pushed to the database
+     * via `db.spendingHistory.insertPeriod`. `lastArchivedPeriodStart` is
+     * NOT synced to the profile (intentional — see types/state.ts doc).
+     *
+     * @returns The number of archived periods (0 means no rollover occurred).
+     */
+    autoArchiveMissedPeriods(today: Date = new Date()): number {
+      if (!this.payStart) return 0;
+      const currentStart = getCurrentPeriodStart(this.$state, today);
+      if (!currentStart) return 0;
+
+      // First-run init: anchor without archiving any retro periods.
+      if (!this.lastArchivedPeriodStart) {
+        this.lastArchivedPeriodStart = currentStart;
+        return 0;
+      }
+
+      // Already up to date.
+      if (currentStart <= this.lastArchivedPeriodStart) return 0;
+
+      const missedStarts = getPeriodStartsBetween(this.lastArchivedPeriodStart, currentStart);
+      if (missedStarts.length === 0) {
+        // Defensive: shouldn't happen given the prior guard, but bail safely.
+        this.lastArchivedPeriodStart = currentStart;
+        return 0;
+      }
+
+      const oldestMissed = missedStarts[0];
+      const newestMissed = missedStarts[missedStarts.length - 1];
+
+      // Bucket purchases by date. Purchases with date >= currentStart stay live.
+      const live: typeof this.purchases = [];
+      const buckets: Record<string, typeof this.purchases> = {};
+      for (const start of missedStarts) buckets[start] = [];
+
+      for (const p of this.purchases) {
+        // Live (in-progress) period — keep in purchases array
+        if (p.date && p.date >= currentStart) {
+          live.push(p);
+          continue;
+        }
+        // Backdated (older than the earliest archived) → oldest missed bucket
+        if (p.date && p.date < oldestMissed) {
+          buckets[oldestMissed].push(p);
+          continue;
+        }
+        // Undated → most recent missed bucket
+        if (!p.date) {
+          buckets[newestMissed].push(p);
+          continue;
+        }
+        // In-range: find the period that contains p.date.
+        // missedStarts is sorted ascending; pick the highest start <= p.date.
+        let target = oldestMissed;
+        for (let i = 0; i < missedStarts.length; i++) {
+          if (missedStarts[i] <= p.date) target = missedStarts[i];
+          else break;
+        }
+        buckets[target].push(p);
+      }
+
+      // Emit one SpendingHistoryPeriod per missed period (empty rows included).
+      const newPeriods: SpendingHistoryPeriod[] = missedStarts.map((start) => {
+        const items = buckets[start];
+        const total = items.reduce((s, p) => s + p.amount, 0);
+        return {
+          id: genId(),
+          date: start,
+          total,
+          items: items.map((p) => ({
+            name: p.name,
+            amount: p.amount,
+            category: p.category,
+            date: p.date,
+          })),
+        };
+      });
+
+      // Commit
+      this.spendingHistory = [...this.spendingHistory, ...newPeriods];
+      this.purchases = live;
+      this.lastArchivedPeriodStart = currentStart;
+
+      // Sync each new period to the database (fire-and-forget per existing pattern).
+      for (const period of newPeriods) {
+        syncDb(
+          () => db.spendingHistory.insertPeriod(_userId, period),
+          'autoArchiveMissedPeriods',
+        );
+      }
+
+      return newPeriods.length;
     },
 
     // ─── Loans ────────────────────────────────────────────────

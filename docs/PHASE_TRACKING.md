@@ -1704,6 +1704,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-20 | Form improvements: card field in dashboard quick-add, remaining preview in Spending modal, global `.form-input--error` red highlighting across all forms | `feat/rs-20-form-improvements` | ✅ Complete | v2.11.0 |
 | RS-21 | Card hover effects: shine glow + tile grid + staggered lines via `CardHoverFX` component; applied to StatCard (full), BaseCard (subtle), Wishlist / ExpenseCard / GoalItem / IncomeStreamItem | `feat/rs-21-card-hover-effects` | ✅ Complete | v2.12.0 |
 | RS-22 | Manage Sections cleanup: Advanced group removed from picker, drag/reorder UI stripped from Dashboard list, list reordered to match page, ui store `sectionOrder` + 4 reorder actions removed | `feat/rs-22-section-picker-cleanup` | ✅ Complete | v2.13.0 |
+| RS-23 | Automatic bi-weekly pay-period rollover: `autoArchiveMissedPeriods` store action with date-bucketed multi-period catch-up + `usePeriodRollover` composable triggered on app load and `visibilitychange` | `feat/rs-23-period-rollover` | ✅ Complete | v2.14.0 |
 
 ---
 
@@ -2984,3 +2985,100 @@ No explicit migration step needed — the load path silently ignores any extra f
 
 ### Final gate
 - ✅ 1080/1080 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-23 — Automatic Pay Period Rollover ✅
+**Branch**: `feat/rs-23-period-rollover`
+**Version**: v2.14.0
+**Status**: ✅ Complete
+
+### Goal
+Before RS-23 the app never auto-closed a bi-weekly pay period — `closeCurrentPeriod` existed as a manual action but its only trigger (a button inside the now-unrendered `WantsTracker`) was orphaned. As a result, the `purchases` array silently accumulated across periods and the "bi-weekly spent" / "remaining" KPIs drifted from reality.
+
+This sprint adds automatic rollover that:
+- Snapshots each completed period into `spendingHistory` (already feeds Spending Analytics)
+- Clears `purchases` so Needs / Wants / Savings budgets reset to their full allocations the moment a new period begins
+- Handles **multi-period catch-up** when the user returns after missing several periods
+- Runs on app load (via a `payStart` watcher to dodge the Supabase hydration race) and on `visibilitychange`
+- Surfaces a success toast and snaps the Schedule nav to the new current period
+
+### Decisions (confirmed by Brahim)
+- **Multi-period catch-up (Option B)** — when N periods are missed, archive N separate rows; bucket purchases by their `date` field into the correct window. Undated purchases land in the most-recent missed period; backdated orphans land in the oldest.
+- **Both trigger surfaces** — app load AND `visibilitychange`.
+- **Empty periods always archived** — keeps the timeline contiguous in Spending History.
+- **Archive date = period START** — the orphaned `WantsTracker` manual-close path was also realigned to use period-start for consistency.
+
+### Architecture
+
+**Pure helpers** (`src/utils/calculations.ts`)
+- Existing `getCurrentPeriodStart(state, today)` — unchanged
+- New `getPeriodStartsBetween(fromInclusive, toExclusive)` — enumerates every period-start ISO date in a half-open window, stepping by 14 days
+
+**State** (`src/types/state.ts`, `src/stores/budget.ts`)
+- New `BudgetState.lastArchivedPeriodStart: ISODate | null` — the lynchpin that makes rollover idempotent. localStorage-only (intentional — see field doc); a stale value on a second device causes at most a benign re-archive of empty periods.
+- Default `null`, mirrored in `makeDefaultState` / `makeBlankState`. Migration sets `null` for legacy state.
+
+**Store action** (`stores/budget.ts`)
+```
+autoArchiveMissedPeriods(today): number
+```
+- `!payStart` → 0
+- First-run init (lastArchived was null) → set anchor to currentStart, archive 0
+- `currentStart <= lastArchived` → 0
+- Otherwise: enumerate missed period starts; bucket purchases; emit `SpendingHistoryPeriod` per missed period (empty rows included); preserve in-period purchases (`p.date >= currentStart`); bump `lastArchivedPeriodStart = currentStart`; fire-and-forget DB inserts
+
+**Composable** (`src/composables/usePeriodRollover.ts`)
+- Watches `budget.payStart` with `immediate: true` — fires both at mount (if pre-set) AND when Supabase hydration assigns the field
+- Listens for `document.visibilitychange`, runs check when state becomes `'visible'`
+- Re-entrancy guard (`running` flag) prevents the watcher from reacting to its own mutations
+- When `archived > 0`: calls `ui.resetToCurrentPayPeriod()` + shows toast with singular/plural noun
+- Cleans up the listener on `onBeforeUnmount`
+
+**App integration** (`src/App.vue`)
+- `usePeriodRollover()` called from the root `<script setup>` — composable handles all timing internally
+
+### Files Changed
+- `src/types/state.ts` — added `lastArchivedPeriodStart` field
+- `src/stores/budget.ts` — defaults + migration + `autoArchiveMissedPeriods` action + import of new helper
+- `src/utils/calculations.ts` — added `getPeriodStartsBetween`
+- `src/composables/usePeriodRollover.ts` — NEW composable
+- `src/App.vue` — invoke `usePeriodRollover()` at app root
+- `src/components/sections/WantsTracker.vue` — realign orphaned manual-close to use period-start
+- `tests/utils/periodRollover.spec.ts` — NEW (15 tests) — pure helpers
+- `tests/stores/budget.spec.ts` — appended 14 RS-23 tests (10 for the action, 4 for the new field + migration)
+- `tests/composables/usePeriodRollover.spec.ts` — NEW (11 tests) — composable lifecycle, triggers, side effects
+- `tests/utils/jsonBackup.spec.ts` — updated `makeMinimalState` fixture to include the new field
+- `src/components/onboarding/WhatsNewBanner.vue` — bumped to v2.14.0
+- `tests/components/onboarding.spec.ts` — version strings updated
+- `CLAUDE.md` — test count → 1120 across 33 spec files
+
+### Edge cases covered by tests
+- No `payStart` → no-op
+- First-run init → anchor only, no archive
+- Same-period repeat call → 0 (idempotent)
+- Single missed period → 1 archive
+- Three missed periods with gaps → 3 archives, including empty rows
+- Undated purchase → newest missed bucket
+- Backdated purchase → oldest missed bucket
+- In-progress purchase (`date >= currentStart`) → preserved in live array
+- Date-on-seam (== period boundary) → goes into the NEW period (half-open semantic)
+- Watcher fires on hydration after mount
+- Watcher fires immediately when `payStart` already set at mount
+- `visibilitychange` to hidden → silent
+- `visibilitychange` to visible → triggers check
+- Re-entrancy guard prevents recursive watcher firing
+- Toast singular/plural by archived count
+- No toast or nav reset when nothing was archived
+- Listener removed cleanly on unmount
+
+### Upgrade behaviour for existing users
+On first load after upgrade, `lastArchivedPeriodStart` is `null` (set by migration). The first-run init branch anchors it to the current period start without archiving anything — preserving existing in-flight purchases. If the user has stale pre-RS-23 purchases dated before the current period, they remain visible in PurchasesThisPeriod until the next natural rollover (at most 14 days later), at which point bucketing logic correctly archives them into earlier periods. No data is ever lost.
+
+### Tests
+- 40 new tests added (15 helpers + 14 store + 11 composable)
+- All 1120 tests pass — no regressions
+- `vue-tsc --noEmit` clean
+
+### Final gate
+- ✅ 1120/1120 tests pass · `vue-tsc --noEmit` clean

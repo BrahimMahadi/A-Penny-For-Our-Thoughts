@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.13.0';
+const APP_VERSION = '2.14.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🗂️', text: 'Manage sections panel is now a focused jump + collapse tool — drag handles, move-up/down buttons, and reset controls have been retired since the Dashboard is a fixed-grid layout' },
-  { icon: '📋', text: 'Section list now mirrors the actual visual order of the Dashboard (Chequing Balance first, Wishlist last) so what you see in the picker matches what you see on the page' },
-  { icon: '🧹', text: 'Advanced section group removed from the picker — the Advanced tab itself remains accessible via keyboard shortcut 7' },
-  { icon: '⚙️', text: 'Legacy `sectionOrder` localStorage field is now silently ignored on load and dropped on the next save — no breakage for existing users' },
-  { icon: '✅', text: '1080 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '🔁', text: 'Pay periods now auto-rollover — when a bi-weekly window ends, last period\'s purchases are automatically archived to Spending History and all three budgets (Needs, Wants, Savings) reset to their full allocations' },
+  { icon: '📦', text: 'Multi-period catch-up — if you open the app after missing several periods (e.g. away for a month), each missed period is archived as its own row, with purchases date-bucketed into the right window' },
+  { icon: '👀', text: 'Rollover runs on app load and whenever the tab becomes visible — no manual "close period" button needed' },
+  { icon: '🔔', text: 'Success toast shows how many periods were archived; the Schedule navigation snaps to the new current period automatically' },
+  { icon: '✅', text: '1120 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

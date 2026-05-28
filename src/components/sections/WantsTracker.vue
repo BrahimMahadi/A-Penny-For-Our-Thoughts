@@ -192,13 +192,23 @@ function removePurchase(id: string): void {
 }
 
 // ─── Close period ─────────────────────────────────────────────────
+//
+// Note (RS-23): This manual-close path is currently orphaned — WantsTracker
+// was removed from the dashboard in RS-11 in favour of PurchasesThisPeriod,
+// and pay-period archiving is now handled automatically by usePeriodRollover.
+// The function is kept (and aligned with the new period-start date semantic)
+// in case the section is ever re-surfaced or a manual "close now" affordance
+// is added elsewhere.
 function closePeriod(): void {
   if (!periodStart.value) {
     toast.show('Set a pay start date before closing a period.', 'danger');
     return;
   }
   if (!window.confirm('Close this period? All purchases will be archived to spending history.')) return;
-  budget.closeCurrentPeriod(today.toISOString().split('T')[0]);
+  // Use the current period START as the archive date — matches the RS-23
+  // auto-rollover semantic so manual + automatic closes file under the same
+  // date anchor.
+  budget.closeCurrentPeriod(periodStart.value);
   toast.show('Period closed and archived.', 'success');
 }
 
