@@ -162,6 +162,59 @@ function periodDisplayLabel(period: { label?: string; date: string }): string {
   }
 }
 
+// ─── RS-24: per-period surplus / overage rollup ──────────────────
+/**
+ * One line of "Wants: $234 / $300 · under $66 ✓" formatted for a single
+ * budget type. Returns null when the type was never tracked in this period
+ * (budget is zero AND spent is zero — avoid noise). Falsy `budgets`/`spent`
+ * (legacy/cross-device periods) is handled at the caller — this helper
+ * assumes both are present.
+ */
+interface RollupRow {
+  type: 'wants' | 'needs';
+  label: string;
+  spent: number;
+  budget: number;
+  delta: number;     // positive = under, negative = over
+  status: 'under' | 'over' | 'on-target' | 'unused';
+}
+
+function buildRollupRows(period: {
+  budgets?: { needs: number; wants: number; savings: number };
+  spent?: { needs: number; wants: number };
+}): RollupRow[] {
+  if (!period.budgets || !period.spent) return [];
+  const rows: RollupRow[] = [];
+  for (const type of ['wants', 'needs'] as const) {
+    const spent = period.spent[type] ?? 0;
+    const budget = period.budgets[type] ?? 0;
+    if (spent === 0 && budget === 0) continue; // skip uninteresting rows
+    const delta = budget - spent;
+    let status: RollupRow['status'];
+    if (budget === 0) status = 'unused';
+    else if (delta > 0) status = 'under';
+    else if (delta < 0) status = 'over';
+    else status = 'on-target';
+    rows.push({
+      type,
+      label: type === 'wants' ? 'Wants' : 'Needs',
+      spent,
+      budget,
+      delta,
+      status,
+    });
+  }
+  return rows;
+}
+
+/** True when at least one type in this period has rollup data to show. */
+function hasRollupData(period: {
+  budgets?: { needs: number; wants: number; savings: number };
+  spent?: { needs: number; wants: number };
+}): boolean {
+  return buildRollupRows(period).length > 0;
+}
+
 // ─── Panel toggle ─────────────────────────────────────────────────
 const panelOpen = computed(() => ui.analyticsPanelOpen);
 
@@ -428,6 +481,32 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
               <span class="period-item__total">{{ fmt(period.total) }}</span>
             </div>
           </button>
+
+          <!-- RS-24: budget vs spent rollup (only when archive has the data) -->
+          <div
+            v-if="hasRollupData(period)"
+            class="period-item__rollup"
+            data-testid="period-rollup"
+          >
+            <div
+              v-for="row in buildRollupRows(period)"
+              :key="row.type"
+              class="period-rollup-row"
+              :class="`period-rollup-row--${row.status}`"
+              :data-testid="`rollup-${row.type}`"
+            >
+              <span class="period-rollup-label">{{ row.label }}</span>
+              <span class="period-rollup-numbers">
+                {{ fmt(row.spent) }} <span class="period-rollup-sep">/</span> {{ fmt(row.budget) }}
+              </span>
+              <span class="period-rollup-status">
+                <template v-if="row.status === 'under'">under {{ fmt(row.delta) }} ✓</template>
+                <template v-else-if="row.status === 'over'">over {{ fmt(-row.delta) }} ✗</template>
+                <template v-else-if="row.status === 'on-target'">on target ✓</template>
+                <template v-else>no budget set</template>
+              </span>
+            </div>
+          </div>
 
           <!-- Category summary chips (always visible) -->
           <div
@@ -784,6 +863,63 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--accent2-text);
+}
+
+/* ─── RS-24: budget vs spent rollup ──────────────────────────────── */
+.period-item__rollup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent, #5b3df5) 3%, transparent);
+}
+
+.period-rollup-row {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr auto;
+  align-items: baseline;
+  gap: 0.55rem;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.period-rollup-label {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  color: var(--text);
+}
+
+.period-rollup-numbers {
+  color: var(--text);
+}
+
+.period-rollup-sep {
+  color: var(--muted);
+}
+
+.period-rollup-status {
+  font-weight: 700;
+  font-size: 0.74rem;
+}
+
+.period-rollup-row--under    .period-rollup-status { color: var(--success, #16a34a); }
+.period-rollup-row--over     .period-rollup-status { color: var(--danger,  #dc2626); }
+.period-rollup-row--on-target .period-rollup-status { color: var(--accent2-text); }
+.period-rollup-row--unused   .period-rollup-status { color: var(--muted); font-weight: 500; }
+
+@media (max-width: 480px) {
+  .period-rollup-row {
+    grid-template-columns: 4rem 1fr;
+    grid-template-areas: "label numbers" "label status";
+    row-gap: 0.1rem;
+  }
+  .period-rollup-label    { grid-area: label; align-self: center; }
+  .period-rollup-numbers  { grid-area: numbers; }
+  .period-rollup-status   { grid-area: status; justify-self: start; }
 }
 
 /* Category chips — always visible below the header */

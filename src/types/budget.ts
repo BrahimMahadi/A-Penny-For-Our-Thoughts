@@ -128,6 +128,33 @@ export interface SpendingHistoryPeriod {
     category: string;
     date?: ISODate;
   }>;
+  /**
+   * RS-24 — bi-weekly budget envelopes at archive time, in dollars.
+   * Used by Spending Analytics to show surplus/overage per period.
+   *
+   * Optional for backward compatibility: archives from before RS-24 (and
+   * archives loaded from Supabase, which doesn't have these columns) will
+   * not have this field. Consumers must render gracefully without it.
+   *
+   * Captured from `totalMonthlyIncome × allocation% / 2` at the moment the
+   * period is archived. For multi-period auto-archives, the CURRENT
+   * allocation is used for every missed period — the app does not maintain
+   * an allocation history, so retroactive periods inherit today's split.
+   */
+  budgets?: {
+    needs: number;
+    wants: number;
+    savings: number;
+  };
+  /**
+   * RS-24 — actual spend for this period, broken down by type.
+   * Sums purchases only (deductions are excluded — matches the dashboard's
+   * "Spent" KPI semantic; subs/loans are surfaced separately).
+   */
+  spent?: {
+    needs: number;
+    wants: number;
+  };
 }
 
 // ─── Loans ───────────────────────────────────────────────────────

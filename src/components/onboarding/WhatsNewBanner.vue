@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.14.0';
+const APP_VERSION = '2.15.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🔁', text: 'Pay periods now auto-rollover — when a bi-weekly window ends, last period\'s purchases are automatically archived to Spending History and all three budgets (Needs, Wants, Savings) reset to their full allocations' },
-  { icon: '📦', text: 'Multi-period catch-up — if you open the app after missing several periods (e.g. away for a month), each missed period is archived as its own row, with purchases date-bucketed into the right window' },
-  { icon: '👀', text: 'Rollover runs on app load and whenever the tab becomes visible — no manual "close period" button needed' },
-  { icon: '🔔', text: 'Success toast shows how many periods were archived; the Schedule navigation snaps to the new current period automatically' },
-  { icon: '✅', text: '1120 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '⏳', text: 'Settings → Pay Cycle now shows a "Rolls over in N days" countdown — turns amber when ≤ 2 days away so you always know when the next bi-weekly reset is coming' },
+  { icon: '🔚', text: 'New "Close period now" button in Settings lets you force-end the current period early — handy for skipping to a fresh budget without waiting for the natural 14-day boundary' },
+  { icon: '📊', text: 'Spending Analytics now shows per-period surplus/overage: "Wants: $234 / $300 · under $66 ✓" or "Needs: $612 / $500 · over $112 ✗" for each archived period' },
+  { icon: '🛡️', text: 'Manual close advances the rollover anchor so the natural auto-rollover never double-archives the same window' },
+  { icon: '✅', text: '1150 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

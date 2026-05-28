@@ -1705,6 +1705,10 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-21 | Card hover effects: shine glow + tile grid + staggered lines via `CardHoverFX` component; applied to StatCard (full), BaseCard (subtle), Wishlist / ExpenseCard / GoalItem / IncomeStreamItem | `feat/rs-21-card-hover-effects` | ✅ Complete | v2.12.0 |
 | RS-22 | Manage Sections cleanup: Advanced group removed from picker, drag/reorder UI stripped from Dashboard list, list reordered to match page, ui store `sectionOrder` + 4 reorder actions removed | `feat/rs-22-section-picker-cleanup` | ✅ Complete | v2.13.0 |
 | RS-23 | Automatic bi-weekly pay-period rollover: `autoArchiveMissedPeriods` store action with date-bucketed multi-period catch-up + `usePeriodRollover` composable triggered on app load and `visibilitychange` | `feat/rs-23-period-rollover` | ✅ Complete | v2.14.0 |
+| RS-24 | Pay-period rollover UX: "Rolls over in N days" countdown + "Close period now" button in Settings; per-period budgets+spent snapshot captured at archive time; surplus/overage rollup row in Spending Analytics | `feat/rs-24-rollover-ux` | ✅ Complete | v2.15.0 |
+| RS-25 | Remove orphaned `WantsTracker.vue` (section not rendered since RS-11; close-period button made redundant by RS-23 auto-rollover and RS-24 manual close) | `feat/rs-25-remove-wants-tracker` | 🔲 Planned | — |
+| RS-26 | Update `DocsPage.vue` release-notes section — currently stops at v1.18.0 and is missing every v2.x sprint (Vue 3 migration, redesign sprints RS-1 to RS-24) | `feat/rs-26-docs-page-refresh` | 🔲 Planned | — |
+| RS-27 | Advanced tab decision — either re-surface it in the sidebar with proper navigation or remove it entirely (currently keyboard-only via `7` shortcut, partially-hidden state) | `feat/rs-27-advanced-tab-decision` | 🔲 Planned | — |
 
 ---
 
@@ -3082,3 +3086,148 @@ On first load after upgrade, `lastArchivedPeriodStart` is `null` (set by migrati
 
 ### Final gate
 - ✅ 1120/1120 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-24 — Pay Period Rollover UX ✅
+**Branch**: `feat/rs-24-rollover-ux`
+**Version**: v2.15.0
+**Status**: ✅ Complete
+
+### Goal
+Build on RS-23's auto-rollover foundation by giving users:
+1. Ambient awareness of the next rollover via a visible countdown
+2. A power-user "Close period now" affordance for force-ending early
+3. Per-period surplus/overage data visible in Spending Analytics so they can answer "did I stay under?" for each archived period
+
+### Three workstreams
+
+**1. "Rolls over in N days" countdown** (`PayStartDate.vue`)
+- New row in the period preview: "Rolls over in 4 days"
+- Computed from `currentPeriodStart + 14 − today` (whole days, midnight-normalised)
+- Amber emphasis (`var(--warn)` + glow) when ≤ 2 days
+- Hidden when `payStart` is unconfigured
+
+**2. Manual "Close period now"** (`PayStartDate.vue` + `stores/budget.ts`)
+- New store action `closeCurrentPeriodManually(today): SpendingHistoryPeriod | null`
+  - Archives with `date = currentPeriodStart` (matches auto-rollover semantic)
+  - Captures `budgets` + `spent` snapshots
+  - Sets `lastArchivedPeriodStart = currentPeriodStart + 14` so the natural rollover doesn't double-archive
+  - Returns null when payStart is unconfigured OR the period is already archived
+- Button gated by `canManualClose` computed (disabled when there's nothing meaningful to do)
+- Confirmation via `window.confirm` with item-count-aware message
+- On success: toast + `ui.resetToCurrentPayPeriod()`
+
+**3. Per-period surplus/overage** (`types/budget.ts`, `stores/budget.ts`, `SpendingAnalytics.vue`)
+- `SpendingHistoryPeriod` gets two new optional fields:
+  ```ts
+  budgets?: { needs: number; wants: number; savings: number };  // bi-weekly $ envelopes
+  spent?:   { needs: number; wants: number };                   // purchases-only sums
+  ```
+- Captured at archive time by `closeCurrentPeriod`, `closeCurrentPeriodManually`, AND `autoArchiveMissedPeriods` (per-bucket `spent`, shared `budgets`)
+- Two pure helpers extracted to module scope (`buildBudgetsSnapshot`, `buildSpentSnapshot`) so all three archive paths populate the fields identically
+- `SpendingAnalytics.vue` renders a new rollup row per archived period when both fields are present:
+  - "Wants: $234 / $300 · under $66 ✓" (green when under)
+  - "Needs: $612 / $500 · over $112 ✗" (red when over)
+  - "on target ✓" when exactly equal
+  - Skips type-rows with both 0 budget AND 0 spent (no noise)
+  - Mobile layout: stacks status under numbers via grid-template-areas
+
+### Backward compatibility
+- `budgets` + `spent` are optional fields. Pre-RS-24 archives and any archives loaded from Supabase (DB schema doesn't have these columns — same client-only trade-off as RS-23's `lastArchivedPeriodStart`) gracefully render without the rollup row.
+- `buildRollupRows()` / `hasRollupData()` are the gatekeepers; the template uses `v-if="hasRollupData(period)"`.
+
+### Files Changed
+- `src/types/budget.ts` — added `budgets` + `spent` to `SpendingHistoryPeriod`
+- `src/stores/budget.ts` — `closeCurrentPeriodManually` action; `buildBudgetsSnapshot` + `buildSpentSnapshot` + `addDaysISO` helpers; `closeCurrentPeriod` and `autoArchiveMissedPeriods` now populate the snapshots
+- `src/components/sections/PayStartDate.vue` — countdown computed + manual-close button + confirm dialog + CSS
+- `src/components/sections/SpendingAnalytics.vue` — `RollupRow` interface + `buildRollupRows` + `hasRollupData`; new rollup-row template + scoped CSS
+- `tests/stores/budget.spec.ts` — 15 new tests (5 snapshot capture + 10 manual-close)
+- `tests/components/sections/settings.spec.ts` — 9 new tests for PayStartDate countdown + button + confirm-cancel; 1 existing test updated (now 3 preview rows)
+- `tests/components/sections/sections.spec.ts` — 7 new tests for SpendingAnalytics rollup row
+- `src/components/onboarding/WhatsNewBanner.vue` — bumped to v2.15.0; new release notes
+- `tests/components/onboarding.spec.ts` — version strings updated
+- `CLAUDE.md` — test count → 1150 across 33 spec files
+
+### Documented limitations
+- The `budgets` snapshot uses the CURRENT allocation for every missed period archived in a single auto-rollover (the app has no allocation history). Documented in the type comment.
+- Cross-device or Supabase-loaded periods won't have `budgets`/`spent` (DB columns not added). Rollup row gracefully omitted in that case.
+
+### Tests
+- 30 new tests added (15 store + 15 component)
+- All 1150 tests pass — no regressions
+- `vue-tsc --noEmit` clean
+
+### Final gate
+- ✅ 1150/1150 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-25 — Remove orphaned `WantsTracker.vue` 🔲 PLANNED
+**Branch**: `feat/rs-25-remove-wants-tracker`
+**Status**: 🔲 Planned
+
+### Goal
+Delete the now-fully-orphaned `WantsTracker.vue` component. It was replaced on the dashboard by `PurchasesThisPeriod.vue` in RS-11, and its only remaining feature — the manual `closePeriod` button — was made redundant by RS-23's auto-rollover and RS-24's "Close period now" button in Settings.
+
+### Scope
+- Delete `src/components/sections/WantsTracker.vue`
+- Remove import + usage from `tests/components/sections/settings.spec.ts`
+- Remove the orphaned test block "WantsTracker — Sprint 7"
+- Check for any lingering string references in DocsPage or PHASE_TRACKING
+- Update CLAUDE.md test count
+
+### Risk
+Low — the file is not referenced by any router, page host, or component composition.
+
+---
+
+## RS-26 — Update `DocsPage.vue` release notes 🔲 PLANNED
+**Branch**: `feat/rs-26-docs-page-refresh`
+**Status**: 🔲 Planned
+
+### Goal
+The user-facing "Release Notes" section of `DocsPage.vue` currently stops at v1.18.0 and is missing every v2.x sprint (Vue 3 migration v1.0, redesign sprints RS-1 through RS-24, eight BUG sprints). Refresh it so the in-app documentation matches what's actually shipped.
+
+### Scope
+- Add release-block entries for v2.0 (Vue 3 migration) through v2.15.0 (RS-24)
+- Optionally collapse very minor versions (BUG hotfixes) into a single entry
+- Consider grouping v2.x entries into a "Vivid Modern redesign" sub-section for readability
+- Update any other version-bearing strings in DocsPage that are also stale
+
+### Risk
+Low — content-only change.
+
+---
+
+## RS-27 — Advanced tab decision 🔲 PLANNED
+**Branch**: `feat/rs-27-advanced-tab-decision`
+**Status**: 🔲 Planned
+
+### Goal
+Resolve the Advanced tab's half-hidden status. It's currently:
+- Routable via `AdvancedPage.vue`
+- Reachable only via the `7` keyboard shortcut
+- Intentionally omitted from `AppSidebar.vue` (`// 'advanced' is intentionally omitted — accessible via keyboard shortcut only.`)
+- Contains 4 analytics sections (SpendingTrendSection, SpendingAnalytics, BudgetVsActual, NetWorth) that the user has confirmed they want to keep
+
+### Two paths (decide first)
+**Path A — Re-surface in sidebar**
+- Add the Advanced tab to `AppSidebar.vue` and `BottomNav.vue`
+- Add a discoverable icon (e.g. 🔬 or 📈)
+- Reintroduce it to the `TAB_ORDER` swipe-navigation array in App.vue (currently omitted)
+- Update relevant docs
+
+**Path B — Remove entirely + relocate analytics**
+- Delete `AdvancedPage.vue`, `ADVANCED_SECTIONS`, `DEFAULT_ADVANCED_ORDER`, `ui.advancedSectionOrder` + 4 actions
+- Move the four analytics sections elsewhere — likely:
+  - NetWorth → Dashboard (new row)
+  - Spending Trend + Spending Analytics → Spending tab
+  - Budget vs Actual → Dashboard or Spending tab
+- Remove the `7` keyboard shortcut
+- Remove `'advanced'` from `TabId` type
+
+### Risk
+- Path A: low risk, modest UI cleanup
+- Path B: meaningful refactor, four section components need new homes
+- Decision needed before implementation starts

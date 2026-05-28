@@ -2,19 +2,27 @@
   Module:   components/sections/PayStartDate.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 7)
+  Updated:  May 2026 (RS-24) — "Rolls over in N days" countdown + manual
+            "Close period now" button. The button is disabled when there's
+            nothing to archive (purchases is empty AND the rollover anchor
+            is already at the current period start).
   Summary:  Settings card to configure the bi-weekly pay cycle anchor date.
             Reads/writes budget.payStart via setPayStart().
-            Shows the computed current period start and next period start.
+            Shows the computed current period start, next period start,
+            countdown to the next rollover, and a manual "Close period now"
+            button that delegates to budget.closeCurrentPeriodManually().
 -->
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
+import { useUiStore } from '@/stores/ui';
 import { getCurrentPeriodStart } from '@/utils/calculations';
 import BaseButton from '@/components/ui/BaseButton.vue';
 
 const budget = useBudgetStore();
+const ui     = useUiStore();
 const toast  = useToast();
 
 const today = new Date();
@@ -44,6 +52,81 @@ const currentPeriodLabel = computed(() =>
 const nextPeriodLabel = computed(() =>
   periodStart.value ? fmtDate(addDays(periodStart.value, 14)) : null,
 );
+
+// ─── RS-24: Countdown to next rollover ───────────────────────────────────────
+/**
+ * Whole-day countdown to the next bi-weekly rollover. Computed from the
+ * current period start + 14 days, minus today (both normalised to midnight
+ * to avoid time-of-day skew).
+ *
+ * - null when payStart is unconfigured
+ * - 0 means "rolls over today"
+ * - Negative values can occur briefly if today is past the period end but
+ *   the rollover hasn't fired yet; we clamp to 0 in the display label.
+ */
+const daysUntilRollover = computed<number | null>(() => {
+  if (!periodStart.value) return null;
+  const next = new Date(periodStart.value + 'T00:00:00');
+  next.setDate(next.getDate() + 14);
+  const t = new Date(today);
+  t.setHours(0, 0, 0, 0);
+  const ms = next.getTime() - t.getTime();
+  return Math.floor(ms / 86400000);
+});
+
+const rolloverCountdownLabel = computed<string | null>(() => {
+  const d = daysUntilRollover.value;
+  if (d === null) return null;
+  if (d <= 0)  return 'today';
+  if (d === 1) return '1 day';
+  return `${d} days`;
+});
+
+/** True when the countdown is in the "imminent" window (≤ 2 days). */
+const rolloverImminent = computed<boolean>(() => {
+  const d = daysUntilRollover.value;
+  return d !== null && d <= 2;
+});
+
+// ─── RS-24: Manual "Close period now" ────────────────────────────────────────
+/**
+ * The button is disabled when there's nothing meaningful to do — either
+ * payStart isn't configured, OR there are no purchases AND the rollover
+ * anchor is already at (or past) the current period start. In the latter
+ * case, the current period is already a clean slate; clicking "Close"
+ * would only stack an empty archive.
+ */
+const canManualClose = computed<boolean>(() => {
+  if (!budget.payStart) return false;
+  if (budget.purchases.length > 0) return true;
+  // No purchases — only allow closing if the user hasn't already cleared
+  // this window. lastArchivedPeriodStart === currentPeriodStart means
+  // "first-run anchor set, nothing archived yet" — let the user close to
+  // generate a contiguous empty archive if they want.
+  if (!budget.lastArchivedPeriodStart) return false;
+  if (!periodStart.value) return false;
+  // If the anchor is already advanced past the current period start,
+  // a manual close would be a no-op or stack an empty.
+  return budget.lastArchivedPeriodStart <= periodStart.value;
+});
+
+function manualClose(): void {
+  if (!canManualClose.value) return;
+  const itemCount = budget.purchases.length;
+  const msg = itemCount > 0
+    ? `Close this pay period? ${itemCount} purchase${itemCount === 1 ? '' : 's'} will be archived to Spending History and budgets will reset.`
+    : 'Close this empty pay period? An empty entry will be added to Spending History and the next period will begin.';
+  if (!window.confirm(msg)) return;
+
+  const archived = budget.closeCurrentPeriodManually(new Date());
+  if (!archived) {
+    toast.show('Nothing to close — this period is already archived.', 'info');
+    return;
+  }
+  // Snap the Schedule nav to the new current period (mirrors auto-rollover).
+  ui.resetToCurrentPayPeriod();
+  toast.show('Pay period closed — new period started.', 'success');
+}
 
 // ─── Edit form ────────────────────────────────────────────────────────────────
 const editing = ref(false);
@@ -132,6 +215,43 @@ function clearDate(): void {
         <span class="pay-start__preview-key">Next period starts</span>
         <span class="pay-start__preview-val">{{ nextPeriodLabel }}</span>
       </div>
+      <!-- RS-24: countdown to rollover -->
+      <div
+        v-if="rolloverCountdownLabel"
+        class="pay-start__preview-item pay-start__preview-item--countdown"
+        :class="{ 'pay-start__preview-item--imminent': rolloverImminent }"
+        data-testid="rollover-countdown"
+      >
+        <span
+          class="pay-start__preview-dot"
+          :class="rolloverImminent ? 'pay-start__preview-dot--imminent' : 'pay-start__preview-dot--countdown'"
+        />
+        <span class="pay-start__preview-key">Rolls over in</span>
+        <span class="pay-start__preview-val">{{ rolloverCountdownLabel }}</span>
+      </div>
+    </div>
+
+    <!-- RS-24: manual close affordance -->
+    <div
+      v-if="budget.payStart"
+      class="pay-start__manual-close"
+    >
+      <BaseButton
+        size="sm"
+        variant="secondary"
+        :disabled="!canManualClose"
+        data-testid="close-period-btn"
+        :title="canManualClose
+          ? 'Archive the current period now and start the next'
+          : 'Nothing to close — the current period is already a clean slate'"
+        @click="manualClose"
+      >
+        Close period now
+      </BaseButton>
+      <span class="pay-start__manual-close-hint">
+        Auto-rollover handles this for you when a period naturally ends — this is for the rare case
+        where you want to force the period to close early.
+      </span>
     </div>
 
     <!-- Inline edit form -->
@@ -246,8 +366,20 @@ function clearDate(): void {
   flex-shrink: 0;
 }
 
-.pay-start__preview-dot--current { background: var(--accent, #5b3df5); }
-.pay-start__preview-dot--next    { background: var(--muted, #8b8b95); }
+.pay-start__preview-dot--current  { background: var(--accent, #5b3df5); }
+.pay-start__preview-dot--next     { background: var(--muted, #8b8b95); }
+.pay-start__preview-dot--countdown { background: var(--accent2-text, #4d7c0f); }
+.pay-start__preview-dot--imminent  {
+  background: var(--warn, #f59e0b);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--warn, #f59e0b) 25%, transparent);
+}
+
+/* Countdown row — emphasised when imminent (≤ 2 days) */
+.pay-start__preview-item--countdown { padding-top: 0.2rem; }
+.pay-start__preview-item--imminent .pay-start__preview-val {
+  color: var(--warn, #f59e0b);
+  font-weight: 700;
+}
 
 .pay-start__preview-key {
   color: var(--muted);
@@ -300,5 +432,23 @@ function clearDate(): void {
 .pay-start__date-input:focus {
   outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
+}
+
+/* ─── RS-24: Manual close affordance ─────────────────────────────── */
+.pay-start__manual-close {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.65rem 0.85rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.pay-start__manual-close-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.4;
+  max-width: 56ch;
 }
 </style>

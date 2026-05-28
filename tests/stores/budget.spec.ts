@@ -849,3 +849,188 @@ describe('budget store — lastArchivedPeriodStart field (RS-23)', () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  RS-24 — budgets + spent snapshots captured at archive time
+// ─────────────────────────────────────────────────────────────────────────────
+describe('budget store — RS-24 budgets/spent snapshots', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+  });
+
+  // Seed income + allocation deterministically across tests.
+  function seedIncome(amountMonthly: number, alloc = { needs: 50, wants: 30, savings: 20 }) {
+    const store = useBudgetStore();
+    store.incomeStreams = [{ id: 'inc-1', name: 'Job', amount: amountMonthly, biweekly: false }];
+    store.allocation = alloc;
+    return store;
+  }
+
+  let _pId = 0;
+  function P(name: string, amount: number, date: string | undefined, budgetType: 'wants' | 'needs' = 'wants') {
+    return { id: `p${++_pId}`, name, amount, category: 'Other', date, budgetType, cardId: null };
+  }
+
+  it('closeCurrentPeriod captures budgets snapshot from current allocation', () => {
+    const store = seedIncome(4000); // 50/30/20 → biweekly: needs 1000, wants 600, savings 400
+    const period = store.closeCurrentPeriod('2026-05-01');
+    expect(period.budgets).toEqual({ needs: 1000, wants: 600, savings: 400 });
+  });
+
+  it('closeCurrentPeriod captures spent snapshot from purchases-being-archived', () => {
+    const store = seedIncome(4000);
+    store.purchases.push(P('Coffee', 25, '2026-05-02', 'wants'));
+    store.purchases.push(P('Groceries', 200, '2026-05-03', 'needs'));
+    const period = store.closeCurrentPeriod('2026-05-01');
+    expect(period.spent).toEqual({ wants: 25, needs: 200 });
+  });
+
+  it('closeCurrentPeriod captures empty spent snapshot when no purchases', () => {
+    const store = seedIncome(4000);
+    const period = store.closeCurrentPeriod('2026-05-01');
+    expect(period.spent).toEqual({ wants: 0, needs: 0 });
+  });
+
+  it('autoArchiveMissedPeriods captures budgets+spent per missed period', () => {
+    const store = seedIncome(4000);
+    store.setPayStart('2026-05-01');
+    store.autoArchiveMissedPeriods(new Date('2026-05-10T12:00:00')); // init
+
+    store.purchases.push(P('A', 100, '2026-05-02', 'wants'));   // period 1
+    store.purchases.push(P('B',  50, '2026-05-03', 'needs'));   // period 1
+    store.purchases.push(P('C', 300, '2026-05-16', 'wants'));   // period 2
+    // period 3 (2026-05-29) gets nothing
+
+    const archived = store.autoArchiveMissedPeriods(new Date('2026-06-12T12:00:00'));
+    expect(archived).toBe(3);
+
+    const [p1, p2, p3] = store.spendingHistory;
+    expect(p1.budgets).toEqual({ needs: 1000, wants: 600, savings: 400 });
+    expect(p1.spent).toEqual({ wants: 100, needs: 50 });
+
+    expect(p2.spent).toEqual({ wants: 300, needs: 0 });
+    expect(p3.spent).toEqual({ wants: 0,   needs: 0 });
+
+    // All three periods share the same budgets snapshot (current allocation).
+    expect(p2.budgets).toEqual(p1.budgets);
+    expect(p3.budgets).toEqual(p1.budgets);
+  });
+
+  it('treats purchases with budgetType=undefined as wants in spent snapshot', () => {
+    const store = seedIncome(4000);
+    store.purchases.push({ id: 'x', name: 'NoType', amount: 42, category: 'Other', date: '2026-05-02', cardId: null } as any);
+    const period = store.closeCurrentPeriod('2026-05-01');
+    expect(period.spent).toEqual({ wants: 42, needs: 0 });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  RS-24 — closeCurrentPeriodManually
+// ─────────────────────────────────────────────────────────────────────────────
+describe('budget store — closeCurrentPeriodManually (RS-24)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+  });
+
+  let _pId = 0;
+  function P(name: string, amount: number, date: string | undefined, budgetType: 'wants' | 'needs' = 'wants') {
+    return { id: `p${++_pId}`, name, amount, category: 'Other', date, budgetType, cardId: null };
+  }
+
+  it('returns null when payStart is unconfigured', () => {
+    const store = useBudgetStore();
+    expect(store.closeCurrentPeriodManually(new Date('2026-05-10T12:00:00'))).toBeNull();
+    expect(store.spendingHistory).toHaveLength(0);
+  });
+
+  it('archives current period with date = period start (matching auto-rollover)', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.purchases.push(P('Coffee', 5, '2026-05-03'));
+    const period = store.closeCurrentPeriodManually(new Date('2026-05-10T12:00:00'));
+    expect(period).not.toBeNull();
+    expect(period!.date).toBe('2026-05-01');
+    expect(period!.items).toHaveLength(1);
+  });
+
+  it('clears purchases after archiving', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.purchases.push(P('Coffee', 5, '2026-05-03'));
+    store.closeCurrentPeriodManually(new Date('2026-05-10T12:00:00'));
+    expect(store.purchases).toEqual([]);
+  });
+
+  it('advances lastArchivedPeriodStart to the NEXT period start', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.closeCurrentPeriodManually(new Date('2026-05-10T12:00:00'));
+    expect(store.lastArchivedPeriodStart).toBe('2026-05-15');
+  });
+
+  it('auto-rollover after manual close does NOT double-archive the same window', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.purchases.push(P('Coffee', 5, '2026-05-03'));
+    store.closeCurrentPeriodManually(new Date('2026-05-10T12:00:00'));
+
+    // The natural rollover at 2026-05-15 should see lastArchived === currentStart
+    // and do nothing.
+    const archived = store.autoArchiveMissedPeriods(new Date('2026-05-15T12:00:00'));
+    expect(archived).toBe(0);
+    expect(store.spendingHistory).toHaveLength(1);
+  });
+
+  it('purchases made after manual close are archived as part of the next period', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    store.purchases.push(P('Coffee', 5, '2026-05-03'));
+    store.closeCurrentPeriodManually(new Date('2026-05-10T12:00:00'));
+
+    // User makes a purchase between manual close and next natural boundary.
+    store.purchases.push(P('Lunch', 12, '2026-05-20'));
+
+    // Natural rollover at 2026-05-29 archives the next period.
+    const archived = store.autoArchiveMissedPeriods(new Date('2026-05-29T12:00:00'));
+    expect(archived).toBe(1);
+    expect(store.spendingHistory).toHaveLength(2);
+    expect(store.spendingHistory[1].date).toBe('2026-05-15');
+    expect(store.spendingHistory[1].items[0].name).toBe('Lunch');
+  });
+
+  it('captures budgets+spent snapshot', () => {
+    const store = useBudgetStore();
+    store.incomeStreams = [{ id: 'i', name: 'Job', amount: 4000, biweekly: false }];
+    store.allocation = { needs: 50, wants: 30, savings: 20 };
+    store.setPayStart('2026-05-01');
+    store.purchases.push(P('Pants', 75, '2026-05-03', 'wants'));
+    store.purchases.push(P('Bus pass', 100, '2026-05-04', 'needs'));
+
+    const period = store.closeCurrentPeriodManually(new Date('2026-05-10T12:00:00'));
+    expect(period!.budgets).toEqual({ needs: 1000, wants: 600, savings: 400 });
+    expect(period!.spent).toEqual({ wants: 75, needs: 100 });
+  });
+
+  it('allows closing an empty current period (anchors but archives a zero row)', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    const period = store.closeCurrentPeriodManually(new Date('2026-05-10T12:00:00'));
+    expect(period).not.toBeNull();
+    expect(period!.total).toBe(0);
+    expect(period!.items).toEqual([]);
+    expect(store.lastArchivedPeriodStart).toBe('2026-05-15');
+  });
+
+  it('bails when lastArchivedPeriodStart is already past the current period', () => {
+    const store = useBudgetStore();
+    store.setPayStart('2026-05-01');
+    // Simulate state where auto-rollover already archived this window.
+    store.lastArchivedPeriodStart = '2026-05-29';
+
+    const period = store.closeCurrentPeriodManually(new Date('2026-05-10T12:00:00'));
+    expect(period).toBeNull();
+    expect(store.spendingHistory).toHaveLength(0);
+  });
+});
+
