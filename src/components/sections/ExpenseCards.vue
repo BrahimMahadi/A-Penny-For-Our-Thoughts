@@ -11,6 +11,7 @@ import { ref, reactive, computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useAnalytics } from '@/composables/useAnalytics';
+import { useFormValidation, rules } from '@/composables/useFormValidation';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -99,9 +100,14 @@ const showCardModal = ref(false);
 const editingCardId = ref<string | null>(null);
 const cardForm = reactive({ label: '' });
 
+const cardValidation = useFormValidation(() => ({
+  label: rules.required(cardForm.label, 'Name'),
+}));
+
 function openAddCard(): void {
   cardForm.label = '';
   editingCardId.value = null;
+  cardValidation.reset();
   showCardModal.value = true;
 }
 
@@ -110,12 +116,14 @@ function openEditCard(id: string): void {
   if (!card) return;
   cardForm.label = card.label;
   editingCardId.value = id;
+  cardValidation.reset();
   showCardModal.value = true;
 }
 
 const cardFormError = computed(() => (!cardForm.label.trim() ? 'Name is required.' : ''));
 
 function saveCard(): void {
+  cardValidation.touchAll();
   if (cardFormError.value) return;
   if (editingCardId.value) {
     budget.renameExpenseCard(editingCardId.value, cardForm.label.trim());
@@ -146,12 +154,18 @@ const itemForm = reactive({
   biweekly:  false,
 });
 
+const itemValidation = useFormValidation(() => ({
+  name:   rules.required(itemForm.name, 'Name'),
+  amount: rules.positiveNumber(itemForm.amount, 'Amount'),
+}));
+
 function resetItemForm(): void {
   itemForm.name      = '';
   itemForm.amount    = 0;
   itemForm.biweekly  = false;
   editingItemCardId.value = null;
   editingItemId.value     = null;
+  itemValidation.reset();
 }
 
 function openAddItem(cardId: string): void {
@@ -169,6 +183,7 @@ function openEditItem(cardId: string, itemId: string): void {
   itemForm.biweekly  = item.biweekly;
   editingItemCardId.value = cardId;
   editingItemId.value     = itemId;
+  itemValidation.reset();
   showItemModal.value = true;
 }
 
@@ -179,6 +194,7 @@ const itemFormError = computed<string>(() => {
 });
 
 function saveItem(): void {
+  itemValidation.touchAll();
   if (itemFormError.value || !editingItemCardId.value) return;
   if (editingItemId.value) {
     budget.updateExpenseItem(editingItemCardId.value, editingItemId.value, {
@@ -411,16 +427,18 @@ function removeItem(cardId: string, itemId: string): void {
             id="card-label"
             v-model="cardForm.label"
             class="form-input"
+            :class="{ 'form-input--error': cardValidation.errors.value.label }"
             type="text"
             placeholder="e.g. TD Debit"
+            @blur="cardValidation.touch('label')"
           >
+          <p
+            v-if="cardValidation.errors.value.label"
+            class="form-error"
+          >
+            {{ cardValidation.errors.value.label }}
+          </p>
         </div>
-        <p
-          v-if="cardFormError"
-          class="form-error"
-        >
-          {{ cardFormError }}
-        </p>
       </div>
       <template #footer>
         <BaseButton
@@ -455,9 +473,17 @@ function removeItem(cardId: string, itemId: string): void {
               id="item-name"
               v-model="itemForm.name"
               class="form-input"
+              :class="{ 'form-input--error': itemValidation.errors.value.name }"
               type="text"
               placeholder="e.g. Rent"
+              @blur="itemValidation.touch('name')"
             >
+            <p
+              v-if="itemValidation.errors.value.name"
+              class="form-error"
+            >
+              {{ itemValidation.errors.value.name }}
+            </p>
           </div>
           <div class="form-group">
             <label
@@ -468,11 +494,19 @@ function removeItem(cardId: string, itemId: string): void {
               id="item-amount"
               v-model.number="itemForm.amount"
               class="form-input"
+              :class="{ 'form-input--error': itemValidation.errors.value.amount }"
               type="number"
               inputmode="decimal"
               min="0"
               step="0.01"
+              @blur="itemValidation.touch('amount')"
             >
+            <p
+              v-if="itemValidation.errors.value.amount"
+              class="form-error"
+            >
+              {{ itemValidation.errors.value.amount }}
+            </p>
           </div>
         </div>
 
@@ -487,13 +521,6 @@ function removeItem(cardId: string, itemId: string): void {
             class="toggle-checkbox"
           >
         </label>
-
-        <p
-          v-if="itemFormError"
-          class="form-error"
-        >
-          {{ itemFormError }}
-        </p>
       </div>
       <template #footer>
         <BaseButton

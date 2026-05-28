@@ -13,6 +13,7 @@ import { computed, ref, reactive, watch } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics } from '@/composables/useAnalytics';
 import { useToast } from '@/composables/useToast';
+import { useFormValidation, rules } from '@/composables/useFormValidation';
 import { getPayPeriodForecast, getCategorySpending, applyRulesToName } from '@/utils/calculations';
 import { CATEGORY_FALLBACK_COLOR } from '@/data/categories';
 import WantsDonut from '@/components/charts/WantsDonut.vue';
@@ -319,11 +320,31 @@ watch(
 
 const categoryOptions = computed(() => budget.spendingCategories.map(c => c.name));
 
-const purchaseFormError = computed<string>(() => {
-  if (!purchaseForm.name.trim()) return 'Name is required.';
-  if (purchaseForm.amount <= 0)  return 'Amount must be greater than zero.';
-  return '';
+const purchaseValidation = useFormValidation(() => ({
+  name:   rules.required(purchaseForm.name, 'Name'),
+  amount: rules.positiveNumber(purchaseForm.amount, 'Amount'),
+}));
+
+/** Bi-weekly remaining for the selected budget type, minus the current form amount.
+ *  Returns null in edit mode so the preview is not shown. */
+const spendingFormAfter = computed<number | null>(() => {
+  if (editingPurchaseId.value) return null;
+  const type = purchaseForm.budgetType;
+  const pct  = type === 'needs'
+    ? (budget.$state.allocation.needs || 0)
+    : (budget.$state.allocation.wants || 0);
+  const bwBudget = (totalMonthlyIncome.value * pct / 100) / 2;
+  const spent = budget.purchases
+    .filter(p => (p.budgetType ?? 'wants') === type)
+    .reduce((s, p) => s + p.amount, 0);
+  return bwBudget - spent - (purchaseForm.amount || 0);
 });
+
+const spendingFormPreviewLabel = computed(() =>
+  purchaseForm.budgetType === 'needs'
+    ? 'BI-WEEKLY NEEDS REMAINING AFTER'
+    : 'BI-WEEKLY WANTS REMAINING AFTER',
+);
 
 function resetPurchaseForm(): void {
   purchaseForm.name       = '';
@@ -333,6 +354,7 @@ function resetPurchaseForm(): void {
   purchaseForm.budgetType = 'wants';
   purchaseForm.cardId     = null;
   editingPurchaseId.value = null;
+  purchaseValidation.reset();
 }
 
 function openAddPurchase(): void {
@@ -354,7 +376,8 @@ function openEditPurchase(id: string): void {
 }
 
 function savePurchase(): void {
-  if (purchaseFormError.value) return;
+  purchaseValidation.touchAll();
+  if (!purchaseValidation.isValid.value) return;
   const payload = {
     name:       purchaseForm.name.trim(),
     amount:     purchaseForm.amount,
@@ -884,9 +907,17 @@ function deletePurchase(id: string): void {
               id="sp-name"
               v-model="purchaseForm.name"
               class="mf-input"
+              :class="{ 'form-input--error': purchaseValidation.errors.value.name }"
               type="text"
               placeholder="e.g. Coffee"
+              @blur="purchaseValidation.touch('name')"
             >
+            <p
+              v-if="purchaseValidation.errors.value.name"
+              class="mf-field-error"
+            >
+              {{ purchaseValidation.errors.value.name }}
+            </p>
           </div>
           <div class="mf-group">
             <label
@@ -897,11 +928,19 @@ function deletePurchase(id: string): void {
               id="sp-amount"
               v-model.number="purchaseForm.amount"
               class="mf-input"
+              :class="{ 'form-input--error': purchaseValidation.errors.value.amount }"
               type="number"
               inputmode="decimal"
               min="0.01"
               step="0.01"
+              @blur="purchaseValidation.touch('amount')"
             >
+            <p
+              v-if="purchaseValidation.errors.value.amount"
+              class="mf-field-error"
+            >
+              {{ purchaseValidation.errors.value.amount }}
+            </p>
           </div>
         </div>
 
@@ -987,12 +1026,27 @@ function deletePurchase(id: string): void {
           </select>
         </div>
 
-        <p
-          v-if="purchaseFormError"
-          class="mf-error"
+        <!-- Remaining preview — add mode only -->
+        <div
+          v-if="spendingFormAfter !== null"
+          class="mf-preview"
         >
-          {{ purchaseFormError }}
-        </p>
+          <div>
+            <p class="mf-preview-label">
+              {{ spendingFormPreviewLabel }}
+            </p>
+            <p
+              class="mf-preview-value"
+              :class="{ 'mf-preview-value--over': spendingFormAfter < 0 }"
+            >
+              {{ fmt(spendingFormAfter) }}
+            </p>
+          </div>
+          <span
+            v-if="spendingFormAfter < 0"
+            class="mf-preview-badge"
+          >OVER BUDGET</span>
+        </div>
       </div>
 
       <template #footer>
@@ -1013,7 +1067,7 @@ function deletePurchase(id: string): void {
           Cancel
         </BaseButton>
         <BaseButton
-          :disabled="!!purchaseFormError"
+          :disabled="!purchaseValidation.isValid.value"
           @click="savePurchase"
         >
           {{ editingPurchaseId ? 'Update' : 'Add' }}
@@ -1729,9 +1783,56 @@ function deletePurchase(id: string): void {
   color: var(--danger, #f87171);
 }
 
-.mf-error {
-  font-size: 0.8rem;
+.mf-field-error {
+  font-size: 0.78rem;
   color: var(--danger, #f87171);
+  margin: 0.2rem 0 0;
+}
+
+/* ── Remaining preview block (add mode) ─────────────────────────────── */
+.mf-preview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mf-preview-label {
+  margin: 0 0 0.15rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+
+.mf-preview-value {
   margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.mf-preview-value--over {
+  color: var(--danger, #f87171);
+}
+
+.mf-preview-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.15rem 0.5rem;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger, #f87171);
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 </style>

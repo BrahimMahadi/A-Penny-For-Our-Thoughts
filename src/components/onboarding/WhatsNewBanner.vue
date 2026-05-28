@@ -22,15 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.10.3';
+const APP_VERSION = '2.11.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🃏', text: 'Wishlist cards stagger in from below on page load, and add/remove now uses a smooth GSAP fade instead of a CSS pop' },
-  { icon: '📋', text: 'Subscription list rows animate in/out with GSAP when items are added or removed' },
-  { icon: '🖱️', text: 'Every button now gives tactile press feedback — scales down on press and springs back with an elastic ease' },
-  { icon: '🐛', text: 'Fixed: tab switching definitively resolved — dropping mode="out-in" eliminates the Vue transition state-machine deadlock that caused blank screens' },
+  { icon: '💳', text: 'Dashboard quick-add modal now has a payment card selector — charge purchases directly to an expense card from the header shortcut' },
+  { icon: '📊', text: 'Spending tab "Add Purchase" modal now shows a live bi-weekly remaining preview that updates as you type the amount and switch between Want/Need' },
+  { icon: '🔴', text: 'Form validation now highlights invalid fields in red on blur — name and amount fields across all modals (Wishlist, Expense Cards, quick-add, and more) show per-field error messages' },
+  { icon: '🔁', text: 'Validation state resets cleanly when modals are opened or cancelled — no stale red borders between sessions' },
   { icon: '✅', text: '1069 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 

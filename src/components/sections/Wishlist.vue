@@ -22,6 +22,7 @@ import { useToast } from '@/composables/useToast';
 import { useAnalytics } from '@/composables/useAnalytics';
 import { useGsap } from '@/composables/useGsap';
 import { useListTransition } from '@/composables/useListTransition';
+import { useFormValidation, rules } from '@/composables/useFormValidation';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -165,6 +166,10 @@ const editingId  = ref<string | null>(null);
 
 const form = reactive({ name: '', icon: '🛒', url: '', price: '', saved: '' });
 
+const nameValidation = useFormValidation(() => ({
+  name: rules.required(form.name, 'Name'),
+}));
+
 function resetForm(): void {
   form.name  = '';
   form.icon  = '🛒';
@@ -172,6 +177,7 @@ function resetForm(): void {
   form.price = '';
   form.saved = '';
   editingId.value = null;
+  nameValidation.reset();
 }
 
 function openAdd(): void {
@@ -211,6 +217,7 @@ const formError = computed<string>(() => {
 });
 
 function save(): void {
+  nameValidation.touchAll();
   if (formError.value) return;
   const priceStr = String(form.price ?? '').trim();
   const savedStr = String(form.saved ?? '').trim();
@@ -480,8 +487,10 @@ defineExpose({ openAdd });
               id="wish-name-input"
               v-model="form.name"
               class="form-input"
+              :class="{ 'form-input--error': nameValidation.errors.value.name }"
               type="text"
               placeholder="e.g. AirPods Pro"
+              @blur="nameValidation.touch('name')"
             >
           </div>
         </div>
