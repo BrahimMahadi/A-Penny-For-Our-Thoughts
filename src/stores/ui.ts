@@ -4,9 +4,15 @@
  * Created:  May 2026 (Vue 3 migration — Sprint 1)
  * Updated:  May 2026 (Sprint 18) — sectionOrder persistence for drag-and-drop reordering
  *           May 2026 (Sprint 25) — advancedSectionOrder for the new Advanced tab
+ *           May 2026 (RS-22)    — Removed dashboard sectionOrder + reorder actions:
+ *                                  Dashboard is a fixed-grid layout (RS-11), and the
+ *                                  SectionPicker no longer offers reorder UI for it.
+ *                                  Any legacy `sectionOrder` field in localStorage
+ *                                  is silently ignored on load. advancedSectionOrder
+ *                                  is retained — AdvancedPage still uses drag-reorder.
  * Summary:  Pinia store for transient UI state — filter values,
  *           panel visibility, currently-displayed month. Collapse
- *           state and section order ARE persisted to localStorage
+ *           state and advanced-section order ARE persisted to localStorage
  *           (penny_ui_prefs key). All other state resets every page load.
  *
  *           Replaces legacy uistate.js.
@@ -16,7 +22,6 @@ import { defineStore } from 'pinia';
 import type { UiState, AnalyticsFilters, ScheduleView, TabId } from '@/types/state';
 import { STORAGE_KEYS } from '@/types/state';
 import {
-  DEFAULT_SECTION_ORDER,
   DEFAULT_ADVANCED_ORDER,
   DASHBOARD_SECTIONS,
   ADVANCED_SECTIONS,
@@ -26,6 +31,7 @@ import {
 
 interface UiPrefs {
   collapsedSections?: string[];
+  /** Legacy field — silently ignored on load (dashboard is fixed-grid since RS-22) */
   sectionOrder?: string[];
   advancedSectionOrder?: string[];
 }
@@ -46,23 +52,12 @@ function saveUiPrefs(prefs: UiPrefs): void {
   } catch { /* quota full — non-critical */ }
 }
 
-// ─── Section order: load + migrate ───────────────────────────────
+// ─── Advanced section order: load + migrate ──────────────────────
 // Stored order may be stale (new sections added, old ones removed).
 // Strategy:
-//   1. Filter stored IDs to only those that still exist in the relevant section list
+//   1. Filter stored IDs to only those that still exist in ADVANCED_SECTIONS
 //   2. Append any IDs from the default order that are missing from stored order
 //   This ensures no section is ever lost and new sections appear at the end.
-
-function loadSectionOrder(): string[] {
-  const { sectionOrder } = loadUiPrefs();
-  const allIds = new Set(DEFAULT_SECTION_ORDER);
-  if (!Array.isArray(sectionOrder) || sectionOrder.length === 0) {
-    return [...DEFAULT_SECTION_ORDER];
-  }
-  const filtered = sectionOrder.filter(id => allIds.has(id));
-  const missing = DEFAULT_SECTION_ORDER.filter(id => !filtered.includes(id));
-  return [...filtered, ...missing];
-}
 
 function loadAdvancedSectionOrder(): string[] {
   const { advancedSectionOrder } = loadUiPrefs();
@@ -80,12 +75,16 @@ function loadCollapsedSections(): string[] {
   return Array.isArray(collapsedSections) ? collapsedSections : [];
 }
 
+/**
+ * Persist UI prefs. Note: the legacy `sectionOrder` field is intentionally
+ * NOT written — it's been deprecated since RS-22. Old payloads in localStorage
+ * with that field will be overwritten with the new schema on the first save.
+ */
 function saveAll(
   collapsedSections: string[],
-  sectionOrder: string[],
   advancedSectionOrder: string[],
 ): void {
-  saveUiPrefs({ collapsedSections, sectionOrder, advancedSectionOrder });
+  saveUiPrefs({ collapsedSections, advancedSectionOrder });
 }
 
 // ─── State factory ────────────────────────────────────────────────
@@ -101,7 +100,6 @@ function makeInitialUiState(): UiState {
     scheduleView: 'list',
     schedulePayPeriodOffset: 0,
     collapsedSections: loadCollapsedSections(),
-    sectionOrder: loadSectionOrder(),
     advancedSectionOrder: loadAdvancedSectionOrder(),
     sectionPickerOpen: false,
     shortcutHelpOpen:  false,
@@ -128,52 +126,12 @@ export const useUiStore = defineStore('ui', {
       } else {
         this.collapsedSections = this.collapsedSections.filter(id => id !== sectionId);
       }
-      saveAll(this.collapsedSections, this.sectionOrder, this.advancedSectionOrder);
+      saveAll(this.collapsedSections, this.advancedSectionOrder);
     },
 
     expandSection(sectionId: string): void {
       this.collapsedSections = this.collapsedSections.filter(id => id !== sectionId);
-      saveAll(this.collapsedSections, this.sectionOrder, this.advancedSectionOrder);
-    },
-
-    // ─── Dashboard section order ──────────────────────────────────
-
-    /**
-     * Persist a new dashboard section ordering. The `order` array must contain all
-     * section IDs — any IDs missing from the current registry are appended.
-     */
-    setSectionOrder(order: string[]): void {
-      const allIds = new Set(DEFAULT_SECTION_ORDER);
-      const filtered = order.filter(id => allIds.has(id));
-      const missing = DEFAULT_SECTION_ORDER.filter(id => !filtered.includes(id));
-      this.sectionOrder = [...filtered, ...missing];
-      saveAll(this.collapsedSections, this.sectionOrder, this.advancedSectionOrder);
-    },
-
-    /** Restore the canonical dashboard section order */
-    resetSectionOrder(): void {
-      this.sectionOrder = [...DEFAULT_SECTION_ORDER];
-      saveAll(this.collapsedSections, this.sectionOrder, this.advancedSectionOrder);
-    },
-
-    /** Move a dashboard section up one position. */
-    moveSectionUp(sectionId: string): void {
-      const idx = this.sectionOrder.indexOf(sectionId);
-      if (idx <= 0) return;
-      const newOrder = [...this.sectionOrder];
-      [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
-      this.sectionOrder = newOrder;
-      saveAll(this.collapsedSections, this.sectionOrder, this.advancedSectionOrder);
-    },
-
-    /** Move a dashboard section down one position. */
-    moveSectionDown(sectionId: string): void {
-      const idx = this.sectionOrder.indexOf(sectionId);
-      if (idx < 0 || idx >= this.sectionOrder.length - 1) return;
-      const newOrder = [...this.sectionOrder];
-      [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
-      this.sectionOrder = newOrder;
-      saveAll(this.collapsedSections, this.sectionOrder, this.advancedSectionOrder);
+      saveAll(this.collapsedSections, this.advancedSectionOrder);
     },
 
     // ─── Advanced section order ───────────────────────────────────
@@ -186,13 +144,13 @@ export const useUiStore = defineStore('ui', {
       const filtered = order.filter(id => allIds.has(id));
       const missing = DEFAULT_ADVANCED_ORDER.filter(id => !filtered.includes(id));
       this.advancedSectionOrder = [...filtered, ...missing];
-      saveAll(this.collapsedSections, this.sectionOrder, this.advancedSectionOrder);
+      saveAll(this.collapsedSections, this.advancedSectionOrder);
     },
 
     /** Restore the canonical advanced section order */
     resetAdvancedSectionOrder(): void {
       this.advancedSectionOrder = [...DEFAULT_ADVANCED_ORDER];
-      saveAll(this.collapsedSections, this.sectionOrder, this.advancedSectionOrder);
+      saveAll(this.collapsedSections, this.advancedSectionOrder);
     },
 
     /** Move an advanced section up one position. */
@@ -202,7 +160,7 @@ export const useUiStore = defineStore('ui', {
       const newOrder = [...this.advancedSectionOrder];
       [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
       this.advancedSectionOrder = newOrder;
-      saveAll(this.collapsedSections, this.sectionOrder, this.advancedSectionOrder);
+      saveAll(this.collapsedSections, this.advancedSectionOrder);
     },
 
     /** Move an advanced section down one position. */
@@ -212,7 +170,7 @@ export const useUiStore = defineStore('ui', {
       const newOrder = [...this.advancedSectionOrder];
       [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
       this.advancedSectionOrder = newOrder;
-      saveAll(this.collapsedSections, this.sectionOrder, this.advancedSectionOrder);
+      saveAll(this.collapsedSections, this.advancedSectionOrder);
     },
 
     // ─── Section picker ───────────────────────────────────────────

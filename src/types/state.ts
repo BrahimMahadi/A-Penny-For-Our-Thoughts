@@ -142,15 +142,13 @@ export interface UiState {
    */
   collapsedSections: string[];
   /**
-   * Ordered list of dashboard section IDs — controls the display order
-   * on the dashboard. Persisted to `penny_ui_prefs` in localStorage.
-   * Defaults to the canonical order from dashboardSections.ts.
-   */
-  sectionOrder: string[];
-  /**
    * Ordered list of advanced section IDs — controls the display order
    * on the Advanced tab. Persisted to `penny_ui_prefs` in localStorage.
    * Defaults to the canonical order from dashboardSections.ts (ADVANCED_SECTIONS).
+   *
+   * Note: there is no equivalent `sectionOrder` for the Dashboard. The Dashboard
+   * is a fixed-grid layout (RS-11) and uses DASHBOARD_SECTIONS directly. A legacy
+   * `sectionOrder` field in localStorage is silently ignored on load.
    */
   advancedSectionOrder: string[];
   /**

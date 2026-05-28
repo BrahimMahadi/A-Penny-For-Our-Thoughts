@@ -442,8 +442,8 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
             </p>
             <ul class="docs-list">
               <li><strong>Collapsible sections</strong> — every dashboard section can be collapsed to a header bar to reduce clutter; state persists between sessions.</li>
-              <li><strong>Drag-and-drop reorder</strong> — drag section cards to reorder them to your preference; order persists via <code>ui.sectionOrder</code>.</li>
-              <li><strong>Section Picker</strong> — settings panel with move-up/move-down buttons and a reset-to-default option for accessibility-first reordering.</li>
+              <li><strong>Drag-and-drop reorder</strong> — drag section cards to reorder them to your preference; order persisted to localStorage. <em>(Simplified in RS-22: the Dashboard is now a fixed-grid layout and the Section Picker is a focused jump + collapse tool.)</em></li>
+              <li><strong>Section Picker</strong> — settings panel with move-up/move-down buttons and a reset-to-default option for accessibility-first reordering. <em>(Reorder controls retired in RS-22.)</em></li>
             </ul>
           </div>
 

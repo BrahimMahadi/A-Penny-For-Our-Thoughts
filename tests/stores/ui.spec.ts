@@ -141,11 +141,20 @@ describe('ui store — pay-period offset', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-//  sectionOrder — Sprint 18 (collapsible + drag-and-drop reorder)
+//  Section state — RS-22 (Dashboard is fixed-grid; legacy sectionOrder dropped)
+//
+//  As of RS-22:
+//    • The Dashboard is a fixed-grid layout (no user reordering).
+//    • The ui store no longer exposes sectionOrder / setSectionOrder /
+//      resetSectionOrder / moveSectionUp / moveSectionDown.
+//    • Legacy `sectionOrder` field in localStorage is silently ignored
+//      on load. The next save drops it from the persisted payload.
+//    • advancedSectionOrder + its 4 actions are retained — AdvancedPage
+//      still uses drag-reorder for its own sections.
 // ─────────────────────────────────────────────────────────────────
-import { DEFAULT_SECTION_ORDER } from '@/constants/dashboardSections';
+import { DEFAULT_ADVANCED_ORDER } from '@/constants/dashboardSections';
 
-describe('ui store — sectionOrder', () => {
+describe('ui store — RS-22 section state', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     localStorage.clear();
@@ -155,140 +164,93 @@ describe('ui store — sectionOrder', () => {
     localStorage.clear();
   });
 
-  it('initialises to the default section order', () => {
+  // ── Dashboard sectionOrder removed ────────────────────────────
+  it('store no longer exposes sectionOrder', () => {
     const store = useUiStore();
-    expect(store.sectionOrder).toEqual(DEFAULT_SECTION_ORDER);
+    expect((store as unknown as Record<string, unknown>).sectionOrder).toBeUndefined();
   });
 
-  it('sectionOrder contains all 9 known dashboard section IDs', () => {
-    const store = useUiStore();
-    // RS-11: income-streams, wants-tracker, savings-goals removed → 7 sections remain
-    // RS-12: purchases-this-period + money-flow added → 9 sections
-    expect(store.sectionOrder).toHaveLength(9);
-    expect(store.sectionOrder).toContain('expense-cards');
-    expect(store.sectionOrder).toContain('subscriptions');
-    expect(store.sectionOrder).toContain('wishlist');
-    expect(store.sectionOrder).toContain('purchases-this-period');
-    expect(store.sectionOrder).toContain('money-flow');
+  it('store no longer exposes setSectionOrder / resetSectionOrder', () => {
+    const store = useUiStore() as unknown as Record<string, unknown>;
+    expect(store.setSectionOrder).toBeUndefined();
+    expect(store.resetSectionOrder).toBeUndefined();
   });
 
-  it('setSectionOrder updates the order and persists to localStorage', () => {
-    const store = useUiStore();
-    const newOrder = [...DEFAULT_SECTION_ORDER].reverse();
-    store.setSectionOrder(newOrder);
-    expect(store.sectionOrder[0]).toBe(DEFAULT_SECTION_ORDER[DEFAULT_SECTION_ORDER.length - 1]);
-
-    // Persisted?
-    const raw = localStorage.getItem('penny_ui_prefs');
-    expect(raw).not.toBeNull();
-    const parsed = JSON.parse(raw!);
-    expect(parsed.sectionOrder[0]).toBe(DEFAULT_SECTION_ORDER[DEFAULT_SECTION_ORDER.length - 1]);
+  it('store no longer exposes moveSectionUp / moveSectionDown', () => {
+    const store = useUiStore() as unknown as Record<string, unknown>;
+    expect(store.moveSectionUp).toBeUndefined();
+    expect(store.moveSectionDown).toBeUndefined();
   });
 
-  it('setSectionOrder filters out unknown IDs', () => {
-    const store = useUiStore();
-    store.setSectionOrder(['subscriptions', 'ghost-section-does-not-exist', 'loans']);
-    expect(store.sectionOrder).not.toContain('ghost-section-does-not-exist');
-  });
-
-  it('setSectionOrder appends missing IDs so no section is ever lost', () => {
-    const store = useUiStore();
-    // Pass an order that only contains 2 of the 9 dashboard sections
-    store.setSectionOrder(['subscriptions', 'loans']);
-    expect(store.sectionOrder).toContain('wishlist');
-    expect(store.sectionOrder.length).toBe(9);
-    // The 2 provided sections come first
-    expect(store.sectionOrder[0]).toBe('subscriptions');
-    expect(store.sectionOrder[1]).toBe('loans');
-  });
-
-  it('resetSectionOrder restores the canonical order and persists', () => {
-    const store = useUiStore();
-    store.setSectionOrder([...DEFAULT_SECTION_ORDER].reverse());
-    store.resetSectionOrder();
-    expect(store.sectionOrder).toEqual(DEFAULT_SECTION_ORDER);
-    const raw = localStorage.getItem('penny_ui_prefs');
-    const parsed = JSON.parse(raw!);
-    expect(parsed.sectionOrder).toEqual(DEFAULT_SECTION_ORDER);
-  });
-
-  it('moveSectionUp swaps a section with the one before it', () => {
-    const store = useUiStore();
-    const originalFirst = store.sectionOrder[0];
-    const originalSecond = store.sectionOrder[1];
-    store.moveSectionUp(originalSecond);
-    expect(store.sectionOrder[0]).toBe(originalSecond);
-    expect(store.sectionOrder[1]).toBe(originalFirst);
-  });
-
-  it('moveSectionUp does nothing when section is already first', () => {
-    const store = useUiStore();
-    const firstId = store.sectionOrder[0];
-    const orderBefore = [...store.sectionOrder];
-    store.moveSectionUp(firstId);
-    expect(store.sectionOrder).toEqual(orderBefore);
-  });
-
-  it('moveSectionDown swaps a section with the one after it', () => {
-    const store = useUiStore();
-    const originalFirst = store.sectionOrder[0];
-    const originalSecond = store.sectionOrder[1];
-    store.moveSectionDown(originalFirst);
-    expect(store.sectionOrder[0]).toBe(originalSecond);
-    expect(store.sectionOrder[1]).toBe(originalFirst);
-  });
-
-  it('moveSectionDown does nothing when section is already last', () => {
-    const store = useUiStore();
-    const lastId = store.sectionOrder[store.sectionOrder.length - 1];
-    const orderBefore = [...store.sectionOrder];
-    store.moveSectionDown(lastId);
-    expect(store.sectionOrder).toEqual(orderBefore);
-  });
-
-  it('sectionOrder survives a store re-init when persisted', () => {
-    // Write a custom order to localStorage first
-    const customOrder = [...DEFAULT_SECTION_ORDER].reverse();
+  // ── Legacy localStorage migration ─────────────────────────────
+  it('silently ignores legacy sectionOrder field on load', () => {
     localStorage.setItem('penny_ui_prefs', JSON.stringify({
-      collapsedSections: [],
-      sectionOrder: customOrder,
-    }));
-    // Create a fresh store — it should pick up the persisted order
-    setActivePinia(createPinia());
-    const store2 = useUiStore();
-    expect(store2.sectionOrder[0]).toBe(customOrder[0]);
-  });
-
-  it('migration: unknown IDs in stored order are filtered out on load', () => {
-    localStorage.setItem('penny_ui_prefs', JSON.stringify({
-      collapsedSections: [],
-      sectionOrder: ['subscriptions', 'totally-fake-id', 'loans'],
-    }));
-    setActivePinia(createPinia());
-    const store2 = useUiStore();
-    expect(store2.sectionOrder).not.toContain('totally-fake-id');
-    expect(store2.sectionOrder.length).toBe(9);
-  });
-
-  it('migration: sections missing from stored order are appended on load', () => {
-    // Store only has 2 IDs persisted
-    localStorage.setItem('penny_ui_prefs', JSON.stringify({
-      collapsedSections: [],
+      collapsedSections: ['wishlist'],
       sectionOrder: ['subscriptions', 'loans'],
     }));
     setActivePinia(createPinia());
-    const store2 = useUiStore();
-    expect(store2.sectionOrder.length).toBe(9);
-    expect(store2.sectionOrder[0]).toBe('subscriptions');
-    expect(store2.sectionOrder[1]).toBe('loans');
+    const store = useUiStore();
+    // Collapsed state is preserved; legacy sectionOrder is ignored
+    expect(store.collapsedSections).toContain('wishlist');
+    expect((store as unknown as Record<string, unknown>).sectionOrder).toBeUndefined();
   });
 
-  it('collapsedSections and sectionOrder are saved together in penny_ui_prefs', () => {
+  it('next save drops the legacy sectionOrder field from localStorage', () => {
+    // Seed localStorage with the legacy field
+    localStorage.setItem('penny_ui_prefs', JSON.stringify({
+      collapsedSections: [],
+      sectionOrder: ['anything'],
+      advancedSectionOrder: [...DEFAULT_ADVANCED_ORDER],
+    }));
+    setActivePinia(createPinia());
     const store = useUiStore();
+    // Trigger a save by mutating collapsed state
     store.toggleSection('wishlist');
-    store.setSectionOrder([...DEFAULT_SECTION_ORDER].reverse());
     const raw = JSON.parse(localStorage.getItem('penny_ui_prefs')!);
+    expect(raw.sectionOrder).toBeUndefined();
     expect(raw.collapsedSections).toContain('wishlist');
-    expect(raw.sectionOrder[0]).toBe(DEFAULT_SECTION_ORDER[DEFAULT_SECTION_ORDER.length - 1]);
+    expect(raw.advancedSectionOrder).toEqual(DEFAULT_ADVANCED_ORDER);
+  });
+
+  // ── Advanced section order retained ───────────────────────────
+  it('initialises advancedSectionOrder to the default order', () => {
+    const store = useUiStore();
+    expect(store.advancedSectionOrder).toEqual(DEFAULT_ADVANCED_ORDER);
+  });
+
+  it('setAdvancedSectionOrder persists a new ordering', () => {
+    const store = useUiStore();
+    const newOrder = [...DEFAULT_ADVANCED_ORDER].reverse();
+    store.setAdvancedSectionOrder(newOrder);
+    expect(store.advancedSectionOrder[0])
+      .toBe(DEFAULT_ADVANCED_ORDER[DEFAULT_ADVANCED_ORDER.length - 1]);
+    const raw = JSON.parse(localStorage.getItem('penny_ui_prefs')!);
+    expect(raw.advancedSectionOrder[0])
+      .toBe(DEFAULT_ADVANCED_ORDER[DEFAULT_ADVANCED_ORDER.length - 1]);
+  });
+
+  it('resetAdvancedSectionOrder restores the canonical advanced order', () => {
+    const store = useUiStore();
+    store.setAdvancedSectionOrder([...DEFAULT_ADVANCED_ORDER].reverse());
+    store.resetAdvancedSectionOrder();
+    expect(store.advancedSectionOrder).toEqual(DEFAULT_ADVANCED_ORDER);
+  });
+
+  it('moveAdvancedSectionUp swaps with the section before it', () => {
+    const store = useUiStore();
+    const first  = store.advancedSectionOrder[0];
+    const second = store.advancedSectionOrder[1];
+    store.moveAdvancedSectionUp(second);
+    expect(store.advancedSectionOrder[0]).toBe(second);
+    expect(store.advancedSectionOrder[1]).toBe(first);
+  });
+
+  it('moveAdvancedSectionDown swaps with the section after it', () => {
+    const store = useUiStore();
+    const first  = store.advancedSectionOrder[0];
+    const second = store.advancedSectionOrder[1];
+    store.moveAdvancedSectionDown(first);
+    expect(store.advancedSectionOrder[0]).toBe(second);
+    expect(store.advancedSectionOrder[1]).toBe(first);
   });
 });

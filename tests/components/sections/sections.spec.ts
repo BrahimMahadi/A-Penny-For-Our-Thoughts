@@ -1833,7 +1833,7 @@ describe('MoneyFlow', () => {
 // ─────────────────────────────────────────────────────────────────
 import DashboardPage from '@/components/pages/DashboardPage.vue';
 import SectionPicker from '@/components/ui/SectionPicker.vue';
-import { DEFAULT_SECTION_ORDER } from '@/constants/dashboardSections';
+import { DEFAULT_SECTION_ORDER, DASHBOARD_SECTIONS } from '@/constants/dashboardSections';
 import SpendingPage  from '@/components/pages/SpendingPage.vue';
 
 describe('DashboardPage — RS-11 fixed grid layout', () => {
@@ -1981,155 +1981,191 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-//  SectionPicker — Sprint 18 (reorder, collapse, reset)
+//  SectionPicker — RS-22 (Dashboard-only, jump + collapse)
+//
+//  As of RS-22 the picker:
+//    • Shows only Dashboard sections (Advanced group removed)
+//    • No drag handles, no move-up/move-down buttons, no reset button
+//    • Renders items in DASHBOARD_SECTIONS order (matches page layout)
+//    • Each item has a jump button + a collapse toggle button
 // ─────────────────────────────────────────────────────────────────
-describe('SectionPicker — Sprint 18 reorder', () => {
+describe('SectionPicker — RS-22 jump + collapse', () => {
   beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('renders one item per section (13 items: 9 dashboard + 4 advanced)', async () => {
+  it('renders exactly one item per Dashboard section (9 items)', async () => {
     const w = mount(SectionPicker, {
       props: { open: true },
       attachTo: document.body,
     });
     await nextTick();
     const items = document.body.querySelectorAll('.section-picker-item');
-    expect(items.length).toBe(13);
+    expect(items.length).toBe(DASHBOARD_SECTIONS.length);
+    expect(items.length).toBe(9);
     w.unmount();
   });
 
-  it('each item has a drag handle', async () => {
+  it('does NOT render any advanced sections', async () => {
     const w = mount(SectionPicker, {
       props: { open: true },
       attachTo: document.body,
     });
     await nextTick();
-    const handles = document.body.querySelectorAll('.picker-drag-handle');
-    expect(handles.length).toBe(13);
+    const labels = Array.from(
+      document.body.querySelectorAll('.section-picker-item__label'),
+    ).map(el => el.textContent?.trim());
+    // None of the advanced section labels should appear
+    expect(labels).not.toContain('Spending Analytics');
+    expect(labels).not.toContain('Budget vs. Actual');
+    expect(labels).not.toContain('Net Worth');
+    expect(labels).not.toContain('6-Month Spending Trend');
     w.unmount();
   });
 
-  it('each item has move-up and move-down buttons', async () => {
+  it('does NOT render drag handles', async () => {
     const w = mount(SectionPicker, {
       props: { open: true },
       attachTo: document.body,
     });
     await nextTick();
-    const moveBtns = document.body.querySelectorAll('.picker-move-btn');
-    // 2 buttons per item × 13 items = 26
-    expect(moveBtns.length).toBe(26);
+    expect(document.body.querySelectorAll('.picker-drag-handle')).toHaveLength(0);
     w.unmount();
   });
 
-  it('each item has a collapse toggle button', async () => {
+  it('does NOT render move-up / move-down buttons', async () => {
     const w = mount(SectionPicker, {
       props: { open: true },
       attachTo: document.body,
     });
     await nextTick();
-    const collapseBtns = document.body.querySelectorAll('.picker-collapse-btn');
-    expect(collapseBtns.length).toBe(13);
+    expect(document.body.querySelectorAll('.picker-move-btn')).toHaveLength(0);
     w.unmount();
   });
 
-  it('clicking collapse toggle calls ui.toggleSection', async () => {
+  it('does NOT render any reset-order button', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    expect(document.body.querySelectorAll('.picker-reset-inline')).toHaveLength(0);
+    w.unmount();
+  });
+
+  it('renders one jump button per section', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    expect(document.body.querySelectorAll('.picker-jump-btn')).toHaveLength(9);
+    w.unmount();
+  });
+
+  it('renders one collapse toggle per section', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    expect(document.body.querySelectorAll('.picker-collapse-btn')).toHaveLength(9);
+    w.unmount();
+  });
+
+  it('renders sections in DASHBOARD_SECTIONS canonical order', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    const labels = Array.from(
+      document.body.querySelectorAll('.section-picker-item__label'),
+    ).map(el => el.textContent?.trim());
+    expect(labels).toEqual(DASHBOARD_SECTIONS.map(s => s.label));
+    w.unmount();
+  });
+
+  it('renders Chequing Balance first (matches DashboardPage KPI row order)', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    const firstLabel = document.body.querySelector('.section-picker-item__label');
+    expect(firstLabel?.textContent?.trim()).toBe('Chequing Balance');
+    w.unmount();
+  });
+
+  it('renders Wishlist last (matches DashboardPage bottom row)', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    const labels = Array.from(
+      document.body.querySelectorAll('.section-picker-item__label'),
+    );
+    expect(labels[labels.length - 1].textContent?.trim()).toBe('Wishlist');
+    w.unmount();
+  });
+
+  it('clicking collapse toggle on the first item collapses the first dashboard section', async () => {
     const ui = useUiStore();
-    expect(ui.isSectionCollapsed('expense-cards')).toBe(false);
+    expect(ui.isSectionCollapsed(DEFAULT_SECTION_ORDER[0])).toBe(false);
     const w = mount(SectionPicker, {
       props: { open: true },
       attachTo: document.body,
     });
     await nextTick();
-    // Click the first collapse button (for the first section in order)
     const firstCollapseBtn = document.body.querySelectorAll('.picker-collapse-btn')[0] as HTMLElement;
     firstCollapseBtn.click();
     await nextTick();
-    // The first section in the default order should now be collapsed
     expect(ui.isSectionCollapsed(DEFAULT_SECTION_ORDER[0])).toBe(true);
     w.unmount();
   });
 
-  it('dashboard reset button is disabled when order is already default', async () => {
-    const w = mount(SectionPicker, {
-      props: { open: true },
-      attachTo: document.body,
-    });
-    await nextTick();
-    // First .picker-reset-inline is the Dashboard reset button
-    const resetBtns = document.body.querySelectorAll('.picker-reset-inline') as NodeListOf<HTMLButtonElement>;
-    expect(resetBtns[0].disabled).toBe(true);
-    w.unmount();
-  });
-
-  it('dashboard reset button is enabled after a reorder and restores default order', async () => {
+  it('clicking a jump button switches activeTab to dashboard and closes the picker', async () => {
     const ui = useUiStore();
-    ui.setSectionOrder([...DEFAULT_SECTION_ORDER].reverse());
+    ui.setActiveTab('settings');
+    const onUpdate = vi.fn();
     const w = mount(SectionPicker, {
-      props: { open: true },
+      props: { open: true, 'onUpdate:open': onUpdate },
       attachTo: document.body,
     });
     await nextTick();
-    const resetBtns = document.body.querySelectorAll('.picker-reset-inline') as NodeListOf<HTMLButtonElement>;
-    expect(resetBtns[0].disabled).toBe(false);
-    resetBtns[0].click();
-    await nextTick();
-    expect(ui.sectionOrder).toEqual(DEFAULT_SECTION_ORDER);
-    w.unmount();
-  });
-
-  it('move-up button on first item is disabled', async () => {
-    const w = mount(SectionPicker, {
-      props: { open: true },
-      attachTo: document.body,
-    });
-    await nextTick();
-    const firstMoveUpBtn = document.body.querySelectorAll('.picker-move-btn')[0] as HTMLButtonElement;
-    expect(firstMoveUpBtn.disabled).toBe(true);
-    w.unmount();
-  });
-
-  it('move-down button on last item is disabled', async () => {
-    const w = mount(SectionPicker, {
-      props: { open: true },
-      attachTo: document.body,
-    });
-    await nextTick();
-    const allMoveBtns = document.body.querySelectorAll('.picker-move-btn');
-    const lastMoveDownBtn = allMoveBtns[allMoveBtns.length - 1] as HTMLButtonElement;
-    expect(lastMoveDownBtn.disabled).toBe(true);
-    w.unmount();
-  });
-
-  it('move-up button reorders the section upward', async () => {
-    const ui = useUiStore();
-    const secondId = DEFAULT_SECTION_ORDER[1];
-    const w = mount(SectionPicker, {
-      props: { open: true },
-      attachTo: document.body,
-    });
-    await nextTick();
-    // Move-up button for the second item (index 1): buttons pair [0]=up, [1]=down, [2]=up, [3]=down ...
-    const secondMoveUpBtn = document.body.querySelectorAll('.picker-move-btn')[2] as HTMLElement;
-    secondMoveUpBtn.click();
-    await nextTick();
-    expect(ui.sectionOrder[0]).toBe(secondId);
-    w.unmount();
-  });
-
-  it('renders sections in the order from ui.sectionOrder', async () => {
-    const ui = useUiStore();
-    // Move wishlist to first position
-    ui.moveSectionDown('wishlist'); // wishlist is last, this is a no-op
-    const customOrder = ['wishlist', ...DEFAULT_SECTION_ORDER.filter(id => id !== 'wishlist')];
-    ui.setSectionOrder(customOrder);
-    const w = mount(SectionPicker, {
-      props: { open: true },
-      attachTo: document.body,
-    });
-    await nextTick();
-    // The first jump button should have "Wishlist" text
     const firstJumpBtn = document.body.querySelector('.picker-jump-btn') as HTMLElement;
-    expect(firstJumpBtn.textContent).toContain('Wishlist');
+    firstJumpBtn.click();
+    await nextTick();
+    expect(ui.activeTab).toBe('dashboard');
+    expect(onUpdate).toHaveBeenCalledWith(false);
+    w.unmount();
+  });
+
+  it('clicking a jump button expands the target section if it was collapsed', async () => {
+    const ui = useUiStore();
+    const firstId = DEFAULT_SECTION_ORDER[0];
+    ui.toggleSection(firstId); // collapse it
+    expect(ui.isSectionCollapsed(firstId)).toBe(true);
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    const firstJumpBtn = document.body.querySelector('.picker-jump-btn') as HTMLElement;
+    firstJumpBtn.click();
+    await nextTick();
+    expect(ui.isSectionCollapsed(firstId)).toBe(false);
+    w.unmount();
+  });
+
+  it('does NOT render a "Dashboard" or "Advanced" group header', async () => {
+    const w = mount(SectionPicker, {
+      props: { open: true },
+      attachTo: document.body,
+    });
+    await nextTick();
+    expect(document.body.querySelector('.picker-group-header')).toBeNull();
+    expect(document.body.querySelector('.picker-group-divider')).toBeNull();
     w.unmount();
   });
 });
