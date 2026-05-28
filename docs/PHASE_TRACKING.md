@@ -1703,6 +1703,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-020c | Drop `mode="out-in"` + absolute-position leaving page: definitively eliminates Vue transition state-machine deadlock | `fix/bug-020c-tab-transition-rework` | ✅ Complete | v2.10.3 |
 | RS-20 | Form improvements: card field in dashboard quick-add, remaining preview in Spending modal, global `.form-input--error` red highlighting across all forms | `feat/rs-20-form-improvements` | ✅ Complete | v2.11.0 |
 | RS-21 | Card hover effects: shine glow + tile grid + staggered lines via `CardHoverFX` component; applied to StatCard (full), BaseCard (subtle), Wishlist / ExpenseCard / GoalItem / IncomeStreamItem | `feat/rs-21-card-hover-effects` | ✅ Complete | v2.12.0 |
+| RS-22 | Manage Sections cleanup: Advanced group removed from picker, drag/reorder UI stripped from Dashboard list, list reordered to match page, ui store `sectionOrder` + 4 reorder actions removed | `feat/rs-22-section-picker-cleanup` | ✅ Complete | v2.13.0 |
 
 ---
 
@@ -2895,3 +2896,91 @@ Implement the CodePen-inspired card hover effect across the app's card component
 
 ### Final gate
 - ✅ 1081/1081 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-22 — Manage Sections Cleanup ✅
+**Branch**: `feat/rs-22-section-picker-cleanup`
+**Version**: v2.13.0
+**Status**: ✅ Complete
+
+### Goal
+Bring the "Manage sections" panel into alignment with the actual current Dashboard. The Dashboard has been a fixed-grid layout since RS-11, so the picker's drag-handles, up/down move buttons, and "reset order" controls were lying to the user — they persisted a value in localStorage but never actually rearranged anything on the page. The "Advanced" group also no longer belongs in this picker (the Advanced tab manages its own ordering on its own page).
+
+### Decisions (confirmed by Brahim)
+- Keep the Advanced page + the four analytics section components; only remove the Advanced group from the SectionPicker.
+- Strip the drag + up/down + reset UI from the Dashboard list — picker becomes a focused "jump + collapse" tool.
+- Reorder `DASHBOARD_SECTIONS` to match the actual visual order on `DashboardPage.vue` so the picker is honest about what users see.
+
+### Changes
+**`src/constants/dashboardSections.ts`**
+- Reordered `DASHBOARD_SECTIONS` to match the page render order:
+  `chequing-balance` → `purchases-this-period` → `money-flow` → `expense-cards` → `loans` → `savings-accounts` → `subscriptions` → `credit-cards` → `wishlist`
+- `ADVANCED_SECTIONS` + `DEFAULT_ADVANCED_ORDER` untouched (still consumed by `AdvancedPage`)
+
+**`src/components/ui/SectionPicker.vue`** (significant rewrite)
+- Removed: Advanced group (header, divider, items, drag state + handlers, all advanced computed properties)
+- Removed: Dashboard drag UI (drag handle ⠿, up/down move buttons, drop indicators, reset button, group label)
+- Removed: all drag-and-drop event handlers + state refs
+- Added: simple single-list render sourced directly from `DASHBOARD_SECTIONS`
+- Updated hint text: "Click a name to jump · ⊕/⊖ to collapse"
+- Updated `jumpTo` to always route to the `dashboard` tab
+- Updated aria-label: "Manage dashboard sections"
+
+**`src/stores/ui.ts`**
+- Removed state field: `sectionOrder`
+- Removed actions: `setSectionOrder`, `resetSectionOrder`, `moveSectionUp`, `moveSectionDown`
+- Removed helper: `loadSectionOrder`
+- Updated `saveAll` signature from 3 args → 2 args (no longer takes `sectionOrder`)
+- Updated `UiPrefs` interface — `sectionOrder` marked as a legacy field, silently ignored on load
+- Kept all advanced-order code intact
+
+**`src/types/state.ts`**
+- Removed `sectionOrder: string[]` from `UiState`
+- Added doc-comment explaining the Dashboard is fixed-grid
+
+**`src/components/pages/DocsPage.vue`**
+- Updated the historical v1.11.0 (Sprint 18) release-notes entry: the references to `ui.sectionOrder` and the move-up/move-down buttons now include "Simplified/retired in RS-22" notes so readers don't think those mechanisms still exist.
+
+### Tests
+**`tests/components/sections/sections.spec.ts`** — rewrote the SectionPicker describe block (`SectionPicker — RS-22 jump + collapse`):
+- 14 new assertions covering:
+  - exactly 9 items (1 per Dashboard section)
+  - no advanced section labels present
+  - no drag handles, no move buttons, no reset button
+  - 1 jump button + 1 collapse toggle per item
+  - canonical `DASHBOARD_SECTIONS` order
+  - Chequing Balance first, Wishlist last
+  - clicking collapse / jump invokes the right store actions
+  - clicking jump switches activeTab to `dashboard` and closes the picker
+  - clicking jump expands a collapsed target section
+  - no group header or divider rendered
+
+**`tests/stores/ui.spec.ts`** — rewrote the `ui store — sectionOrder` block (`ui store — RS-22 section state`):
+- 10 new assertions covering:
+  - removed members are `undefined` on the store
+  - legacy `sectionOrder` field in localStorage is silently ignored on load
+  - next save drops the legacy field from the persisted payload
+  - `advancedSectionOrder` + its 4 actions still work end-to-end
+
+### LocalStorage migration
+No explicit migration step needed — the load path silently ignores any extra fields (`sectionOrder`), and the save path overwrites the payload with the new 2-field schema on the next mutation. Existing users keep their collapsed-state and advanced-order preferences; the legacy `sectionOrder` value is dropped on the first interaction.
+
+### Files Changed
+- `src/constants/dashboardSections.ts` — reordered DASHBOARD_SECTIONS
+- `src/components/ui/SectionPicker.vue` — rewrote (script + template + scoped CSS pruned)
+- `src/stores/ui.ts` — removed 4 actions + 1 field + 1 helper
+- `src/types/state.ts` — removed `sectionOrder` from `UiState`
+- `src/components/pages/DocsPage.vue` — added RS-22 footnote to Sprint 18 release entry
+- `tests/components/sections/sections.spec.ts` — rewrote SectionPicker describe block (14 tests, was 11)
+- `tests/stores/ui.spec.ts` — rewrote sectionOrder describe block (10 tests, was 14)
+- `src/components/onboarding/WhatsNewBanner.vue` — bumped to v2.13.0
+- `tests/components/onboarding.spec.ts` — version strings updated
+- `CLAUDE.md` — test count → 1080 across 31 spec files
+
+### Tests
+- 1080/1080 pass — `vue-tsc --noEmit` clean
+- Net test count: −1 (added 24, removed 25 — the new tests exercise different behaviour at slightly tighter granularity)
+
+### Final gate
+- ✅ 1080/1080 tests pass · `vue-tsc --noEmit` clean

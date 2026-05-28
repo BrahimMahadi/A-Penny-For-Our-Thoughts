@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.12.0';
+const APP_VERSION = '2.13.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '✨', text: 'Cards now have a polished hover effect — a conic-gradient shine glow, blinking tile grid, and staggered expanding lines appear in the top-right corner on hover' },
-  { icon: '🃏', text: 'Effect applied across all card tiers: StatCard KPI tiles (full effect), BaseCard section containers (subtle — shine + lines only), and Wishlist, Expense Card, Savings Goal, and Income Stream item cards' },
-  { icon: '🎨', text: 'Effect adapts to the active theme — brighter sweep in light mode, more saturated in dark mode — driven by the --accent design token throughout' },
-  { icon: '♿', text: 'Tile animation and all transitions are automatically disabled for users who prefer reduced motion' },
-  { icon: '✅', text: '1081 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '🗂️', text: 'Manage sections panel is now a focused jump + collapse tool — drag handles, move-up/down buttons, and reset controls have been retired since the Dashboard is a fixed-grid layout' },
+  { icon: '📋', text: 'Section list now mirrors the actual visual order of the Dashboard (Chequing Balance first, Wishlist last) so what you see in the picker matches what you see on the page' },
+  { icon: '🧹', text: 'Advanced section group removed from the picker — the Advanced tab itself remains accessible via keyboard shortcut 7' },
+  { icon: '⚙️', text: 'Legacy `sectionOrder` localStorage field is now silently ignored on load and dropped on the next save — no breakage for existing users' },
+  { icon: '✅', text: '1080 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

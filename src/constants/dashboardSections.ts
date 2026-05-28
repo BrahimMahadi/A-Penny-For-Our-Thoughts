@@ -14,6 +14,10 @@
  *           May 2026 (RS-12)    — added purchases-this-period (donut + category widget)
  *                                  and money-flow (12-month income/spend chart) to the
  *                                  new charts row between KPI and widget rows (9 sections).
+ *           May 2026 (RS-22)    — DASHBOARD_SECTIONS reordered to match the actual
+ *                                  visual order on DashboardPage (chequing-balance first,
+ *                                  wishlist last). SectionPicker now reads this list
+ *                                  directly so the picker mirrors what users see.
  * Summary:  Authoritative registry of all section cards across the Dashboard
  *           and Advanced tabs. Both consumers (SectionPicker, page hosts)
  *           derive their config from these lists so they always stay in sync.
@@ -32,15 +36,27 @@ export interface DashboardSection {
 }
 
 // ─── Dashboard tab sections ──────────────────────────────────────────────────
-// Fixed-grid layout (RS-12). Sections listed top-left → bottom-right, grid order:
-//   Row 1 (2-col): Purchases This Period | Money Flow
-//   Row 2 (3-col): Recurring Spend | Loan Payoff | Savings Accounts
-//   Row 3 (2-col): Chequing Balance | Subscriptions
-//   Row 4 (full):  Credit Cards
-//   Row 5 (full):  Wishlist
+// Fixed-grid layout (RS-11/RS-12). Order below mirrors the actual DOM order on
+// DashboardPage.vue so the SectionPicker shows sections in the same order users
+// scan them top-to-bottom on the page:
+//   Row 1 (KPI):    [Hero KPI cards] · Chequing Balance
+//   Row 2 (charts): Purchases This Period · Money Flow
+//   Row 3 (widget): Recurring Spend · Loan Payoff · Savings Accounts
+//   Row 4 (full):   Subscriptions
+//   Row 5 (full):   Credit Cards
+//   Row 6 (full):   Wishlist
 
 export const DASHBOARD_SECTIONS: DashboardSection[] = [
-  // ── Wants & Analytics ────────────────────────────────────────────
+  // ── Row 1: KPI row ───────────────────────────────────────────────
+  {
+    id: 'chequing-balance',
+    icon: '🏦',
+    label: 'Chequing Balance',
+    title: 'Chequing Balance',
+    group: 'Account Tracking',
+  },
+
+  // ── Row 2: charts row ────────────────────────────────────────────
   {
     id: 'purchases-this-period',
     icon: '🛍️',
@@ -56,7 +72,7 @@ export const DASHBOARD_SECTIONS: DashboardSection[] = [
     group: 'Spending',
   },
 
-  // ── Spending ─────────────────────────────────────────────────────
+  // ── Row 3: widget row ────────────────────────────────────────────
   {
     id: 'expense-cards',
     icon: '💳',
@@ -65,30 +81,12 @@ export const DASHBOARD_SECTIONS: DashboardSection[] = [
     group: 'Spending',
   },
   {
-    id: 'subscriptions',
-    icon: '🔄',
-    label: 'Subscriptions',
-    title: 'Subscriptions',
-    group: 'Spending',
-  },
-
-  // ── Debt & Credit ─────────────────────────────────────────────────
-  {
     id: 'loans',
     icon: '🏛️',
     label: 'Loan Payoff',
     title: 'Loan Payoff',
     group: 'Debt & Credit',
   },
-  {
-    id: 'credit-cards',
-    icon: '💳',
-    label: 'Credit Cards',
-    title: 'Credit Cards',
-    group: 'Debt & Credit',
-  },
-
-  // ── Savings ───────────────────────────────────────────────────────
   {
     id: 'savings-accounts',
     icon: '🏦',
@@ -97,16 +95,25 @@ export const DASHBOARD_SECTIONS: DashboardSection[] = [
     group: 'Savings',
   },
 
-  // ── Account Tracking ─────────────────────────────────────────────
+  // ── Row 4: full-width ────────────────────────────────────────────
   {
-    id: 'chequing-balance',
-    icon: '🏦',
-    label: 'Chequing Balance',
-    title: 'Chequing Balance',
-    group: 'Account Tracking',
+    id: 'subscriptions',
+    icon: '🔄',
+    label: 'Subscriptions',
+    title: 'Subscriptions',
+    group: 'Spending',
   },
 
-  // ── Wealth & History ──────────────────────────────────────────────
+  // ── Row 5: full-width ────────────────────────────────────────────
+  {
+    id: 'credit-cards',
+    icon: '💳',
+    label: 'Credit Cards',
+    title: 'Credit Cards',
+    group: 'Debt & Credit',
+  },
+
+  // ── Row 6: full-width ────────────────────────────────────────────
   {
     id: 'wishlist',
     icon: '⭐',
