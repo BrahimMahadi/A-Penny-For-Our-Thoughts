@@ -86,6 +86,54 @@ jobs:
             --project-id ${{ secrets.SUPABASE_PROJECT_ID }} \
             > src/types/database.ts
 
+      # ─── BUG-022 fix ────────────────────────────────────────────────
+      # `supabase gen types typescript` does NOT produce the convenience
+      # `*Row` re-export aliases that src/lib/db.ts and several test files
+      # import by name (ProfileRow, WishlistItemRow, etc.). Before this
+      # step was added, the regenerate step would silently truncate them,
+      # turning every db.ts import into a TS2305 error and failing the
+      # next deploy. We append the hand-maintained block here so the
+      # commit-back step always produces a working tree.
+      #
+      # If a new table is added to the database, also add its Row alias
+      # to the list below (same naming convention: TableName + 'Row').
+      - name: Re-append *Row aliases
+        run: |
+          cat >> src/types/database.ts <<'EOF'
+
+          // ─────────────────────────────────────────────────────────────────
+          //  HAND-MAINTAINED RE-EXPORTS — KEEP BELOW THIS LINE
+          //
+          //  `supabase gen types typescript` does NOT produce these aliases.
+          //  This block is appended by .github/workflows/migrate.yml's
+          //  "Re-append *Row aliases" step after every regenerate so that
+          //  src/lib/db.ts's imports continue to resolve. (See BUG-022.)
+          //  If you add a new table to the schema, add its Row alias here
+          //  too — otherwise CI will fail on the next migration.
+          // ─────────────────────────────────────────────────────────────────
+
+          type _DbTables = Database['public']['Tables']
+
+          export type ProfileRow               = _DbTables['profiles']['Row']
+          export type IncomeStreamRow          = _DbTables['income_streams']['Row']
+          export type ExpenseCardRow           = _DbTables['expense_cards']['Row']
+          export type ExpenseItemRow           = _DbTables['expense_items']['Row']
+          export type PurchaseRow              = _DbTables['purchases']['Row']
+          export type SpendingHistoryPeriodRow = _DbTables['spending_history_periods']['Row']
+          export type SpendingHistoryItemRow   = _DbTables['spending_history_items']['Row']
+          export type LoanRow                  = _DbTables['loans']['Row']
+          export type CreditCardRow            = _DbTables['credit_cards']['Row']
+          export type SubscriptionRow          = _DbTables['subscriptions']['Row']
+          export type WishlistItemRow          = _DbTables['wishlist_items']['Row']
+          export type SavingsAccountRow        = _DbTables['savings_accounts']['Row']
+          export type GoalRow                  = _DbTables['goals']['Row']
+          export type AssetRow                 = _DbTables['assets']['Row']
+          export type NetWorthSnapshotRow      = _DbTables['net_worth_snapshots']['Row']
+          export type RuleRow                  = _DbTables['rules']['Row']
+          export type BudgetAlertRow           = _DbTables['budget_alerts']['Row']
+          export type SpendingCategoryRow      = _DbTables['spending_categories']['Row']
+          EOF
+
       - name: Commit updated types (if schema drifted)
         run: |
           git config user.name  "github-actions[bot]"

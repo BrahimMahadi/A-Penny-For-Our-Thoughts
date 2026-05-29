@@ -785,3 +785,43 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
+// ─────────────────────────────────────────────────────────────────
+//  HAND-MAINTAINED RE-EXPORTS — KEEP BELOW THIS LINE
+//
+//  BUG-022 (originally lost when migrate.yml regenerated this file
+//  during the RS-29 deploy, then restored): everything above this
+//  point is produced by `supabase gen types typescript` and gets
+//  overwritten on every migration. The convenience `*Row` aliases
+//  below are NOT produced by that command, but src/lib/db.ts and
+//  several test files import them by name. They MUST be re-added
+//  whenever this file is regenerated.
+//
+//  Until the migrate.yml workflow is taught to append this block
+//  automatically (see BUG-022 follow-up), a manual regenerate via
+//  the Supabase CLI will leave the working tree in a broken state.
+//  If you regenerate by hand, copy this block back in OR run
+//  `npm run type-check` and follow the errors to reconstruct it
+//  from src/lib/db.ts's import list.
+// ─────────────────────────────────────────────────────────────────
+
+type _DbTables = Database['public']['Tables']
+
+export type ProfileRow               = _DbTables['profiles']['Row']
+export type IncomeStreamRow          = _DbTables['income_streams']['Row']
+export type ExpenseCardRow           = _DbTables['expense_cards']['Row']
+export type ExpenseItemRow           = _DbTables['expense_items']['Row']
+export type PurchaseRow              = _DbTables['purchases']['Row']
+export type SpendingHistoryPeriodRow = _DbTables['spending_history_periods']['Row']
+export type SpendingHistoryItemRow   = _DbTables['spending_history_items']['Row']
+export type LoanRow                  = _DbTables['loans']['Row']
+export type CreditCardRow            = _DbTables['credit_cards']['Row']
+export type SubscriptionRow          = _DbTables['subscriptions']['Row']
+export type WishlistItemRow          = _DbTables['wishlist_items']['Row']
+export type SavingsAccountRow        = _DbTables['savings_accounts']['Row']
+export type GoalRow                  = _DbTables['goals']['Row']
+export type AssetRow                 = _DbTables['assets']['Row']
+export type NetWorthSnapshotRow      = _DbTables['net_worth_snapshots']['Row']
+export type RuleRow                  = _DbTables['rules']['Row']
+export type BudgetAlertRow           = _DbTables['budget_alerts']['Row']
+export type SpendingCategoryRow      = _DbTables['spending_categories']['Row']

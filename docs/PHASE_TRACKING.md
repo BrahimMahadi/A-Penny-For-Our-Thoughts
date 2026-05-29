@@ -1712,6 +1712,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-28 | Wishlist optional target month: `targetMonth?: ISODate` on `WishlistItem`; "By [Month]" badge + on-track / behind / complete chip; "Need $X/mo" hint when behind; new "Target ↑" sort option | `feat/rs-28-wishlist-target-month` | ✅ Complete | v2.19.0 |
 | BUG-021 | Wishlist sort comparator used U+FFFF (a Unicode noncharacter) as a "sort to end" sentinel; Vue parser rejected it (`vue/no-parsing-error`, noncharacter-in-input-stream) and the build-and-deploy CI step failed. Replaced with explicit null-handling in the comparator | `fix/bug-021-wishlist-noncharacter` | ✅ Complete | v2.19.1 |
 | RS-29 | DB column refresh: real Supabase columns for the 4 accumulated optional fields (RS-23 `lastArchivedPeriodStart`, RS-24 `budgets` + `spent`, RS-28 `targetMonth`); one-shot push-up migration in `initStore` preserves existing localStorage values | `feat/rs-29-db-column-refresh` | ✅ Complete | v2.20.0 |
+| BUG-022 | `migrate.yml` regenerated `src/types/database.ts` after RS-29's SQL migration, wiping the hand-maintained `*Row` re-export block at the bottom; `npm run type-check` failed in CI on every `db.ts` import. Restored the block, updated the workflow to re-append it automatically, added a contract test to catch future drift | `fix/bug-022-database-types-regenerate` | ✅ Complete | v2.20.1 |
 
 ---
 
@@ -3608,3 +3609,74 @@ Removed "Storage note: intentionally NOT mapped through Supabase" caveats from J
 
 ### Final gate
 - ✅ 1209/1209 tests pass · `vue-tsc --noEmit` clean · `eslint src/` 0 errors
+
+---
+
+## BUG-022 — `migrate.yml` regenerate wiped `*Row` re-exports ✅
+**Branch**: `fix/bug-022-database-types-regenerate`
+**Version**: v2.20.1
+**Status**: ✅ Complete (hotfix)
+
+### Symptom
+Immediately after the RS-29 deploy, the next push to `main` triggered both `deploy.yml` and `migrate.yml` simultaneously. `migrate.yml` regenerated `src/types/database.ts` from the live schema, committed it back to `main` as `4c159c7 chore: sync database.ts with live Supabase schema [skip ci]`, and the next `deploy.yml` run failed at the Type-check step with 18 errors:
+
+```
+src/lib/db.ts(31,3): error TS2305: Module '"@/types/database"' has no exported member 'ProfileRow'.
+src/lib/db.ts(32,3): error TS2305: ... no exported member 'IncomeStreamRow'.
+...
+src/lib/db.ts(36,28): error TS2305: ... no exported member 'SpendingCategoryRow'.
+```
+
+### Root cause
+`supabase gen types typescript` outputs the canonical generated form:
+- `Database` interface (root)
+- `Tables`, `TablesInsert`, `TablesUpdate`, `Enums`, `CompositeTypes` (helper generics)
+- `Constants` (enum runtime values)
+
+But it does **NOT** output the convenience `*Row` aliases (`ProfileRow`, `WishlistItemRow`, etc.) — those are hand-maintained at the bottom of `database.ts` and `src/lib/db.ts` imports them by name. The regenerate step unconditionally overwrites the file with the generator's output, deleting the alias block.
+
+The bug was latent — it would have triggered on ANY future migration, not just RS-29's. RS-29 just happened to be the first migration after the `migrate.yml` workflow was added with the auto-commit-back step.
+
+### Fixes
+
+**1. Restored the alias block** at the bottom of `src/types/database.ts` with a defensive header comment explaining why it's hand-maintained and noting that the workflow is supposed to append it automatically.
+
+**2. Patched `.github/workflows/migrate.yml`** with a new "Re-append `*Row` aliases" step that runs AFTER `supabase gen types typescript` and BEFORE the commit-back step. The step uses a heredoc to append the canonical alias block (and the explanatory header) so the regenerated file is always complete.
+
+**3. Added a contract test** at `tests/lib/databaseRowExports.spec.ts` (3 tests):
+- Parses `db.ts`'s `import type { ... } from '@/types/database'` block via regex, extracts every `*Row` identifier
+- Parses `database.ts` via regex, extracts every `export type *Row` identifier
+- Asserts the import set is a subset of the export set — anything missing fails with a pointer to the migrate workflow
+
+This test fires at the test-runner stage (before type-check), so a regenerate-and-forget-to-append regression surfaces in PR review rather than at deploy time.
+
+### Validation
+- `npm run type-check` → clean (was 18 errors)
+- `npm run lint` → 0 errors
+- `npx vitest run` → 1212/1212 (1209 prior + 3 new contract tests)
+- Manual heredoc-indentation check on `migrate.yml`: YAML's `|` literal-block strips the common leading whitespace prefix (10 spaces in this case) consistently across all body lines, so the heredoc body in bash starts at column 0 as intended.
+
+### Version
+- Tagged `v2.20.1` (matches the BUG-020 series convention: patch bump for hotfixes)
+- `APP_VERSION` in `WhatsNewBanner.vue` intentionally NOT bumped — the bug never reached production users (deploy failed before serving). Following the BUG-021 precedent.
+
+### Process improvement worth noting
+The pre-merge gate for RS-29 ran `npx vue-tsc --noEmit`, `npx vitest run`, and `npx eslint --ext .ts,.vue src/` — all green. None of those catch the "regenerate workflow wipes hand-maintained content" failure mode because the workflow only runs on the merge to `main`, not on PR. The new contract test closes that gap.
+
+### Files Changed
+- `src/types/database.ts` — restored hand-maintained `*Row` alias block with `BUG-022` marker comment
+- `.github/workflows/migrate.yml` — new "Re-append `*Row` aliases" step between regenerate and commit-back
+- `tests/lib/databaseRowExports.spec.ts` — NEW: 3 contract tests guarding the import ↔ export relationship
+- `tsconfig.json` — added `node` to the `types` array so the new contract test can use `node:fs`, `node:url`, `node:path` without TS errors
+- `package.json` + `package-lock.json` — added `@types/node` as a devDependency (required by the tsconfig change above; standard for any Vitest project that does file I/O)
+- `CLAUDE.md` — test count → 1212 across 36 spec files
+- `docs/PHASE_TRACKING.md` — this entry
+
+### Tests
+- 3 new tests added (all RS-29's 1209 tests still pass)
+- All 1212 tests pass — no regressions
+- `vue-tsc --noEmit` clean
+- `eslint src/` 0 errors
+
+### Final gate
+- ✅ 1212/1212 tests pass · `vue-tsc --noEmit` clean · `eslint src/` 0 errors
