@@ -223,6 +223,20 @@ export interface WishlistItem {
   price?: number;
   /** Amount already saved toward this item — tracked independently via "Add savings" */
   saved?: number;
+  /**
+   * RS-28 — optional target month the user wants to have this item saved up for,
+   * in 'YYYY-MM' format (matches the convention used by `Goal.targetDate`).
+   * When set, the card displays "By [Month YYYY]" + an on-track / behind / complete
+   * status chip computed by `wishlistTargetStatus()` instead of the default
+   * "~N mo at current rate" badge.
+   *
+   * Storage note: this field is intentionally NOT mapped through the Supabase
+   * adapter layer (`src/lib/db.ts`) — the wishlist DB table has no
+   * `target_month` column. Multi-device users will see the field persist on
+   * the originating device only; a future "DB column refresh" sprint will
+   * add real columns for the optional fields accumulated this way.
+   */
+  targetMonth?: ISODate;
 }
 
 // ─── Savings accounts & goals ────────────────────────────────────

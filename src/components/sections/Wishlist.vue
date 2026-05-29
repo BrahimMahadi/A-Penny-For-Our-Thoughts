@@ -23,6 +23,12 @@ import { useAnalytics } from '@/composables/useAnalytics';
 import { useGsap } from '@/composables/useGsap';
 import { useListTransition } from '@/composables/useListTransition';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
+import {
+  wishlistTargetStatus,
+  formatTargetMonthLabel,
+  requiredMonthlyRate,
+  type WishlistStatus,
+} from '@/utils/calculations';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -79,7 +85,9 @@ const totalValue = computed(() =>
 
 // ─── Sort ─────────────────────────────────────────────────────────────────────
 
-type SortKey = 'default' | 'price-asc' | 'price-desc';
+// RS-28: 'target-asc' added — soonest target first; items without a target
+// month are pushed to the end (treated as Infinity).
+type SortKey = 'default' | 'price-asc' | 'price-desc' | 'target-asc';
 const sortKey = ref<SortKey>('default');
 
 const sortedWishlist = computed(() => {
@@ -88,6 +96,14 @@ const sortedWishlist = computed(() => {
     items.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
   } else if (sortKey.value === 'price-desc') {
     items.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
+  } else if (sortKey.value === 'target-asc') {
+    // Lexicographic sort on 'YYYY-MM' strings — chronologically correct.
+    // Items without a target → end of list.
+    items.sort((a, b) => {
+      const at = a.targetMonth ?? '￿';
+      const bt = b.targetMonth ?? '￿';
+      return at.localeCompare(bt);
+    });
   }
   return items;
 });
@@ -102,6 +118,43 @@ function monthsToGoal(item: WishlistItem): number | null {
   return Math.ceil(remaining / monthlySavingsRate.value);
 }
 
+// ─── RS-28: target-month per-card helpers ────────────────────────────────────
+//
+// All three helpers thin-wrap the pure functions in calculations.ts so the
+// template stays declarative and the unit tests can hit the math directly.
+
+/** True when the item has a user-set target month — drives the "By [Month]" badge. */
+function hasTarget(item: WishlistItem): boolean {
+  return typeof item.targetMonth === 'string' && item.targetMonth.length > 0;
+}
+
+/** "Mar 2027" style label for an item's target month; null when unset/invalid. */
+function targetLabel(item: WishlistItem): string | null {
+  return formatTargetMonthLabel(item.targetMonth);
+}
+
+/** Status verdict — drives the on-card chip. */
+function statusFor(item: WishlistItem): WishlistStatus {
+  return wishlistTargetStatus(
+    item.price,
+    item.saved,
+    item.targetMonth,
+    monthlySavingsRate.value,
+  );
+}
+
+/**
+ * Dollar amount per month the user would need to allocate (from now)
+ * to reach `price` exactly by the target month. Null when not applicable
+ * (no remaining, no target, or target in the past).
+ *
+ * Surfaced as an inline hint when the status chip is "behind".
+ */
+function requiredRateFor(item: WishlistItem): number | null {
+  const remaining = Math.max(0, (item.price ?? 0) - (item.saved ?? 0));
+  return requiredMonthlyRate(remaining, item.targetMonth);
+}
+
 /** Progress percentage (saved / price), clamped to 0–100. */
 function progressPct(item: WishlistItem): number {
   if (!item.price || item.price <= 0) return 0;
@@ -113,6 +166,13 @@ function isAffordable(price: number | undefined): boolean {
   if (price == null || price <= 0) return false;
   return wantsBudgetPerPeriod.value > 0 && price <= wantsBudgetPerPeriod.value;
 }
+
+/**
+ * RS-28: min value for the target-month picker. Prevents users from selecting
+ * past months (which would always show "behind" with negative months-to-target).
+ * Computed at script-eval time — refreshes on each page mount, which is fine.
+ */
+const minTargetMonth = new Date().toISOString().slice(0, 7);
 
 /**
  * Live hint shown below the "Saved amount" field in the edit modal.
@@ -165,18 +225,21 @@ function applyInlineSavings(id: string): void {
 const showModal = ref(false);
 const editingId  = ref<string | null>(null);
 
-const form = reactive({ name: '', icon: '🛒', url: '', price: '', saved: '' });
+// RS-28: targetMonth is 'YYYY-MM' (matches Goal.targetDate convention).
+// Empty string = "no target" — the field remains optional.
+const form = reactive({ name: '', icon: '🛒', url: '', price: '', saved: '', targetMonth: '' });
 
 const nameValidation = useFormValidation(() => ({
   name: rules.required(form.name, 'Name'),
 }));
 
 function resetForm(): void {
-  form.name  = '';
-  form.icon  = '🛒';
-  form.url   = '';
-  form.price = '';
-  form.saved = '';
+  form.name        = '';
+  form.icon        = '🛒';
+  form.url         = '';
+  form.price       = '';
+  form.saved       = '';
+  form.targetMonth = '';
   editingId.value = null;
   nameValidation.reset();
 }
@@ -189,13 +252,14 @@ function openAdd(): void {
 function openEdit(id: string): void {
   const item = budget.wishlist.find(w => w.id === id);
   if (!item) return;
-  form.name  = item.name;
-  form.icon  = item.icon || '🛒';
-  form.url   = item.url || '';
-  form.price = item.price != null ? String(item.price) : '';
-  form.saved = item.saved != null ? String(item.saved) : '';
-  editingId.value = id;
-  showModal.value = true;
+  form.name        = item.name;
+  form.icon        = item.icon || '🛒';
+  form.url         = item.url || '';
+  form.price       = item.price != null ? String(item.price) : '';
+  form.saved       = item.saved != null ? String(item.saved) : '';
+  form.targetMonth = item.targetMonth ?? '';
+  editingId.value  = id;
+  showModal.value  = true;
 }
 
 const formError = computed<string>(() => {
@@ -224,12 +288,16 @@ function save(): void {
   const savedStr = String(form.saved ?? '').trim();
   const parsedPrice = priceStr !== '' ? +priceStr : undefined;
   const parsedSaved = savedStr !== '' ? +savedStr : undefined;
+  const trimmedTarget = form.targetMonth.trim();
   const payload = {
     name:  form.name.trim(),
     icon:  form.icon || '🛒',
     url:   form.url.trim(),
     price: parsedPrice,
     saved: parsedSaved,
+    // RS-28: pass through undefined when blank so existing items don't end
+    // up with empty-string sentinel values that would break the helpers.
+    targetMonth: trimmedTarget !== '' ? trimmedTarget : undefined,
   };
   if (editingId.value) {
     budget.updateWishlistItem(editingId.value, payload);
@@ -287,6 +355,7 @@ defineExpose({ openAdd });
           <option value="default">Default order</option>
           <option value="price-asc">Price ↑</option>
           <option value="price-desc">Price ↓</option>
+          <option value="target-asc">Target ↑</option>
         </select>
         <BaseButton
           size="sm"
@@ -331,9 +400,38 @@ defineExpose({ openAdd });
             >{{ item.icon || '🛒' }}</span>
           </div>
 
-          <!-- Months-to-goal badge -->
+          <!--
+            RS-28: when targetMonth is set we replace the default
+            "~N mo at current rate" badge with "By [Month YYYY]" + an
+            on-track / behind / complete status chip. Otherwise the
+            original months-to-goal badge renders unchanged.
+          -->
+          <div
+            v-if="hasTarget(item)"
+            class="wish-card__target-group"
+            data-testid="wish-target-group"
+          >
+            <span
+              class="wish-card__target-badge"
+              :title="`Target month: ${targetLabel(item)}`"
+            >
+              By {{ targetLabel(item) }}
+            </span>
+            <span
+              v-if="statusFor(item) !== 'no-target'"
+              class="wish-card__status-chip"
+              :class="`wish-card__status-chip--${statusFor(item)}`"
+              :data-testid="`wish-status-${statusFor(item)}`"
+            >
+              <template v-if="statusFor(item) === 'complete'">Complete ✓</template>
+              <template v-else-if="statusFor(item) === 'on-track'">On track ✓</template>
+              <template v-else>Behind ✗</template>
+            </span>
+          </div>
+
+          <!-- Default months-to-goal badge (no target month set) -->
           <span
-            v-if="monthsToGoal(item) !== null && monthsToGoal(item)! > 0"
+            v-else-if="monthsToGoal(item) !== null && monthsToGoal(item)! > 0"
             class="wish-card__months-badge"
             :title="`~${monthsToGoal(item)} months to save up at ${fmt(monthlySavingsRate)}/mo`"
           >
@@ -382,6 +480,19 @@ defineExpose({ openAdd });
               Affordable ✓
             </span>
           </div>
+
+          <!--
+            RS-28: required-rate hint — only shown when the user is BEHIND
+            on a targeted item. Tells them exactly the monthly allocation
+            needed to still hit the target month.
+          -->
+          <p
+            v-if="hasTarget(item) && statusFor(item) === 'behind' && requiredRateFor(item) !== null"
+            class="wish-card__required-hint"
+            data-testid="wish-required-hint"
+          >
+            Need <strong>{{ fmt(requiredRateFor(item)!) }}/mo</strong> to hit your target
+          </p>
         </template>
 
         <!-- Inline "Add savings" form -->
@@ -552,6 +663,26 @@ defineExpose({ openAdd });
             type="url"
             placeholder="https://..."
           >
+        </div>
+
+        <!-- RS-28: Target month (optional) -->
+        <div class="form-group">
+          <label
+            class="form-label"
+            for="wish-target-month"
+          >Target month (optional)</label>
+          <input
+            id="wish-target-month"
+            v-model="form.targetMonth"
+            class="form-input"
+            type="month"
+            :min="minTargetMonth"
+            data-testid="wish-target-month-input"
+          >
+          <p class="wish-field-hint">
+            When set, the card shows "By [Month]" with an on-track / behind chip
+            based on your monthly savings rate. Leave blank for the default "~N mo" badge.
+          </p>
         </div>
 
         <!-- Live affordability hint -->
@@ -760,6 +891,80 @@ defineExpose({ openAdd });
   background: color-mix(in srgb, var(--success) 12%, var(--surface));
   color: var(--success);
   border-color: color-mix(in srgb, var(--success) 25%, var(--border));
+}
+
+/* ─── RS-28: target month badge + status chip ──────────────────── */
+.wish-card__target-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  align-self: flex-start;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.wish-card__target-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+  white-space: nowrap;
+}
+
+.wish-card__status-chip {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  border: 1px solid;
+}
+
+.wish-card__status-chip--complete {
+  background: color-mix(in srgb, var(--success) 14%, var(--surface));
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 30%, var(--border));
+}
+
+.wish-card__status-chip--on-track {
+  background: color-mix(in srgb, var(--accent2-text) 14%, var(--surface));
+  color: var(--accent2-text);
+  border-color: color-mix(in srgb, var(--accent2-text) 30%, var(--border));
+}
+
+.wish-card__status-chip--behind {
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
+}
+
+.wish-card__required-hint {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  color: var(--danger);
+  line-height: 1.4;
+}
+
+.wish-card__required-hint strong {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* RS-28: inline-field hint used inside the modal form */
+.wish-field-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.4;
+  max-width: 50ch;
 }
 
 /* ─── Name + price ────────────────────────────────────────────── */

@@ -1709,6 +1709,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-25 | Remove orphaned `WantsTracker.vue` (section not rendered since RS-11; close-period button made redundant by RS-23 auto-rollover and RS-24 manual close) | `feat/rs-25-remove-wants-tracker` | ✅ Complete | v2.16.0 |
 | RS-26 | Update `DocsPage.vue` release-notes section — was stuck at v1.18.0; now fully caught up through v2.17.0 with a "Vivid Modern" era divider and regression-guard tests | `feat/rs-26-docs-page-refresh` | ✅ Complete | v2.17.0 |
 | RS-27 | Advanced tab → "Insights" rename + sidebar surfacing (Path C). Internal rename across TabId / store / constants; legacy `advancedSectionOrder` localStorage migrated transparently; keyboard shortcut `7` preserved | `feat/rs-27-insights-tab` | ✅ Complete | v2.18.0 |
+| RS-28 | Wishlist optional target month: `targetMonth?: ISODate` on `WishlistItem`; "By [Month]" badge + on-track / behind / complete chip; "Need $X/mo" hint when behind; new "Target ↑" sort option | `feat/rs-28-wishlist-target-month` | ✅ Complete | v2.19.0 |
 
 ---
 
@@ -3373,3 +3374,78 @@ Brahim confirmed:
 
 ### Final gate
 - ✅ 1135/1135 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## RS-28 — Wishlist target month ✅
+**Branch**: `feat/rs-28-wishlist-target-month`
+**Version**: v2.19.0
+**Status**: ✅ Complete
+
+### Goal
+Let users mark Wishlist items with a deadline. Today the card shows a derived "~N mo at current rate" badge that assumes the entire savings envelope flows to each item — useful for ballparking but doesn't let the user say "I want this *by* a specific date". RS-28 adds an optional `targetMonth` field and a small visual + sort layer on top.
+
+### Decisions (confirmed by Brahim)
+- **Replace** the "~N mo" badge with "By [Month YYYY]" when target is set (not show both)
+- **Yes** to the inline "Need $X/mo to hit target" hint when behind
+- **Yes** to a new "Target ↑" sort option
+
+### Format & convention
+`targetMonth: ISODate` stored as `'YYYY-MM'` — matches the convention already used by `Goal.targetDate` (also a month-only field via `<input type="month">`). Empty string in the form becomes `undefined` in the payload so existing items don't get sentinel values.
+
+### Status logic (`wishlistTargetStatus` in `calculations.ts`)
+```
+complete   → saved >= price
+no-target  → no price OR no/invalid targetMonth  (caller renders default badge)
+behind     → at current savings rate, you'd hit `price` AFTER the target
+on-track   → at current savings rate, you'd hit `price` on or before target
+```
+
+Edge cases explicitly handled:
+- Past target with money still owed → `behind`
+- Current month target with money still owed → `behind`
+- `monthlySavingsRate = 0` with money still owed → `behind` (no progress possible)
+- `saved >= price` → `complete` always (target irrelevant once done)
+
+### Pure helpers (`src/utils/calculations.ts`, ~120 LOC appended)
+| Helper | Purpose |
+|---|---|
+| `monthsUntilTarget(targetMonth, today)` | Whole-month count from today to target start; negative for past, 0 for current month, null for missing/malformed |
+| `requiredMonthlyRate(remaining, targetMonth, today)` | Monthly rate needed to hit target; rounds UP to nearest cent for sufficiency; null for past targets / no remaining |
+| `wishlistTargetStatus(price, saved, targetMonth, rate, today)` | The status verdict above |
+| `formatTargetMonthLabel(targetMonth)` | "Mar 2027" via `toLocaleDateString('en-CA', { month: 'short', year: 'numeric' })` |
+
+### UI surface (`src/components/sections/Wishlist.vue`)
+**Modal**: new `<input type="month">` labelled "Target month (optional)" with `min` set to current month so users can't pick the past; an explanatory `wish-field-hint` paragraph notes what the field controls.
+
+**Card** (when target is set):
+- Top-right corner shows a stacked group: `By Mar 2027` badge + status chip (`On track ✓` / `Behind ✗` / `Complete ✓`)
+- Default "~N mo at current rate" badge is hidden
+- Below the saved-row, if status is `behind`, a `wish-card__required-hint` paragraph in `var(--danger)` colour shows: "Need <strong>$134/mo</strong> to hit your target"
+
+**Card** (when target is unset): unchanged. The original "~N mo" badge and "✓ Saved" badge render as before — fully backward-compatible.
+
+**Sort dropdown**: new `<option value="target-asc">Target ↑</option>`. Sort uses lexicographic comparison on the `YYYY-MM` strings (chronologically correct); undated items go to the end via `'￿'` sentinel.
+
+### Storage note
+`targetMonth` is **not** mapped through the Supabase adapter (`src/lib/db.ts`) — the wishlist DB table has no `target_month` column. Same client-only trade-off as RS-23's `lastArchivedPeriodStart` and RS-24's `budgets`/`spent` snapshots. Multi-device users see the field persist on the originating device only. Documented inline in `WishlistItem.targetMonth`'s JSDoc; a future "DB column refresh" sprint can add real columns for all the optional fields accumulated this way.
+
+### Files Changed
+- `src/types/budget.ts` — added `WishlistItem.targetMonth?: ISODate` with full JSDoc + storage limitation note
+- `src/utils/calculations.ts` — appended 4 pure helpers + `WishlistStatus` type
+- `src/components/sections/Wishlist.vue` — form state + modal input + per-card helpers + template (status group, required-rate hint, sort option) + scoped CSS for the new badge / chip variants
+- `tests/utils/wishlistTarget.spec.ts` — NEW file, 29 pure-function tests covering all four helpers (full branch coverage including edge cases)
+- `tests/components/sections/sections.spec.ts` — new "Wishlist — RS-28 target month" describe block, 13 integration tests covering modal field, badge swap, status chip rendering for each state, required-rate hint visibility, sort option, sort behaviour, store round-trip
+- `src/components/onboarding/WhatsNewBanner.vue` — bumped to v2.19.0 with target-month-themed release notes
+- `tests/components/onboarding.spec.ts` — version strings → 2.19.0
+- `src/components/pages/DocsPage.vue` — new v2.19.0 release block at top of release-notes section
+- `tests/components/pages/pages.spec.ts` — added `v2.19.0` to the regression-guard test list; added `RS-28` to the redesign-sprint-mentions test
+- `CLAUDE.md` — test count → 1177 across 34 spec files
+
+### Tests
+- 42 new tests added (29 pure helpers + 13 component integration)
+- All 1177 tests pass — no regressions
+- `vue-tsc --noEmit` clean
+
+### Final gate
+- ✅ 1177/1177 tests pass · `vue-tsc --noEmit` clean
