@@ -1711,6 +1711,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-27 | Advanced tab → "Insights" rename + sidebar surfacing (Path C). Internal rename across TabId / store / constants; legacy `advancedSectionOrder` localStorage migrated transparently; keyboard shortcut `7` preserved | `feat/rs-27-insights-tab` | ✅ Complete | v2.18.0 |
 | RS-28 | Wishlist optional target month: `targetMonth?: ISODate` on `WishlistItem`; "By [Month]" badge + on-track / behind / complete chip; "Need $X/mo" hint when behind; new "Target ↑" sort option | `feat/rs-28-wishlist-target-month` | ✅ Complete | v2.19.0 |
 | BUG-021 | Wishlist sort comparator used U+FFFF (a Unicode noncharacter) as a "sort to end" sentinel; Vue parser rejected it (`vue/no-parsing-error`, noncharacter-in-input-stream) and the build-and-deploy CI step failed. Replaced with explicit null-handling in the comparator | `fix/bug-021-wishlist-noncharacter` | ✅ Complete | v2.19.1 |
+| RS-29 | DB column refresh: real Supabase columns for the 4 accumulated optional fields (RS-23 `lastArchivedPeriodStart`, RS-24 `budgets` + `spent`, RS-28 `targetMonth`); one-shot push-up migration in `initStore` preserves existing localStorage values | `feat/rs-29-db-column-refresh` | ✅ Complete | v2.20.0 |
 
 ---
 
@@ -3523,3 +3524,87 @@ The replacement comparator carries an inline `BUG-021 fix:` comment explaining t
 
 ### Final gate
 - ✅ 1177/1177 tests pass · `vue-tsc --noEmit` clean · `eslint src/` 0 errors
+
+---
+
+## RS-29 — DB column refresh ✅
+**Branch**: `feat/rs-29-db-column-refresh`
+**Version**: v2.20.0
+**Status**: ✅ Complete
+
+### Goal
+Three sprints (RS-23, RS-24, RS-28) added optional fields to the TypeScript layer but skipped the corresponding Supabase migrations, defaulting to a "localStorage only" pattern with a documented multi-device limitation. RS-29 cashes in the debt — adds real DB columns for all four accumulated fields and migrates existing localStorage values up to the cloud so nothing is lost.
+
+### Debt inventory cleared
+| Field | Table | Source | New column |
+|---|---|---|---|
+| `BudgetState.lastArchivedPeriodStart` | `profiles` | RS-23 (v2.14.0) | `last_archived_period_start TEXT` |
+| `SpendingHistoryPeriod.budgets` | `spending_history_periods` | RS-24 (v2.15.0) | `budgets JSONB` |
+| `SpendingHistoryPeriod.spent` | `spending_history_periods` | RS-24 (v2.15.0) | `spent JSONB` |
+| `WishlistItem.targetMonth` | `wishlist_items` | RS-28 (v2.19.0) | `target_month TEXT` |
+
+### SQL migration
+`supabase/migrations/005_optional_fields_refresh.sql` — single file (matches the focused-per-fix precedent of `004_wishlist_price_saved.sql`). All `ADD COLUMN IF NOT EXISTS` so re-runs are safe. Ends with `notify pgrst, 'reload schema'` so PostgREST sees the new columns immediately without a manual restart.
+
+### Adapter layer (`src/lib/db.ts`)
+- `toWishlistItem`: maps `target_month` → `targetMonth` with conditional spread so unset items don't end up with explicit `undefined`
+- `db.wishlist.insert` + `db.wishlist.update`: writes `target_month: w.targetMonth ?? null`
+- `toSpendingHistoryPeriod`: maps `budgets` / `spent` JSONB → typed shape with conditional spread
+- `db.spendingHistory.insertPeriod`: writes both JSONB columns
+- `db.spendingHistory.updatePeriodSnapshots`: **NEW** — surgical in-place update for the push-up migration to promote budgets/spent without touching the period's other columns (items, label, total)
+- `fetchAllUserData`: reads `profile.last_archived_period_start` → `lastArchivedPeriodStart`
+- `upsertProfile`: accepts `lastArchivedPeriodStart` parameter; spreads `last_archived_period_start` into the payload only when explicitly provided (matches existing pattern for other profile fields)
+
+### Store sync plumbing (`src/stores/budget.ts`)
+All four mutation sites for `lastArchivedPeriodStart` now fire a follow-up `syncDb(() => upsertProfile(_userId, { lastArchivedPeriodStart }))`:
+- `closeCurrentPeriodManually` — anchor advanced to next period
+- `autoArchiveMissedPeriods` — first-run init branch (sets anchor to current period start)
+- `autoArchiveMissedPeriods` — defensive-empty-loop bail (advances anchor without archiving)
+- `autoArchiveMissedPeriods` — normal commit path (advances anchor after archiving N periods)
+
+Wishlist `targetMonth` and per-period `budgets`/`spent` already flowed through their respective CRUD actions; the adapter changes alone are sufficient for them.
+
+### Push-up migration (`pushUpOptionalFields`)
+**The defensive bit.** Today, optional fields are preserved across reloads because `Object.assign(state, fetchedData)` only copies properties present on `fetchedData`. Since the existing `db.ts` didn't map these fields, they were absent from `fetchedData` and the local values survived.
+
+Once RS-29 promotes the fields to real columns, `fetchedData` WILL include them. For users whose DB columns are still null (every existing user on first load after deploy), `Object.assign` would clobber the localStorage values with null → silent data loss.
+
+`pushUpOptionalFields` runs BETWEEN the fetch and the `Object.assign`. For each field:
+1. If `data[field] == null && localState[field] != null` → push the local value up to the DB
+2. Also mutate the in-place `data` object so the subsequent `Object.assign` carries the value forward
+
+After the first run, DB and local agree, all branches no-op (idempotent). Failures are logged but never throw — the local data is already showing and the user can refresh to retry.
+
+The helper is exported from `budget.ts` solely so the test suite can exercise it directly. Production callers always reach it via `initStore`.
+
+### Doc-comment cleanup
+Removed "Storage note: intentionally NOT mapped through Supabase" caveats from JSDoc on the three TypeScript types (`BudgetState.lastArchivedPeriodStart`, `SpendingHistoryPeriod.budgets`, `WishlistItem.targetMonth`). Replaced with concrete "Persistence (RS-29)" blocks that document the column name, the migration file, and the push-up migration cross-reference.
+
+### Files Changed
+- NEW: `supabase/migrations/005_optional_fields_refresh.sql`
+- NEW: `tests/stores/pushUpOptionalFields.spec.ts` — 16 tests, all branches of the migration
+- `src/types/database.ts` — Row/Insert/Update for `profiles`, `spending_history_periods`, `wishlist_items`
+- `src/lib/db.ts` — adapter additions (toWishlistItem / wishlist.insert / wishlist.update / toSpendingHistoryPeriod / spendingHistory.insertPeriod / spendingHistory.updatePeriodSnapshots / fetchAllUserData / upsertProfile) + `Json` import
+- `src/stores/budget.ts` — exported `pushUpOptionalFields` helper + four `syncDb` follow-ups for `lastArchivedPeriodStart` + call from `initStore` between fetch and assign
+- `src/types/state.ts` — removed Storage note caveat on `lastArchivedPeriodStart`; added "Persistence (RS-29)" block
+- `src/types/budget.ts` — same cleanup for `budgets` and `targetMonth` JSDoc
+- `tests/lib/db.spec.ts` — 16 new tests covering round-trip for all four columns
+- `src/components/onboarding/WhatsNewBanner.vue` — bumped to v2.20.0 with debt-cleanup-themed notes
+- `tests/components/onboarding.spec.ts` — version strings → 2.20.0
+- `src/components/pages/DocsPage.vue` — new v2.20.0 + v2.19.1 release blocks (the v2.19.1 BUG-021 hotfix block hadn't been added yet)
+- `tests/components/pages/pages.spec.ts` — regression-guard test list includes v2.20.0 + v2.19.1 + RS-29
+- `CLAUDE.md` — test count → 1209 across 35 spec files
+
+### Tests
+- 32 new tests added (16 db round-trip + 16 push-up migration)
+- All 1209 tests pass — no regressions
+- `vue-tsc --noEmit` clean
+- `eslint src/` 0 errors (caught last sprint via BUG-021 — pre-merge gate now includes eslint informally)
+
+### Notes for the next deploy
+- **Run the SQL migration first** — Supabase migrations apply via the standard CLI/dashboard flow. With migrations 001–004 already applied, 005 is the next one.
+- **The push-up migration runs automatically** on the first app load after the new TS code reaches a user. If that load happens before the SQL migration is applied, the Supabase upserts will fail (no column to write to) but the local data still renders. On the next load (after migration applies), the push-up succeeds.
+- **No user-facing change** — the four features (RS-23 / RS-24 / RS-28) work identically; they just now persist across devices via Supabase.
+
+### Final gate
+- ✅ 1209/1209 tests pass · `vue-tsc --noEmit` clean · `eslint src/` 0 errors

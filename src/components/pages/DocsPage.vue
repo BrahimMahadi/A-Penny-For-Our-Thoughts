@@ -341,6 +341,38 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.20.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-29 — DB column refresh (multi-device sync for accumulated optional fields)
+            </p>
+            <ul class="docs-list">
+              <li><strong>Multi-device sync now works</strong> for the four optional fields that previously persisted on the originating device only: wishlist target months (RS-28), spending-history period budget / spent snapshots (RS-24), and the auto-rollover anchor (RS-23).</li>
+              <li><strong>Real Supabase columns added</strong> via <code>supabase/migrations/005_optional_fields_refresh.sql</code>: <code>wishlist_items.target_month</code>, <code>spending_history_periods.budgets</code> (JSONB), <code>spending_history_periods.spent</code> (JSONB), and <code>profiles.last_archived_period_start</code>.</li>
+              <li><strong>Push-up migration</strong> runs once on first load after this version deploys — any localStorage-only values from the v2.14 / v2.15 / v2.19 era are promoted to the new columns BEFORE the normal hydration would have clobbered them with null. Idempotent: no-ops on every subsequent load.</li>
+              <li><strong>Zero behavioural change</strong> for end users beyond reliable cross-device persistence; the four features themselves work identically to how they did at release.</li>
+              <li>1,209 tests across 35 spec files — 32 new tests cover the round-trip mappings and every branch of the push-up migration including a failure-resilience scenario.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.19.1</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              BUG-021 — Wishlist sort: U+FFFF noncharacter blocked CI lint (hotfix)
+            </p>
+            <ul class="docs-list">
+              <li>The RS-28 wishlist "Target ↑" sort comparator used U+FFFF (a Unicode noncharacter) as a "sort to end" sentinel. The runtime accepted it but the Vue ESLint parser rejected it under <code>vue/no-parsing-error · noncharacter-in-input-stream</code>, failing the build-and-deploy CI step.</li>
+              <li>Replaced the sentinel with explicit null-handling in the comparator. Same observable sort order — soonest target first, undated items at the end.</li>
+              <li>Bug never reached production (build failed before deploy). <code>APP_VERSION</code> in WhatsNewBanner was intentionally NOT bumped from 2.19.0 → 2.19.1 to avoid re-showing an already-dismissed banner for a no-visible-change fix.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.19.0</span>
               <span class="release-date">May 2026</span>
             </div>

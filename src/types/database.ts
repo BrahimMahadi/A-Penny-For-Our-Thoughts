@@ -325,6 +325,7 @@ export type Database = {
           funds_remaining_updated: string
           has_onboarded: boolean
           id: string
+          last_archived_period_start: string | null  // RS-29
           pay_start: string | null
           updated_at: string
         }
@@ -337,6 +338,7 @@ export type Database = {
           funds_remaining_updated?: string
           has_onboarded?: boolean
           id: string
+          last_archived_period_start?: string | null  // RS-29
           pay_start?: string | null
           updated_at?: string
         }
@@ -349,6 +351,7 @@ export type Database = {
           funds_remaining_updated?: string
           has_onboarded?: boolean
           id?: string
+          last_archived_period_start?: string | null  // RS-29
           pay_start?: string | null
           updated_at?: string
         }
@@ -526,28 +529,34 @@ export type Database = {
       }
       spending_history_periods: {
         Row: {
+          budgets: Json | null         // RS-29 — { needs, wants, savings }
           created_at: string
           date: string
           id: string
           label: string | null
+          spent: Json | null           // RS-29 — { needs, wants }
           total: number
           updated_at: string
           user_id: string
         }
         Insert: {
+          budgets?: Json | null        // RS-29
           created_at?: string
           date: string
           id: string
           label?: string | null
+          spent?: Json | null          // RS-29
           total?: number
           updated_at?: string
           user_id: string
         }
         Update: {
+          budgets?: Json | null        // RS-29
           created_at?: string
           date?: string
           id?: string
           label?: string | null
+          spent?: Json | null          // RS-29
           total?: number
           updated_at?: string
           user_id?: string
@@ -607,6 +616,7 @@ export type Database = {
           name: string
           price: number | null
           saved: number | null
+          target_month: string | null   // RS-29 — 'YYYY-MM'
           updated_at: string
           url: string
           user_id: string
@@ -618,6 +628,7 @@ export type Database = {
           name: string
           price?: number | null
           saved?: number | null
+          target_month?: string | null  // RS-29
           updated_at?: string
           url?: string
           user_id: string
@@ -629,6 +640,7 @@ export type Database = {
           name?: string
           price?: number | null
           saved?: number | null
+          target_month?: string | null  // RS-29
           updated_at?: string
           url?: string
           user_id?: string

@@ -446,4 +446,281 @@ describe('upsertProfile', () => {
 
     await expect(upsertProfile('uid', { hasOnboarded: true })).rejects.toThrow('RLS violation');
   });
+
+  // ── RS-29: lastArchivedPeriodStart round-trip ─────────────────
+  it('RS-29: upsert maps lastArchivedPeriodStart → last_archived_period_start', async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockReturnValue({ upsert: upsertMock });
+
+    await upsertProfile('uid', { lastArchivedPeriodStart: '2026-05-15' });
+
+    const payload = upsertMock.mock.calls[0][0];
+    expect(payload.last_archived_period_start).toBe('2026-05-15');
+    expect(payload.lastArchivedPeriodStart).toBeUndefined();
+  });
+
+  it('RS-29: upsert can clear lastArchivedPeriodStart with null', async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockReturnValue({ upsert: upsertMock });
+
+    await upsertProfile('uid', { lastArchivedPeriodStart: null });
+
+    const payload = upsertMock.mock.calls[0][0];
+    expect(payload.last_archived_period_start).toBeNull();
+  });
+
+  it('RS-29: upsert omits last_archived_period_start when not provided', async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockReturnValue({ upsert: upsertMock });
+
+    await upsertProfile('uid', { hasOnboarded: true });
+
+    const payload = upsertMock.mock.calls[0][0];
+    expect('last_archived_period_start' in payload).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  RS-29 — wishlist target_month round-trip
+// ─────────────────────────────────────────────────────────────────
+describe('db.wishlist — RS-29 target_month', () => {
+  beforeEach(() => { mockFrom.mockReset(); });
+
+  it('insert sends target_month when set', async () => {
+    const insertMock = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockReturnValue({ insert: insertMock });
+
+    const item = {
+      id: 'w1', icon: '📷', name: 'Camera', url: '',
+      price: 1600, saved: 0, targetMonth: '2027-03',
+    };
+    await db.wishlist.insert('uid', item);
+
+    const payload = insertMock.mock.calls[0][0];
+    expect(payload.target_month).toBe('2027-03');
+    expect(payload.targetMonth).toBeUndefined();
+  });
+
+  it('insert sends target_month: null when undefined', async () => {
+    const insertMock = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockReturnValue({ insert: insertMock });
+
+    const item = { id: 'w2', icon: '📚', name: 'Book', url: '' };
+    await db.wishlist.insert('uid', item);
+
+    const payload = insertMock.mock.calls[0][0];
+    expect(payload.target_month).toBeNull();
+  });
+
+  it('update sends target_month in the patch object', async () => {
+    const eqMock = vi.fn().mockReturnThis();
+    const updateMock = vi.fn().mockReturnValue({ eq: eqMock, then: (r: (v: unknown) => void) => r({ error: null }) });
+    mockFrom.mockReturnValue({ update: updateMock });
+
+    const item = {
+      id: 'w1', icon: '📷', name: 'Camera', url: '',
+      price: 1600, saved: 100, targetMonth: '2027-06',
+    };
+    await db.wishlist.update('uid', item);
+
+    const patch = updateMock.mock.calls[0][0];
+    expect(patch.target_month).toBe('2027-06');
+  });
+
+  it('fetchAllUserData maps target_month → targetMonth', async () => {
+    const profileRow = {
+      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
+      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
+      pay_start: null, last_archived_period_start: null,
+      funds_remaining: 0, funds_remaining_updated: '',
+      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
+    };
+    const wishRow = {
+      id: 'w1', user_id: 'uid', icon: '📷', name: 'Camera', url: '',
+      price: 1600, saved: 0, target_month: '2027-03',
+      created_at: '', updated_at: '',
+    };
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return makeQuery(profileRow);
+      if (table === 'wishlist_items') return makeQuery([wishRow]);
+      return makeQuery([]);
+    });
+
+    const result = await fetchAllUserData('uid');
+    expect(result!.wishlist![0].targetMonth).toBe('2027-03');
+  });
+
+  it('fetchAllUserData omits targetMonth when DB column is null', async () => {
+    const profileRow = {
+      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
+      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
+      pay_start: null, last_archived_period_start: null,
+      funds_remaining: 0, funds_remaining_updated: '',
+      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
+    };
+    const wishRow = {
+      id: 'w2', user_id: 'uid', icon: '📚', name: 'Book', url: '',
+      price: null, saved: null, target_month: null,
+      created_at: '', updated_at: '',
+    };
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return makeQuery(profileRow);
+      if (table === 'wishlist_items') return makeQuery([wishRow]);
+      return makeQuery([]);
+    });
+
+    const result = await fetchAllUserData('uid');
+    expect(result!.wishlist![0].targetMonth).toBeUndefined();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  RS-29 — spending_history_periods budgets / spent round-trip
+// ─────────────────────────────────────────────────────────────────
+describe('db.spendingHistory — RS-29 budgets / spent', () => {
+  beforeEach(() => { mockFrom.mockReset(); });
+
+  it('insertPeriod writes budgets and spent JSONB when set', async () => {
+    const insertMock = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockReturnValue({ insert: insertMock });
+
+    await db.spendingHistory.insertPeriod('uid', {
+      id: 'p1', date: '2026-05-01', total: 100, items: [],
+      budgets: { needs: 1000, wants: 600, savings: 400 },
+      spent:   { needs: 50, wants: 50 },
+    });
+
+    // First call: the period itself
+    const periodPayload = insertMock.mock.calls[0][0];
+    expect(periodPayload.budgets).toEqual({ needs: 1000, wants: 600, savings: 400 });
+    expect(periodPayload.spent).toEqual({ needs: 50, wants: 50 });
+  });
+
+  it('insertPeriod writes budgets: null and spent: null when fields are undefined', async () => {
+    const insertMock = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockReturnValue({ insert: insertMock });
+
+    await db.spendingHistory.insertPeriod('uid', {
+      id: 'p2', date: '2026-05-01', total: 0, items: [],
+    });
+
+    const periodPayload = insertMock.mock.calls[0][0];
+    expect(periodPayload.budgets).toBeNull();
+    expect(periodPayload.spent).toBeNull();
+  });
+
+  it('updatePeriodSnapshots writes only the keys in the patch', async () => {
+    const eqMock = vi.fn().mockReturnThis();
+    const updateMock = vi.fn().mockReturnValue({ eq: eqMock, then: (r: (v: unknown) => void) => r({ error: null }) });
+    mockFrom.mockReturnValue({ update: updateMock });
+
+    await db.spendingHistory.updatePeriodSnapshots('uid', 'p1', {
+      budgets: { needs: 1000, wants: 600, savings: 400 },
+    });
+
+    const patch = updateMock.mock.calls[0][0];
+    expect(patch.budgets).toEqual({ needs: 1000, wants: 600, savings: 400 });
+    expect('spent' in patch).toBe(false);
+  });
+
+  it('updatePeriodSnapshots is a no-op when patch is empty', async () => {
+    const updateMock = vi.fn();
+    mockFrom.mockReturnValue({ update: updateMock });
+
+    await db.spendingHistory.updatePeriodSnapshots('uid', 'p1', {});
+
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('fetchAllUserData maps budgets / spent JSONB → typed shape', async () => {
+    const profileRow = {
+      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
+      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
+      pay_start: null, last_archived_period_start: null,
+      funds_remaining: 0, funds_remaining_updated: '',
+      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
+    };
+    const periodRow = {
+      id: 'p1', user_id: 'uid', date: '2026-05-01', label: null, total: 100,
+      budgets: { needs: 1000, wants: 600, savings: 400 },
+      spent:   { needs: 50, wants: 50 },
+      created_at: '', updated_at: '',
+    };
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return makeQuery(profileRow);
+      if (table === 'spending_history_periods') return makeQuery([periodRow]);
+      return makeQuery([]);
+    });
+
+    const result = await fetchAllUserData('uid');
+    const period = result!.spendingHistory![0];
+    expect(period.budgets).toEqual({ needs: 1000, wants: 600, savings: 400 });
+    expect(period.spent).toEqual({ needs: 50, wants: 50 });
+  });
+
+  it('fetchAllUserData omits budgets / spent when DB columns are null', async () => {
+    const profileRow = {
+      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
+      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
+      pay_start: null, last_archived_period_start: null,
+      funds_remaining: 0, funds_remaining_updated: '',
+      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
+    };
+    const periodRow = {
+      id: 'p2', user_id: 'uid', date: '2026-04-01', label: null, total: 0,
+      budgets: null, spent: null,
+      created_at: '', updated_at: '',
+    };
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return makeQuery(profileRow);
+      if (table === 'spending_history_periods') return makeQuery([periodRow]);
+      return makeQuery([]);
+    });
+
+    const result = await fetchAllUserData('uid');
+    const period = result!.spendingHistory![0];
+    expect(period.budgets).toBeUndefined();
+    expect(period.spent).toBeUndefined();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  RS-29 — fetchAllUserData maps last_archived_period_start
+// ─────────────────────────────────────────────────────────────────
+describe('fetchAllUserData — RS-29 profiles.last_archived_period_start', () => {
+  beforeEach(() => { mockFrom.mockReset(); });
+
+  it('maps last_archived_period_start → lastArchivedPeriodStart when set', async () => {
+    const profileRow = {
+      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
+      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
+      pay_start: '2026-05-01', last_archived_period_start: '2026-05-15',
+      funds_remaining: 0, funds_remaining_updated: '',
+      has_onboarded: true, dismissed_version: null, created_at: '', updated_at: '',
+    };
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return makeQuery(profileRow);
+      return makeQuery([]);
+    });
+
+    const result = await fetchAllUserData('uid');
+    expect(result!.lastArchivedPeriodStart).toBe('2026-05-15');
+  });
+
+  it('maps null last_archived_period_start → null (not undefined)', async () => {
+    const profileRow = {
+      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
+      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
+      pay_start: null, last_archived_period_start: null,
+      funds_remaining: 0, funds_remaining_updated: '',
+      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
+    };
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'profiles') return makeQuery(profileRow);
+      return makeQuery([]);
+    });
+
+    const result = await fetchAllUserData('uid');
+    expect(result!.lastArchivedPeriodStart).toBeNull();
+  });
 });

@@ -132,9 +132,17 @@ export interface SpendingHistoryPeriod {
    * RS-24 — bi-weekly budget envelopes at archive time, in dollars.
    * Used by Spending Analytics to show surplus/overage per period.
    *
-   * Optional for backward compatibility: archives from before RS-24 (and
-   * archives loaded from Supabase, which doesn't have these columns) will
-   * not have this field. Consumers must render gracefully without it.
+   * Optional for backward compatibility: archives from BEFORE RS-24
+   * (i.e. archived under the v2.14.0 schema) don't have this field.
+   * Consumers must render gracefully without it.
+   *
+   * Persistence (RS-29):
+   *   • Supabase column `spending_history_periods.budgets` (JSONB, added
+   *     in migration 005). Wired through the db.ts adapter on both read
+   *     and write.
+   *   • Legacy localStorage-only values from the v2.14.0 era are migrated
+   *     to the cloud transparently by `pushUpOptionalFields` during
+   *     `initStore` (see budget.ts).
    *
    * Captured from `totalMonthlyIncome × allocation% / 2` at the moment the
    * period is archived. For multi-period auto-archives, the CURRENT
@@ -230,11 +238,13 @@ export interface WishlistItem {
    * status chip computed by `wishlistTargetStatus()` instead of the default
    * "~N mo at current rate" badge.
    *
-   * Storage note: this field is intentionally NOT mapped through the Supabase
-   * adapter layer (`src/lib/db.ts`) — the wishlist DB table has no
-   * `target_month` column. Multi-device users will see the field persist on
-   * the originating device only; a future "DB column refresh" sprint will
-   * add real columns for the optional fields accumulated this way.
+   * Persistence (RS-29):
+   *   • Supabase column `wishlist_items.target_month` (TEXT, added in
+   *     migration 005). Wired through the db.ts adapter on insert,
+   *     update, and read.
+   *   • Legacy localStorage-only values from the v2.19.x era are migrated
+   *     to the cloud transparently by `pushUpOptionalFields` during
+   *     `initStore` (see budget.ts).
    */
   targetMonth?: ISODate;
 }
