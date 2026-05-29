@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.20.0';
+const APP_VERSION = '2.21.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🗄️', text: 'Multi-device sync now works for the four optional fields that previously only persisted on the originating device: wishlist target months, archive period budgets/spent snapshots, and the auto-rollover anchor' },
-  { icon: '🧱', text: 'Real Supabase columns added for `wishlist_items.target_month`, `spending_history_periods.budgets`, `spending_history_periods.spent`, and `profiles.last_archived_period_start` — see `supabase/migrations/005_optional_fields_refresh.sql`' },
-  { icon: '🛟', text: 'Push-up migration runs once on first load after the migration deploys: any localStorage values you set in the v2.14/v2.15/v2.19 era are promoted to the new columns before they could be clobbered — your data is safe' },
-  { icon: '🧪', text: '32 new tests cover the round-trip mappings for all four new columns and every branch of the push-up migration including error resilience' },
-  { icon: '✅', text: '1209 tests passing, zero TypeScript errors, zero ESLint errors — full quality gate maintained' },
+  { icon: '🛡️', text: 'Supabase sync now retries once automatically when the first attempt times out — covers the burst-pressure pattern on Supabase free tier where 18 parallel queries occasionally outpace the pool' },
+  { icon: '⏱️', text: 'Fetch timeout bumped 20s → 30s. Combined with the retry, you should see the "Cloud sync failed" toast far less often' },
+  { icon: '🎯', text: 'Retry only fires on TIMEOUT specifically — not on RLS errors, 4xx/5xx, or other persistent failures. Those still throw immediately so we don\'t waste your time re-attempting something that won\'t fix itself' },
+  { icon: '💬', text: 'When both attempts fail, the warning toast now reads "tried twice, showing local backup" instead of "check your project status" — calmer messaging that matches the actual situation' },
+  { icon: '✅', text: '1225 tests passing, zero TypeScript errors, zero ESLint errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

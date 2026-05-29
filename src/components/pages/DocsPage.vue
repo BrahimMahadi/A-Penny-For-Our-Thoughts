@@ -341,6 +341,38 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.21.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-30 — Supabase fetch reliability (Level 1)
+            </p>
+            <ul class="docs-list">
+              <li><strong>Automatic retry on timeout.</strong> Supabase sync now retries once automatically when the first attempt times out — covers the burst-pressure pattern on Supabase free tier where 18 parallel queries occasionally outpace the connection pool. By the time the retry fires (2 s later), the first batch has cleared the pool and the retry usually succeeds.</li>
+              <li><strong>Fetch timeout bumped 20s → 30s</strong> to cover the long tail of pool-queued queries. Combined with the retry, you should see the "Cloud sync failed" warning toast far less often.</li>
+              <li><strong>Retry only fires on TIMEOUT</strong> — not on RLS violations, 4xx/5xx, or other persistent failures. Those still throw immediately so we don't waste your time re-attempting something that won't fix itself.</li>
+              <li><strong>Calmer toast messaging</strong> — when both attempts fail, the warning now reads "tried twice, showing local backup" instead of "check your project status".</li>
+              <li>RS-31 (planned): collapse the 18 parallel queries into a single Supabase RPC call so pool pressure becomes structurally impossible — bigger refactor that this Level 1 work buys headroom to do on a comfortable schedule.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.20.1</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              BUG-022 — `migrate.yml` regenerate wiped `*Row` re-exports (hotfix)
+            </p>
+            <ul class="docs-list">
+              <li>The first migration after RS-29 (the auto-applied 005 SQL) triggered `migrate.yml`'s auto-regenerate-and-commit step, which overwrote `src/types/database.ts` with the canonical Supabase generator output — wiping the hand-maintained <code>*Row</code> alias block at the bottom that <code>src/lib/db.ts</code> imports by name. Every import failed with TS2305 and the next deploy died at type-check.</li>
+              <li><strong>Three-layer fix:</strong> restored the alias block, patched the workflow to re-append it automatically after every regenerate, and added 3 contract tests that catch this class of bug at the test-runner stage before it can reach deploy.</li>
+              <li>Bug never reached production users — the failed deploy meant nothing shipped. <code>APP_VERSION</code> in WhatsNewBanner intentionally NOT bumped to avoid re-showing an already-dismissed banner for a no-visible-change fix.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.20.0</span>
               <span class="release-date">May 2026</span>
             </div>
