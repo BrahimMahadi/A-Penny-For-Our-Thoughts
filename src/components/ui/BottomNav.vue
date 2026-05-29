@@ -3,8 +3,10 @@
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Redesign Sprint 2)
   Summary:  Mobile bottom navigation bar (≤ 768px). Shows the same
-            6 primary tabs as AppSidebar but as a fixed row of icon +
+            7 primary tabs as AppSidebar but as a fixed row of icon +
             label buttons at the bottom of the screen.
+            RS-27: 'insights' added between Goals and Docs to match the
+            sidebar's surfaced layout.
 
   Only visible at ≤ 768px; AppSidebar hides at this breakpoint.
 -->
@@ -22,12 +24,13 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { id: 'dashboard', glyph: '◧', label: 'Dashboard' },
-  { id: 'schedule',  glyph: '▥', label: 'Schedule'  },
-  { id: 'spending',  glyph: '◐', label: 'Spending'  },
-  { id: 'goals',     glyph: '◎', label: 'Goals'     },
-  { id: 'docs',      glyph: '☰', label: 'Docs'      },
-  { id: 'settings',  glyph: '◆', label: 'Settings'  },
+  { id: 'dashboard', glyph: '◧',  label: 'Dashboard' },
+  { id: 'schedule',  glyph: '▥',  label: 'Schedule'  },
+  { id: 'spending',  glyph: '◐',  label: 'Spending'  },
+  { id: 'goals',     glyph: '◎',  label: 'Goals'     },
+  { id: 'insights',  glyph: '📊', label: 'Insights'  },
+  { id: 'docs',      glyph: '☰',  label: 'Docs'      },
+  { id: 'settings',  glyph: '◆',  label: 'Settings'  },
 ];
 </script>
 

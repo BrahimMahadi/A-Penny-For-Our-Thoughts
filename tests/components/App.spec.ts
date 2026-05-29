@@ -196,6 +196,32 @@ describe('App keyboard shortcuts', () => {
     expect(ui.activeTab).toBe('spending');
   });
 
+  // RS-27: Insights tab — keyboard shortcut 7 (kept for backward compat) +
+  // verifies the shortcut help table reflects the new label.
+  it('7 key switches to Insights tab (formerly Advanced)', async () => {
+    const ui = useUiStore();
+    ui.setActiveTab('dashboard');
+    const ww = mountApp();
+
+    fireKey('7');
+    await ww.vm.$nextTick();
+
+    expect(ui.activeTab).toBe('insights');
+  });
+
+  it('shortcut help table lists "Switch to Insights" (not "Advanced") for key 7', async () => {
+    const ww = mountApp();
+    await ww.find('[aria-label="Keyboard shortcuts"]').trigger('click');
+
+    const modal = document.body.querySelector('.base-modal')!;
+    const rows = Array.from(modal.querySelectorAll('tr'));
+    const row7 = rows.find(r => r.querySelector('.shortcut-kbd')?.textContent?.trim() === '7');
+    expect(row7, 'Expected a help-modal row for keyboard shortcut "7"').toBeDefined();
+    const desc = row7!.querySelector('.shortcut-desc')!.textContent ?? '';
+    expect(desc).toContain('Insights');
+    expect(desc).not.toContain('Advanced');
+  });
+
   it('E key calls budget.exportCSV()', async () => {
     const budget = useBudgetStore();
     const spy = vi.spyOn(budget, 'exportCSV').mockReturnValue(undefined as unknown as void);

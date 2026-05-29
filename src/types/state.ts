@@ -128,7 +128,7 @@ export interface AnalyticsFilters {
 export type ScheduleView = 'list' | 'calendar' | 'payperiod';
 
 /** Main app tabs */
-export type TabId = 'dashboard' | 'schedule' | 'spending' | 'goals' | 'docs' | 'settings' | 'advanced';
+export type TabId = 'dashboard' | 'schedule' | 'spending' | 'goals' | 'docs' | 'settings' | 'insights';
 
 /**
  * Volatile UI state — panel visibility, filter inputs, current month.
@@ -157,15 +157,19 @@ export interface UiState {
    */
   collapsedSections: string[];
   /**
-   * Ordered list of advanced section IDs — controls the display order
-   * on the Advanced tab. Persisted to `penny_ui_prefs` in localStorage.
-   * Defaults to the canonical order from dashboardSections.ts (ADVANCED_SECTIONS).
+   * Ordered list of Insights-tab section IDs — controls the display order
+   * on the Insights tab (renamed from "Advanced" in RS-27). Persisted to
+   * `penny_ui_prefs` in localStorage. Defaults to the canonical order from
+   * dashboardSections.ts (INSIGHTS_SECTIONS).
+   *
+   * RS-27 migration: legacy `advancedSectionOrder` localStorage payloads
+   * are migrated transparently on load by `loadInsightsSectionOrder`.
    *
    * Note: there is no equivalent `sectionOrder` for the Dashboard. The Dashboard
    * is a fixed-grid layout (RS-11) and uses DASHBOARD_SECTIONS directly. A legacy
    * `sectionOrder` field in localStorage is silently ignored on load.
    */
-  advancedSectionOrder: string[];
+  insightsSectionOrder: string[];
   /**
    * Whether the SectionPicker panel is open.
    * Managed via ui.toggleSectionPicker() / openSectionPicker() / closeSectionPicker().

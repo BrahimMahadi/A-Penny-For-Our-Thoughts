@@ -83,31 +83,34 @@ describe('AppSidebar', () => {
   });
 
   // ── Nav items ────────────────────────────────────────────────────
-  it('renders exactly 6 nav buttons', async () => {
+  // RS-27: tab count went from 6 → 7 with the addition of "Insights"
+  // (formerly the keyboard-only "Advanced" tab). Insights sits between
+  // Goals and Docs in the sidebar's visual order.
+  it('renders exactly 7 nav buttons', async () => {
     const w = mountSidebar();
     await nextTick();
     const navBtns = w.findAll('.app-sidebar__nav .app-sidebar__btn');
-    expect(navBtns).toHaveLength(6);
+    expect(navBtns).toHaveLength(7);
     w.unmount();
   });
 
-  it('renders glyphs for all 6 nav items', async () => {
+  it('renders glyphs for all 7 nav items', async () => {
     const w = mountSidebar();
     await nextTick();
     const glyphs = w.findAll('.app-sidebar__nav .app-sidebar__glyph');
-    expect(glyphs).toHaveLength(6);
+    expect(glyphs).toHaveLength(7);
     w.unmount();
   });
 
-  it('renders labels for all 6 nav items', async () => {
+  it('renders labels for all 7 nav items', async () => {
     const w = mountSidebar();
     await nextTick();
     const labels = w.findAll('.app-sidebar__nav .app-sidebar__label');
-    expect(labels).toHaveLength(6);
+    expect(labels).toHaveLength(7);
     w.unmount();
   });
 
-  it('renders the expected nav labels', async () => {
+  it('renders the expected nav labels (Insights between Goals and Docs)', async () => {
     const w = mountSidebar();
     await nextTick();
     const labels = w.findAll('.app-sidebar__nav .app-sidebar__label')
@@ -117,9 +120,21 @@ describe('AppSidebar', () => {
       'Schedule',
       'Spending',
       'Goals',
+      'Insights',
       'Docs',
       'Settings',
     ]);
+    w.unmount();
+  });
+
+  // RS-27: explicit check that 'Advanced' label is gone — guards against
+  // a regression that re-introduces the historical naming.
+  it('does NOT render an "Advanced" label (renamed to Insights in RS-27)', async () => {
+    const w = mountSidebar();
+    await nextTick();
+    const labels = w.findAll('.app-sidebar__nav .app-sidebar__label')
+      .map(el => el.text());
+    expect(labels).not.toContain('Advanced');
     w.unmount();
   });
 
@@ -175,6 +190,22 @@ describe('AppSidebar', () => {
     await btns[1].trigger('click'); // Schedule
 
     expect(ui.activeTab).toBe('schedule');
+    w.unmount();
+  });
+
+  // RS-27: clicking the new Insights button (position 5 — between Goals and
+  // Docs) routes activeTab to 'insights'.
+  it('clicking the Insights button routes activeTab to "insights"', async () => {
+    const ui = useUiStore();
+    ui.setActiveTab('dashboard');
+
+    const w = mountSidebar();
+    await nextTick();
+
+    const btns = w.findAll('.app-sidebar__nav .app-sidebar__btn');
+    await btns[4].trigger('click'); // Insights — position 4 (0-indexed)
+
+    expect(ui.activeTab).toBe('insights');
     w.unmount();
   });
 
@@ -260,7 +291,7 @@ describe('AppSidebar', () => {
     const w = mountSidebar();
     await nextTick();
     const tabs = w.findAll('[role="tab"]');
-    expect(tabs).toHaveLength(6);
+    expect(tabs).toHaveLength(7); // RS-27: was 6, +Insights
     w.unmount();
   });
 
@@ -285,8 +316,8 @@ describe('AppSidebar', () => {
     await nextTick();
 
     const notSelected = w.findAll('[aria-selected="false"]');
-    // 5 inactive out of 6 total
-    expect(notSelected).toHaveLength(5);
+    // RS-27: 6 inactive out of 7 total (Insights added)
+    expect(notSelected).toHaveLength(6);
     w.unmount();
   });
 

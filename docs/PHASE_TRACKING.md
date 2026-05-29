@@ -1708,7 +1708,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-24 | Pay-period rollover UX: "Rolls over in N days" countdown + "Close period now" button in Settings; per-period budgets+spent snapshot captured at archive time; surplus/overage rollup row in Spending Analytics | `feat/rs-24-rollover-ux` | ✅ Complete | v2.15.0 |
 | RS-25 | Remove orphaned `WantsTracker.vue` (section not rendered since RS-11; close-period button made redundant by RS-23 auto-rollover and RS-24 manual close) | `feat/rs-25-remove-wants-tracker` | ✅ Complete | v2.16.0 |
 | RS-26 | Update `DocsPage.vue` release-notes section — was stuck at v1.18.0; now fully caught up through v2.17.0 with a "Vivid Modern" era divider and regression-guard tests | `feat/rs-26-docs-page-refresh` | ✅ Complete | v2.17.0 |
-| RS-27 | Advanced tab decision — either re-surface it in the sidebar with proper navigation or remove it entirely (currently keyboard-only via `7` shortcut, partially-hidden state) | `feat/rs-27-advanced-tab-decision` | 🔲 Planned | — |
+| RS-27 | Advanced tab → "Insights" rename + sidebar surfacing (Path C). Internal rename across TabId / store / constants; legacy `advancedSectionOrder` localStorage migrated transparently; keyboard shortcut `7` preserved | `feat/rs-27-insights-tab` | ✅ Complete | v2.18.0 |
 
 ---
 
@@ -3297,34 +3297,79 @@ These five tests together form a docs-drift safety net: a future sprint that bum
 
 ---
 
-## RS-27 — Advanced tab decision 🔲 PLANNED
-**Branch**: `feat/rs-27-advanced-tab-decision`
-**Status**: 🔲 Planned
+## RS-27 — Advanced tab → "Insights" rename + sidebar surfacing ✅
+**Branch**: `feat/rs-27-insights-tab`
+**Version**: v2.18.0
+**Status**: ✅ Complete
 
-### Goal
-Resolve the Advanced tab's half-hidden status. It's currently:
-- Routable via `AdvancedPage.vue`
-- Reachable only via the `7` keyboard shortcut
-- Intentionally omitted from `AppSidebar.vue` (`// 'advanced' is intentionally omitted — accessible via keyboard shortcut only.`)
-- Contains 4 analytics sections (SpendingTrendSection, SpendingAnalytics, BudgetVsActual, NetWorth) that the user has confirmed they want to keep
+### Decision: Path C (hybrid)
+A third path emerged in discussion: keep the page and all four analytics sections, but **rename "Advanced" → "Insights"** AND surface it in the sidebar between Goals and Docs. Trade-offs:
 
-### Two paths (decide first)
-**Path A — Re-surface in sidebar**
-- Add the Advanced tab to `AppSidebar.vue` and `BottomNav.vue`
-- Add a discoverable icon (e.g. 🔬 or 📈)
-- Reintroduce it to the `TAB_ORDER` swipe-navigation array in App.vue (currently omitted)
-- Update relevant docs
+- **Path A (just re-surface)** — fixes discoverability but doesn't fix the label problem. "Advanced" tells users nothing about what's inside.
+- **Path B (remove + relocate)** — real refactor for arguable benefit. The 4 sections legitimately belong together (all retrospective / analytical, while the existing tabs are forward / current).
+- **Path C (rename + re-surface, chosen)** — small surface change that resolves both problems. Sidebar gets a 7th tab labelled "Insights" that actually says what's inside.
 
-**Path B — Remove entirely + relocate analytics**
-- Delete `AdvancedPage.vue`, `ADVANCED_SECTIONS`, `DEFAULT_ADVANCED_ORDER`, `ui.advancedSectionOrder` + 4 actions
-- Move the four analytics sections elsewhere — likely:
-  - NetWorth → Dashboard (new row)
-  - Spending Trend + Spending Analytics → Spending tab
-  - Budget vs Actual → Dashboard or Spending tab
-- Remove the `7` keyboard shortcut
-- Remove `'advanced'` from `TabId` type
+Brahim confirmed:
+- Uses all four sections regularly
+- Fine with a 7-tab sidebar
+- Tab name: **Insights** (preferred over Analytics / Reports)
+- Keyboard shortcut: keep `7` mapped to Insights for backward compatibility
 
-### Risk
-- Path A: low risk, modest UI cleanup
-- Path B: meaningful refactor, four section components need new homes
-- Decision needed before implementation starts
+### Implementation summary
+**Renames (full codebase consistency)**:
+- File: `src/components/pages/AdvancedPage.vue` → `InsightsPage.vue` (via `git mv`)
+- TabId: `'advanced'` → `'insights'`
+- Store field: `advancedSectionOrder` → `insightsSectionOrder`
+- Store actions: `setAdvancedSectionOrder` → `setInsightsSectionOrder`, plus `resetAdvancedSectionOrder` / `moveAdvancedSectionUp` / `moveAdvancedSectionDown` all similarly renamed
+- Helper: `loadAdvancedSectionOrder` → `loadInsightsSectionOrder`
+- Constants: `ADVANCED_SECTIONS` → `INSIGHTS_SECTIONS`, `DEFAULT_ADVANCED_ORDER` → `DEFAULT_INSIGHTS_ORDER`
+- CSS class: `.page-advanced` → `.page-insights` in the page component
+
+**Navigation wiring**:
+- AppSidebar: added `{ id: 'insights', glyph: '📊', label: 'Insights' }` between Goals and Docs; removed the "intentionally omitted" comment
+- BottomNav: same Insights entry added for mobile
+- App.vue route switch: `case 'advanced'` → `case 'insights'`
+- App.vue keyboard shortcut: `7` now routes to `'insights'` (kept the same key — see backward-compat note below)
+- App.vue `TAB_ORDER` swipe-nav array: `'insights'` inserted between `'goals'` and `'docs'`
+- App.vue shortcut-help table: description `'Switch to Advanced'` → `'Switch to Insights'`
+
+**LocalStorage migration** (zero-downtime for existing users):
+- `loadInsightsSectionOrder` reads `prefs.insightsSectionOrder` first, falling back to the legacy `prefs.advancedSectionOrder` field when the new key is absent
+- The save path persists ONLY under `insightsSectionOrder`; the legacy field is dropped from the payload on the next save (same migration pattern used in RS-22 for `sectionOrder`)
+- When BOTH fields are present (unusual edge case), the new `insightsSectionOrder` wins
+- Three new dedicated store tests verify each migration scenario
+
+**Backward-compat decision: shortcut `7` stays**:
+- Sidebar visual order: Dashboard → Schedule → Spending → Goals → Insights → Docs → Settings
+- Keyboard shortcuts: 1, 2, 3, 4, 7, 5, 6 against that visual order
+- The numbering is slightly out-of-sequence but ZERO existing muscle memory breaks. Users who memorised "7 = Advanced" still get the same destination (now called Insights). Users who memorised "5 = Docs" and "6 = Settings" are unaffected.
+
+### Files Changed
+- DELETED: `src/components/pages/AdvancedPage.vue` (via `git mv`)
+- CREATED: `src/components/pages/InsightsPage.vue` (same file with renamed identifiers)
+- `src/types/state.ts` — `TabId` + `UiState.advancedSectionOrder` renames
+- `src/constants/dashboardSections.ts` — `ADVANCED_SECTIONS` + `DEFAULT_ADVANCED_ORDER` renamed; header comment updated
+- `src/stores/ui.ts` — store field + 4 actions + load helper renamed; legacy-key migration added to `loadInsightsSectionOrder`; updated header comment with the RS-27 entry; `UiPrefs` interface now documents the legacy `advancedSectionOrder` field
+- `src/App.vue` — import rename, route case, keyboard shortcut, shortcut-help description, TAB_ORDER array, header comment
+- `src/components/ui/AppSidebar.vue` — added Insights nav item (📊 glyph), removed the omission comment, updated header docs
+- `src/components/ui/BottomNav.vue` — added Insights nav item for mobile
+- `src/components/pages/DocsPage.vue` — v2.13.0 release note annotated with RS-27 follow-up; new v2.18.0 release block added
+- `tests/stores/ui.spec.ts` — 13 tests rewritten/added (3 RS-27 removal-guards + 3 migration tests + 5 renamed live API tests + comments)
+- `tests/components/ui/AppSidebar.spec.ts` — updated 5 existing tests for the 7-tab count; added 2 new tests ("no Advanced label" regression guard + Insights button click routing)
+- `tests/components/App.spec.ts` — added 2 new tests (keyboard `7` routes to insights + shortcut-help table says "Insights" not "Advanced")
+- `tests/components/pages/pages.spec.ts` — added v2.18.0 to the regression-guard tests; added RS-27 to the redesign-sprint mentions test
+- `src/components/onboarding/WhatsNewBanner.vue` — bumped to v2.18.0; release notes themed around the rename + migration
+- `tests/components/onboarding.spec.ts` — version strings updated
+- `CLAUDE.md` — test count → 1135 across 33 spec files
+
+### Deliberately left alone (historical accuracy)
+- v2.13.0 release-block in DocsPage retains its historical "Advanced group removed from the picker — the Advanced tab itself remains accessible via keyboard shortcut 7" wording, but the `<em>` follow-up aside notes that RS-27 renamed and surfaced the tab.
+- Historical comments in `src/constants/dashboardSections.ts` referencing the original "ADVANCED_SECTIONS" name retained; an inline note explains the RS-27 rename.
+
+### Tests
+- 13 new tests added (10 RS-27 store tests, 2 RS-27 sidebar tests + 1 sidebar regression guard, 2 App-level keyboard tests; partial overlap with renamed RS-22 tests)
+- All 1135 tests pass — no regressions
+- `vue-tsc --noEmit` clean
+
+### Final gate
+- ✅ 1135/1135 tests pass · `vue-tsc --noEmit` clean
