@@ -19,10 +19,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // vi.mock is hoisted to the top of the file, so variables must be
 // declared with vi.hoisted() to be available inside the factory.
 
-const { mockFrom } = vi.hoisted(() => ({ mockFrom: vi.fn() }));
+const { mockFrom, mockRpc } = vi.hoisted(() => ({
+  mockFrom: vi.fn(),
+  mockRpc:  vi.fn(),
+}));
 
 vi.mock('@/lib/supabase', () => ({
-  supabase: { from: mockFrom },
+  supabase: { from: mockFrom, rpc: mockRpc },
   DEV_USER_ID: 'test-user-uuid',
   isSupabaseConfigured: () => true,
 }));
@@ -43,47 +46,134 @@ function makeQuery(data: unknown = [], error: null | { message: string } = null)
 }
 
 /** Patch mockFrom so every table returns the given data. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function allTablesReturn(data: unknown = []) {
   mockFrom.mockReturnValue(makeQuery(data));
 }
 
+/**
+ * RS-31: the new `fetch_user_data(uid)` RPC returns one jsonb object
+ * with one key per table (camelCase keys, snake_case row columns
+ * because SQL uses `to_jsonb(t)` which preserves source column names).
+ *
+ * Tests just need to override the keys they care about; everything else
+ * defaults to an empty array (matching the SQL's `coalesce(..., '[]')`).
+ */
+interface RpcPayload {
+  profile: Record<string, unknown> | null;
+  incomeStreams: Record<string, unknown>[];
+  expenseCards: Record<string, unknown>[];
+  expenseItems: Record<string, unknown>[];
+  purchases: Record<string, unknown>[];
+  spendingHistoryPeriods: Record<string, unknown>[];
+  spendingHistoryItems: Record<string, unknown>[];
+  loans: Record<string, unknown>[];
+  creditCards: Record<string, unknown>[];
+  subscriptions: Record<string, unknown>[];
+  wishlistItems: Record<string, unknown>[];
+  savingsAccounts: Record<string, unknown>[];
+  goals: Record<string, unknown>[];
+  assets: Record<string, unknown>[];
+  netWorthSnapshots: Record<string, unknown>[];
+  rules: Record<string, unknown>[];
+  budgetAlerts: Record<string, unknown>[];
+  spendingCategories: Record<string, unknown>[];
+}
+
+function buildPayload(overrides: Partial<RpcPayload> = {}): RpcPayload {
+  return {
+    profile: null,
+    incomeStreams: [],
+    expenseCards: [],
+    expenseItems: [],
+    purchases: [],
+    spendingHistoryPeriods: [],
+    spendingHistoryItems: [],
+    loans: [],
+    creditCards: [],
+    subscriptions: [],
+    wishlistItems: [],
+    savingsAccounts: [],
+    goals: [],
+    assets: [],
+    netWorthSnapshots: [],
+    rules: [],
+    budgetAlerts: [],
+    spendingCategories: [],
+    ...overrides,
+  };
+}
+
+/** Configure the RPC mock to resolve with the given payload (success path). */
+function mockRpcReturns(payload: RpcPayload | null): void {
+  mockRpc.mockResolvedValueOnce({ data: payload, error: null });
+}
+
+/** Configure the RPC mock to resolve with an error (failure path). */
+function mockRpcFails(message: string): void {
+  mockRpc.mockResolvedValueOnce({ data: null, error: { message } });
+}
+
 // ─── fetchAllUserData ──────────────────────────────────────────────
+// RS-31: backed by a single `fetch_user_data(uid)` RPC instead of 18
+// `from(table).select('*')` calls. Tests mock the RPC's jsonb payload
+// shape directly.
+
+const PROFILE_DEFAULTS = {
+  id: 'uid',
+  allocation: { needs: 50, wants: 30, savings: 20 },
+  budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
+  pay_start: null,
+  last_archived_period_start: null,
+  funds_remaining: 0,
+  funds_remaining_updated: '',
+  has_onboarded: false,
+  dismissed_version: null,
+  created_at: '',
+  updated_at: '',
+};
 
 describe('fetchAllUserData', () => {
-  beforeEach(() => { mockFrom.mockReset(); });
+  beforeEach(() => { mockFrom.mockReset(); mockRpc.mockReset(); });
+
+  it('calls the fetch_user_data RPC with the userId arg', async () => {
+    mockRpcReturns(buildPayload({ profile: null }));
+
+    await fetchAllUserData('test-user-uuid');
+
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith('fetch_user_data', { uid: 'test-user-uuid' });
+    // CRITICAL: must NOT fall back to the old 18-query pattern
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
 
   it('returns null when the profile row does not exist (new user)', async () => {
-    // profiles returns null (maybeSingle with no row), all other tables return []
-    let callCount = 0;
-    mockFrom.mockImplementation((table: string) => {
-      callCount++;
-      if (table === 'profiles') {
-        return makeQuery(null); // no profile
-      }
-      return makeQuery([]);
-    });
+    mockRpcReturns(buildPayload({ profile: null }));
 
     const result = await fetchAllUserData('test-user-uuid');
     expect(result).toBeNull();
   });
 
+  it('returns null when the RPC payload itself is null (defensive)', async () => {
+    // Defensive guard: if PostgREST returns null data (function dropped /
+    // empty response), fetchAllUserData should fall through to first-run
+    // rather than throw.
+    mockRpcReturns(null);
+    const result = await fetchAllUserData('uid');
+    expect(result).toBeNull();
+  });
+
   it('maps profile scalars correctly', async () => {
-    const profileRow = {
-      id: 'uid',
-      allocation: { needs: 50, wants: 30, savings: 20 },
-      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
-      pay_start: '2026-01-01',
-      funds_remaining: 1200,
-      funds_remaining_updated: '2026-05-01',
-      has_onboarded: true,
-      dismissed_version: '1.15.0',
-      created_at: '',
-      updated_at: '',
-    };
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') return makeQuery(profileRow);
-      return makeQuery([]);
-    });
+    mockRpcReturns(buildPayload({
+      profile: {
+        ...PROFILE_DEFAULTS,
+        pay_start: '2026-01-01',
+        funds_remaining: 1200,
+        funds_remaining_updated: '2026-05-01',
+        has_onboarded: true,
+        dismissed_version: '1.15.0',
+      },
+    }));
 
     const result = await fetchAllUserData('uid');
     expect(result).not.toBeNull();
@@ -95,22 +185,14 @@ describe('fetchAllUserData', () => {
   });
 
   it('maps purchase rows to camelCase Purchase objects', async () => {
-    const profileRow = {
-      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
-      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
-      pay_start: null, funds_remaining: 0, funds_remaining_updated: '',
-      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
-    };
-    const purchaseRow = {
-      id: 'p1', user_id: 'uid', name: 'Coffee', amount: 5.50,
-      category: 'Food & Drink', card_id: null, budget_type: 'wants',
-      date: '2026-05-20', created_at: '', updated_at: '',
-    };
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') return makeQuery(profileRow);
-      if (table === 'purchases') return makeQuery([purchaseRow]);
-      return makeQuery([]);
-    });
+    mockRpcReturns(buildPayload({
+      profile: { ...PROFILE_DEFAULTS },
+      purchases: [{
+        id: 'p1', user_id: 'uid', name: 'Coffee', amount: 5.50,
+        category: 'Food & Drink', card_id: null, budget_type: 'wants',
+        date: '2026-05-20', created_at: '', updated_at: '',
+      }],
+    }));
 
     const result = await fetchAllUserData('uid');
     expect(result!.purchases).toHaveLength(1);
@@ -128,23 +210,15 @@ describe('fetchAllUserData', () => {
   });
 
   it('maps subscription rows including days_of_week → daysOfWeek', async () => {
-    const profileRow = {
-      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
-      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
-      pay_start: null, funds_remaining: 0, funds_remaining_updated: '',
-      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
-    };
-    const subRow = {
-      id: 's1', user_id: 'uid', name: 'Netflix', amount: 17.99,
-      frequency: 'monthly', date: '2026-06-01', category: 'Entertainment',
-      budget_type: 'wants', card_id: 'card-1', days_of_week: [1, 3],
-      created_at: '', updated_at: '',
-    };
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') return makeQuery(profileRow);
-      if (table === 'subscriptions') return makeQuery([subRow]);
-      return makeQuery([]);
-    });
+    mockRpcReturns(buildPayload({
+      profile: { ...PROFILE_DEFAULTS },
+      subscriptions: [{
+        id: 's1', user_id: 'uid', name: 'Netflix', amount: 17.99,
+        frequency: 'monthly', date: '2026-06-01', category: 'Entertainment',
+        budget_type: 'wants', card_id: 'card-1', days_of_week: [1, 3],
+        created_at: '', updated_at: '',
+      }],
+    }));
 
     const result = await fetchAllUserData('uid');
     const sub = result!.subscriptions![0];
@@ -155,24 +229,15 @@ describe('fetchAllUserData', () => {
   });
 
   it('assembles expense cards with their nested items', async () => {
-    const profileRow = {
-      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
-      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
-      pay_start: null, funds_remaining: 0, funds_remaining_updated: '',
-      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
-    };
-    const cardRow = { id: 'card-1', user_id: 'uid', label: 'TD Visa', created_at: '', updated_at: '' };
-    const itemRow = {
-      id: 'item-1', user_id: 'uid', expense_card_id: 'card-1',
-      name: 'Rent', amount: 1500, biweekly: false, due_day: 1,
-      created_at: '', updated_at: '',
-    };
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') return makeQuery(profileRow);
-      if (table === 'expense_cards') return makeQuery([cardRow]);
-      if (table === 'expense_items') return makeQuery([itemRow]);
-      return makeQuery([]);
-    });
+    mockRpcReturns(buildPayload({
+      profile: { ...PROFILE_DEFAULTS },
+      expenseCards: [{ id: 'card-1', user_id: 'uid', label: 'TD Visa', created_at: '', updated_at: '' }],
+      expenseItems: [{
+        id: 'item-1', user_id: 'uid', expense_card_id: 'card-1',
+        name: 'Rent', amount: 1500, biweekly: false, due_day: 1,
+        created_at: '', updated_at: '',
+      }],
+    }));
 
     const result = await fetchAllUserData('uid');
     expect(result!.expenseCards).toHaveLength(1);
@@ -183,13 +248,8 @@ describe('fetchAllUserData', () => {
     expect(card.items[0].dueDay).toBe(1);
   });
 
-  it('throws when a Supabase query returns an error', async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') return makeQuery({ id: 'uid' });
-      if (table === 'purchases') return makeQuery(null, { message: 'permission denied' });
-      return makeQuery([]);
-    });
-
+  it('throws when the RPC call returns an error', async () => {
+    mockRpcFails('permission denied');
     await expect(fetchAllUserData('uid')).rejects.toThrow('permission denied');
   });
 });
@@ -362,25 +422,17 @@ describe('db.wishlist', () => {
 });
 
 describe('fetchAllUserData — wishlist mapping', () => {
-  beforeEach(() => { mockFrom.mockReset(); });
+  beforeEach(() => { mockFrom.mockReset(); mockRpc.mockReset(); });
 
   it('maps wishlist rows including price and saved', async () => {
-    const profileRow = {
-      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
-      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
-      pay_start: null, funds_remaining: 0, funds_remaining_updated: '',
-      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
-    };
-    const wishRow = {
-      id: 'w1', user_id: 'uid', icon: '🎸', name: 'Guitar',
-      url: 'https://example.com', price: 499, saved: 120,
-      created_at: '', updated_at: '',
-    };
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') return makeQuery(profileRow);
-      if (table === 'wishlist_items') return makeQuery([wishRow]);
-      return makeQuery([]);
-    });
+    mockRpcReturns(buildPayload({
+      profile: { ...PROFILE_DEFAULTS },
+      wishlistItems: [{
+        id: 'w1', user_id: 'uid', icon: '🎸', name: 'Guitar',
+        url: 'https://example.com', price: 499, saved: 120,
+        created_at: '', updated_at: '',
+      }],
+    }));
 
     const result = await fetchAllUserData('uid');
     expect(result!.wishlist).toHaveLength(1);
@@ -391,21 +443,13 @@ describe('fetchAllUserData — wishlist mapping', () => {
   });
 
   it('omits price and saved from domain object when DB columns are null', async () => {
-    const profileRow = {
-      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
-      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
-      pay_start: null, funds_remaining: 0, funds_remaining_updated: '',
-      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
-    };
-    const wishRow = {
-      id: 'w2', user_id: 'uid', icon: '📚', name: 'Book', url: '',
-      price: null, saved: null, created_at: '', updated_at: '',
-    };
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') return makeQuery(profileRow);
-      if (table === 'wishlist_items') return makeQuery([wishRow]);
-      return makeQuery([]);
-    });
+    mockRpcReturns(buildPayload({
+      profile: { ...PROFILE_DEFAULTS },
+      wishlistItems: [{
+        id: 'w2', user_id: 'uid', icon: '📚', name: 'Book', url: '',
+        price: null, saved: null, created_at: '', updated_at: '',
+      }],
+    }));
 
     const result = await fetchAllUserData('uid');
     const item = result!.wishlist![0];
@@ -528,46 +572,28 @@ describe('db.wishlist — RS-29 target_month', () => {
   });
 
   it('fetchAllUserData maps target_month → targetMonth', async () => {
-    const profileRow = {
-      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
-      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
-      pay_start: null, last_archived_period_start: null,
-      funds_remaining: 0, funds_remaining_updated: '',
-      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
-    };
-    const wishRow = {
-      id: 'w1', user_id: 'uid', icon: '📷', name: 'Camera', url: '',
-      price: 1600, saved: 0, target_month: '2027-03',
-      created_at: '', updated_at: '',
-    };
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') return makeQuery(profileRow);
-      if (table === 'wishlist_items') return makeQuery([wishRow]);
-      return makeQuery([]);
-    });
+    mockRpcReturns(buildPayload({
+      profile: { ...PROFILE_DEFAULTS },
+      wishlistItems: [{
+        id: 'w1', user_id: 'uid', icon: '📷', name: 'Camera', url: '',
+        price: 1600, saved: 0, target_month: '2027-03',
+        created_at: '', updated_at: '',
+      }],
+    }));
 
     const result = await fetchAllUserData('uid');
     expect(result!.wishlist![0].targetMonth).toBe('2027-03');
   });
 
   it('fetchAllUserData omits targetMonth when DB column is null', async () => {
-    const profileRow = {
-      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
-      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
-      pay_start: null, last_archived_period_start: null,
-      funds_remaining: 0, funds_remaining_updated: '',
-      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
-    };
-    const wishRow = {
-      id: 'w2', user_id: 'uid', icon: '📚', name: 'Book', url: '',
-      price: null, saved: null, target_month: null,
-      created_at: '', updated_at: '',
-    };
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') return makeQuery(profileRow);
-      if (table === 'wishlist_items') return makeQuery([wishRow]);
-      return makeQuery([]);
-    });
+    mockRpcReturns(buildPayload({
+      profile: { ...PROFILE_DEFAULTS },
+      wishlistItems: [{
+        id: 'w2', user_id: 'uid', icon: '📚', name: 'Book', url: '',
+        price: null, saved: null, target_month: null,
+        created_at: '', updated_at: '',
+      }],
+    }));
 
     const result = await fetchAllUserData('uid');
     expect(result!.wishlist![0].targetMonth).toBeUndefined();
@@ -633,24 +659,15 @@ describe('db.spendingHistory — RS-29 budgets / spent', () => {
   });
 
   it('fetchAllUserData maps budgets / spent JSONB → typed shape', async () => {
-    const profileRow = {
-      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
-      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
-      pay_start: null, last_archived_period_start: null,
-      funds_remaining: 0, funds_remaining_updated: '',
-      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
-    };
-    const periodRow = {
-      id: 'p1', user_id: 'uid', date: '2026-05-01', label: null, total: 100,
-      budgets: { needs: 1000, wants: 600, savings: 400 },
-      spent:   { needs: 50, wants: 50 },
-      created_at: '', updated_at: '',
-    };
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') return makeQuery(profileRow);
-      if (table === 'spending_history_periods') return makeQuery([periodRow]);
-      return makeQuery([]);
-    });
+    mockRpcReturns(buildPayload({
+      profile: { ...PROFILE_DEFAULTS },
+      spendingHistoryPeriods: [{
+        id: 'p1', user_id: 'uid', date: '2026-05-01', label: null, total: 100,
+        budgets: { needs: 1000, wants: 600, savings: 400 },
+        spent:   { needs: 50, wants: 50 },
+        created_at: '', updated_at: '',
+      }],
+    }));
 
     const result = await fetchAllUserData('uid');
     const period = result!.spendingHistory![0];
@@ -659,23 +676,14 @@ describe('db.spendingHistory — RS-29 budgets / spent', () => {
   });
 
   it('fetchAllUserData omits budgets / spent when DB columns are null', async () => {
-    const profileRow = {
-      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
-      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
-      pay_start: null, last_archived_period_start: null,
-      funds_remaining: 0, funds_remaining_updated: '',
-      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
-    };
-    const periodRow = {
-      id: 'p2', user_id: 'uid', date: '2026-04-01', label: null, total: 0,
-      budgets: null, spent: null,
-      created_at: '', updated_at: '',
-    };
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') return makeQuery(profileRow);
-      if (table === 'spending_history_periods') return makeQuery([periodRow]);
-      return makeQuery([]);
-    });
+    mockRpcReturns(buildPayload({
+      profile: { ...PROFILE_DEFAULTS },
+      spendingHistoryPeriods: [{
+        id: 'p2', user_id: 'uid', date: '2026-04-01', label: null, total: 0,
+        budgets: null, spent: null,
+        created_at: '', updated_at: '',
+      }],
+    }));
 
     const result = await fetchAllUserData('uid');
     const period = result!.spendingHistory![0];
@@ -688,37 +696,26 @@ describe('db.spendingHistory — RS-29 budgets / spent', () => {
 //  RS-29 — fetchAllUserData maps last_archived_period_start
 // ─────────────────────────────────────────────────────────────────
 describe('fetchAllUserData — RS-29 profiles.last_archived_period_start', () => {
-  beforeEach(() => { mockFrom.mockReset(); });
+  beforeEach(() => { mockFrom.mockReset(); mockRpc.mockReset(); });
 
   it('maps last_archived_period_start → lastArchivedPeriodStart when set', async () => {
-    const profileRow = {
-      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
-      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
-      pay_start: '2026-05-01', last_archived_period_start: '2026-05-15',
-      funds_remaining: 0, funds_remaining_updated: '',
-      has_onboarded: true, dismissed_version: null, created_at: '', updated_at: '',
-    };
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') return makeQuery(profileRow);
-      return makeQuery([]);
-    });
+    mockRpcReturns(buildPayload({
+      profile: {
+        ...PROFILE_DEFAULTS,
+        pay_start: '2026-05-01',
+        last_archived_period_start: '2026-05-15',
+        has_onboarded: true,
+      },
+    }));
 
     const result = await fetchAllUserData('uid');
     expect(result!.lastArchivedPeriodStart).toBe('2026-05-15');
   });
 
   it('maps null last_archived_period_start → null (not undefined)', async () => {
-    const profileRow = {
-      id: 'uid', allocation: { needs: 50, wants: 30, savings: 20 },
-      budget_display_mode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
-      pay_start: null, last_archived_period_start: null,
-      funds_remaining: 0, funds_remaining_updated: '',
-      has_onboarded: false, dismissed_version: null, created_at: '', updated_at: '',
-    };
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') return makeQuery(profileRow);
-      return makeQuery([]);
-    });
+    mockRpcReturns(buildPayload({
+      profile: { ...PROFILE_DEFAULTS },
+    }));
 
     const result = await fetchAllUserData('uid');
     expect(result!.lastArchivedPeriodStart).toBeNull();

@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.21.0';
+const APP_VERSION = '2.22.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🛡️', text: 'Supabase sync now retries once automatically when the first attempt times out — covers the burst-pressure pattern on Supabase free tier where 18 parallel queries occasionally outpace the pool' },
-  { icon: '⏱️', text: 'Fetch timeout bumped 20s → 30s. Combined with the retry, you should see the "Cloud sync failed" toast far less often' },
-  { icon: '🎯', text: 'Retry only fires on TIMEOUT specifically — not on RLS errors, 4xx/5xx, or other persistent failures. Those still throw immediately so we don\'t waste your time re-attempting something that won\'t fix itself' },
-  { icon: '💬', text: 'When both attempts fail, the warning toast now reads "tried twice, showing local backup" instead of "check your project status" — calmer messaging that matches the actual situation' },
-  { icon: '✅', text: '1225 tests passing, zero TypeScript errors, zero ESLint errors — full quality gate maintained' },
+  { icon: '🚀', text: 'Supabase sync collapsed from 18 parallel queries into a single RPC call (fetch_user_data). Pool pressure on the free tier is now structurally impossible — not just papered over by the retry' },
+  { icon: '🔒', text: 'The new RPC function runs as security invoker with a belt-and-braces auth.uid() check, so RLS still enforces per-user isolation on every subquery — same security model, just one round trip instead of eighteen' },
+  { icon: '🧪', text: 'New 13-test SQL contract suite reads the migration file and pins the function signature, key shape, ordering, and grants — so adding a future table to the schema without wiring it through the RPC fails loudly in PR review, not silently at runtime' },
+  { icon: '🛟', text: 'RS-30\'s retry helper kept as a defensive belt-and-braces. Cost is near-zero and it covers the transient deploy window where migrate.yml and deploy.yml race on push to main' },
+  { icon: '✅', text: '1240 tests passing, zero TypeScript errors, zero new ESLint warnings — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

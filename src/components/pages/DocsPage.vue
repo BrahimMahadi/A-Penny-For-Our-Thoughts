@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.22.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-31 — Supabase fetch reliability (Level 2): one RPC call instead of eighteen
+            </p>
+            <ul class="docs-list">
+              <li><strong>Single round-trip fetch.</strong> The 18 parallel <code>Promise.all</code> queries that <code>fetchAllUserData</code> used to fire are now a single call to a new Postgres function, <code>fetch_user_data(uid)</code>, that returns one JSON object with every table inside it. PgBouncer pool pressure on the free tier is now structurally impossible — not papered over by retries.</li>
+              <li><strong>RLS still applies, by design.</strong> The function is declared <code>security invoker</code> with <code>set search_path = public</code> and a defensive <code>auth.uid()</code> check at the top, so each subquery still hits RLS exactly as the per-table calls did. Belt-and-braces: if a policy ever gets accidentally weakened in the future, the function still refuses.</li>
+              <li><strong>Contract test pinned.</strong> A new 13-test suite (<code>fetchUserDataRpc.spec.ts</code>) reads the migration file as text and asserts the function signature, every key, every <code>FROM</code> clause, the <code>coalesce</code> empty-array wraps, the date ordering on purchases and history, the grants, and the schema-reload notify. Adding a new table to the schema without wiring it through the RPC now fails loudly in PR review, not silently at runtime.</li>
+              <li><strong>RS-30's retry kept as a safety net.</strong> The single-call refactor removes the cause, but the retry is cheap and covers the brief window where <code>migrate.yml</code> and <code>deploy.yml</code> race on push to main. Defence in depth.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.21.0</span>
               <span class="release-date">May 2026</span>
             </div>
@@ -352,7 +368,7 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
               <li><strong>Fetch timeout bumped 20s → 30s</strong> to cover the long tail of pool-queued queries. Combined with the retry, you should see the "Cloud sync failed" warning toast far less often.</li>
               <li><strong>Retry only fires on TIMEOUT</strong> — not on RLS violations, 4xx/5xx, or other persistent failures. Those still throw immediately so we don't waste your time re-attempting something that won't fix itself.</li>
               <li><strong>Calmer toast messaging</strong> — when both attempts fail, the warning now reads "tried twice, showing local backup" instead of "check your project status".</li>
-              <li>RS-31 (planned): collapse the 18 parallel queries into a single Supabase RPC call so pool pressure becomes structurally impossible — bigger refactor that this Level 1 work buys headroom to do on a comfortable schedule.</li>
+              <li>RS-31 (now shipped in v2.22.0): collapsed the 18 parallel queries into a single Supabase RPC call so pool pressure becomes structurally impossible — bigger refactor that this Level 1 work bought headroom to do on a comfortable schedule.</li>
             </ul>
           </div>
 
