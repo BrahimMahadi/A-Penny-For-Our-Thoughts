@@ -98,10 +98,20 @@ const sortedWishlist = computed(() => {
     items.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
   } else if (sortKey.value === 'target-asc') {
     // Lexicographic sort on 'YYYY-MM' strings — chronologically correct.
-    // Items without a target → end of list.
+    // Items without a target month sort to the END of the list.
+    //
+    // BUG-021 fix: the original implementation used U+FFFF as a "sort to end"
+    // sentinel inside the comparator. That codepoint is a Unicode noncharacter
+    // and the Vue parser (rule: vue/no-parsing-error,
+    // noncharacter-in-input-stream) refused to compile the SFC, blocking the
+    // build-and-deploy CI step. Explicit null-handling avoids any non-printable
+    // characters in the source file.
     items.sort((a, b) => {
-      const at = a.targetMonth ?? '￿';
-      const bt = b.targetMonth ?? '￿';
+      const at = a.targetMonth;
+      const bt = b.targetMonth;
+      if (at === bt) return 0;
+      if (!at) return 1;   // a has no target → sort it after b
+      if (!bt) return -1;  // b has no target → sort it after a
       return at.localeCompare(bt);
     });
   }
