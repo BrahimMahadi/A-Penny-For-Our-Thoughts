@@ -341,6 +341,23 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.18.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-27 — "Insights" tab (formerly the keyboard-only "Advanced")
+            </p>
+            <ul class="docs-list">
+              <li><strong>The Advanced tab has a new name and a real home.</strong> What used to be reachable only via the <kbd>7</kbd> keyboard shortcut is now called <strong>Insights</strong> and lives in the sidebar (and bottom nav on mobile) between Goals and Docs.</li>
+              <li><strong>Same four sections, same drag-to-reorder behaviour</strong> — 6-Month Spending Trend, Spending Analytics, Budget vs. Actual, Net Worth. Just easier to find.</li>
+              <li><strong>Keyboard shortcut <kbd>7</kbd> still works</strong> — kept for backward compatibility so muscle memory isn't broken. The shortcut-help table description was updated from "Switch to Advanced" → "Switch to Insights".</li>
+              <li><strong>Internal rename</strong> across the codebase: <code>'advanced'</code> → <code>'insights'</code> in the TabId type, store fields, store actions, and the page component file. Existing users' drag-reorder preferences are migrated transparently — the load helper reads the legacy <code>advancedSectionOrder</code> localStorage key on first load, and the next save persists under the new <code>insightsSectionOrder</code> key.</li>
+              <li>1,135 tests across 33 spec files.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.17.0</span>
               <span class="release-date">May 2026</span>
             </div>
@@ -417,7 +434,7 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
             <ul class="docs-list">
               <li><strong>Focused picker</strong> — the Manage Sections panel is now a streamlined jump-to-section + collapse/expand tool. Drag handles, move-up/down buttons, and reset controls have been retired (the Dashboard is a fixed-grid layout, so reordering never actually moved anything on the page).</li>
               <li><strong>Order matches reality</strong> — the section list now mirrors the actual visual order of the Dashboard (Chequing Balance first → Wishlist last) so what you see in the picker matches what you see on the page.</li>
-              <li><strong>Advanced group removed</strong> from the picker — the Advanced tab itself remains accessible via keyboard shortcut <kbd>7</kbd>.</li>
+              <li><strong>Advanced group removed</strong> from the picker — the Advanced tab itself remains accessible via keyboard shortcut <kbd>7</kbd>. <em>(Updated in RS-27: the tab was renamed to "Insights" and surfaced in the sidebar between Goals and Docs; the <kbd>7</kbd> shortcut is preserved for backward compatibility.)</em></li>
               <li>Legacy <code>sectionOrder</code> field in localStorage silently ignored on load and dropped on the next save — no breakage for existing users.</li>
             </ul>
           </div>

@@ -10,9 +10,17 @@
  *                                  Any legacy `sectionOrder` field in localStorage
  *                                  is silently ignored on load. advancedSectionOrder
  *                                  is retained — AdvancedPage still uses drag-reorder.
+ *           May 2026 (RS-27)    — Advanced tab renamed to "Insights" + surfaced in
+ *                                  the sidebar. State field `advancedSectionOrder`
+ *                                  renamed → `insightsSectionOrder`; four reorder
+ *                                  actions renamed accordingly. Legacy
+ *                                  `advancedSectionOrder` localStorage payloads are
+ *                                  migrated transparently on load (the load helper
+ *                                  falls back to the legacy key) and dropped from
+ *                                  the persisted payload on the next save.
  * Summary:  Pinia store for transient UI state — filter values,
  *           panel visibility, currently-displayed month. Collapse
- *           state and advanced-section order ARE persisted to localStorage
+ *           state and insights-section order ARE persisted to localStorage
  *           (penny_ui_prefs key). All other state resets every page load.
  *
  *           Replaces legacy uistate.js.
@@ -22,9 +30,9 @@ import { defineStore } from 'pinia';
 import type { UiState, AnalyticsFilters, ScheduleView, TabId } from '@/types/state';
 import { STORAGE_KEYS } from '@/types/state';
 import {
-  DEFAULT_ADVANCED_ORDER,
+  DEFAULT_INSIGHTS_ORDER,
   DASHBOARD_SECTIONS,
-  ADVANCED_SECTIONS,
+  INSIGHTS_SECTIONS,
 } from '@/constants/dashboardSections';
 
 // ─── UI prefs persistence helpers ────────────────────────────────
@@ -33,7 +41,9 @@ interface UiPrefs {
   collapsedSections?: string[];
   /** Legacy field — silently ignored on load (dashboard is fixed-grid since RS-22) */
   sectionOrder?: string[];
+  /** Legacy field — migrated to `insightsSectionOrder` in RS-27 */
   advancedSectionOrder?: string[];
+  insightsSectionOrder?: string[];
 }
 
 function loadUiPrefs(): UiPrefs {
@@ -52,21 +62,27 @@ function saveUiPrefs(prefs: UiPrefs): void {
   } catch { /* quota full — non-critical */ }
 }
 
-// ─── Advanced section order: load + migrate ──────────────────────
+// ─── Insights section order: load + migrate ──────────────────────
 // Stored order may be stale (new sections added, old ones removed).
 // Strategy:
-//   1. Filter stored IDs to only those that still exist in ADVANCED_SECTIONS
-//   2. Append any IDs from the default order that are missing from stored order
+//   1. Read from `insightsSectionOrder`; if missing, fall back to the legacy
+//      `advancedSectionOrder` field (RS-27 migration — see header).
+//   2. Filter stored IDs to only those that still exist in INSIGHTS_SECTIONS
+//   3. Append any IDs from the default order that are missing from stored order
 //   This ensures no section is ever lost and new sections appear at the end.
+//   The legacy key is read but never written back — the next save persists
+//   under the new `insightsSectionOrder` key, naturally dropping the legacy
+//   field from the payload.
 
-function loadAdvancedSectionOrder(): string[] {
-  const { advancedSectionOrder } = loadUiPrefs();
-  const allIds = new Set(DEFAULT_ADVANCED_ORDER);
-  if (!Array.isArray(advancedSectionOrder) || advancedSectionOrder.length === 0) {
-    return [...DEFAULT_ADVANCED_ORDER];
+function loadInsightsSectionOrder(): string[] {
+  const prefs = loadUiPrefs();
+  const stored = prefs.insightsSectionOrder ?? prefs.advancedSectionOrder;
+  const allIds = new Set(DEFAULT_INSIGHTS_ORDER);
+  if (!Array.isArray(stored) || stored.length === 0) {
+    return [...DEFAULT_INSIGHTS_ORDER];
   }
-  const filtered = advancedSectionOrder.filter(id => allIds.has(id));
-  const missing = DEFAULT_ADVANCED_ORDER.filter(id => !filtered.includes(id));
+  const filtered = stored.filter(id => allIds.has(id));
+  const missing = DEFAULT_INSIGHTS_ORDER.filter(id => !filtered.includes(id));
   return [...filtered, ...missing];
 }
 
@@ -76,15 +92,16 @@ function loadCollapsedSections(): string[] {
 }
 
 /**
- * Persist UI prefs. Note: the legacy `sectionOrder` field is intentionally
- * NOT written — it's been deprecated since RS-22. Old payloads in localStorage
- * with that field will be overwritten with the new schema on the first save.
+ * Persist UI prefs. Note: the legacy `sectionOrder` (RS-22) and
+ * `advancedSectionOrder` (RS-27) fields are intentionally NOT written — they've
+ * been deprecated. Old payloads in localStorage with those fields will be
+ * overwritten with the new schema on the first save.
  */
 function saveAll(
   collapsedSections: string[],
-  advancedSectionOrder: string[],
+  insightsSectionOrder: string[],
 ): void {
-  saveUiPrefs({ collapsedSections, advancedSectionOrder });
+  saveUiPrefs({ collapsedSections, insightsSectionOrder });
 }
 
 // ─── State factory ────────────────────────────────────────────────
@@ -100,7 +117,7 @@ function makeInitialUiState(): UiState {
     scheduleView: 'list',
     schedulePayPeriodOffset: 0,
     collapsedSections: loadCollapsedSections(),
-    advancedSectionOrder: loadAdvancedSectionOrder(),
+    insightsSectionOrder: loadInsightsSectionOrder(),
     sectionPickerOpen: false,
     shortcutHelpOpen:  false,
   };
@@ -126,51 +143,51 @@ export const useUiStore = defineStore('ui', {
       } else {
         this.collapsedSections = this.collapsedSections.filter(id => id !== sectionId);
       }
-      saveAll(this.collapsedSections, this.advancedSectionOrder);
+      saveAll(this.collapsedSections, this.insightsSectionOrder);
     },
 
     expandSection(sectionId: string): void {
       this.collapsedSections = this.collapsedSections.filter(id => id !== sectionId);
-      saveAll(this.collapsedSections, this.advancedSectionOrder);
+      saveAll(this.collapsedSections, this.insightsSectionOrder);
     },
 
-    // ─── Advanced section order ───────────────────────────────────
+    // ─── Insights section order (renamed from Advanced in RS-27) ──
 
     /**
-     * Persist a new advanced section ordering.
+     * Persist a new Insights-tab section ordering.
      */
-    setAdvancedSectionOrder(order: string[]): void {
-      const allIds = new Set(DEFAULT_ADVANCED_ORDER);
+    setInsightsSectionOrder(order: string[]): void {
+      const allIds = new Set(DEFAULT_INSIGHTS_ORDER);
       const filtered = order.filter(id => allIds.has(id));
-      const missing = DEFAULT_ADVANCED_ORDER.filter(id => !filtered.includes(id));
-      this.advancedSectionOrder = [...filtered, ...missing];
-      saveAll(this.collapsedSections, this.advancedSectionOrder);
+      const missing = DEFAULT_INSIGHTS_ORDER.filter(id => !filtered.includes(id));
+      this.insightsSectionOrder = [...filtered, ...missing];
+      saveAll(this.collapsedSections, this.insightsSectionOrder);
     },
 
-    /** Restore the canonical advanced section order */
-    resetAdvancedSectionOrder(): void {
-      this.advancedSectionOrder = [...DEFAULT_ADVANCED_ORDER];
-      saveAll(this.collapsedSections, this.advancedSectionOrder);
+    /** Restore the canonical Insights section order */
+    resetInsightsSectionOrder(): void {
+      this.insightsSectionOrder = [...DEFAULT_INSIGHTS_ORDER];
+      saveAll(this.collapsedSections, this.insightsSectionOrder);
     },
 
-    /** Move an advanced section up one position. */
-    moveAdvancedSectionUp(sectionId: string): void {
-      const idx = this.advancedSectionOrder.indexOf(sectionId);
+    /** Move an Insights section up one position. */
+    moveInsightsSectionUp(sectionId: string): void {
+      const idx = this.insightsSectionOrder.indexOf(sectionId);
       if (idx <= 0) return;
-      const newOrder = [...this.advancedSectionOrder];
+      const newOrder = [...this.insightsSectionOrder];
       [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
-      this.advancedSectionOrder = newOrder;
-      saveAll(this.collapsedSections, this.advancedSectionOrder);
+      this.insightsSectionOrder = newOrder;
+      saveAll(this.collapsedSections, this.insightsSectionOrder);
     },
 
-    /** Move an advanced section down one position. */
-    moveAdvancedSectionDown(sectionId: string): void {
-      const idx = this.advancedSectionOrder.indexOf(sectionId);
-      if (idx < 0 || idx >= this.advancedSectionOrder.length - 1) return;
-      const newOrder = [...this.advancedSectionOrder];
+    /** Move an Insights section down one position. */
+    moveInsightsSectionDown(sectionId: string): void {
+      const idx = this.insightsSectionOrder.indexOf(sectionId);
+      if (idx < 0 || idx >= this.insightsSectionOrder.length - 1) return;
+      const newOrder = [...this.insightsSectionOrder];
       [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
-      this.advancedSectionOrder = newOrder;
-      saveAll(this.collapsedSections, this.advancedSectionOrder);
+      this.insightsSectionOrder = newOrder;
+      saveAll(this.collapsedSections, this.insightsSectionOrder);
     },
 
     // ─── Section picker ───────────────────────────────────────────
@@ -258,4 +275,4 @@ export const useUiStore = defineStore('ui', {
 });
 
 // Re-export for convenience so callers don't need to import dashboardSections separately
-export { DASHBOARD_SECTIONS, ADVANCED_SECTIONS };
+export { DASHBOARD_SECTIONS, INSIGHTS_SECTIONS };

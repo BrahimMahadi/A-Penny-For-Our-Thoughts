@@ -9,6 +9,8 @@
             May 2026 — Redesign Sprint 3 (removed top header bar; full-width main)
             May 2026 — Redesign Sprint 8 (AppStatusBar wired above main)
             May 2026 — RS-18 (GSAP tab transitions)
+            May 2026 — RS-27 (Advanced tab renamed → Insights and surfaced
+                              in the sidebar between Goals and Docs)
   Summary:  Root layout. Slim 64px icon sidebar (AppSidebar) + scrollable
             full-width main column. AppStatusBar sits at the top of the content
             column (hidden on mobile). No top header bar — pages own their own
@@ -19,7 +21,9 @@
   Keyboard shortcuts (global, guarded from inputs):
     ?           — toggle keyboard-shortcut help panel
     1 / 2 / 3 / 4 / 5 / 6 / 7 — switch Dashboard / Schedule / Spending /
-                                  Goals / Docs / Settings / Advanced
+                                  Goals / Docs / Settings / Insights
+                                  (note: 7 keeps its historical mapping to the
+                                  former "Advanced" tab — see RS-27.)
     E           — export CSV
     G           — open section picker (jump to section)
     T           — toggle theme
@@ -42,7 +46,7 @@ import SpendingPage  from '@/components/pages/SpendingPage.vue';
 import GoalsPage     from '@/components/pages/GoalsPage.vue';
 import DocsPage      from '@/components/pages/DocsPage.vue';
 import SettingsPage  from '@/components/pages/SettingsPage.vue';
-import AdvancedPage  from '@/components/pages/AdvancedPage.vue';
+import InsightsPage  from '@/components/pages/InsightsPage.vue';
 
 import ToastContainer   from '@/components/ui/ToastContainer.vue';
 import BaseModal        from '@/components/ui/BaseModal.vue';
@@ -79,7 +83,7 @@ const activePage = computed(() => {
     case 'goals':     return GoalsPage;
     case 'docs':      return DocsPage;
     case 'settings':  return SettingsPage;
-    case 'advanced':  return AdvancedPage;
+    case 'insights':  return InsightsPage;
     case 'dashboard':
     default:          return DashboardPage;
   }
@@ -109,7 +113,7 @@ const shortcuts = [
   { combo: '4',   description: 'Switch to Goals' },
   { combo: '5',   description: 'Switch to Docs' },
   { combo: '6',   description: 'Switch to Settings' },
-  { combo: '7',   description: 'Switch to Advanced' },
+  { combo: '7',   description: 'Switch to Insights' },
   { combo: 'G',   description: 'Open section picker (jump to section)' },
   { combo: 'E',   description: 'Export CSV' },
   { combo: 'T',   description: 'Toggle light / dark theme' },
@@ -123,7 +127,7 @@ useKeyboard('3', () => { ui.setActiveTab('spending'); },                     { g
 useKeyboard('4', () => { ui.setActiveTab('goals'); },                        { guardFromInputs: true });
 useKeyboard('5', () => { ui.setActiveTab('docs'); },                         { guardFromInputs: true });
 useKeyboard('6', () => { ui.setActiveTab('settings'); },                     { guardFromInputs: true });
-useKeyboard('7', () => { ui.setActiveTab('advanced'); },                     { guardFromInputs: true });
+useKeyboard('7', () => { ui.setActiveTab('insights'); },                     { guardFromInputs: true });
 useKeyboard('e', () => { handleExport(); },                                  { guardFromInputs: true });
 useKeyboard('t', () => { theme.toggle(); },                                  { guardFromInputs: true });
 useKeyboard('g', () => { ui.toggleSectionPicker(); }, { guardFromInputs: true });
@@ -141,7 +145,10 @@ useKeyboard('g', () => { ui.toggleSectionPicker(); }, { guardFromInputs: true })
 // entering page set to opacity:0. CSS transitions never need a done() callback;
 // the browser compositor handles timing and Vue listens for transitionend
 // automatically. The directional slide is preserved via two named transitions.
-const TAB_ORDER: TabId[] = ['dashboard', 'schedule', 'spending', 'goals', 'docs', 'settings'];
+// RS-27: 'insights' inserted between 'goals' and 'docs' — matches the sidebar's
+// visual order. (The keyboard shortcut for Insights remains '7' for backward
+// compatibility; see App.vue header comment.)
+const TAB_ORDER: TabId[] = ['dashboard', 'schedule', 'spending', 'goals', 'insights', 'docs', 'settings'];
 const tabDirection = ref(1);
 
 watch(

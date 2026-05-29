@@ -141,20 +141,30 @@ describe('ui store — pay-period offset', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-//  Section state — RS-22 (Dashboard is fixed-grid; legacy sectionOrder dropped)
+//  Section state — RS-22 + RS-27
 //
-//  As of RS-22:
+//  RS-22 (Dashboard fixed-grid; legacy `sectionOrder` dropped):
 //    • The Dashboard is a fixed-grid layout (no user reordering).
 //    • The ui store no longer exposes sectionOrder / setSectionOrder /
 //      resetSectionOrder / moveSectionUp / moveSectionDown.
 //    • Legacy `sectionOrder` field in localStorage is silently ignored
 //      on load. The next save drops it from the persisted payload.
-//    • advancedSectionOrder + its 4 actions are retained — AdvancedPage
-//      still uses drag-reorder for its own sections.
+//
+//  RS-27 (Advanced tab renamed → Insights, surfaced in sidebar):
+//    • `advancedSectionOrder` field + four reorder actions renamed:
+//        advancedSectionOrder → insightsSectionOrder
+//        setAdvancedSectionOrder → setInsightsSectionOrder
+//        resetAdvancedSectionOrder → resetInsightsSectionOrder
+//        moveAdvancedSectionUp → moveInsightsSectionUp
+//        moveAdvancedSectionDown → moveInsightsSectionDown
+//    • Legacy `advancedSectionOrder` localStorage payloads are migrated
+//      transparently on load (load helper falls back to the legacy key).
+//      The next save persists under `insightsSectionOrder` and drops the
+//      legacy field from the payload — same pattern as the RS-22 cleanup.
 // ─────────────────────────────────────────────────────────────────
-import { DEFAULT_ADVANCED_ORDER } from '@/constants/dashboardSections';
+import { DEFAULT_INSIGHTS_ORDER } from '@/constants/dashboardSections';
 
-describe('ui store — RS-22 section state', () => {
+describe('ui store — RS-22 + RS-27 section state', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     localStorage.clear();
@@ -164,7 +174,7 @@ describe('ui store — RS-22 section state', () => {
     localStorage.clear();
   });
 
-  // ── Dashboard sectionOrder removed ────────────────────────────
+  // ── Dashboard sectionOrder removed (RS-22) ─────────────────────
   it('store no longer exposes sectionOrder', () => {
     const store = useUiStore();
     expect((store as unknown as Record<string, unknown>).sectionOrder).toBeUndefined();
@@ -182,7 +192,7 @@ describe('ui store — RS-22 section state', () => {
     expect(store.moveSectionDown).toBeUndefined();
   });
 
-  // ── Legacy localStorage migration ─────────────────────────────
+  // ── Legacy `sectionOrder` migration (RS-22) ────────────────────
   it('silently ignores legacy sectionOrder field on load', () => {
     localStorage.setItem('penny_ui_prefs', JSON.stringify({
       collapsedSections: ['wishlist'],
@@ -196,11 +206,11 @@ describe('ui store — RS-22 section state', () => {
   });
 
   it('next save drops the legacy sectionOrder field from localStorage', () => {
-    // Seed localStorage with the legacy field
+    // Seed localStorage with both legacy fields
     localStorage.setItem('penny_ui_prefs', JSON.stringify({
       collapsedSections: [],
       sectionOrder: ['anything'],
-      advancedSectionOrder: [...DEFAULT_ADVANCED_ORDER],
+      insightsSectionOrder: [...DEFAULT_INSIGHTS_ORDER],
     }));
     setActivePinia(createPinia());
     const store = useUiStore();
@@ -209,48 +219,104 @@ describe('ui store — RS-22 section state', () => {
     const raw = JSON.parse(localStorage.getItem('penny_ui_prefs')!);
     expect(raw.sectionOrder).toBeUndefined();
     expect(raw.collapsedSections).toContain('wishlist');
-    expect(raw.advancedSectionOrder).toEqual(DEFAULT_ADVANCED_ORDER);
+    expect(raw.insightsSectionOrder).toEqual(DEFAULT_INSIGHTS_ORDER);
   });
 
-  // ── Advanced section order retained ───────────────────────────
-  it('initialises advancedSectionOrder to the default order', () => {
-    const store = useUiStore();
-    expect(store.advancedSectionOrder).toEqual(DEFAULT_ADVANCED_ORDER);
+  // ── RS-27 rename: store no longer exposes Advanced-named API ──
+  it('store no longer exposes advancedSectionOrder', () => {
+    const store = useUiStore() as unknown as Record<string, unknown>;
+    expect(store.advancedSectionOrder).toBeUndefined();
   });
 
-  it('setAdvancedSectionOrder persists a new ordering', () => {
+  it('store no longer exposes setAdvancedSectionOrder / resetAdvancedSectionOrder', () => {
+    const store = useUiStore() as unknown as Record<string, unknown>;
+    expect(store.setAdvancedSectionOrder).toBeUndefined();
+    expect(store.resetAdvancedSectionOrder).toBeUndefined();
+  });
+
+  it('store no longer exposes moveAdvancedSectionUp / moveAdvancedSectionDown', () => {
+    const store = useUiStore() as unknown as Record<string, unknown>;
+    expect(store.moveAdvancedSectionUp).toBeUndefined();
+    expect(store.moveAdvancedSectionDown).toBeUndefined();
+  });
+
+  // ── RS-27 migration: legacy advancedSectionOrder is read on first load ──
+  it('migrates legacy `advancedSectionOrder` localStorage payload to insightsSectionOrder on load', () => {
+    const customOrder = [...DEFAULT_INSIGHTS_ORDER].reverse();
+    localStorage.setItem('penny_ui_prefs', JSON.stringify({
+      collapsedSections: [],
+      advancedSectionOrder: customOrder,
+    }));
+    setActivePinia(createPinia());
     const store = useUiStore();
-    const newOrder = [...DEFAULT_ADVANCED_ORDER].reverse();
-    store.setAdvancedSectionOrder(newOrder);
-    expect(store.advancedSectionOrder[0])
-      .toBe(DEFAULT_ADVANCED_ORDER[DEFAULT_ADVANCED_ORDER.length - 1]);
+    expect(store.insightsSectionOrder).toEqual(customOrder);
+  });
+
+  it('prefers `insightsSectionOrder` when both legacy and new fields are present', () => {
+    const legacyOrder = [...DEFAULT_INSIGHTS_ORDER].reverse();
+    const currentOrder = [...DEFAULT_INSIGHTS_ORDER];
+    localStorage.setItem('penny_ui_prefs', JSON.stringify({
+      collapsedSections: [],
+      advancedSectionOrder: legacyOrder,
+      insightsSectionOrder: currentOrder,
+    }));
+    setActivePinia(createPinia());
+    const store = useUiStore();
+    expect(store.insightsSectionOrder).toEqual(currentOrder);
+  });
+
+  it('next save drops the legacy advancedSectionOrder field from localStorage', () => {
+    localStorage.setItem('penny_ui_prefs', JSON.stringify({
+      collapsedSections: [],
+      advancedSectionOrder: [...DEFAULT_INSIGHTS_ORDER],
+    }));
+    setActivePinia(createPinia());
+    const store = useUiStore();
+    store.toggleSection('wishlist');
     const raw = JSON.parse(localStorage.getItem('penny_ui_prefs')!);
-    expect(raw.advancedSectionOrder[0])
-      .toBe(DEFAULT_ADVANCED_ORDER[DEFAULT_ADVANCED_ORDER.length - 1]);
+    expect(raw.advancedSectionOrder).toBeUndefined();
+    expect(raw.insightsSectionOrder).toEqual(DEFAULT_INSIGHTS_ORDER);
   });
 
-  it('resetAdvancedSectionOrder restores the canonical advanced order', () => {
+  // ── insightsSectionOrder works end-to-end (the live API) ──────
+  it('initialises insightsSectionOrder to the default order', () => {
     const store = useUiStore();
-    store.setAdvancedSectionOrder([...DEFAULT_ADVANCED_ORDER].reverse());
-    store.resetAdvancedSectionOrder();
-    expect(store.advancedSectionOrder).toEqual(DEFAULT_ADVANCED_ORDER);
+    expect(store.insightsSectionOrder).toEqual(DEFAULT_INSIGHTS_ORDER);
   });
 
-  it('moveAdvancedSectionUp swaps with the section before it', () => {
+  it('setInsightsSectionOrder persists a new ordering', () => {
     const store = useUiStore();
-    const first  = store.advancedSectionOrder[0];
-    const second = store.advancedSectionOrder[1];
-    store.moveAdvancedSectionUp(second);
-    expect(store.advancedSectionOrder[0]).toBe(second);
-    expect(store.advancedSectionOrder[1]).toBe(first);
+    const newOrder = [...DEFAULT_INSIGHTS_ORDER].reverse();
+    store.setInsightsSectionOrder(newOrder);
+    expect(store.insightsSectionOrder[0])
+      .toBe(DEFAULT_INSIGHTS_ORDER[DEFAULT_INSIGHTS_ORDER.length - 1]);
+    const raw = JSON.parse(localStorage.getItem('penny_ui_prefs')!);
+    expect(raw.insightsSectionOrder[0])
+      .toBe(DEFAULT_INSIGHTS_ORDER[DEFAULT_INSIGHTS_ORDER.length - 1]);
   });
 
-  it('moveAdvancedSectionDown swaps with the section after it', () => {
+  it('resetInsightsSectionOrder restores the canonical Insights order', () => {
     const store = useUiStore();
-    const first  = store.advancedSectionOrder[0];
-    const second = store.advancedSectionOrder[1];
-    store.moveAdvancedSectionDown(first);
-    expect(store.advancedSectionOrder[0]).toBe(second);
-    expect(store.advancedSectionOrder[1]).toBe(first);
+    store.setInsightsSectionOrder([...DEFAULT_INSIGHTS_ORDER].reverse());
+    store.resetInsightsSectionOrder();
+    expect(store.insightsSectionOrder).toEqual(DEFAULT_INSIGHTS_ORDER);
+  });
+
+  it('moveInsightsSectionUp swaps with the section before it', () => {
+    const store = useUiStore();
+    const first  = store.insightsSectionOrder[0];
+    const second = store.insightsSectionOrder[1];
+    store.moveInsightsSectionUp(second);
+    expect(store.insightsSectionOrder[0]).toBe(second);
+    expect(store.insightsSectionOrder[1]).toBe(first);
+  });
+
+  it('moveInsightsSectionDown swaps with the section after it', () => {
+    const store = useUiStore();
+    const first  = store.insightsSectionOrder[0];
+    const second = store.insightsSectionOrder[1];
+    store.moveInsightsSectionDown(first);
+    expect(store.insightsSectionOrder[0]).toBe(second);
+    expect(store.insightsSectionOrder[1]).toBe(first);
   });
 });

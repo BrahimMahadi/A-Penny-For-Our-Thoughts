@@ -4,6 +4,8 @@
  * Created:  May 2026 (Sprint 13)
  * Updated:  May 2026 (Sprint 18) — added `title` for dynamic card rendering
  *           May 2026 (Sprint 25) — split into DASHBOARD_SECTIONS + ADVANCED_SECTIONS;
+ *                                  (ADVANCED_SECTIONS renamed → INSIGHTS_SECTIONS
+ *                                  in RS-27 along with the Advanced→Insights tab rename)
  *                                  removed budget-allocation (→ Settings) and
  *                                  goals-timeline (deleted)
  *           May 2026 (RS-11)    — removed income-streams (→ Settings), wants-tracker
@@ -123,9 +125,9 @@ export const DASHBOARD_SECTIONS: DashboardSection[] = [
   },
 ];
 
-// ─── Advanced tab sections ───────────────────────────────────────────────────
+// ─── Insights tab sections (formerly "Advanced" — renamed RS-27) ─────────────
 
-export const ADVANCED_SECTIONS: DashboardSection[] = [
+export const INSIGHTS_SECTIONS: DashboardSection[] = [
   {
     id: 'spending-trend',
     icon: '📊',
@@ -160,14 +162,14 @@ export const ADVANCED_SECTIONS: DashboardSection[] = [
 
 /** Lookup map: section id → full DashboardSection record (covers both tabs) */
 export const SECTION_MAP: Record<string, DashboardSection> = Object.fromEntries(
-  [...DASHBOARD_SECTIONS, ...ADVANCED_SECTIONS].map(s => [s.id, s]),
+  [...DASHBOARD_SECTIONS, ...INSIGHTS_SECTIONS].map(s => [s.id, s]),
 );
 
 /** Default section order for the Dashboard tab (fixed-grid layout, RS-11+) */
 export const DEFAULT_SECTION_ORDER: string[] = DASHBOARD_SECTIONS.map(s => s.id);
 
-/** Default section order for the Advanced tab */
-export const DEFAULT_ADVANCED_ORDER: string[] = ADVANCED_SECTIONS.map(s => s.id);
+/** Default section order for the Insights tab (renamed from Advanced in RS-27) */
+export const DEFAULT_INSIGHTS_ORDER: string[] = INSIGHTS_SECTIONS.map(s => s.id);
 
 /** Unique ordered group names for the dashboard section picker */
 export const SECTION_GROUPS: string[] = [

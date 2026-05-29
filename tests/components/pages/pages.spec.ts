@@ -235,12 +235,13 @@ describe('DocsPage', () => {
   });
 
   // ── RS-26: Release notes refreshed through v2.17.0 ─────────────
-  it('RS-26: Release Notes contains the latest v2.17.0 entry', async () => {
+  // (Updated in RS-27 to also assert the new v2.18.0 entry.)
+  it('RS-26: Release Notes contains the latest v2.18.0 entry', async () => {
     const w = mountWith(DocsPage);
     await nextTick();
     await w.findAll('.docs-nav-btn').find(b => b.text().includes('Release Notes'))!.trigger('click');
     await nextTick();
-    expect(w.find('.docs-section').text()).toContain('v2.17.0');
+    expect(w.find('.docs-section').text()).toContain('v2.18.0');
     w.unmount();
   });
 
@@ -252,8 +253,8 @@ describe('DocsPage', () => {
     const text = w.find('.docs-section').text();
     // Walk every tagged v2.x version we shipped — newest first
     const versions = [
-      'v2.17.0', 'v2.16.0', 'v2.15.0', 'v2.14.0', 'v2.13.0', 'v2.12.0',
-      'v2.11.0', 'v2.10.1 – .3', 'v2.10.0',
+      'v2.18.0', 'v2.17.0', 'v2.16.0', 'v2.15.0', 'v2.14.0', 'v2.13.0',
+      'v2.12.0', 'v2.11.0', 'v2.10.1 – .3', 'v2.10.0',
       'v2.9.0', 'v2.8.0', 'v2.7.0', 'v2.6.0', 'v2.5.0',
       'v2.4.0', 'v2.3.0', 'v2.2.0', 'v2.1.0', 'v2.0.0',
     ];
@@ -298,7 +299,7 @@ describe('DocsPage', () => {
     await nextTick();
     const text = w.find('.docs-section').text();
     // Spot-check that the redesign-sprint identifiers are documented
-    for (const sprint of ['RS-25', 'RS-24', 'RS-23', 'RS-22', 'RS-21', 'RS-20', 'RS-19', 'RS-11', 'RS-1 through RS-9']) {
+    for (const sprint of ['RS-27', 'RS-25', 'RS-24', 'RS-23', 'RS-22', 'RS-21', 'RS-20', 'RS-19', 'RS-11', 'RS-1 through RS-9']) {
       expect(text, `release notes should reference ${sprint}`).toContain(sprint);
     }
     w.unmount();

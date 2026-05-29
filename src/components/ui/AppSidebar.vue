@@ -22,6 +22,7 @@
     ▥  Schedule
     ◐  Spending
     ◎  Goals
+    📊 Insights      (RS-27 — formerly the keyboard-only "Advanced" tab)
     ☰  Docs
     ◆  Settings
     [spacer]
@@ -55,15 +56,18 @@ interface NavItem {
   label: string;
 }
 
-// The 6 primary tabs shown in the sidebar.
-// 'advanced' is intentionally omitted — accessible via keyboard shortcut only.
+// The 7 primary tabs shown in the sidebar.
+// RS-27: 'insights' (formerly keyboard-only 'advanced') is now surfaced between
+// Goals and Docs. The keyboard shortcut for Insights remains '7' for backward
+// compatibility (see App.vue useKeyboard wiring).
 const navItems: NavItem[] = [
-  { id: 'dashboard', glyph: '◧', label: 'Dashboard' },
-  { id: 'schedule',  glyph: '▥', label: 'Schedule'  },
-  { id: 'spending',  glyph: '◐', label: 'Spending'  },
-  { id: 'goals',     glyph: '◎', label: 'Goals'     },
-  { id: 'docs',      glyph: '☰', label: 'Docs'      },
-  { id: 'settings',  glyph: '◆', label: 'Settings'  },
+  { id: 'dashboard', glyph: '◧',  label: 'Dashboard' },
+  { id: 'schedule',  glyph: '▥',  label: 'Schedule'  },
+  { id: 'spending',  glyph: '◐',  label: 'Spending'  },
+  { id: 'goals',     glyph: '◎',  label: 'Goals'     },
+  { id: 'insights',  glyph: '📊', label: 'Insights'  },
+  { id: 'docs',      glyph: '☰',  label: 'Docs'      },
+  { id: 'settings',  glyph: '◆',  label: 'Settings'  },
 ];
 
 // User initials for the avatar button (falls back to "B")

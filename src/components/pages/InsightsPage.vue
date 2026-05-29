@@ -1,8 +1,11 @@
 <!--
-  Module:   components/pages/AdvancedPage.vue
+  Module:   components/pages/InsightsPage.vue
   Project:  A Penny For Our Thoughts
-  Created:  May 2026 (Sprint 25) — new Advanced analytics tab
-  Summary:  Advanced tab host. Renders the four analytics section components
+  Created:  May 2026 (Sprint 25) — originally `AdvancedPage.vue`
+  Renamed:  May 2026 (RS-27)     — "Advanced" → "Insights" + surfaced in the
+                                    sidebar; identical layout/behaviour, only
+                                    the IA labelling changed.
+  Summary:  Insights tab host. Renders the four analytics section components
             in a user-configurable order persisted in the ui store:
               • 6-Month Spending Trend
               • Spending Analytics
@@ -11,7 +14,7 @@
 
             Each section is collapsible and draggable (same drag-and-drop
             pattern as DashboardPage). Order is controlled by
-            ui.advancedSectionOrder.
+            ui.insightsSectionOrder.
 -->
 
 <script setup lang="ts">
@@ -70,11 +73,11 @@ function onDrop(event: DragEvent, targetIndex: number): void {
     cleanup();
     return;
   }
-  const newOrder = [...ui.advancedSectionOrder];
+  const newOrder = [...ui.insightsSectionOrder];
   const [moved] = newOrder.splice(from, 1);
   const insertAt = from < targetIndex ? targetIndex - 1 : targetIndex;
   newOrder.splice(insertAt, 0, moved);
-  ui.setAdvancedSectionOrder(newOrder);
+  ui.setInsightsSectionOrder(newOrder);
   cleanup();
 }
 
@@ -89,10 +92,10 @@ function cleanup(): void {
 </script>
 
 <template>
-  <div class="page-advanced">
+  <div class="page-insights">
     <!-- ══ Dynamically ordered sections ══════════════════════════════ -->
     <template
-      v-for="(sectionId, index) in ui.advancedSectionOrder"
+      v-for="(sectionId, index) in ui.insightsSectionOrder"
       :key="sectionId"
     >
       <!-- Drop indicator above the target card -->
@@ -133,9 +136,9 @@ function cleanup(): void {
     <!-- Drop indicator at end of list -->
     <div
       v-if="
-        dropIndex === ui.advancedSectionOrder.length &&
+        dropIndex === ui.insightsSectionOrder.length &&
           dragIndex !== -1 &&
-          dragIndex !== ui.advancedSectionOrder.length - 1
+          dragIndex !== ui.insightsSectionOrder.length - 1
       "
       class="drop-indicator"
       aria-hidden="true"
@@ -144,7 +147,7 @@ function cleanup(): void {
 </template>
 
 <style scoped>
-.page-advanced {
+.page-insights {
   display: flex;
   flex-direction: column;
   gap: 1rem;

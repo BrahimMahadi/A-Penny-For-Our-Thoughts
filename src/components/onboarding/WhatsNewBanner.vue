@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.17.0';
+const APP_VERSION = '2.18.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📜', text: 'The in-app Release Notes (Docs → Release Notes) are now complete — every sprint from v1.19.0 through v2.16.0 has been written up, including the entire "Vivid Modern" redesign and every BUG-020 patch' },
-  { icon: '✨', text: 'New "Vivid Modern Redesign (v2.x)" section divider in the release notes makes it easy to scan the v1.x → v2.x boundary at a glance' },
-  { icon: '📦', text: 'BUG-020 patch series (v2.10.1, .2, .3) consolidated into a single readable entry so the timeline tells the story without three near-identical rows' },
-  { icon: '🛡️', text: 'Five new regression-guard tests assert every v1.x AND v2.x version is still documented — so future docs drift gets caught at the test gate, not in production' },
-  { icon: '✅', text: '1125 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '📊', text: 'The Advanced tab has a new name and a real home — it\'s now called Insights and lives in the sidebar (and bottom nav on mobile) between Goals and Docs. No more "where did that go?" moments' },
+  { icon: '⌨️', text: 'Keyboard shortcut 7 still routes to Insights — your muscle memory is safe. The shortcut-help table description was updated from "Switch to Advanced" → "Switch to Insights"' },
+  { icon: '🔄', text: 'Internal rename: \'advanced\' → \'insights\' across the TabId type, store fields, store actions, and the page component file. Your drag-reorder preferences for the four sections are migrated transparently' },
+  { icon: '🛡️', text: '13 new tests cover the legacy localStorage migration, sidebar surfacing, keyboard shortcut routing, and confirm \'Advanced\' labels are gone' },
+  { icon: '✅', text: '1135 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();
