@@ -789,20 +789,12 @@ export const Constants = {
 // ─────────────────────────────────────────────────────────────────
 //  HAND-MAINTAINED RE-EXPORTS — KEEP BELOW THIS LINE
 //
-//  BUG-022 (originally lost when migrate.yml regenerated this file
-//  during the RS-29 deploy, then restored): everything above this
-//  point is produced by `supabase gen types typescript` and gets
-//  overwritten on every migration. The convenience `*Row` aliases
-//  below are NOT produced by that command, but src/lib/db.ts and
-//  several test files import them by name. They MUST be re-added
-//  whenever this file is regenerated.
-//
-//  Until the migrate.yml workflow is taught to append this block
-//  automatically (see BUG-022 follow-up), a manual regenerate via
-//  the Supabase CLI will leave the working tree in a broken state.
-//  If you regenerate by hand, copy this block back in OR run
-//  `npm run type-check` and follow the errors to reconstruct it
-//  from src/lib/db.ts's import list.
+//  `supabase gen types typescript` does NOT produce these aliases.
+//  This block is appended by .github/workflows/migrate.yml's
+//  "Re-append *Row aliases" step after every regenerate so that
+//  src/lib/db.ts's imports continue to resolve. (See BUG-022.)
+//  If you add a new table to the schema, add its Row alias here
+//  too — otherwise CI will fail on the next migration.
 // ─────────────────────────────────────────────────────────────────
 
 type _DbTables = Database['public']['Tables']
