@@ -80,9 +80,13 @@ export interface BudgetState {
    * `getCurrentPeriodStart()` advances past this value, the rollover archives
    * every missed period (date-bucketed) and bumps this anchor forward.
    *
-   * Stored in localStorage only — multi-device sync of this bookkeeping field
-   * is intentionally not implemented (a stale value on a second device just
-   * causes a one-time benign re-archive of empty periods).
+   * Persistence (RS-29):
+   *   • localStorage via Pinia's $subscribe
+   *   • Supabase column `profiles.last_archived_period_start` (added in
+   *     migration 005). All three mutation paths (manual close, auto-rollover
+   *     init, auto-rollover advance) sync via `upsertProfile(...)`.
+   *   • Legacy localStorage values are migrated to the cloud transparently
+   *     by `pushUpOptionalFields` during `initStore` (see budget.ts).
    */
   lastArchivedPeriodStart: ISODate | null;
 

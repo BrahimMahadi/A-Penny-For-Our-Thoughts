@@ -411,6 +411,109 @@ async function pushImportedState(state: BudgetState): Promise<void> {
   }
 }
 
+// ─── RS-29: one-shot push-up migration ───────────────────────────
+//
+// Three prior sprints (RS-23, RS-24, RS-28) added optional fields to the
+// TypeScript layer but skipped the corresponding Supabase migrations:
+//   • BudgetState.lastArchivedPeriodStart   (RS-23)
+//   • SpendingHistoryPeriod.budgets / .spent (RS-24)
+//   • WishlistItem.targetMonth              (RS-28)
+//
+// The localStorage-only approach worked because Object.assign(state, data)
+// only copies properties present on `data`. Once RS-29 promotes these to
+// real columns, the fetched `data` WILL include the fields (set to null
+// for legacy rows that haven't been written since the migration ran),
+// which would clobber any locally-set values on the next reload.
+//
+// This helper runs BETWEEN fetchAllUserData and Object.assign. For each
+// field, if the local state has a value but the fetched data is still null
+// (i.e. the DB hasn't been written since the migration), it:
+//   1. Mutates the in-place `data` object so Object.assign carries the
+//      local value forward into the new authoritative state
+//   2. Fires a `syncDb` write so the cloud catches up
+//
+// After the first run completes, DB and local agree → all branches no-op.
+// Failures are logged but never throw — the local data is already showing
+// and the user can refresh to retry later (same fire-and-forget posture as
+// the existing per-action syncDb calls).
+
+/**
+ * NOTE: exported solely so the test suite can exercise the migration paths
+ * directly (see tests/stores/pushUpOptionalFields.spec.ts). Not part of the
+ * public store API — production callers always reach it via `initStore`.
+ */
+export async function pushUpOptionalFields(
+  userId: string,
+  localState: BudgetState,
+  data: Partial<BudgetState>,
+): Promise<void> {
+  if (!userId || !isSupabaseConfigured()) return;
+
+  // ── lastArchivedPeriodStart (profiles table) ────────────────────
+  if (data.lastArchivedPeriodStart == null && localState.lastArchivedPeriodStart != null) {
+    const value = localState.lastArchivedPeriodStart;
+    data.lastArchivedPeriodStart = value; // preserve locally on the assign that follows
+    try {
+      await upsertProfile(userId, { lastArchivedPeriodStart: value });
+      console.info('[penny] RS-29 push-up: lastArchivedPeriodStart →', value);
+    } catch (err) {
+      console.warn('[penny] RS-29 push-up failed (lastArchivedPeriodStart):', err);
+    }
+  }
+
+  // ── SpendingHistoryPeriod.budgets / .spent ──────────────────────
+  // We walk the fetched periods (cloud is the index of truth for which
+  // periods exist) and patch any whose local counterpart has snapshots
+  // the cloud row is missing. Matching by `id` is reliable — periods
+  // never change id after creation.
+  if (data.spendingHistory) {
+    const localPeriodsById = new Map(localState.spendingHistory.map((p) => [p.id, p]));
+    for (const fetched of data.spendingHistory) {
+      const local = localPeriodsById.get(fetched.id);
+      if (!local) continue;
+      const patch: { budgets?: typeof fetched.budgets; spent?: typeof fetched.spent } = {};
+      if (fetched.budgets == null && local.budgets != null) {
+        fetched.budgets = local.budgets;
+        patch.budgets = local.budgets;
+      }
+      if (fetched.spent == null && local.spent != null) {
+        fetched.spent = local.spent;
+        patch.spent = local.spent;
+      }
+      if (Object.keys(patch).length > 0) {
+        try {
+          await db.spendingHistory.updatePeriodSnapshots(userId, fetched.id, patch);
+          console.info('[penny] RS-29 push-up: period', fetched.id, '→', Object.keys(patch).join(' + '));
+        } catch (err) {
+          console.warn('[penny] RS-29 push-up failed (period', fetched.id, '):', err);
+        }
+      }
+    }
+  }
+
+  // ── WishlistItem.targetMonth ────────────────────────────────────
+  if (data.wishlist) {
+    const localWishById = new Map(localState.wishlist.map((w) => [w.id, w]));
+    for (const fetched of data.wishlist) {
+      const local = localWishById.get(fetched.id);
+      if (!local) continue;
+      if (fetched.targetMonth == null && local.targetMonth != null) {
+        const value = local.targetMonth;
+        fetched.targetMonth = value;
+        try {
+          // wishlist.update writes ALL persistable wishlist columns. Use the
+          // merged object so we don't accidentally null out fields the cloud
+          // already has (price, saved, etc) that local might not match.
+          await db.wishlist.update(userId, fetched);
+          console.info('[penny] RS-29 push-up: wishlist', fetched.id, '→ targetMonth', value);
+        } catch (err) {
+          console.warn('[penny] RS-29 push-up failed (wishlist', fetched.id, '):', err);
+        }
+      }
+    }
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────
 
 export const useBudgetStore = defineStore('budget', {
@@ -534,6 +637,19 @@ export const useBudgetStore = defineStore('budget', {
         const data = await withTimeout(fetchAllUserData(userId));
 
         if (data) {
+          // RS-29 push-up migration: BEFORE we overwrite local state with
+          // the fetched data, walk the optional fields that just gained DB
+          // columns and push any locally-set values up to the cloud if the
+          // remote copy is still null. This is a one-shot — after the first
+          // run, DB and local agree and the helper is a no-op.
+          //
+          // Why: localStorage hydrated state already contains values like
+          // `wishlist[i].targetMonth` (RS-28) and `lastArchivedPeriodStart`
+          // (RS-23). Object.assign(this.$state, data) below would clobber
+          // those with null because the fields were only just promoted to
+          // real columns. Pushing them up first preserves the data.
+          await pushUpOptionalFields(userId, this.$state, data);
+
           // Supabase has data — use it as source of truth
           Object.assign(this.$state, data);
         } else {
@@ -798,6 +914,11 @@ export const useBudgetStore = defineStore('budget', {
       this.lastArchivedPeriodStart = addDaysISO(currentStart, 14);
 
       syncDb(() => db.spendingHistory.insertPeriod(_userId, period), 'closeCurrentPeriodManually');
+      // RS-29: lastArchivedPeriodStart is now a real DB column; sync it.
+      syncDb(
+        () => upsertProfile(_userId, { lastArchivedPeriodStart: this.lastArchivedPeriodStart }),
+        'closeCurrentPeriodManually:lastArchivedPeriodStart',
+      );
       return period;
     },
 
@@ -843,6 +964,11 @@ export const useBudgetStore = defineStore('budget', {
       // First-run init: anchor without archiving any retro periods.
       if (!this.lastArchivedPeriodStart) {
         this.lastArchivedPeriodStart = currentStart;
+        // RS-29: persist the anchor so it's available on other devices.
+        syncDb(
+          () => upsertProfile(_userId, { lastArchivedPeriodStart: this.lastArchivedPeriodStart }),
+          'autoArchiveMissedPeriods:firstRunInit',
+        );
         return 0;
       }
 
@@ -853,6 +979,10 @@ export const useBudgetStore = defineStore('budget', {
       if (missedStarts.length === 0) {
         // Defensive: shouldn't happen given the prior guard, but bail safely.
         this.lastArchivedPeriodStart = currentStart;
+        syncDb(
+          () => upsertProfile(_userId, { lastArchivedPeriodStart: this.lastArchivedPeriodStart }),
+          'autoArchiveMissedPeriods:defensiveAdvance',
+        );
         return 0;
       }
 
@@ -918,6 +1048,12 @@ export const useBudgetStore = defineStore('budget', {
       this.spendingHistory = [...this.spendingHistory, ...newPeriods];
       this.purchases = live;
       this.lastArchivedPeriodStart = currentStart;
+
+      // RS-29: persist the new anchor alongside the period inserts.
+      syncDb(
+        () => upsertProfile(_userId, { lastArchivedPeriodStart: this.lastArchivedPeriodStart }),
+        'autoArchiveMissedPeriods:advanceAnchor',
+      );
 
       // Sync each new period to the database (fire-and-forget per existing pattern).
       for (const period of newPeriods) {

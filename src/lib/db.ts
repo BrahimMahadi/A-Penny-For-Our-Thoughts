@@ -27,6 +27,7 @@ import type {
 import type { BudgetAllocation, BudgetDisplayModes } from '@/types/budget';
 import type { BudgetState } from '@/types/state';
 import type {
+  Json,
   ProfileRow,
   IncomeStreamRow, ExpenseCardRow, ExpenseItemRow, PurchaseRow,
   SpendingHistoryPeriodRow, SpendingHistoryItemRow,
@@ -83,6 +84,15 @@ function toSpendingHistoryPeriod(
     items: items
       .filter(i => i.period_id === r.id)
       .map(i => ({ id: i.id, name: i.name, amount: i.amount, category: i.category, date: i.date ?? undefined })),
+    // RS-29: optional budgets / spent snapshots. JSONB → typed shape.
+    // Spread only when set so legacy periods don't end up with explicit
+    // `undefined` properties that would break downstream consumers.
+    ...(r.budgets != null
+      ? { budgets: r.budgets as unknown as SpendingHistoryPeriod['budgets'] }
+      : {}),
+    ...(r.spent != null
+      ? { spent: r.spent as unknown as SpendingHistoryPeriod['spent'] }
+      : {}),
   };
 }
 
@@ -126,6 +136,9 @@ function toWishlistItem(r: WishlistItemRow): WishlistItem {
     url:  r.url,
     ...(r.price != null ? { price: r.price } : {}),
     ...(r.saved != null ? { saved: r.saved } : {}),
+    // RS-29: targetMonth is now a real column. Spread only when set so
+    // unset items don't end up with an explicit `undefined` property.
+    ...(r.target_month != null ? { targetMonth: r.target_month } : {}),
   };
 }
 
@@ -289,6 +302,10 @@ export async function fetchAllUserData(userId: string): Promise<Partial<BudgetSt
     allocation:          profile.allocation as unknown as BudgetAllocation,
     budgetDisplayMode:   profile.budget_display_mode as unknown as BudgetDisplayModes,
     payStart:            profile.pay_start ?? null,
+    // RS-29: real column now. Falls back to null for legacy rows (pre-005
+    // migration) and is set to currentPeriodStart by the auto-rollover
+    // first-run-init branch.
+    lastArchivedPeriodStart: profile.last_archived_period_start ?? null,
     fundsRemaining:      profile.funds_remaining,
     fundsRemainingUpdated: profile.funds_remaining_updated as string,
     hasOnboarded:        profile.has_onboarded,
@@ -318,6 +335,8 @@ export async function upsertProfile(userId: string, data: {
   allocation?: BudgetAllocation;
   budgetDisplayMode?: BudgetDisplayModes;
   payStart?: string | null;
+  /** RS-29 — auto-rollover idempotency anchor (ISO 'YYYY-MM-DD'). */
+  lastArchivedPeriodStart?: string | null;
   fundsRemaining?: number;
   fundsRemainingUpdated?: string;
   hasOnboarded?: boolean;
@@ -328,6 +347,7 @@ export async function upsertProfile(userId: string, data: {
     ...(data.allocation !== undefined        && { allocation: data.allocation }),
     ...(data.budgetDisplayMode !== undefined && { budget_display_mode: data.budgetDisplayMode }),
     ...(data.payStart !== undefined          && { pay_start: data.payStart }),
+    ...(data.lastArchivedPeriodStart !== undefined && { last_archived_period_start: data.lastArchivedPeriodStart }),
     ...(data.fundsRemaining !== undefined    && { funds_remaining: data.fundsRemaining }),
     ...(data.fundsRemainingUpdated !== undefined && { funds_remaining_updated: data.fundsRemainingUpdated }),
     ...(data.hasOnboarded !== undefined      && { has_onboarded: data.hasOnboarded }),
@@ -432,6 +452,9 @@ export const db = {
       await insertRow('spending_history_periods', {
         id: period.id, user_id: userId, date: period.date,
         label: period.label ?? null, total: period.total,
+        // RS-29: persist budgets / spent snapshots as JSONB.
+        budgets: (period.budgets ?? null) as unknown as Json,
+        spent:   (period.spent   ?? null) as unknown as Json,
       });
       for (const item of period.items) {
         await insertRow('spending_history_items', {
@@ -441,6 +464,24 @@ export const db = {
           date: item.date ?? null,
         });
       }
+    },
+    /**
+     * RS-29: in-place update of an existing period's budgets / spent
+     * snapshots. Used by the one-time push-up migration in initStore to
+     * promote localStorage-only values up to the new DB columns.
+     * Items are NOT touched — they were already synced on the original
+     * insert. Only the period-level columns change.
+     */
+    updatePeriodSnapshots: async (
+      userId: string,
+      periodId: string,
+      patch: { budgets?: SpendingHistoryPeriod['budgets']; spent?: SpendingHistoryPeriod['spent'] },
+    ) => {
+      const updates: Record<string, unknown> = {};
+      if (patch.budgets !== undefined) updates.budgets = patch.budgets;
+      if (patch.spent   !== undefined) updates.spent   = patch.spent;
+      if (Object.keys(updates).length === 0) return;
+      await updateRow('spending_history_periods', periodId, userId, updates);
     },
     deletePeriod: (userId: string, id: string) =>
       deleteRow('spending_history_periods', id, userId),
@@ -502,12 +543,14 @@ export const db = {
         id: w.id, user_id: userId, icon: w.icon, name: w.name, url: w.url,
         price: w.price ?? null,
         saved: w.saved ?? null,
+        target_month: w.targetMonth ?? null,   // RS-29
       }),
     update: (userId: string, w: WishlistItem) =>
       updateRow('wishlist_items', w.id, userId, {
         icon: w.icon, name: w.name, url: w.url,
         price: w.price ?? null,
         saved: w.saved ?? null,
+        target_month: w.targetMonth ?? null,   // RS-29
       }),
     delete: (userId: string, id: string) => deleteRow('wishlist_items', id, userId),
   },

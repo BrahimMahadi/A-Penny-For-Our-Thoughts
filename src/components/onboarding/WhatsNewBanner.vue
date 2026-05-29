@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.19.0';
+const APP_VERSION = '2.20.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🎯', text: 'Wishlist items can now have an optional target month — set the month you want to have this item saved up for and the card shows "By Mar 2027" + an on-track / behind / complete status chip' },
-  { icon: '💡', text: 'When you\'re behind on a targeted item, the card shows the exact rate you\'d need to allocate — "Need $134/mo to hit your target" — so you know what it would take to catch up' },
-  { icon: '🔃', text: 'New "Target ↑" sort option in the Wishlist sort dropdown — soonest target first, undated items at the end' },
-  { icon: '🧪', text: '42 new tests cover the date math, status logic, sort behaviour, and modal integration; legacy items without a target month still show the original "~N mo at current rate" badge' },
-  { icon: '✅', text: '1177 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '🗄️', text: 'Multi-device sync now works for the four optional fields that previously only persisted on the originating device: wishlist target months, archive period budgets/spent snapshots, and the auto-rollover anchor' },
+  { icon: '🧱', text: 'Real Supabase columns added for `wishlist_items.target_month`, `spending_history_periods.budgets`, `spending_history_periods.spent`, and `profiles.last_archived_period_start` — see `supabase/migrations/005_optional_fields_refresh.sql`' },
+  { icon: '🛟', text: 'Push-up migration runs once on first load after the migration deploys: any localStorage values you set in the v2.14/v2.15/v2.19 era are promoted to the new columns before they could be clobbered — your data is safe' },
+  { icon: '🧪', text: '32 new tests cover the round-trip mappings for all four new columns and every branch of the push-up migration including error resilience' },
+  { icon: '✅', text: '1209 tests passing, zero TypeScript errors, zero ESLint errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();
