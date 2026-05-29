@@ -652,7 +652,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      fetch_user_data: { Args: { uid: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
