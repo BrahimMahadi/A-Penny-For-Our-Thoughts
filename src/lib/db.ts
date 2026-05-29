@@ -227,76 +227,67 @@ export async function deleteAllUserData(userId: string): Promise<void> {
 // ─── Fetch all user data ───────────────────────────────────────────
 
 /**
- * Fetches every table for `userId` in parallel and assembles a partial
- * BudgetState. Returns `null` if no profile row exists yet (first-time user).
+ * Shape returned by the `fetch_user_data(uid)` Postgres RPC
+ * (see supabase/migrations/006_fetch_user_data_rpc.sql).
+ *
+ * The SQL function uses `to_jsonb(t)` over each table row, which preserves
+ * snake_case column names — that's exactly what the existing `to*` row
+ * adapters above already expect, so the mapping layer is unchanged.
+ *
+ * The `profile` key is the only nullable one (first-time user, no row yet).
+ * Every array key is guaranteed non-null because the SQL wraps each
+ * `jsonb_agg` in `coalesce(..., '[]'::jsonb)`.
+ */
+interface FetchUserDataPayload {
+  profile: ProfileRow | null;
+  incomeStreams: IncomeStreamRow[];
+  expenseCards: ExpenseCardRow[];
+  expenseItems: ExpenseItemRow[];
+  purchases: PurchaseRow[];
+  spendingHistoryPeriods: SpendingHistoryPeriodRow[];
+  spendingHistoryItems: SpendingHistoryItemRow[];
+  loans: LoanRow[];
+  creditCards: CreditCardRow[];
+  subscriptions: SubscriptionRow[];
+  wishlistItems: WishlistItemRow[];
+  savingsAccounts: SavingsAccountRow[];
+  goals: GoalRow[];
+  assets: AssetRow[];
+  netWorthSnapshots: NetWorthSnapshotRow[];
+  rules: RuleRow[];
+  budgetAlerts: BudgetAlertRow[];
+  spendingCategories: SpendingCategoryRow[];
+}
+
+/**
+ * Fetches every table for `userId` in a single Postgres RPC call and
+ * assembles a partial BudgetState. Returns `null` if no profile row
+ * exists yet (first-time user).
+ *
+ * RS-31 (Level 2 fetch reliability): this used to fire 18 parallel
+ * `from(table).select('*')` queries. On Supabase free tier that
+ * occasionally tripped PgBouncer pool saturation and surfaced as a
+ * 57014 statement-timeout on a random subset of the 18 queries.
+ * Collapsing the burst into one RPC eliminates the pool-pressure
+ * window structurally.
  */
 export async function fetchAllUserData(userId: string): Promise<Partial<BudgetState> | null> {
-  const [
-    profileRes,
-    incomeRes,
-    cardsRes,
-    itemsRes,
-    purchasesRes,
-    periodsRes,
-    histItemsRes,
-    loansRes,
-    creditRes,
-    subsRes,
-    wishRes,
-    savingsRes,
-    goalsRes,
-    assetsRes,
-    nwRes,
-    rulesRes,
-    alertsRes,
-    catsRes,
-  ] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-    supabase.from('income_streams').select('*').eq('user_id', userId),
-    supabase.from('expense_cards').select('*').eq('user_id', userId),
-    supabase.from('expense_items').select('*').eq('user_id', userId),
-    supabase.from('purchases').select('*').eq('user_id', userId).order('date', { ascending: false }),
-    supabase.from('spending_history_periods').select('*').eq('user_id', userId).order('date', { ascending: false }),
-    supabase.from('spending_history_items').select('*').eq('user_id', userId),
-    supabase.from('loans').select('*').eq('user_id', userId),
-    supabase.from('credit_cards').select('*').eq('user_id', userId),
-    supabase.from('subscriptions').select('*').eq('user_id', userId),
-    supabase.from('wishlist_items').select('*').eq('user_id', userId),
-    supabase.from('savings_accounts').select('*').eq('user_id', userId),
-    supabase.from('goals').select('*').eq('user_id', userId),
-    supabase.from('assets').select('*').eq('user_id', userId),
-    supabase.from('net_worth_snapshots').select('*').eq('user_id', userId),
-    supabase.from('rules').select('*').eq('user_id', userId),
-    supabase.from('budget_alerts').select('*').eq('user_id', userId),
-    supabase.from('spending_categories').select('*').eq('user_id', userId),
-  ]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any).rpc('fetch_user_data', { uid: userId });
+  assertNoError(error, 'fetchUserDataRpc');
 
-  // Throw on any error
-  assertNoError(profileRes.error, 'fetchProfile');
-  assertNoError(incomeRes.error, 'fetchIncomeStreams');
-  assertNoError(cardsRes.error, 'fetchExpenseCards');
-  assertNoError(itemsRes.error, 'fetchExpenseItems');
-  assertNoError(purchasesRes.error, 'fetchPurchases');
-  assertNoError(periodsRes.error, 'fetchSpendingPeriods');
-  assertNoError(histItemsRes.error, 'fetchSpendingItems');
-  assertNoError(loansRes.error, 'fetchLoans');
-  assertNoError(creditRes.error, 'fetchCreditCards');
-  assertNoError(subsRes.error, 'fetchSubscriptions');
-  assertNoError(wishRes.error, 'fetchWishlist');
-  assertNoError(savingsRes.error, 'fetchSavingsAccounts');
-  assertNoError(goalsRes.error, 'fetchGoals');
-  assertNoError(assetsRes.error, 'fetchAssets');
-  assertNoError(nwRes.error, 'fetchNetWorth');
-  assertNoError(rulesRes.error, 'fetchRules');
-  assertNoError(alertsRes.error, 'fetchBudgetAlerts');
-  assertNoError(catsRes.error, 'fetchSpendingCategories');
+  // RPC returns jsonb — Supabase JS parses it to a plain object. Cast through
+  // unknown so future schema drift surfaces at the boundary, not deep inside.
+  const payload = (data ?? null) as FetchUserDataPayload | null;
 
-  // No profile → first-time user, nothing to restore
-  if (!profileRes.data) return null;
+  // The function always returns a jsonb object, but defend against the
+  // function being absent / dropped / failed-to-deploy — fall through to
+  // "first-time user" rather than crashing.
+  if (!payload || !payload.profile) return null;
 
-  const profile = profileRes.data as ProfileRow;
-  const expenseItems = (itemsRes.data ?? []) as ExpenseItemRow[];
-  const histItems = (histItemsRes.data ?? []) as SpendingHistoryItemRow[];
+  const profile = payload.profile;
+  const expenseItems = payload.expenseItems ?? [];
+  const histItems = payload.spendingHistoryItems ?? [];
 
   return {
     allocation:          profile.allocation as unknown as BudgetAllocation,
@@ -311,21 +302,21 @@ export async function fetchAllUserData(userId: string): Promise<Partial<BudgetSt
     hasOnboarded:        profile.has_onboarded,
     dismissedVersion:    profile.dismissed_version,
 
-    incomeStreams:        (incomeRes.data ?? []).map(r => toIncomeStream(r as IncomeStreamRow)),
-    expenseCards:        (cardsRes.data ?? []).map(r => toExpenseCard(r as ExpenseCardRow, expenseItems)),
-    purchases:           (purchasesRes.data ?? []).map(r => toPurchase(r as PurchaseRow)),
-    spendingHistory:     (periodsRes.data ?? []).map(r => toSpendingHistoryPeriod(r as SpendingHistoryPeriodRow, histItems)),
-    loans:               (loansRes.data ?? []).map(r => toLoan(r as LoanRow)),
-    creditCards:         (creditRes.data ?? []).map(r => toCreditCard(r as CreditCardRow)),
-    subscriptions:       (subsRes.data ?? []).map(r => toSubscription(r as SubscriptionRow)),
-    wishlist:            (wishRes.data ?? []).map(r => toWishlistItem(r as WishlistItemRow)),
-    savingsAccounts:     (savingsRes.data ?? []).map(r => toSavingsAccount(r as SavingsAccountRow)),
-    goals:               (goalsRes.data ?? []).map(r => toGoal(r as GoalRow)),
-    assets:              (assetsRes.data ?? []).map(r => toAsset(r as AssetRow)),
-    netWorthHistory:     (nwRes.data ?? []).map(r => toNetWorthSnapshot(r as NetWorthSnapshotRow)),
-    rules:               (rulesRes.data ?? []).map(r => toRule(r as RuleRow)),
-    budgetAlerts:        (alertsRes.data ?? []).map(r => toBudgetAlert(r as BudgetAlertRow)),
-    spendingCategories:  (catsRes.data ?? []).map(r => toSpendingCategory(r as SpendingCategoryRow)),
+    incomeStreams:       (payload.incomeStreams ?? []).map(toIncomeStream),
+    expenseCards:        (payload.expenseCards ?? []).map(r => toExpenseCard(r, expenseItems)),
+    purchases:           (payload.purchases ?? []).map(toPurchase),
+    spendingHistory:     (payload.spendingHistoryPeriods ?? []).map(r => toSpendingHistoryPeriod(r, histItems)),
+    loans:               (payload.loans ?? []).map(toLoan),
+    creditCards:         (payload.creditCards ?? []).map(toCreditCard),
+    subscriptions:       (payload.subscriptions ?? []).map(toSubscription),
+    wishlist:            (payload.wishlistItems ?? []).map(toWishlistItem),
+    savingsAccounts:     (payload.savingsAccounts ?? []).map(toSavingsAccount),
+    goals:               (payload.goals ?? []).map(toGoal),
+    assets:              (payload.assets ?? []).map(toAsset),
+    netWorthHistory:     (payload.netWorthSnapshots ?? []).map(toNetWorthSnapshot),
+    rules:               (payload.rules ?? []).map(toRule),
+    budgetAlerts:        (payload.budgetAlerts ?? []).map(toBudgetAlert),
+    spendingCategories:  (payload.spendingCategories ?? []).map(toSpendingCategory),
   };
 }
 

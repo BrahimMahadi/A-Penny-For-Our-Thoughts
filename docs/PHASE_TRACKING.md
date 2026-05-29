@@ -1714,7 +1714,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-29 | DB column refresh: real Supabase columns for the 4 accumulated optional fields (RS-23 `lastArchivedPeriodStart`, RS-24 `budgets` + `spent`, RS-28 `targetMonth`); one-shot push-up migration in `initStore` preserves existing localStorage values | `feat/rs-29-db-column-refresh` | ✅ Complete | v2.20.0 |
 | BUG-022 | `migrate.yml` regenerated `src/types/database.ts` after RS-29's SQL migration, wiping the hand-maintained `*Row` re-export block at the bottom; `npm run type-check` failed in CI on every `db.ts` import. Restored the block, updated the workflow to re-append it automatically, added a contract test to catch future drift | `fix/bug-022-database-types-regenerate` | ✅ Complete | v2.20.1 |
 | RS-30 | Supabase fetch reliability (Level 1): bump fetch timeout 20s → 30s; add single automatic retry on timeout via new `fetchUserDataWithRetry` helper; calmer toast wording for the "tried twice" path | `feat/rs-30-supabase-fetch-retry` | ✅ Complete | v2.21.0 |
-| RS-31 | Supabase fetch reliability (Level 2): collapse 18 parallel queries into one RPC call (`fetch_user_data(uid)` returning `json_build_object(...)`) so pool pressure becomes structurally impossible. Requires SQL function + RLS audit + db.ts adapter rewrite | `feat/rs-31-fetch-rpc-collapse` | 🔲 Planned | — |
+| RS-31 | Supabase fetch reliability (Level 2): collapse 18 parallel queries into one RPC call (`fetch_user_data(uid)` returning `jsonb_build_object(...)`) so pool pressure becomes structurally impossible. SQL function + RLS audit + db.ts adapter rewrite + contract test | `feat/rs-31-fetch-rpc-collapse` | ✅ Complete | v2.22.0 |
 
 ---
 
@@ -3760,37 +3760,87 @@ Fake-timer tests in this spec attach `.catch()` synchronously before advancing t
 
 ---
 
-## RS-31 — Supabase fetch reliability (Level 2) 🔲 PLANNED
+## RS-31 — Supabase fetch reliability (Level 2) ✅
 **Branch**: `feat/rs-31-fetch-rpc-collapse`
-**Status**: 🔲 Planned
+**Version**: v2.22.0
+**Status**: ✅ Complete
 
 ### Goal
-Collapse `fetchAllUserData`'s 18 parallel `Promise.all` queries into a single Supabase RPC call, structurally eliminating the pool pressure that RS-30 mitigated at the retry layer. After this lands, free-tier reliability should be on par with paid-tier for our use case.
+Collapse `fetchAllUserData`'s 18 parallel `Promise.all` queries into a single Supabase RPC call, structurally eliminating the pool pressure that RS-30 mitigated at the retry layer. After this lands, free-tier reliability is on par with paid-tier for our use case.
 
-### Approach
-Define a Postgres function `fetch_user_data(uid uuid) returns json` that returns:
+### Implementation: Postgres function (`supabase/migrations/006_fetch_user_data_rpc.sql`)
+Single PL/pgSQL function returning a jsonb object with one key per table:
 ```sql
-select json_build_object(
-  'profile',           (select row_to_json(p)              from profiles p             where id = uid),
-  'incomeStreams',     (select coalesce(json_agg(i), '[]') from income_streams i       where user_id = uid),
-  'expenseCards',      (select coalesce(json_agg(c), '[]') from expense_cards c        where user_id = uid),
-  ...all 18 tables...
-)
+create or replace function fetch_user_data(uid uuid)
+returns jsonb language plpgsql stable security invoker
+set search_path = public as $$
+begin
+  if auth.uid() is null or auth.uid() <> uid then
+    raise exception 'fetch_user_data: caller must match uid' using errcode = '42501';
+  end if;
+  return jsonb_build_object(
+    'profile', (select to_jsonb(p) from profiles p where p.id = uid),
+    'incomeStreams', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from income_streams t where t.user_id = uid),
+    -- ... 17 more table subqueries
+    'purchases', (select coalesce(jsonb_agg(to_jsonb(t) order by t.date desc nulls last), '[]'::jsonb) from purchases t where t.user_id = uid),
+    'spendingHistoryPeriods', (select coalesce(jsonb_agg(to_jsonb(t) order by t.date desc nulls last), '[]'::jsonb) from spending_history_periods t where t.user_id = uid)
+  );
+end; $$;
+revoke all on function fetch_user_data(uuid) from public;
+grant execute on function fetch_user_data(uuid) to authenticated;
+notify pgrst, 'reload schema';
 ```
 
-Single round-trip, one pool checkout, zero burst pressure.
+Key design choices:
+- **`security invoker`** so RLS applies to every subquery exactly as it did to the old per-table calls. The function runs as the caller, never as the function owner.
+- **Defensive `auth.uid()` check** that raises `42501` if the caller doesn't match the requested `uid`. Belt-and-braces in case an RLS policy is ever weakened.
+- **`set search_path = public`** prevents search-path injection (one of the standard Postgres function-hardening lints).
+- **`coalesce(jsonb_agg(...), '[]'::jsonb)`** on every array so empty tables return `[]`, never `null`.
+- **`order by date desc nulls last`** preserved on `purchases` and `spending_history_periods` — both had explicit ordering in the old code.
+- **`to_jsonb(t)`** preserves snake_case column names, so the existing `to*` row adapters in `db.ts` work unchanged.
 
-### Scope
-- New SQL migration `006_fetch_user_data_rpc.sql`
-- RLS audit: the function must use `security invoker` so the caller's RLS policies apply (not `security definer`, which would bypass them)
-- Rewrite `fetchAllUserData` to call `supabase.rpc('fetch_user_data', { uid: userId })` and destructure the JSON payload
-- Adapt the adapter layer to map the JSONB shapes back into the typed `BudgetState` (similar logic to the per-table adapters today, just sourcing from one payload)
-- Update tests in `tests/lib/db.spec.ts` to mock the RPC call instead of 18 individual queries
-- Remove RS-30's `fetchUserDataWithRetry` if it becomes redundant (probably keep as a defensive belt-and-braces; cost is near-zero)
+### Implementation: TS adapter (`src/lib/db.ts`)
+- Defined `FetchUserDataPayload` interface — one camelCase key per table, typed against the existing `*Row` aliases.
+- Rewrote `fetchAllUserData` to call `supabase.rpc('fetch_user_data', { uid: userId })` and map the payload through the existing `to*` adapters. Adapter functions unchanged.
+- Defensive: if the RPC returns a null payload (function dropped or empty response), fall through to "first-time user" rather than crash.
 
-### Risk
-- **RLS subtlety**: getting `security invoker` right is essential. A mistake here would silently expose other users' data. Need explicit RLS-audit tests.
-- **JSON payload shape drift**: every new table needs a new entry in the SQL function. Easy to forget. Mitigation: a contract test similar to BUG-022's that asserts every table referenced in the BudgetState type also appears in the RPC function source.
+### Tests
+**`tests/lib/db.spec.ts`** — updated existing 17 `fetchAllUserData` tests to mock the RPC instead of orchestrating 18 chainable `from()` mocks. Added one new test that asserts the RPC is called with `('fetch_user_data', { uid })` AND that `supabase.from` is NEVER called — a hard regression guard against accidentally reviving the 18-query pattern.
 
-### Risk: low-medium
-SQL functions are straightforward, but the RLS audit needs care. The contract test mitigates the "new table forgotten" failure mode that BUG-023 / BUG-022 both belong to.
+**`tests/lib/fetchUserDataRpc.spec.ts`** — NEW. 13-test contract suite that reads the SQL file as text and asserts:
+- Function signature is `fetch_user_data(uid uuid)`
+- `security invoker` is set, `security definer` is not
+- `search_path` is pinned to `public`
+- The `auth.uid()` defensive check is present
+- Every one of the 18 expected tables appears in a `FROM` clause
+- Every one of the 18 expected jsonb keys appears in the output
+- Every array key is `coalesce`-wrapped (catches "returns null for empty table" drift)
+- `order by date desc nulls last` is preserved on `purchases` and `spending_history_periods`
+- `grant execute` goes only to `authenticated`, `revoke all from public` is present
+- `notify pgrst, 'reload schema'` is present (without it, the first call fails with `PGRST202`)
+- The TS `FetchUserDataPayload` interface declares every expected key
+
+This catches the "new table added, forgot to wire it through the RPC" failure mode that BUG-022 / BUG-023 both belonged to.
+
+### Deploy ordering
+`.github/workflows/migrate.yml` and `deploy.yml` run in parallel on push to main. If `deploy` finishes before `migrate`, there's a brief window where the new build calls a function that doesn't exist yet. RS-30's retry plus RS-29's localStorage fallback both cover this gracefully — the user sees the "tried twice, showing local backup" toast at worst, and the next refresh succeeds once `migrate` lands. Accept the transient window rather than serialise the workflows.
+
+### Files Changed
+- `supabase/migrations/006_fetch_user_data_rpc.sql` — NEW: PL/pgSQL RPC function
+- `src/lib/db.ts` — `fetchAllUserData` rewritten to single RPC call
+- `tests/lib/db.spec.ts` — RPC mock strategy
+- `tests/lib/fetchUserDataRpc.spec.ts` — NEW: 13 contract tests
+- `src/components/onboarding/WhatsNewBanner.vue` — v2.22.0 release notes
+- `tests/components/onboarding.spec.ts` — version strings → 2.22.0
+- `src/components/pages/DocsPage.vue` — new v2.22.0 release block
+- `tests/components/pages/pages.spec.ts` — regression-guards include v2.22.0 + RS-31
+- `CLAUDE.md` — test count → 1240 across 38 spec files
+- `docs/PHASE_TRACKING.md` — flip RS-31 PLANNED → Complete
+
+### Tests
+- 15 new tests added (2 in db.spec, 13 in fetchUserDataRpc.spec); all 1240 pass
+- `vue-tsc --noEmit` clean
+- `eslint src/lib/db.ts tests/lib/db.spec.ts tests/lib/fetchUserDataRpc.spec.ts` clean
+
+### Final gate
+- ✅ 1240/1240 tests pass · `vue-tsc --noEmit` clean · `eslint` clean on touched files
