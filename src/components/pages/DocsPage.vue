@@ -341,6 +341,23 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.19.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-28 — Wishlist target month
+            </p>
+            <ul class="docs-list">
+              <li><strong>Wishlist items can now have an optional target month.</strong> Open any item's add/edit modal and pick a "Target month" — the card swaps the default "~N mo at current rate" badge for <strong>"By Mar 2027"</strong> plus an on-track / behind / complete chip.</li>
+              <li><strong>Required-rate hint</strong> when behind — when the card status is "Behind ✗", an inline hint shows the exact monthly rate you'd need to allocate: <em>"Need $134/mo to hit your target"</em>.</li>
+              <li><strong>New "Target ↑" sort option</strong> joins the Wishlist sort dropdown. Soonest target first, undated items at the end.</li>
+              <li><strong>Backward-compatible</strong> — items without a target month render the original "~N mo" badge unchanged. The field is optional and added to <code>WishlistItem</code> as <code>targetMonth?: ISODate</code> (YYYY-MM, matching the convention used by <code>Goal.targetDate</code>).</li>
+              <li>1,177 tests across 34 spec files — 42 new tests cover the date math, status logic, sort behaviour, and modal integration.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.18.0</span>
               <span class="release-date">May 2026</span>
             </div>

@@ -3116,6 +3116,227 @@ describe('Wishlist — RS-14 price tracking', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  Wishlist — RS-28 target month
+//
+//  These tests cover the integration between the new `targetMonth` field,
+//  the per-card status chip + "By [Month]" badge, the required-rate hint,
+//  and the new "Target ↑" sort option. The pure math is covered by
+//  tests/utils/wishlistTarget.spec.ts.
+// ─────────────────────────────────────────────────────────────────
+describe('Wishlist — RS-28 target month', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    document.body.innerHTML = '';
+  });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  // Helper: compute a target month N months from now (YYYY-MM).
+  function monthsFromNow(n: number): string {
+    const d = new Date();
+    d.setMonth(d.getMonth() + n);
+    return d.toISOString().slice(0, 7);
+  }
+
+  // Helper: seed income + savings allocation so monthlySavingsRate is known.
+  // 4000 monthly × 20% savings = 800/mo savings rate (default allocation).
+  function seedSavingsRate() {
+    const budget = useBudgetStore();
+    budget.incomeStreams = [{ id: 'i1', name: 'Job', amount: 4000, biweekly: false }];
+    // allocation.savings defaults to 20 in DEFAULT_STATE
+  }
+
+  // ── Form / modal ──────────────────────────────────────────────
+  it('add/edit modal renders the target-month input', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    const w = mountWith(Wishlist);
+    await nextTick();
+    // Open Add modal
+    const addBtn = w.findAll('button').find(b => b.text().includes('Add Item'));
+    await addBtn!.trigger('click');
+    await nextTick();
+    expect(document.body.querySelector('[data-testid="wish-target-month-input"]')).not.toBeNull();
+    w.unmount();
+  });
+
+  // ── Default badge preserved when no target ────────────────────
+  it('shows the default "~N mo" badge when targetMonth is unset', async () => {
+    seedSavingsRate();
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Camera', icon: '📷', url: '', price: 1600 });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('[data-testid="wish-target-group"]').exists()).toBe(false);
+    expect(w.find('.wish-card__months-badge').exists()).toBe(true);
+    w.unmount();
+  });
+
+  // ── Target badge replaces months badge ────────────────────────
+  it('replaces the months badge with "By [Month]" + status chip when targetMonth is set', async () => {
+    seedSavingsRate();
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({
+      name: 'Camera', icon: '📷', url: '', price: 1600,
+      targetMonth: monthsFromNow(12),
+    });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('[data-testid="wish-target-group"]').exists()).toBe(true);
+    expect(w.find('.wish-card__months-badge').exists()).toBe(false);
+    expect(w.find('.wish-card__target-badge').text()).toContain('By ');
+    w.unmount();
+  });
+
+  // ── Status chip renders for each state ────────────────────────
+  it('renders "On track" chip when current rate beats the target', async () => {
+    seedSavingsRate();
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    // 800/mo savings × 12 months = 9600 capacity; 1600 price → on track
+    budget.addWishlistItem({
+      name: 'Camera', icon: '📷', url: '', price: 1600,
+      targetMonth: monthsFromNow(12),
+    });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('[data-testid="wish-status-on-track"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders "Behind" chip when target is too soon for the current rate', async () => {
+    seedSavingsRate();
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    // 800/mo savings × 1 month = 800; 1600 price → behind
+    budget.addWishlistItem({
+      name: 'Laptop', icon: '💻', url: '', price: 1600,
+      targetMonth: monthsFromNow(1),
+    });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('[data-testid="wish-status-behind"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('renders "Complete" chip when saved >= price', async () => {
+    seedSavingsRate();
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({
+      name: 'Bookshelf', icon: '📚', url: '', price: 200, saved: 200,
+      targetMonth: monthsFromNow(6),
+    });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('[data-testid="wish-status-complete"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  // ── Required-rate hint only when behind ───────────────────────
+  it('shows "Need $X/mo" hint when behind', async () => {
+    seedSavingsRate();
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({
+      name: 'Laptop', icon: '💻', url: '', price: 1600,
+      targetMonth: monthsFromNow(1),
+    });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    const hint = w.find('[data-testid="wish-required-hint"]');
+    expect(hint.exists()).toBe(true);
+    expect(hint.text()).toContain('/mo');
+    expect(hint.text()).toContain('hit your target');
+    w.unmount();
+  });
+
+  it('does NOT show the required-rate hint when on track', async () => {
+    seedSavingsRate();
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({
+      name: 'Camera', icon: '📷', url: '', price: 1600,
+      targetMonth: monthsFromNow(12),
+    });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('[data-testid="wish-required-hint"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('does NOT show the required-rate hint when complete', async () => {
+    seedSavingsRate();
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({
+      name: 'Bookshelf', icon: '📚', url: '', price: 200, saved: 200,
+      targetMonth: monthsFromNow(6),
+    });
+    const w = mountWith(Wishlist);
+    await nextTick();
+    expect(w.find('[data-testid="wish-required-hint"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  // ── Sort by Target ↑ ──────────────────────────────────────────
+  it('sort dropdown includes the "Target ↑" option', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [
+      { id: 'a', name: 'A', icon: '', url: '', price: 100 },
+      { id: 'b', name: 'B', icon: '', url: '', price: 200 },
+    ];
+    const w = mountWith(Wishlist);
+    await nextTick();
+    const select = w.find('.wishlist-sort');
+    expect(select.exists()).toBe(true);
+    const options = (select.element as HTMLSelectElement).options;
+    const values = Array.from(options).map(o => o.value);
+    expect(values).toContain('target-asc');
+    w.unmount();
+  });
+
+  it('sorting by Target ↑ puts soonest target first, undated last', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [
+      { id: 'no-target', name: 'NoTarget', icon: '', url: '', price: 100 },
+      { id: 'far',       name: 'Far',       icon: '', url: '', price: 100, targetMonth: '2028-01' },
+      { id: 'near',      name: 'Near',      icon: '', url: '', price: 100, targetMonth: '2026-09' },
+    ];
+    const w = mountWith(Wishlist);
+    await nextTick();
+    const select = w.find('.wishlist-sort');
+    await select.setValue('target-asc');
+    await nextTick();
+    const names = w.findAll('.wish-name').map(el => el.text());
+    expect(names).toEqual(['Near', 'Far', 'NoTarget']);
+    w.unmount();
+  });
+
+  // ── Store round-trip ──────────────────────────────────────────
+  it('targetMonth is persisted on addWishlistItem and retrievable', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({
+      name: 'Headphones', icon: '🎧', url: '', price: 300,
+      targetMonth: '2027-03',
+    });
+    const added = budget.wishlist[budget.wishlist.length - 1];
+    expect(added.targetMonth).toBe('2027-03');
+  });
+
+  it('targetMonth survives an update via updateWishlistItem', async () => {
+    const budget = useBudgetStore();
+    budget.wishlist = [];
+    budget.addWishlistItem({ name: 'Camera', icon: '📷', url: '', price: 1600 });
+    const id = budget.wishlist[budget.wishlist.length - 1].id;
+    budget.updateWishlistItem(id, { targetMonth: '2026-12' });
+    expect(budget.wishlist.find(w => w.id === id)?.targetMonth).toBe('2026-12');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 //  SpendingPage — RS-15 purchase type (want / need)
 // ─────────────────────────────────────────────────────────────────
 

@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.18.0';
+const APP_VERSION = '2.19.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📊', text: 'The Advanced tab has a new name and a real home — it\'s now called Insights and lives in the sidebar (and bottom nav on mobile) between Goals and Docs. No more "where did that go?" moments' },
-  { icon: '⌨️', text: 'Keyboard shortcut 7 still routes to Insights — your muscle memory is safe. The shortcut-help table description was updated from "Switch to Advanced" → "Switch to Insights"' },
-  { icon: '🔄', text: 'Internal rename: \'advanced\' → \'insights\' across the TabId type, store fields, store actions, and the page component file. Your drag-reorder preferences for the four sections are migrated transparently' },
-  { icon: '🛡️', text: '13 new tests cover the legacy localStorage migration, sidebar surfacing, keyboard shortcut routing, and confirm \'Advanced\' labels are gone' },
-  { icon: '✅', text: '1135 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '🎯', text: 'Wishlist items can now have an optional target month — set the month you want to have this item saved up for and the card shows "By Mar 2027" + an on-track / behind / complete status chip' },
+  { icon: '💡', text: 'When you\'re behind on a targeted item, the card shows the exact rate you\'d need to allocate — "Need $134/mo to hit your target" — so you know what it would take to catch up' },
+  { icon: '🔃', text: 'New "Target ↑" sort option in the Wishlist sort dropdown — soonest target first, undated items at the end' },
+  { icon: '🧪', text: '42 new tests cover the date math, status logic, sort behaviour, and modal integration; legacy items without a target month still show the original "~N mo at current rate" badge' },
+  { icon: '✅', text: '1177 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();

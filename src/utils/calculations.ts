@@ -1623,3 +1623,119 @@ export function getTriggeredAlerts(
     .map((alert) => ({ ...alert, spent: spending[alert.category] || 0 }))
     .filter((a) => a.spent > a.threshold);
 }
+
+// ─── RS-28: Wishlist target-month helpers ────────────────────────
+//
+// These helpers compare a user-set target month against the savings rate
+// to drive the card's "On track / Behind / Complete" status chip and the
+// required-rate hint that appears when the user is behind.
+//
+// Conventions:
+//   • targetMonth is 'YYYY-MM' (matches `Goal.targetDate` storage convention)
+//   • All counts are integer months
+//   • Status reasoning is intentionally identical to the existing
+//     monthsToGoal() badge: it assumes the entire monthly savings envelope
+//     could be applied to this one item, which is a simplification but
+//     keeps the wishlist and goals tabs consistent.
+
+/**
+ * Whole-month count from `today` to the START of `targetMonth`.
+ *
+ *   • Returns null when `targetMonth` is falsy, malformed, or unparseable.
+ *   • Returns 0 when today is in the same month as the target (the user
+ *     wants this item "by the end of this month").
+ *   • Returns a NEGATIVE number when the target month is in the past — the
+ *     caller (e.g. `wishlistTargetStatus`) treats negative-or-zero with
+ *     `complete` priority, so the value is informational.
+ */
+export function monthsUntilTarget(
+  targetMonth: string | undefined | null,
+  today: Date = new Date(),
+): number | null {
+  if (!targetMonth) return null;
+  const m = /^(\d{4})-(\d{2})$/.exec(targetMonth);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const mon  = Number(m[2]);
+  if (mon < 1 || mon > 12) return null;
+  return (year - today.getFullYear()) * 12 + (mon - 1 - today.getMonth());
+}
+
+/**
+ * Monthly savings rate the user would need to put aside (starting from now)
+ * to hit a `targetMonth` exactly with `remaining` dollars still to save.
+ *
+ *   • Returns null when targetMonth is null/invalid, when remaining ≤ 0
+ *     (nothing left to save), or when monthsUntilTarget ≤ 0 (the target
+ *     is now or in the past — required rate is undefined).
+ *   • Rounds UP to the nearest cent so the displayed rate is sufficient.
+ */
+export function requiredMonthlyRate(
+  remaining: number,
+  targetMonth: string | undefined | null,
+  today: Date = new Date(),
+): number | null {
+  if (remaining <= 0) return null;
+  const months = monthsUntilTarget(targetMonth, today);
+  if (months === null || months <= 0) return null;
+  return Math.ceil((remaining / months) * 100) / 100;
+}
+
+/** Wishlist status — drives the on-card chip when `targetMonth` is set. */
+export type WishlistStatus = 'complete' | 'on-track' | 'behind' | 'no-target';
+
+/**
+ * Status verdict for a single wishlist item:
+ *
+ *   complete   → saved >= price (regardless of target)
+ *   no-target  → targetMonth is null/invalid (caller renders default badge)
+ *   behind     → at current savings rate, the user will reach `price`
+ *                AFTER the target month
+ *   on-track   → at current savings rate, the user will reach `price`
+ *                on or before the target month (includes "no progress
+ *                possible" cases like rate = 0 with a past target —
+ *                callers should not surface those edge cases as success;
+ *                see explicit guard below)
+ *
+ * Edge cases:
+ *   • `price` ≤ 0 or undefined → 'no-target' (we can't compute progress
+ *     without a price; let the caller fall through to the default)
+ *   • `monthlySavingsRate` ≤ 0 → if not complete, returns 'behind'
+ *     (no rate means you're not progressing; if you need any money, you're
+ *     behind by definition)
+ *   • Target in the past with money still owed → 'behind'
+ *   • Target equals current month and remaining > 0 → 'behind'
+ */
+export function wishlistTargetStatus(
+  price: number | undefined,
+  saved: number | undefined,
+  targetMonth: string | undefined | null,
+  monthlySavingsRate: number,
+  today: Date = new Date(),
+): WishlistStatus {
+  const p = price ?? 0;
+  const s = saved ?? 0;
+  if (p > 0 && s >= p) return 'complete';
+  if (!p || p <= 0) return 'no-target';
+  const remaining = p - s;
+  const months = monthsUntilTarget(targetMonth, today);
+  if (months === null) return 'no-target';
+  // Past / current-month target with money still owed → behind.
+  if (months <= 0) return 'behind';
+  if (monthlySavingsRate <= 0) return 'behind';
+  const monthsAtRate = remaining / monthlySavingsRate;
+  return monthsAtRate <= months ? 'on-track' : 'behind';
+}
+
+/** Human-readable month label, e.g. "Mar 2027". Falsy/invalid input → null. */
+export function formatTargetMonthLabel(targetMonth: string | undefined | null): string | null {
+  if (!targetMonth) return null;
+  const m = /^(\d{4})-(\d{2})$/.exec(targetMonth);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const monIdx = Number(m[2]) - 1;
+  if (monIdx < 0 || monIdx > 11) return null;
+  // Use a synthetic date on the 1st of the month to format locale-aware.
+  const d = new Date(year, monIdx, 1);
+  return d.toLocaleDateString('en-CA', { month: 'short', year: 'numeric' });
+}
