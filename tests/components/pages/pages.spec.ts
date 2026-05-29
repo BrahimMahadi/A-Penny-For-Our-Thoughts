@@ -233,6 +233,76 @@ describe('DocsPage', () => {
     expect(w.find('.docs-section').text()).toContain('v1.6.0');
     w.unmount();
   });
+
+  // ── RS-26: Release notes refreshed through v2.17.0 ─────────────
+  it('RS-26: Release Notes contains the latest v2.17.0 entry', async () => {
+    const w = mountWith(DocsPage);
+    await nextTick();
+    await w.findAll('.docs-nav-btn').find(b => b.text().includes('Release Notes'))!.trigger('click');
+    await nextTick();
+    expect(w.find('.docs-section').text()).toContain('v2.17.0');
+    w.unmount();
+  });
+
+  it('RS-26: Release Notes contains every shipped v2.x version (regression guard)', async () => {
+    const w = mountWith(DocsPage);
+    await nextTick();
+    await w.findAll('.docs-nav-btn').find(b => b.text().includes('Release Notes'))!.trigger('click');
+    await nextTick();
+    const text = w.find('.docs-section').text();
+    // Walk every tagged v2.x version we shipped — newest first
+    const versions = [
+      'v2.17.0', 'v2.16.0', 'v2.15.0', 'v2.14.0', 'v2.13.0', 'v2.12.0',
+      'v2.11.0', 'v2.10.1 – .3', 'v2.10.0',
+      'v2.9.0', 'v2.8.0', 'v2.7.0', 'v2.6.0', 'v2.5.0',
+      'v2.4.0', 'v2.3.0', 'v2.2.0', 'v2.1.0', 'v2.0.0',
+    ];
+    for (const v of versions) {
+      expect(text, `release notes should mention ${v}`).toContain(v);
+    }
+    w.unmount();
+  });
+
+  it('RS-26: Release Notes still contains every legacy v1.x version (no regression)', async () => {
+    const w = mountWith(DocsPage);
+    await nextTick();
+    await w.findAll('.docs-nav-btn').find(b => b.text().includes('Release Notes'))!.trigger('click');
+    await nextTick();
+    const text = w.find('.docs-section').text();
+    const legacy = [
+      'v1.19.0', 'v1.18.0', 'v1.17.0', 'v1.16.0', 'v1.15.0',
+      'v1.14.0', 'v1.13.0', 'v1.12.0', 'v1.11.0', 'v1.10.0',
+      'v1.9.0', 'v1.8.0', 'v1.7.0', 'v1.6.0', 'v1.5.0',
+      'v1.4.0', 'v1.3.0', 'v1.2.0', 'v1.1.0', 'v1.0.0',
+    ];
+    for (const v of legacy) {
+      expect(text, `release notes should still mention ${v}`).toContain(v);
+    }
+    w.unmount();
+  });
+
+  it('RS-26: Release Notes renders the "Vivid Modern" era divider', async () => {
+    const w = mountWith(DocsPage);
+    await nextTick();
+    await w.findAll('.docs-nav-btn').find(b => b.text().includes('Release Notes'))!.trigger('click');
+    await nextTick();
+    const heading = w.find('[data-testid="release-series-vivid"]');
+    expect(heading.exists()).toBe(true);
+    expect(heading.text()).toContain('Vivid Modern');
+  });
+
+  it('RS-26: Release Notes mentions each major redesign sprint (RS-9 through RS-25)', async () => {
+    const w = mountWith(DocsPage);
+    await nextTick();
+    await w.findAll('.docs-nav-btn').find(b => b.text().includes('Release Notes'))!.trigger('click');
+    await nextTick();
+    const text = w.find('.docs-section').text();
+    // Spot-check that the redesign-sprint identifiers are documented
+    for (const sprint of ['RS-25', 'RS-24', 'RS-23', 'RS-22', 'RS-21', 'RS-20', 'RS-19', 'RS-11', 'RS-1 through RS-9']) {
+      expect(text, `release notes should reference ${sprint}`).toContain(sprint);
+    }
+    w.unmount();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────
