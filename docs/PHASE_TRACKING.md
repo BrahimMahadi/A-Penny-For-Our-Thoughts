@@ -1707,7 +1707,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-23 | Automatic bi-weekly pay-period rollover: `autoArchiveMissedPeriods` store action with date-bucketed multi-period catch-up + `usePeriodRollover` composable triggered on app load and `visibilitychange` | `feat/rs-23-period-rollover` | ✅ Complete | v2.14.0 |
 | RS-24 | Pay-period rollover UX: "Rolls over in N days" countdown + "Close period now" button in Settings; per-period budgets+spent snapshot captured at archive time; surplus/overage rollup row in Spending Analytics | `feat/rs-24-rollover-ux` | ✅ Complete | v2.15.0 |
 | RS-25 | Remove orphaned `WantsTracker.vue` (section not rendered since RS-11; close-period button made redundant by RS-23 auto-rollover and RS-24 manual close) | `feat/rs-25-remove-wants-tracker` | ✅ Complete | v2.16.0 |
-| RS-26 | Update `DocsPage.vue` release-notes section — currently stops at v1.18.0 and is missing every v2.x sprint (Vue 3 migration, redesign sprints RS-1 to RS-24) | `feat/rs-26-docs-page-refresh` | 🔲 Planned | — |
+| RS-26 | Update `DocsPage.vue` release-notes section — was stuck at v1.18.0; now fully caught up through v2.17.0 with a "Vivid Modern" era divider and regression-guard tests | `feat/rs-26-docs-page-refresh` | ✅ Complete | v2.17.0 |
 | RS-27 | Advanced tab decision — either re-surface it in the sidebar with proper navigation or remove it entirely (currently keyboard-only via `7` shortcut, partially-hidden state) | `feat/rs-27-advanced-tab-decision` | 🔲 Planned | — |
 
 ---
@@ -3221,21 +3221,79 @@ Confirmed via `grep` that the only production references to WantsTracker were th
 
 ---
 
-## RS-26 — Update `DocsPage.vue` release notes 🔲 PLANNED
+## RS-26 — Update `DocsPage.vue` release notes ✅
 **Branch**: `feat/rs-26-docs-page-refresh`
-**Status**: 🔲 Planned
+**Version**: v2.17.0
+**Status**: ✅ Complete
 
 ### Goal
-The user-facing "Release Notes" section of `DocsPage.vue` currently stops at v1.18.0 and is missing every v2.x sprint (Vue 3 migration v1.0, redesign sprints RS-1 through RS-24, eight BUG sprints). Refresh it so the in-app documentation matches what's actually shipped.
+The user-facing "Release Notes" section of `DocsPage.vue` was frozen at v1.18.0 and was missing every v2.x sprint — eighteen versions of work documented only in the project's internal `PHASE_TRACKING.md`. Bring it fully up to date so the in-app documentation matches what's actually shipped.
 
-### Scope
-- Add release-block entries for v2.0 (Vue 3 migration) through v2.15.0 (RS-24)
-- Optionally collapse very minor versions (BUG hotfixes) into a single entry
-- Consider grouping v2.x entries into a "Vivid Modern redesign" sub-section for readability
-- Update any other version-bearing strings in DocsPage that are also stale
+### Pre-flight audit
+- Cross-referenced git tags (`git tag --sort=-v:refname`) against the PHASE_TRACKING summary table to enumerate every shipped version.
+- Confirmed the existing release-block markup pattern: `<div class="release-block">` containing a `<div class="release-header">` (version + date spans) and a `<p class="release-tagline">` followed by a `<ul class="docs-list">`.
+- Confirmed existing DocsPage tests don't assert release-notes content beyond a single `v1.6.0` smoke check — safe to add new content without breaking anything.
 
-### Risk
-Low — content-only change.
+### Added release blocks (19 total)
+Inserted newest-first, immediately above the existing v1.18.0 entry:
+
+| Version | Sprint | Tagline |
+|---|---|---|
+| v2.17.0 | RS-26 | Release notes refreshed (this sprint) |
+| v2.16.0 | RS-25 | Code cleanup: orphaned WantsTracker removed |
+| v2.15.0 | RS-24 | Pay-period rollover UX enhancements |
+| v2.14.0 | RS-23 | Automatic bi-weekly pay-period rollover |
+| v2.13.0 | RS-22 | Manage Sections cleanup |
+| v2.12.0 | RS-21 | Card hover effects |
+| v2.11.0 | RS-20 | Form validation + dashboard form improvements |
+| v2.10.1 – .3 | BUG-020 series | Tab-transition blank-screen fix (3 patches consolidated) |
+| v2.10.0 | RS-19 | List & micro-interaction animations |
+| v2.9.0 | RS-18 | Page load & navigation animations |
+| v2.8.0 | RS-17 | GSAP foundation |
+| v2.7.0 | RS-16 | Shared Wants / Needs toggle |
+| v2.6.0 | RS-15 | Purchase type (Want vs Need) |
+| v2.5.0 | RS-14 | Wishlist card-grid redesign |
+| v2.4.0 | RS-13 | Inline interactions on debt & savings cards |
+| v2.3.0 | RS-12 | Dashboard charts row |
+| v2.2.0 | RS-11 | Dashboard grid restructure |
+| v2.1.0 | RS-10 | Sidebar hover-expand |
+| v2.0.0 | RS-1 – RS-9 | "Vivid Modern" complete redesign |
+| v1.19.0 | Sprint 25b | Advanced tab + IA polish + Supabase sync hardening |
+
+Each entry follows the existing 3 – 5 bullet style, uses `<strong>` for feature names and `<code>` for technical identifiers, and matches the date format ("May 2026") used throughout.
+
+### Visual divider
+Introduced a new `release-series-heading` + `release-series-blurb` pair between the v2.1.0 and v2.0.0 blocks to mark the boundary of the "Vivid Modern Redesign (v2.x)" era. Heading carries a 2px accent-coloured top border and uses `var(--accent)` for type colour. Includes `data-testid="release-series-vivid"` for test addressability.
+
+### Tests (5 new, regression-focused)
+| Test | What it asserts |
+|---|---|
+| `Release Notes contains the latest v2.17.0 entry` | The just-shipped version is documented |
+| `Release Notes contains every shipped v2.x version (regression guard)` | All 18 v2.x version strings are present — catches docs drift |
+| `Release Notes still contains every legacy v1.x version (no regression)` | All 20 v1.x version strings still present — refresh didn't accidentally delete history |
+| `Release Notes renders the "Vivid Modern" era divider` | The series-heading element exists with the expected text |
+| `Release Notes mentions each major redesign sprint (RS-9 through RS-25)` | Sprint identifiers (RS-25, RS-24, RS-23, ..., RS-11, RS-1 through RS-9) are documented |
+
+These five tests together form a docs-drift safety net: a future sprint that bumps the version but forgets to update DocsPage will fail at the test gate.
+
+### Files Changed
+- `src/components/pages/DocsPage.vue` — 19 new release-block entries + `release-series-heading` divider + scoped CSS for the new heading/blurb classes
+- `tests/components/pages/pages.spec.ts` — 5 new RS-26 regression tests
+- `src/components/onboarding/WhatsNewBanner.vue` — bumped to v2.17.0; release notes themed around the docs refresh
+- `tests/components/onboarding.spec.ts` — version strings updated
+- `CLAUDE.md` — test count → 1125 across 33 spec files
+
+### Deliberately left for future sprints
+- v1.x release-block bullets were not rewritten — they accurately describe what shipped at each Sprint, including the now-obsolete v1.11.0 mention of drag-to-reorder Section Picker (already annotated in-line in RS-22 with an `<em>(Simplified in RS-22...)</em>` aside).
+- `docs/USER_GUIDE.md`, `docs/ARCHITECTURE.md`, `docs/VUE3_MIGRATION_PLAN.md` and other repo-level documentation outside the in-app Docs surface — separate concern.
+
+### Tests
+- 5 new tests added
+- All 1125 tests pass — no regressions
+- `vue-tsc --noEmit` clean
+
+### Final gate
+- ✅ 1125/1125 tests pass · `vue-tsc --noEmit` clean
 
 ---
 

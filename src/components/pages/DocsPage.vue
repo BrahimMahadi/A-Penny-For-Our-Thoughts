@@ -332,6 +332,341 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
             A record of every feature, fix, and improvement shipped to A Penny For Our Thoughts.
           </p>
 
+          <!-- ════════════════════════════════════════════════════════════════
+               RS-26 refresh: v1.19.0 through v2.17.0 entries added below.
+               Order: newest first. The "Vivid Modern Redesign (v2.x)" heading
+               marks the boundary between the late-v1 cleanup work and the
+               v2.0+ ground-up redesign.
+          ═══════════════════════════════════════════════════════════════════ -->
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.17.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-26 — Release notes refreshed
+            </p>
+            <ul class="docs-list">
+              <li><strong>This Release Notes section is now complete.</strong> Before this sprint it stopped at v1.18.0 and was missing every v2.x sprint — eighteen versions of work documented only in the project's internal PHASE_TRACKING.md.</li>
+              <li>Added release blocks for v1.19.0 plus every v2.x version (v2.0.0 through v2.16.0). The BUG-020 patch series is consolidated into a single v2.10.1 – .3 entry for readability.</li>
+              <li>New <strong>"Vivid Modern Redesign (v2.x)"</strong> divider marks the boundary between the late-v1 cleanup work and the v2.0+ ground-up redesign so the section is easier to scan.</li>
+              <li>Five new regression-guard tests assert every shipped version is still documented — future docs drift gets caught at the test gate, not in production.</li>
+              <li>1,125 tests across 33 spec files.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.16.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-25 — Code cleanup: orphaned WantsTracker removed
+            </p>
+            <ul class="docs-list">
+              <li><strong>Dead code removed</strong> — the WantsTracker section component had been fully orphaned since RS-11 (the dashboard switched to <code>PurchasesThisPeriod</code>) and RS-24 (manual close-period moved to Settings). Deleting it removed 1,959 lines and 30 redundant test cases.</li>
+              <li><strong>Stale comment fixes</strong> in <code>calculations.ts</code> and <code>useListFilter.ts</code> now point at the actual current consumers (PurchasesThisPeriod, SpendingPage, Dashboard hero KPI) rather than the removed component.</li>
+              <li><strong>Nothing user-visible changed</strong> — this was a pure subtraction sprint to shrink the maintenance surface.</li>
+              <li>1,120 tests across 33 spec files; zero TypeScript errors.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.15.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-24 — Pay-period rollover UX enhancements
+            </p>
+            <ul class="docs-list">
+              <li><strong>Countdown indicator</strong> in Settings → Pay Cycle: "Rolls over in <em>N</em> days", with amber emphasis when ≤ 2 days remain so you always know when the next reset is coming.</li>
+              <li><strong>"Close period now" button</strong> in Settings — a power-user affordance for force-ending the current period early without waiting for the natural 14-day boundary. Confirms before archiving; disabled when there's nothing to close.</li>
+              <li><strong>Per-period surplus / overage rollup</strong> in Spending Analytics: each archived period now shows "Wants: $234 / $300 · under $66 ✓" or "Needs: $612 / $500 · over $112 ✗" — answering "did I stay under?" at a glance.</li>
+              <li>Manual close advances the rollover anchor so the natural auto-rollover never double-archives the same window.</li>
+              <li>1,150 tests across 33 spec files.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.14.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-23 — Automatic bi-weekly pay-period rollover
+            </p>
+            <ul class="docs-list">
+              <li><strong>Auto-archive</strong> — when a bi-weekly period ends, last period's purchases are automatically archived to Spending History and all three budgets (Needs, Wants, Savings) reset to their full allocations. No manual "close period" button needed.</li>
+              <li><strong>Multi-period catch-up</strong> — open the app after missing several periods (e.g. away for a month) and each missed period is archived as its own row, with purchases date-bucketed into the correct window. Undated purchases land in the most-recent missed period; backdated orphans land in the oldest.</li>
+              <li>Runs on app load and whenever the tab becomes visible — handles both the daily-user and the "left it open all weekend" cases.</li>
+              <li>Success toast reports how many periods were archived; the Schedule nav snaps to the new current period.</li>
+              <li>Re-entrancy guarded so the watcher doesn't loop on its own mutations.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.13.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-22 — Manage Sections cleanup
+            </p>
+            <ul class="docs-list">
+              <li><strong>Focused picker</strong> — the Manage Sections panel is now a streamlined jump-to-section + collapse/expand tool. Drag handles, move-up/down buttons, and reset controls have been retired (the Dashboard is a fixed-grid layout, so reordering never actually moved anything on the page).</li>
+              <li><strong>Order matches reality</strong> — the section list now mirrors the actual visual order of the Dashboard (Chequing Balance first → Wishlist last) so what you see in the picker matches what you see on the page.</li>
+              <li><strong>Advanced group removed</strong> from the picker — the Advanced tab itself remains accessible via keyboard shortcut <kbd>7</kbd>.</li>
+              <li>Legacy <code>sectionOrder</code> field in localStorage silently ignored on load and dropped on the next save — no breakage for existing users.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.12.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-21 — Card hover effects
+            </p>
+            <ul class="docs-list">
+              <li><strong>Polished hover effect</strong> on cards: a conic-gradient shine glow, a blinking tile grid, and three staggered expanding grid-lines appear in the top-right corner when you hover any card.</li>
+              <li><strong>Applied across all tiers</strong>: StatCard KPI tiles get the full effect; BaseCard section containers get a subtle variant (shine + lines, no tiles); and individual item cards in Wishlist, Expense Cards, Savings Goals, and Income Streams get the full treatment.</li>
+              <li><strong>Theme-adaptive</strong> — brighter sweep in light mode, more saturated in dark mode — driven by the <code>--accent</code> design token throughout.</li>
+              <li>Tile animation and all transitions automatically disabled for users who prefer reduced motion.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.11.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-20 — Form validation + dashboard form improvements
+            </p>
+            <ul class="docs-list">
+              <li><strong>Card selector in Dashboard quick-add</strong> — charge purchases directly to an expense card from the header shortcut, no more switching to the Spending tab first.</li>
+              <li><strong>Live "Bi-weekly remaining after" preview</strong> in the Spending tab's Add Purchase modal — updates as you type the amount or switch between Want / Need.</li>
+              <li><strong>Red-border field validation</strong> across every input in every modal (Wishlist, Expense Cards, Quick-add, Savings, Income, Subscriptions). Per-field error messages on blur; validation state resets cleanly when modals are opened or cancelled.</li>
+              <li>1,069 tests across 30 spec files.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.10.1 – .3</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              BUG-020 patch series — Tab-transition blank-screen fix
+            </p>
+            <ul class="docs-list">
+              <li><strong>Symptom</strong>: switching tabs occasionally left the app stuck on a blank screen. Root cause was a Vue <code>&lt;Transition mode="out-in"&gt;</code> state-machine deadlock interacting with GSAP RAF callbacks during page enter/leave.</li>
+              <li>Fix landed in three iterations: a GSAP <code>onInterrupt</code> callback (.1), then a CSS-only directional transition (.2), then dropping <code>mode="out-in"</code> entirely with the leaving page absolutely positioned (.3 — definitive fix).</li>
+              <li>The entering page is now mounted immediately while the leaving page fades out simultaneously — a blank screen is structurally impossible with this pattern.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.10.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-19 — List &amp; micro-interaction animations
+            </p>
+            <ul class="docs-list">
+              <li><strong>useListTransition composable</strong> — staggered enter / leave choreography for list-based sections.</li>
+              <li><strong>Wishlist</strong> now staggers card entrance on first load and on filter changes; cards FLIP-animate to new positions on sort.</li>
+              <li><strong>Subscriptions</strong> wrapped in TransitionGroup with smooth move animations when the user reorders or deletes.</li>
+              <li><strong>BaseButton spring-press</strong> — every primary button gets a subtle squash-and-rebound on click for a tactile feel.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.9.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-18 — Page load &amp; navigation animations
+            </p>
+            <ul class="docs-list">
+              <li><strong>useFadeSlide composable</strong> for page-level transitions.</li>
+              <li><strong>Direction-aware tab transitions</strong> in App.vue: forward navigation slides in from the right, back navigation slides in from the left.</li>
+              <li><strong>Sidebar hover polish</strong> + AppStatusBar ticker rewritten with smoother scroll easing.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.8.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-17 — GSAP foundation
+            </p>
+            <ul class="docs-list">
+              <li><strong>useGsap composable</strong> introduces GSAP across the codebase with <code>prefers-reduced-motion</code> guards baked in at the composable level.</li>
+              <li>Mock harness for testing GSAP-backed components without canvas in jsdom.</li>
+              <li>Hero KPI fade-up on dashboard load; WhatsNewBanner enter / leave choreography.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.7.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-16 — Shared Wants / Needs toggle
+            </p>
+            <ul class="docs-list">
+              <li>Dashboard hero KPI and the PurchasesThisPeriod widget now share a single Want / Need toggle that controls both at once.</li>
+              <li>Spending tab donut also toggles between Wants and Needs.</li>
+              <li>Row-action cleanup: delete moved into the edit modal across cards, eliminating accidental-click risk.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.6.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-15 — Purchase type (Want vs Need)
+            </p>
+            <ul class="docs-list">
+              <li>Every purchase is now tagged Want or Need via a <code>budgetType</code> field.</li>
+              <li>Stacked bar chart in Spending analytics shows the breakdown over time.</li>
+              <li>Type column + type filter in the Spending tab; the wants-only donut respects the filter.</li>
+              <li>Quick-add modal updated to capture type at creation time.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.5.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-14 — Wishlist card-grid redesign
+            </p>
+            <ul class="docs-list">
+              <li>Wishlist re-rendered as a responsive card grid with savings progress per item.</li>
+              <li>Each card shows <strong>months-to-goal</strong>, an inline "Add savings" interaction, a URL link button, and an "Affordable ✓" chip when the price fits inside one bi-weekly wants envelope.</li>
+              <li>Supabase sync fix for savings amounts (previously could de-sync on rapid edits).</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.4.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-13 — Inline interactions on debt &amp; savings cards
+            </p>
+            <ul class="docs-list">
+              <li>Loan, Credit Card, and Savings cards now have inline pay / charge / deposit / withdraw forms — no more modal jumps for routine operations.</li>
+              <li>Each inline form has its own validation and toast feedback.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.3.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-12 — Dashboard charts row
+            </p>
+            <ul class="docs-list">
+              <li><strong>"Purchases This Period"</strong> donut widget on the dashboard with category breakdown chips.</li>
+              <li><strong>"Money Flow"</strong> 12-month income / spend chart.</li>
+              <li>Recurring Spend widget reorganised for the new charts row.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.2.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-11 — Dashboard grid restructure
+            </p>
+            <ul class="docs-list">
+              <li>Dashboard is now a <strong>fixed-grid layout</strong> — Sections like income-streams, savings-goals, and wants-tracker moved off the dashboard to their proper homes (Settings, Goals tab).</li>
+              <li>ExpenseCards renamed "Recurring Spend"; Loans renamed "Loan Payoff" to match the new IA.</li>
+              <li>Bar charts stripped from the dashboard — replaced by progress bars and KPI tiles for a cleaner overview.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.1.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-10 — Sidebar hover-expand
+            </p>
+            <ul class="docs-list">
+              <li>The 64-pixel icon sidebar expands to show labels on hover, then collapses again on mouse leave.</li>
+              <li>Overlay mode prevents content layout shift when the sidebar expands.</li>
+            </ul>
+          </div>
+
+          <!-- ────────────────────────────────────────────────────────────────
+               Section divider: the "Vivid Modern" ground-up redesign.
+          ───────────────────────────────────────────────────────────────────── -->
+          <h3 class="release-series-heading" data-testid="release-series-vivid">
+            ✨ Vivid Modern Redesign (v2.x)
+          </h3>
+          <p class="release-series-blurb">
+            A nine-sprint visual + structural redesign that introduced the violet "Vivid Modern" palette,
+            the icon sidebar, the Goals tab, and the hero-KPI dashboard. Released as v2.0.0.
+          </p>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v2.0.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              "Vivid Modern" complete redesign (RS-1 through RS-9)
+            </p>
+            <ul class="docs-list">
+              <li><strong>New violet "Vivid Modern" palette</strong> with chartreuse accent2 — design tokens consolidated in <code>tokens.css</code>; both light and dark themes redesigned simultaneously.</li>
+              <li><strong>64-pixel icon sidebar</strong> replaces the top nav; BottomNav for mobile (≤ 768px); slim, focused, always-accessible navigation.</li>
+              <li><strong>New Goals tab</strong> for savings goals (was a dashboard section); <strong>Advanced</strong> analytics folded into its own tab.</li>
+              <li><strong>Settings reorganised</strong> into a two-column layout with inline sliders for the 50/30/20 allocation.</li>
+              <li><strong>Hero-KPI dashboard</strong> with quick-add modal accessible from the header on every tab.</li>
+              <li><strong>Sticky bottom status bar</strong> (purchase ticker + next-bill) for ambient awareness.</li>
+              <li><strong>Docs tab fully reskinned</strong> with sidebar nav and section-based content (this very page!).</li>
+              <li>707 tests across 25 spec files.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
+              <span class="release-version">v1.19.0</span>
+              <span class="release-date">May 2026</span>
+            </div>
+            <p class="release-tagline">
+              Sprint 25b — Advanced tab + IA polish + Supabase sync hardening
+            </p>
+            <ul class="docs-list">
+              <li><strong>New Advanced analytics tab</strong> (keyboard shortcut <kbd>7</kbd>) hosting Spending Trend, Spending Analytics, Budget vs. Actual, and Net Worth — moved out of the dashboard for clarity.</li>
+              <li><strong>Floating section handle</strong> on the right edge of the viewport opens the Manage Sections panel from anywhere.</li>
+              <li><strong>Budget Allocation</strong> moved out of the dashboard into Settings where it belongs (rarely changed).</li>
+              <li><strong>Multiple Supabase fixes</strong>: session dedup guard, concurrent <code>initStore</code> protection, optimistic sign-out, connectivity probe, visible cloud-sync failure surfacing.</li>
+              <li>Toolbar refactor — import / export actions moved to Settings → Data Management.</li>
+            </ul>
+          </div>
+
           <div class="release-block">
             <div class="release-header">
               <span class="release-version">v1.18.0</span>
@@ -1220,6 +1555,25 @@ kbd {
 }
 
 .release-block:last-child { border-bottom: none; }
+
+/* RS-26: era / series divider between v1.x and v2.x release blocks. */
+.release-series-heading {
+  margin: 1.4rem 0 0.25rem;
+  padding-top: 1.1rem;
+  border-top: 2px solid var(--accent);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+
+.release-series-blurb {
+  margin: 0 0 0.4rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 64ch;
+}
 
 .release-header {
   display: flex;

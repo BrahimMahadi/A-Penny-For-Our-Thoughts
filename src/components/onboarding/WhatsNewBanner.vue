@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.16.0';
+const APP_VERSION = '2.17.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🧹', text: 'Internal cleanup: the orphaned WantsTracker component has been removed — its features were already replaced by PurchasesThisPeriod (dashboard widget, RS-11) and Settings → Close period now (RS-24)' },
-  { icon: '📉', text: 'Smaller code surface: 1 .vue file + 4 test blocks (30 tests) + 2 stale doc-comments cleaned up; nothing user-visible changed' },
-  { icon: '🪪', text: 'Stale references to WantsTracker in calculations.ts and useListFilter.ts comments updated to point at PurchasesThisPeriod and SpendingPage — the actual current homes for those features' },
-  { icon: '🗂️', text: 'Future-sprint stubs RS-26 (refresh DocsPage release notes) and RS-27 (decide Advanced tab\'s fate) still on the board' },
-  { icon: '✅', text: '1120 tests passing, zero TypeScript errors — full quality gate maintained' },
+  { icon: '📜', text: 'The in-app Release Notes (Docs → Release Notes) are now complete — every sprint from v1.19.0 through v2.16.0 has been written up, including the entire "Vivid Modern" redesign and every BUG-020 patch' },
+  { icon: '✨', text: 'New "Vivid Modern Redesign (v2.x)" section divider in the release notes makes it easy to scan the v1.x → v2.x boundary at a glance' },
+  { icon: '📦', text: 'BUG-020 patch series (v2.10.1, .2, .3) consolidated into a single readable entry so the timeline tells the story without three near-identical rows' },
+  { icon: '🛡️', text: 'Five new regression-guard tests assert every v1.x AND v2.x version is still documented — so future docs drift gets caught at the test gate, not in production' },
+  { icon: '✅', text: '1125 tests passing, zero TypeScript errors — full quality gate maintained' },
 ];
 
 const budget = useBudgetStore();
