@@ -325,7 +325,7 @@ export type Database = {
           funds_remaining_updated: string
           has_onboarded: boolean
           id: string
-          last_archived_period_start: string | null  // RS-29
+          last_archived_period_start: string | null
           pay_start: string | null
           updated_at: string
         }
@@ -338,7 +338,7 @@ export type Database = {
           funds_remaining_updated?: string
           has_onboarded?: boolean
           id: string
-          last_archived_period_start?: string | null  // RS-29
+          last_archived_period_start?: string | null
           pay_start?: string | null
           updated_at?: string
         }
@@ -351,7 +351,7 @@ export type Database = {
           funds_remaining_updated?: string
           has_onboarded?: boolean
           id?: string
-          last_archived_period_start?: string | null  // RS-29
+          last_archived_period_start?: string | null
           pay_start?: string | null
           updated_at?: string
         }
@@ -529,34 +529,34 @@ export type Database = {
       }
       spending_history_periods: {
         Row: {
-          budgets: Json | null         // RS-29 — { needs, wants, savings }
+          budgets: Json | null
           created_at: string
           date: string
           id: string
           label: string | null
-          spent: Json | null           // RS-29 — { needs, wants }
+          spent: Json | null
           total: number
           updated_at: string
           user_id: string
         }
         Insert: {
-          budgets?: Json | null        // RS-29
+          budgets?: Json | null
           created_at?: string
           date: string
           id: string
           label?: string | null
-          spent?: Json | null          // RS-29
+          spent?: Json | null
           total?: number
           updated_at?: string
           user_id: string
         }
         Update: {
-          budgets?: Json | null        // RS-29
+          budgets?: Json | null
           created_at?: string
           date?: string
           id?: string
           label?: string | null
-          spent?: Json | null          // RS-29
+          spent?: Json | null
           total?: number
           updated_at?: string
           user_id?: string
@@ -616,7 +616,7 @@ export type Database = {
           name: string
           price: number | null
           saved: number | null
-          target_month: string | null   // RS-29 — 'YYYY-MM'
+          target_month: string | null
           updated_at: string
           url: string
           user_id: string
@@ -628,7 +628,7 @@ export type Database = {
           name: string
           price?: number | null
           saved?: number | null
-          target_month?: string | null  // RS-29
+          target_month?: string | null
           updated_at?: string
           url?: string
           user_id: string
@@ -640,7 +640,7 @@ export type Database = {
           name?: string
           price?: number | null
           saved?: number | null
-          target_month?: string | null  // RS-29
+          target_month?: string | null
           updated_at?: string
           url?: string
           user_id?: string
@@ -785,27 +785,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
-// ─── Convenience Row type aliases ─────────────────────────────────────────────
-// db.ts and tests import these named types rather than the verbose
-// Database['public']['Tables']['...']['Row'] path.
-type _DbTables = Database['public']['Tables']
-
-export type ProfileRow               = _DbTables['profiles']['Row']
-export type IncomeStreamRow          = _DbTables['income_streams']['Row']
-export type ExpenseCardRow           = _DbTables['expense_cards']['Row']
-export type ExpenseItemRow           = _DbTables['expense_items']['Row']
-export type PurchaseRow              = _DbTables['purchases']['Row']
-export type SpendingHistoryPeriodRow = _DbTables['spending_history_periods']['Row']
-export type SpendingHistoryItemRow   = _DbTables['spending_history_items']['Row']
-export type LoanRow                  = _DbTables['loans']['Row']
-export type CreditCardRow            = _DbTables['credit_cards']['Row']
-export type SubscriptionRow          = _DbTables['subscriptions']['Row']
-export type WishlistItemRow          = _DbTables['wishlist_items']['Row']
-export type SavingsAccountRow        = _DbTables['savings_accounts']['Row']
-export type GoalRow                  = _DbTables['goals']['Row']
-export type AssetRow                 = _DbTables['assets']['Row']
-export type NetWorthSnapshotRow      = _DbTables['net_worth_snapshots']['Row']
-export type RuleRow                  = _DbTables['rules']['Row']
-export type BudgetAlertRow           = _DbTables['budget_alerts']['Row']
-export type SpendingCategoryRow      = _DbTables['spending_categories']['Row']
