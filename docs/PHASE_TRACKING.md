@@ -1710,6 +1710,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-26 | Update `DocsPage.vue` release-notes section — was stuck at v1.18.0; now fully caught up through v2.17.0 with a "Vivid Modern" era divider and regression-guard tests | `feat/rs-26-docs-page-refresh` | ✅ Complete | v2.17.0 |
 | RS-27 | Advanced tab → "Insights" rename + sidebar surfacing (Path C). Internal rename across TabId / store / constants; legacy `advancedSectionOrder` localStorage migrated transparently; keyboard shortcut `7` preserved | `feat/rs-27-insights-tab` | ✅ Complete | v2.18.0 |
 | RS-28 | Wishlist optional target month: `targetMonth?: ISODate` on `WishlistItem`; "By [Month]" badge + on-track / behind / complete chip; "Need $X/mo" hint when behind; new "Target ↑" sort option | `feat/rs-28-wishlist-target-month` | ✅ Complete | v2.19.0 |
+| BUG-021 | Wishlist sort comparator used U+FFFF (a Unicode noncharacter) as a "sort to end" sentinel; Vue parser rejected it (`vue/no-parsing-error`, noncharacter-in-input-stream) and the build-and-deploy CI step failed. Replaced with explicit null-handling in the comparator | `fix/bug-021-wishlist-noncharacter` | ✅ Complete | v2.19.1 |
 
 ---
 
@@ -3449,3 +3450,76 @@ Edge cases explicitly handled:
 
 ### Final gate
 - ✅ 1177/1177 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## BUG-021 — Wishlist sort: U+FFFF noncharacter blocked CI lint ✅
+**Branch**: `fix/bug-021-wishlist-noncharacter`
+**Version**: v2.19.1
+**Status**: ✅ Complete (hotfix)
+
+### Symptom
+RS-28 (v2.19.0) shipped to main and merged green locally, but the `build-and-deploy` CI workflow failed at the Lint step with:
+
+```
+src/components/sections/Wishlist.vue
+  103:35  error  Parsing error: noncharacter-in-input-stream  vue/no-parsing-error
+  104:35  error  Parsing error: noncharacter-in-input-stream  vue/no-parsing-error
+```
+
+The two flagged lines were inside the new `target-asc` sort comparator I added in RS-28:
+
+```ts
+items.sort((a, b) => {
+  const at = a.targetMonth ?? '￿';  // ← these two
+  const bt = b.targetMonth ?? '￿';
+  return at.localeCompare(bt);
+});
+```
+
+### Root cause
+**U+FFFF is a Unicode noncharacter.** I used it as a "sort to end" sentinel — `localeCompare` against it puts undated items after any real `'YYYY-MM'` string. The runtime would have executed it correctly (V8 / SpiderMonkey both accept noncharacters in string literals), but the `vue-eslint-parser` strictly enforces the HTML5 spec's noncharacter-in-input-stream rule for any character that appears in the input stream — including characters inside JS string literals embedded in a `.vue` file. The rule fires before the parser ever evaluates the JS as code.
+
+So this was a parser-level rejection, not a runtime bug. Locally `npx vitest run` and `npx vue-tsc --noEmit` both passed (neither path goes through eslint), which is why it didn't get caught in the v2.19.0 sprint's pre-merge gate. CI runs the lint step on a fresh checkout, which is where it surfaced.
+
+### Fix
+Replaced the U+FFFF sentinel with explicit null-handling inside the comparator. Same observable behaviour, zero non-printable characters in the source file:
+
+```ts
+items.sort((a, b) => {
+  const at = a.targetMonth;
+  const bt = b.targetMonth;
+  if (at === bt) return 0;
+  if (!at) return 1;   // a has no target → sort it after b
+  if (!bt) return -1;  // b has no target → sort it after a
+  return at.localeCompare(bt);
+});
+```
+
+The existing RS-28 test `sorting by Target ↑ puts soonest target first, undated last` passes unchanged — it asserts the observable order `['Near', 'Far', 'NoTarget']`, which the new comparator produces identically.
+
+### Validation
+- `npx eslint --ext .ts,.vue src/components/sections/Wishlist.vue` → **0 errors** (was 2 errors before). 10 stylistic warnings remain — those were already present pre-fix and don't block CI.
+- `npx eslint --ext .ts,.vue src/` → **0 errors across the entire src/ tree**. 133 stylistic warnings tolerated by CI.
+- `npx vue-tsc --noEmit` → clean.
+- All 1177 tests still pass.
+
+### Defensive note added to the code
+The replacement comparator carries an inline `BUG-021 fix:` comment explaining the noncharacter trap so future contributors don't reintroduce the sentinel pattern.
+
+### Version handling
+- Tagged as `v2.19.1` (matches the BUG-020 series convention: BUG-020 → v2.10.1, BUG-020b → v2.10.2, BUG-020c → v2.10.3)
+- `APP_VERSION` in `WhatsNewBanner.vue` was deliberately **NOT** bumped from `2.19.0` → `2.19.1`. The bug never reached production (build failed before deploy), so users see nothing user-visible. Bumping the banner version would re-show the already-dismissed v2.19.0 "what's new" panel to every user for zero user-visible change, which is bad UX.
+
+### Files Changed
+- `src/components/sections/Wishlist.vue` — comparator rewritten with explicit null-handling + inline BUG-021 explanatory comment
+- `docs/PHASE_TRACKING.md` — summary table row + this detailed entry
+
+### Tests
+- 0 new tests added (the existing RS-28 sort test already covers the observable behaviour)
+- All 1177 tests pass — no regressions
+- `vue-tsc --noEmit` clean
+- `eslint` clean (0 errors)
+
+### Final gate
+- ✅ 1177/1177 tests pass · `vue-tsc --noEmit` clean · `eslint src/` 0 errors
