@@ -1713,6 +1713,8 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-021 | Wishlist sort comparator used U+FFFF (a Unicode noncharacter) as a "sort to end" sentinel; Vue parser rejected it (`vue/no-parsing-error`, noncharacter-in-input-stream) and the build-and-deploy CI step failed. Replaced with explicit null-handling in the comparator | `fix/bug-021-wishlist-noncharacter` | ✅ Complete | v2.19.1 |
 | RS-29 | DB column refresh: real Supabase columns for the 4 accumulated optional fields (RS-23 `lastArchivedPeriodStart`, RS-24 `budgets` + `spent`, RS-28 `targetMonth`); one-shot push-up migration in `initStore` preserves existing localStorage values | `feat/rs-29-db-column-refresh` | ✅ Complete | v2.20.0 |
 | BUG-022 | `migrate.yml` regenerated `src/types/database.ts` after RS-29's SQL migration, wiping the hand-maintained `*Row` re-export block at the bottom; `npm run type-check` failed in CI on every `db.ts` import. Restored the block, updated the workflow to re-append it automatically, added a contract test to catch future drift | `fix/bug-022-database-types-regenerate` | ✅ Complete | v2.20.1 |
+| RS-30 | Supabase fetch reliability (Level 1): bump fetch timeout 20s → 30s; add single automatic retry on timeout via new `fetchUserDataWithRetry` helper; calmer toast wording for the "tried twice" path | `feat/rs-30-supabase-fetch-retry` | ✅ Complete | v2.21.0 |
+| RS-31 | Supabase fetch reliability (Level 2): collapse 18 parallel queries into one RPC call (`fetch_user_data(uid)` returning `json_build_object(...)`) so pool pressure becomes structurally impossible. Requires SQL function + RLS audit + db.ts adapter rewrite | `feat/rs-31-fetch-rpc-collapse` | 🔲 Planned | — |
 
 ---
 
@@ -3680,3 +3682,115 @@ The pre-merge gate for RS-29 ran `npx vue-tsc --noEmit`, `npx vitest run`, and `
 
 ### Final gate
 - ✅ 1212/1212 tests pass · `vue-tsc --noEmit` clean · `eslint src/` 0 errors
+
+---
+
+## RS-30 — Supabase fetch reliability (Level 1) ✅
+**Branch**: `feat/rs-30-supabase-fetch-retry`
+**Version**: v2.21.0
+**Status**: ✅ Complete
+
+### Symptom
+After the RS-29 deploy went live, Brahim reported the "Supabase sync failed, using localStorage" warning toast firing fairly often in normal use. The console showed a specific fingerprint:
+
+```
+[penny] Supabase configured → https://qliyeounfifsrwadykej.supabase.co
+[penny] Supabase probe → HTTP 200
+[penny] Supabase sync failed, using localStorage: Error: [penny] DB fetch timed out after 20000 ms
+```
+
+Note: the probe (single tiny `select=id&limit=0` call with a 5s deadline) succeeded with HTTP 200 in under a second. Then the full fetch (18 parallel `select=*` queries via `Promise.all`) timed out at 20s. That's not a cold-start signature (probe would also fail). That's burst pressure on the Supabase free tier's PgBouncer pool — most queries return fast but the long tail of a few queued behind the pool exhaust the deadline.
+
+### Mitigation: Level 1 (this sprint)
+1. **Bump timeout 20s → 30s** to cover the long tail of pool-queued queries
+2. **One automatic retry on timeout**, 2 s after the first attempt rejects, using the same deadline. Free-tier pools clear quickly once the initial burst completes, so a single delayed retry usually succeeds.
+
+### Decision rules in the retry helper
+| First-attempt result | Behaviour |
+|---|---|
+| Resolves with data | Return immediately — no retry |
+| Resolves with `null` (new user, no profile row yet) | Return `null` immediately — no retry |
+| Rejects with timeout error (matches `[penny] DB fetch timed out` marker) | Wait `SUPABASE_RETRY_DELAY_MS`, retry once with the same deadline |
+| Rejects with anything else (RLS, HTTP 4xx/5xx, synchronous throw) | Re-throw immediately — those are persistent failures, retry won't help |
+
+### Implementation (`src/stores/budget.ts`)
+- Extracted the previously-inline `withTimeout` arrow function to module scope as `export function withTimeout<T>(promise, ms)` so the helper is testable in isolation
+- Added module-scope `SUPABASE_FETCH_TIMEOUT_MS = 30_000`, `SUPABASE_RETRY_DELAY_MS = 2_000`, and `TIMEOUT_ERROR_MARKER = '[penny] DB fetch timed out'`
+- Added `function isTimeoutError(err): boolean` — strict prefix match on the marker so a future loose-substring drift can't accidentally swallow non-timeout errors
+- Added `export async function fetchUserDataWithRetry(userId, options?)` — exported solely so the test suite can exercise the retry decision matrix directly without mounting Pinia
+- Updated `initStore` to call `fetchUserDataWithRetry(userId)` instead of `withTimeout(fetchAllUserData(userId))`, twice (one for the main fetch path and one for the post-localStorage-migration refresh)
+- Updated the user-facing warning toast to use a calmer "tried twice, showing local backup" message specifically on the timeout path; non-timeout errors still get the original "check your project status" wording
+
+### Tests (`tests/stores/fetchUserDataWithRetry.spec.ts`)
+13 new tests covering:
+- `withTimeout`: resolves under deadline, rejects on deadline exceeded, preserves underlying rejections that arrive before the deadline
+- First-try success: returns data, no retry
+- First-try `null` (new user): returns `null`, no retry
+- First-try timeout, second-try success: returns data on retry
+- First-try timeout, second-try timeout: re-throws timeout error
+- First-try non-timeout error: re-throws immediately, no retry
+- First-try synchronous throw: re-throws immediately, no retry
+- Regression guard: generic error messages that don't carry the marker do NOT trigger retry
+- Marker-prefix strictness: only the exact `[penny] DB fetch timed out` prefix triggers retry
+- Configurable `retryDelayMs`: helper waits the full delay before firing the retry
+- Custom `timeoutMs`: error message reflects the configured value
+
+Tests use vi.useFakeTimers() to fast-forward through the 2s backoff. Mock strategy: mock `fetchAllUserData` directly at the `@/lib/db` module level rather than coordinating 18 individual supabase query mocks per attempt — much cleaner.
+
+### Test cleanup details
+Fake-timer tests in this spec attach `.catch()` synchronously before advancing timers to avoid "unhandled rejection" warnings, and `afterEach` calls `vi.clearAllTimers()` before `vi.useRealTimers()` to drain any orphaned setTimeouts left by `withTimeout`.
+
+### Files Changed
+- `src/stores/budget.ts` — module-scope helpers + retry plumbing
+- `tests/stores/fetchUserDataWithRetry.spec.ts` — NEW: 13 tests
+- `src/components/onboarding/WhatsNewBanner.vue` — v2.21.0 with reliability-themed notes
+- `tests/components/onboarding.spec.ts` — version strings → 2.21.0
+- `src/components/pages/DocsPage.vue` — new v2.21.0 + v2.20.1 release blocks
+- `tests/components/pages/pages.spec.ts` — regression-guards include v2.21.0 + v2.20.1 + RS-30
+- `CLAUDE.md` — test count → 1225 across 37 spec files
+- `docs/PHASE_TRACKING.md` — this entry + RS-31 planned stub
+
+### Tests
+- 13 new tests added; all 1225 pass
+- `vue-tsc --noEmit` clean
+- `eslint src/` 0 errors
+
+### Final gate
+- ✅ 1225/1225 tests pass · `vue-tsc --noEmit` clean · `eslint src/` 0 errors
+
+---
+
+## RS-31 — Supabase fetch reliability (Level 2) 🔲 PLANNED
+**Branch**: `feat/rs-31-fetch-rpc-collapse`
+**Status**: 🔲 Planned
+
+### Goal
+Collapse `fetchAllUserData`'s 18 parallel `Promise.all` queries into a single Supabase RPC call, structurally eliminating the pool pressure that RS-30 mitigated at the retry layer. After this lands, free-tier reliability should be on par with paid-tier for our use case.
+
+### Approach
+Define a Postgres function `fetch_user_data(uid uuid) returns json` that returns:
+```sql
+select json_build_object(
+  'profile',           (select row_to_json(p)              from profiles p             where id = uid),
+  'incomeStreams',     (select coalesce(json_agg(i), '[]') from income_streams i       where user_id = uid),
+  'expenseCards',      (select coalesce(json_agg(c), '[]') from expense_cards c        where user_id = uid),
+  ...all 18 tables...
+)
+```
+
+Single round-trip, one pool checkout, zero burst pressure.
+
+### Scope
+- New SQL migration `006_fetch_user_data_rpc.sql`
+- RLS audit: the function must use `security invoker` so the caller's RLS policies apply (not `security definer`, which would bypass them)
+- Rewrite `fetchAllUserData` to call `supabase.rpc('fetch_user_data', { uid: userId })` and destructure the JSON payload
+- Adapt the adapter layer to map the JSONB shapes back into the typed `BudgetState` (similar logic to the per-table adapters today, just sourcing from one payload)
+- Update tests in `tests/lib/db.spec.ts` to mock the RPC call instead of 18 individual queries
+- Remove RS-30's `fetchUserDataWithRetry` if it becomes redundant (probably keep as a defensive belt-and-braces; cost is near-zero)
+
+### Risk
+- **RLS subtlety**: getting `security invoker` right is essential. A mistake here would silently expose other users' data. Need explicit RLS-audit tests.
+- **JSON payload shape drift**: every new table needs a new entry in the SQL function. Easy to forget. Mitigation: a contract test similar to BUG-022's that asserts every table referenced in the BudgetState type also appears in the RPC function source.
+
+### Risk: low-medium
+SQL functions are straightforward, but the RLS audit needs care. The contract test mitigates the "new table forgotten" failure mode that BUG-023 / BUG-022 both belong to.

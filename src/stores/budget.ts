@@ -514,6 +514,113 @@ export async function pushUpOptionalFields(
   }
 }
 
+// ─── RS-30: Supabase fetch reliability (Level 1) ─────────────────
+//
+// The previous architecture wrapped `fetchAllUserData` in a 20-second
+// `Promise.race` deadline and surfaced any failure as a "sync failed,
+// using localStorage" toast. In practice on Supabase free tier we see
+// occasional timeouts that follow a specific signature:
+//
+//   • Probe (single tiny `select=id&limit=0`) succeeds with HTTP 200
+//     in under a second
+//   • Full fetch (18 parallel `select=*` queries via Promise.all)
+//     times out at 20s
+//
+// That fingerprint points at PgBouncer pool pressure on the free
+// tier — most queries return fast but the long tail of a few queued
+// behind the pool exhaust the deadline. Free-tier pools clear quickly
+// once the initial burst completes, so a single delayed retry usually
+// succeeds.
+//
+// RS-30 (Level 1 mitigation):
+//   1. Bump default timeout 20s → 30s. Covers the long tail of
+//      pool-queued queries without forcing the user to wait absurdly
+//      long when the project is genuinely unreachable.
+//   2. ONE automatic retry, 2s after the first timeout, with the same
+//      deadline. Non-timeout errors (RLS, schema mismatch, 4xx, 5xx)
+//      throw immediately — those are persistent failures that retry
+//      won't help.
+//
+// RS-31 (planned Level 2): collapse the 18 parallel queries into a
+// single Supabase RPC call so pool pressure becomes structurally
+// impossible. Bigger refactor; this Level 1 work buys headroom to
+// do that on a comfortable schedule.
+
+/** RS-30: default timeout for Supabase fetches. Bumped from 20s in v2.20. */
+const SUPABASE_FETCH_TIMEOUT_MS = 30_000;
+
+/** RS-30: delay between the first attempt timing out and the retry firing. */
+const SUPABASE_RETRY_DELAY_MS = 2_000;
+
+/** Recognises timeout errors raised by `withTimeout` so we know when to retry. */
+const TIMEOUT_ERROR_MARKER = '[penny] DB fetch timed out';
+
+/**
+ * Race a promise against a synthetic deadline. `fetch()` has no built-in
+ * timeout, so without this, a stalled Supabase request would block sync
+ * indefinitely. The rejected error carries `TIMEOUT_ERROR_MARKER` so
+ * downstream callers can distinguish "deadline exceeded" from "server
+ * returned an error" — only the former is worth retrying.
+ */
+export function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number = SUPABASE_FETCH_TIMEOUT_MS,
+): Promise<T> {
+  const deadline = new Promise<T>((_, reject) =>
+    setTimeout(
+      () => reject(new Error(`${TIMEOUT_ERROR_MARKER} after ${ms} ms`)),
+      ms,
+    ),
+  );
+  return Promise.race([promise, deadline]);
+}
+
+/** True for timeout errors raised by `withTimeout`; false for everything else. */
+function isTimeoutError(err: unknown): boolean {
+  return err instanceof Error && err.message.startsWith(TIMEOUT_ERROR_MARKER);
+}
+
+/**
+ * RS-30: Fetch all user data with a single automatic retry on timeout.
+ *
+ * Behaviour:
+ *   • First attempt: standard `withTimeout(fetchAllUserData(userId))`
+ *   • If the first attempt resolves (data or null) → return immediately
+ *   • If the first attempt rejects with a TIMEOUT error → wait
+ *     SUPABASE_RETRY_DELAY_MS, then try once more with the same deadline
+ *   • If the first attempt rejects with anything ELSE (RLS, HTTP 4xx/5xx,
+ *     network refused, etc.) → re-throw immediately. Those are persistent
+ *     failures; retry won't help and would only delay the user.
+ *   • If the retry also fails → re-throw whatever error it produced
+ *
+ * Exported so the test suite can exercise the retry path directly without
+ * mounting the full Pinia store.
+ */
+export async function fetchUserDataWithRetry(
+  userId: string,
+  options: {
+    timeoutMs?: number;
+    retryDelayMs?: number;
+  } = {},
+): Promise<Partial<BudgetState> | null> {
+  const timeoutMs    = options.timeoutMs    ?? SUPABASE_FETCH_TIMEOUT_MS;
+  const retryDelayMs = options.retryDelayMs ?? SUPABASE_RETRY_DELAY_MS;
+
+  try {
+    return await withTimeout(fetchAllUserData(userId), timeoutMs);
+  } catch (firstErr) {
+    if (!isTimeoutError(firstErr)) {
+      // Persistent failure — don't waste the user's time retrying.
+      throw firstErr;
+    }
+    console.info(
+      `[penny] DB fetch timed out — waiting ${retryDelayMs}ms and retrying once (RS-30)`,
+    );
+    await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
+    return await withTimeout(fetchAllUserData(userId), timeoutMs);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────
 
 export const useBudgetStore = defineStore('budget', {
@@ -620,21 +727,12 @@ export const useBudgetStore = defineStore('budget', {
         return; // skip full fetch — it will just timeout anyway
       }
 
-      // Wrap Supabase fetches in a race against a 20-second deadline.
-      // The browser's fetch() has no built-in timeout; a stalled request
-      // (paused project, cold start, network blip) would otherwise block
-      // the data-sync indefinitely.  20 s accommodates Supabase free-tier
-      // cold starts which can take 10–15 s after a period of inactivity.
-      // Arrow function expression (not declaration) avoids no-inner-declarations.
-      const withTimeout = <T>(promise: Promise<T>, ms = 20_000): Promise<T> => {
-        const deadline = new Promise<T>((_, reject) =>
-          setTimeout(() => reject(new Error(`[penny] DB fetch timed out after ${ms} ms`)), ms),
-        );
-        return Promise.race([promise, deadline]);
-      };
-
+      // RS-30: fetch with one automatic retry on timeout. The helper handles
+      // the 30 s deadline, the 2 s backoff, and the "retry only on timeout"
+      // rule (non-timeout errors throw immediately so we don't waste the
+      // user's time retrying persistent failures like RLS or HTTP 4xx).
       try {
-        const data = await withTimeout(fetchAllUserData(userId));
+        const data = await fetchUserDataWithRetry(userId);
 
         if (data) {
           // RS-29 push-up migration: BEFORE we overwrite local state with
@@ -656,7 +754,7 @@ export const useBudgetStore = defineStore('budget', {
           // No profile row yet — try one-time localStorage → Supabase migration
           const migrated = await migrateIfNeeded(userId);
           if (migrated) {
-            const refreshed = await withTimeout(fetchAllUserData(userId));
+            const refreshed = await fetchUserDataWithRetry(userId);
             if (refreshed) Object.assign(this.$state, refreshed);
           } else {
             // Brand-new user — keep default state (already loaded above)
@@ -672,12 +770,13 @@ export const useBudgetStore = defineStore('budget', {
         // expected (the session was revoked); showing a toast would be
         // confusing and alarm the user unnecessarily.
         if (_userId) {
-          useToast().show(
-            '⚠ Cloud sync failed — showing local backup. ' +
-            'Check your Supabase project status and refresh to retry.',
-            'warning',
-            7_000,
-          );
+          // RS-30: tweak the message so the user understands a retry was
+          // already attempted — "showing local backup" is more reassuring
+          // than the previous "check your project status" alarm bell.
+          const msg = isTimeoutError(err)
+            ? '⚠ Cloud sync slow — tried twice, showing local backup. Your changes are safe and will sync on the next successful refresh.'
+            : '⚠ Cloud sync failed — showing local backup. Check your Supabase project status and refresh to retry.';
+          useToast().show(msg, 'warning', 7_000);
         }
       }
 
