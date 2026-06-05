@@ -341,6 +341,21 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.26.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              BUG-026 — Unfiltered purchases sweep: period-scoped data in all financial calculations
+            </p>
+            <ul class="docs-list">
+              <li><strong>Spending tab "Add Purchase" preview fixed.</strong> The "Bi-weekly remaining after" preview in the Add Purchase modal was using <code>budget.purchases</code> (the raw store array, no date filter) instead of the current period's purchases. Any stale cross-period rows still in the array caused the preview to show a wildly negative balance like <code>-$364.53 OVER BUDGET</code> even with no amount entered. Fix: the preview now uses a dedicated <code>currentPeriodPurchasesForPreview</code> computed (always offset=0) so it reflects the true current envelope regardless of which historical period is displayed in the table. It also now subtracts subscription and loan deductions for the wants envelope, matching the DashboardPage quick-add behaviour exactly.</li>
+              <li><strong>Full app sweep — six additional locations fixed.</strong> The same unfiltered-<code>state.purchases</code> pattern was found and fixed across <code>calculations.ts</code>: (1) <code>getEnvelopeForecast</code> — the bi-weekly spending forecast now only counts purchases within the current period window, so stale rows no longer inflate the projected overage. (2) <code>getTriggeredAlerts</code> — budget alerts now fire based on current-period category spending, not all-time spending; the function signature now accepts <code>payStart</code> for the period boundary. (3) <code>calculateActualNeeds</code> and (4) <code>calculateActualWants</code> — monthly actual calculations now filter purchases to the current calendar month, preventing double-counting when the live array contains entries from a previous month. (5) <code>getWantsCategoryActuals</code> — the category analytics breakdown for the current month now month-filters purchases. (6) <code>getMonthlyWantsHistory</code> — the 6-month trend chart's "current month" bucket now filters purchases by month prefix.</li>
+              <li><strong>6 new regression tests.</strong> Each covers the stale-data scenario: SpendingPage preview shows positive remaining when stale purchases exist; <code>getEnvelopeForecast</code> ignores out-of-period purchases; <code>getTriggeredAlerts</code> does not fire on stale data; <code>getWantsCategoryActuals</code> excludes prior-month purchases. All existing tests updated to carry dates that match the function's "today" parameter so they remain correct under the new filters.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.25.0</span>
               <span class="release-date">June 2026</span>
             </div>

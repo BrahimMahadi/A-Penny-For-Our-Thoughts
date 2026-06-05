@@ -4123,6 +4123,57 @@ describe('SpendingPage — CRUD', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  SpendingPage — BUG-026 add-purchase preview uses period-scoped data
+// ─────────────────────────────────────────────────────────────────
+describe('SpendingPage — BUG-026 add-purchase preview accuracy', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); document.body.innerHTML = ''; });
+  afterEach(() => { vi.useRealTimers(); document.body.innerHTML = ''; });
+
+  it('BUG-026: remaining preview excludes out-of-period (stale) purchases', async () => {
+    // Simulates the bug: a purchase from the previous period is still in
+    // budget.purchases (stale data). Before the fix, spendingFormAfter summed
+    // all purchases, making the remaining appear far lower than reality.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    // income: use default (0) → budget = 0, remaining preview = 0 - spent - 0
+    // Add a current-period wants purchase
+    budget.addPurchase({ name: 'Coffee', amount: 10, category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-05-21' });
+    // Add a stale previous-period purchase (should be excluded from the preview)
+    budget.addPurchase({ name: 'Stale',  amount: 500, category: 'Shopping',    cardId: null, budgetType: 'wants', date: '2026-05-05' });
+
+    // Add income so remaining is meaningful
+    budget.addIncomeStream({ name: 'Job', amount: 3000, biweekly: false });
+
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Open the Add Purchase modal
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().trim() === '+ Add');
+    await addBtn!.trigger('click');
+    await nextTick();
+
+    // The preview label must be present
+    const preview = document.body.querySelector('.mf-preview-label');
+    expect(preview).not.toBeNull();
+
+    // The preview value should NOT include the $500 stale purchase.
+    // It should be: bwBudget - 10 (current period only), not bwBudget - 510.
+    // bwBudget = 3000 * 30% / 2 = $450. With $10 spent: remaining = $440.
+    const valueEl = document.body.querySelector<HTMLElement>('.mf-preview-value');
+    expect(valueEl).not.toBeNull();
+    // Should show around $440 (positive), NOT a deeply negative value
+    const displayedValue = parseFloat(valueEl!.textContent!.replace(/[^0-9.-]/g, ''));
+    expect(displayedValue).toBeGreaterThan(0);
+
+    document.body.innerHTML = '';
+    w.unmount();
+    vi.useRealTimers();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────
 //  SpendingPage — RS-32 virtual rows (subs + loans in table)
 // ─────────────────────────────────────────────────────────────────

@@ -1719,6 +1719,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-024 | Dashboard hero card and `PurchasesThisPeriod` widget summed all entries in `budget.purchases` with no date boundary, disagreeing with SpendingPage's period-scoped view. Both now filter by `[currentPeriodStart, currentPeriodEnd]` using `getPayPeriodForecast` | `fix/bug-023-024-purchase-archive-sync` | ✅ Complete | v2.23.0 |
 | BUG-025 | Dashboard quick-add modal stored category `id` (e.g. `'entertainment'`) instead of display `name` (e.g. `'Entertainment'`). Caused wrong category colour, blank edit-dropdown, and split analytics buckets. Fixed 3 lines in DashboardPage + added `migrateState` normalisation pass for existing data | `fix/bug-025-quick-add-category` | ✅ Complete | v2.24.0 |
 | RS-32 | Subscriptions and loan payments now appear as read-only virtual rows in the Spending tab table on their renewal date, sorted alongside purchases. Dashboard "Purchases This Period" donut splits "Auto-deducted" into separate "Subscriptions" and "Loans" rows, supporting both Wants and Needs envelopes. Added `getSubsInWindow`/`getLoansInWindow` helpers | `feat/rs-32-period-deductions-view` | ✅ Complete | v2.25.0 |
+| BUG-026 | `spendingFormAfter` in SpendingPage and six functions in `calculations.ts` used raw `state.purchases` without a period/month date filter. Stale cross-period rows inflated every affected calculation (preview showed -$364 OVER BUDGET with $0 amount; forecast, budget alerts, and analytics similarly affected). Full sweep: all seven sites now filter by period or calendar month | `fix/bug-026-unfiltered-purchases-sweep` | ✅ Complete | v2.26.0 |
 
 ---
 
@@ -4048,3 +4049,65 @@ Two coordinated changes:
 
 ### Final gate
 - ✅ 1278/1278 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files
+
+---
+
+## BUG-026 — Unfiltered purchases in financial calculations ✅
+
+**Branch**: `fix/bug-026-unfiltered-purchases-sweep`
+**Version**: v2.26.0
+**Status**: ✅ **COMPLETE** — June 2026
+
+### Problem
+Seven locations across the codebase used `state.purchases` / `budget.purchases` **without a date filter** when computing period-scoped or month-scoped financial figures. Any stale cross-period rows in the array (from the BUG-023 multi-device scenario or any race condition before a period close fully syncs) would silently inflate every affected metric:
+
+| Location | What it computes | Visible symptom |
+|---|---|---|
+| `SpendingPage.vue` `spendingFormAfter` | Bi-weekly remaining preview in Add Purchase modal | -$364.53 OVER BUDGET with $0 entered |
+| `calculations.ts` `getEnvelopeForecast` | Bi-weekly spending forecast / pace | Projected overage inflated by stale rows |
+| `calculations.ts` `getTriggeredAlerts` | Budget alert firing threshold | Alerts fire permanently on stale data |
+| `calculations.ts` `calculateActualNeeds` | Monthly needs actuals for analytics | Inflated monthly needs figure |
+| `calculations.ts` `calculateActualWants` | Monthly wants actuals for analytics | Inflated monthly wants figure |
+| `calculations.ts` `getWantsCategoryActuals` | Category breakdown for current month | Wrong per-category totals |
+| `calculations.ts` `getMonthlyWantsHistory` | 6-month trend chart current-month bucket | Current month total inflated |
+
+### Root cause
+These functions were written assuming `state.purchases` only ever contains the current period's data. That assumption broke when BUG-023 introduced the cross-device scenario — Device B loads stale purchases from the DB alongside an already-advanced rollover anchor, so old rows survive in the live array until the next natural period close.
+
+BUG-024 fixed the Dashboard and SpendingPage KPIs by adding date filters to their computed properties, but did not fix the form preview or the underlying calculation helpers.
+
+### Fix — seven targeted filter additions
+
+1. **`SpendingPage.vue`**: Added `currentPeriodWindowForPreview` (offset=0) and `currentPeriodPurchasesForPreview` computeds. `spendingFormAfter` now uses these instead of `budget.purchases`. Also subtracts wants-envelope deductions (subs + loans) to match DashboardPage's `quickAddAfter` exactly.
+
+2. **`getEnvelopeForecast`**: Added `periodEndStr` (periodStart + 14 days) and filtered `state.purchases` to `date >= periodStartStr && date <= periodEndStr`.
+
+3. **`getTriggeredAlerts`**: Added `payStart` to the Pick type; filters purchases to `date >= periodStart` before passing to `getCategorySpending`.
+
+4. **`calculateActualNeeds`**: Added `date?.startsWith(currentMonthStr)` filter on the needs purchase total.
+
+5. **`calculateActualWants`**: Added `date?.startsWith(monthStr)` filter on the wants purchase total.
+
+6. **`getWantsCategoryActuals`**: Added `date?.startsWith(monthStr)` filter on the live purchases loop.
+
+7. **`getMonthlyWantsHistory`**: Added `date?.startsWith(monthKey)` filter in the `isCurrent` branch.
+
+### Files Changed
+- `src/components/pages/SpendingPage.vue` — `currentPeriodWindowForPreview`, `currentPeriodPurchasesForPreview`, rewritten `spendingFormAfter`
+- `src/utils/calculations.ts` — fixes in 6 functions as described above
+- `tests/utils/calculations.spec.ts` — 6 new BUG-026 regression tests; updated 12 existing fixtures to include dates matching their test's "today" parameter
+- `tests/components/sections/sections.spec.ts` — 1 new BUG-026 SpendingPage preview regression test
+- `src/components/onboarding/WhatsNewBanner.vue` — v2.26.0
+- `tests/components/onboarding.spec.ts` — version → 2.26.0
+- `src/components/pages/DocsPage.vue` — v2.26.0 release block
+- `tests/components/pages/pages.spec.ts` — regression guard includes v2.26.0 + BUG-026
+- `CLAUDE.md` — test count → 1284 across 39 spec files
+- `docs/PHASE_TRACKING.md` — this entry
+
+### Tests
+- 6 new regression tests (calculations) + 1 (SpendingPage) = 7 new; 1284/1284 pass
+- `vue-tsc --noEmit` clean
+- ESLint clean on all touched files
+
+### Final gate
+- ✅ 1284/1284 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files
