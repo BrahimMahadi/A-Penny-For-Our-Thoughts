@@ -14,7 +14,7 @@ import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics } from '@/composables/useAnalytics';
 import { useToast } from '@/composables/useToast';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
-import { getPayPeriodForecast, getCategorySpending, applyRulesToName } from '@/utils/calculations';
+import { getPayPeriodForecast, getCategorySpending, applyRulesToName, getSubsInWindow, getLoansInWindow } from '@/utils/calculations';
 import { CATEGORY_FALLBACK_COLOR } from '@/data/categories';
 import WantsDonut from '@/components/charts/WantsDonut.vue';
 import StatCard from '@/components/ui/StatCard.vue';
@@ -23,6 +23,23 @@ import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import { fmt } from '@/utils/format';
 import type { Purchase, ISODate } from '@/types/budget';
+
+// ─── Virtual row type ─────────────────────────────────────────────
+/**
+ * A unified display row for the period table.
+ * 'purchase' rows are manually logged and editable; 'sub' and 'loan'
+ * rows are auto-generated from recurring items and are read-only.
+ */
+interface PeriodicRow {
+  id: string;
+  name: string;
+  amount: number;
+  date: ISODate | undefined;
+  budgetType: 'wants' | 'needs';
+  category: string;
+  cardId: string | null;
+  kind: 'purchase' | 'sub' | 'loan';
+}
 
 const budget = useBudgetStore();
 const { totalMonthlyIncome } = useAnalytics();
@@ -282,17 +299,141 @@ const filteredUndated = computed(() => {
   return applySort(items);
 });
 
+// ─── Virtual rows: subscriptions + loans that fell in this period ─
+/**
+ * All sub and loan renewals within the currently-displayed period.
+ * Window end = min(today, periodEnd) so:
+ *   • Current period  → only items that have already occurred are shown.
+ *   • Past periods    → all items in that full window are shown.
+ * These rows are never stored as Purchase objects so they don't affect
+ * archiving, DB sync, or rollover logic.
+ */
+const virtualRows = computed<PeriodicRow[]>(() => {
+  if (!spendingPeriod.value) return [];
+  const { periodStart, periodEnd } = spendingPeriod.value;
+  const wStart = new Date(periodStart + 'T00:00:00');
+  const rawEnd = new Date(periodEnd + 'T00:00:00');
+  rawEnd.setHours(0, 0, 0, 0);
+  const todayMidnight = new Date(today);
+  todayMidnight.setHours(0, 0, 0, 0);
+  const wEnd = rawEnd <= todayMidnight ? rawEnd : todayMidnight;
+
+  const rows: PeriodicRow[] = [];
+
+  for (const bt of ['wants', 'needs'] as const) {
+    // Subscriptions
+    for (const sub of getSubsInWindow(budget.$state, wStart, wEnd, bt)) {
+      for (const date of sub.renewalDates) {
+        rows.push({
+          id:         `sub-${sub.id}-${date}`,
+          name:       sub.name,
+          amount:     sub.amount,
+          date,
+          budgetType: bt,
+          category:   sub.category || 'Other',
+          cardId:     sub.cardId,
+          kind:       'sub',
+        });
+      }
+    }
+    // Loans
+    for (const loan of getLoansInWindow(budget.$state, wStart, wEnd, bt)) {
+      for (const date of loan.renewalDates) {
+        rows.push({
+          id:         `loan-${loan.id}-${date}`,
+          name:       loan.name,
+          amount:     loan.paymentAmount,
+          date,
+          budgetType: bt,
+          category:   '',
+          cardId:     loan.cardId,
+          kind:       'loan',
+        });
+      }
+    }
+  }
+
+  return rows;
+});
+
+/** Virtual rows after type + search + category filters applied. */
+const filteredVirtualRows = computed<PeriodicRow[]>(() => {
+  let items = virtualRows.value;
+
+  // Category filter: applies to subs (which carry sub.category); loans have
+  // no category so they are hidden whenever a catFilter is active.
+  if (catFilter.value) items = items.filter(r => r.category === catFilter.value);
+
+  // Type filter
+  if (typeFilter.value === 'needs')        items = items.filter(r => r.budgetType === 'needs');
+  else if (typeFilter.value === 'wants')   items = items.filter(r => r.budgetType !== 'needs');
+
+  // Search — name + card label
+  const q = searchQuery.value.trim().toLowerCase();
+  if (q) {
+    items = items.filter(r =>
+      r.name.toLowerCase().includes(q) ||
+      cardLabel(r.cardId).toLowerCase().includes(q),
+    );
+  }
+
+  return items;
+});
+
+/**
+ * Merged, sorted list of dated purchases + virtual rows for the period table.
+ * Virtual rows interleave naturally by date so subs/loans appear on the day
+ * they occurred alongside manually-logged purchases.
+ */
+const allDatedRows = computed<PeriodicRow[]>(() => {
+  const purchaseRows: PeriodicRow[] = filteredPurchases.value.map(p => ({
+    id:         p.id,
+    name:       p.name,
+    amount:     p.amount,
+    date:       p.date,
+    budgetType: (p.budgetType ?? 'wants') as 'wants' | 'needs',
+    category:   p.category ?? '',
+    cardId:     p.cardId,
+    kind:       'purchase' as const,
+  }));
+
+  const merged = [...purchaseRows, ...filteredVirtualRows.value];
+
+  switch (sortKey.value) {
+    case 'newest':
+      return merged.sort((a, b) => {
+        const da = a.date ?? '', db = b.date ?? '';
+        if (!da && !db) return 0;
+        if (!da) return 1;
+        if (!db) return -1;
+        return db.localeCompare(da);
+      });
+    case 'oldest':
+      return merged.sort((a, b) => {
+        const da = a.date ?? '', db = b.date ?? '';
+        if (!da && !db) return 0;
+        if (!da) return -1;
+        if (!db) return 1;
+        return da.localeCompare(db);
+      });
+    case 'amtHigh': return merged.sort((a, b) => b.amount - a.amount);
+    case 'amtLow':  return merged.sort((a, b) => a.amount - b.amount);
+    case 'nameAZ':  return merged.sort((a, b) => a.name.localeCompare(b.name));
+    default: return merged;
+  }
+});
+
 const totalFiltered = computed(() =>
-  filteredPurchases.value.length + filteredUndated.value.length,
+  filteredPurchases.value.length + filteredUndated.value.length + filteredVirtualRows.value.length,
 );
 const totalAll = computed(() =>
-  purchasesInPeriod.value.length + undatedPurchases.value.length,
+  purchasesInPeriod.value.length + undatedPurchases.value.length + virtualRows.value.length,
 );
 
 /** Sum of amounts for all currently-visible rows (respects all active filters). */
 const filteredAmountTotal = computed(() =>
-  [...filteredPurchases.value, ...filteredUndated.value]
-    .reduce((s, p) => s + p.amount, 0),
+  [...allDatedRows.value, ...filteredUndated.value]
+    .reduce((s, r) => s + r.amount, 0),
 );
 
 // ─── Purchase CRUD ─────────────────────────────────────────────────
@@ -748,59 +889,77 @@ function deletePurchase(id: string): void {
             </tr>
           </thead>
           <tbody>
-            <!-- Dated period purchases (click row to edit) -->
+            <!-- Dated rows: purchases (editable) + subs/loans (read-only) -->
             <tr
-              v-for="p in filteredPurchases"
-              :key="p.id"
-              class="purchase-row purchase-row--clickable"
-              tabindex="0"
-              role="button"
-              :aria-label="`Edit purchase: ${p.name}`"
-              @click="openEditPurchase(p.id)"
-              @keydown.enter.prevent="openEditPurchase(p.id)"
-              @keydown.space.prevent="openEditPurchase(p.id)"
+              v-for="row in allDatedRows"
+              :key="row.id"
+              :class="[
+                'purchase-row',
+                row.kind === 'purchase' ? 'purchase-row--clickable' : 'purchase-row--auto',
+              ]"
+              :tabindex="row.kind === 'purchase' ? 0 : undefined"
+              :role="row.kind === 'purchase' ? 'button' : undefined"
+              :aria-label="row.kind === 'purchase' ? `Edit purchase: ${row.name}` : undefined"
+              @click="row.kind === 'purchase' ? openEditPurchase(row.id) : undefined"
+              @keydown.enter.prevent="row.kind === 'purchase' ? openEditPurchase(row.id) : undefined"
+              @keydown.space.prevent="row.kind === 'purchase' ? openEditPurchase(row.id) : undefined"
             >
               <td class="col-date">
-                {{ formatDate(p.date) }}
+                {{ formatDate(row.date) }}
               </td>
               <td class="col-name">
-                {{ p.name }}
+                {{ row.name }}
               </td>
               <td class="col-cat">
+                <!-- Purchases and subs show a category badge; loans show a dash -->
                 <span
+                  v-if="row.kind !== 'loan' && row.category"
                   class="cat-badge"
                   :style="{
-                    background: catColor(p.category) + '22',
-                    color: catColor(p.category),
+                    background: catColor(row.category) + '22',
+                    color: catColor(row.category),
                   }"
                 >
                   <span
                     class="cat-badge-dot"
-                    :style="{ background: catColor(p.category) }"
+                    :style="{ background: catColor(row.category) }"
                   />
-                  {{ p.category || 'Other' }}
+                  {{ row.category }}
                 </span>
+                <span
+                  v-else
+                  class="col-muted"
+                >—</span>
               </td>
               <td class="col-type">
+                <!-- Purchases: Want / Need badge. Subs/Loans: kind badge -->
                 <span
+                  v-if="row.kind === 'purchase'"
                   class="type-badge"
-                  :class="p.budgetType === 'needs' ? 'type-badge--needs' : 'type-badge--wants'"
+                  :class="row.budgetType === 'needs' ? 'type-badge--needs' : 'type-badge--wants'"
                 >
-                  {{ p.budgetType === 'needs' ? 'Need' : 'Want' }}
+                  {{ row.budgetType === 'needs' ? 'Need' : 'Want' }}
+                </span>
+                <span
+                  v-else
+                  class="type-badge"
+                  :class="row.kind === 'sub' ? 'type-badge--sub' : 'type-badge--loan'"
+                >
+                  {{ row.kind === 'sub' ? 'Sub' : 'Loan' }}
                 </span>
               </td>
               <td class="col-card">
                 <span
-                  v-if="cardLabel(p.cardId)"
+                  v-if="cardLabel(row.cardId)"
                   class="card-label"
-                >{{ cardLabel(p.cardId) }}</span>
+                >{{ cardLabel(row.cardId) }}</span>
                 <span
                   v-else
                   class="col-muted"
                 >—</span>
               </td>
               <td class="col-amt">
-                {{ fmt(p.amount) }}
+                {{ fmt(row.amount) }}
               </td>
             </tr>
 
@@ -1572,6 +1731,27 @@ function deletePurchase(id: string): void {
 .type-badge--needs {
   background: color-mix(in srgb, var(--danger, #f87171) 14%, transparent);
   color: var(--danger, #f87171);
+}
+
+/* Auto-generated subscription / loan rows */
+.type-badge--sub {
+  background: color-mix(in srgb, #00d4aa 14%, transparent);
+  color: #00d4aa;
+}
+
+.type-badge--loan {
+  background: color-mix(in srgb, #fbbf24 14%, transparent);
+  color: #fbbf24;
+}
+
+/* Read-only auto row: subtly distinguished from editable purchase rows */
+.purchase-row--auto td {
+  opacity: 0.85;
+  font-style: italic;
+}
+
+.purchase-row--auto:hover td {
+  background: transparent;
 }
 
 /* ── Type filter chips separator ────────────────────────────────── */

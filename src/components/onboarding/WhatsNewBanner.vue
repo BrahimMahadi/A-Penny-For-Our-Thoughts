@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.24.0';
+const APP_VERSION = '2.25.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🏷️', text: 'Fixed BUG-025: the Dashboard quick-add modal was storing category IDs (e.g. "entertainment") instead of display names (e.g. "Entertainment"), causing the category badge to render incorrectly and the edit-purchase dropdown to show blank' },
-  { icon: '🔄', text: 'Added a one-time data migration in migrateState that normalises any existing purchases with stored category IDs to their correct display names — no manual action required' },
-  { icon: '🧪', text: '6 new regression tests: 4 in the budget store for the migrateState normalisation, 2 in DashboardPage verifying the quick-add modal saves the category name not the id' },
-  { icon: '📊', text: 'Category colours, the spending donut chart, filter chips, and analytics now correctly group all purchases — including those added via quick-add — under the same category bucket' },
-  { icon: '✅', text: '1260 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '📅', text: 'RS-32: subscriptions and loan payments now appear as read-only rows in the Spending tab table on the day they occur — complete period view, not just manual purchases' },
+  { icon: '📊', text: 'The "Purchases This Period" dashboard donut now shows separate "Subscriptions" and "Loans" rows (instead of a single "Auto-deducted" total), and these work correctly for both Wants and Needs budget types' },
+  { icon: '🔀', text: 'Subscription and loan rows sort by date alongside manual purchases, respond to the type filter (Wants/Needs) and search, and are visually distinct with teal "Sub" and amber "Loan" badges' },
+  { icon: '🧪', text: '18 new regression tests: 8 for the new getSubsInWindow/getLoansInWindow calculation helpers, 3 for the updated dashboard donut, 7 for SpendingPage virtual rows' },
+  { icon: '✅', text: '1278 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();

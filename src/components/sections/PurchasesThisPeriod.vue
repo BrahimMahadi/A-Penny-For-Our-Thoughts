@@ -20,8 +20,8 @@ import WantsDonut from '@/components/charts/WantsDonut.vue';
 import { fmt } from '@/utils/format';
 import {
   getCategorySpending,
-  getSubsDeductedThisPeriod,
-  getLoansDeductedThisPeriod,
+  getSubsInWindow,
+  getLoansInWindow,
   getPayPeriodForecast,
 } from '@/utils/calculations';
 import { CATEGORY_FALLBACK_COLOR } from '@/data/categories';
@@ -51,18 +51,36 @@ const biWeeklyBudget = computed(() =>
   props.typeFilter === 'needs' ? biWeeklyNeedsBudget.value : biWeeklyWantsBudget.value,
 );
 
-// ─── Deductions (subs/loans auto-deducted — wants envelope only) ──
-const subsDeducted  = computed(() => getSubsDeductedThisPeriod(budget.$state, today));
-const loansDeducted = computed(() => getLoansDeductedThisPeriod(budget.$state, today));
-
-const deductionTotal = computed(() => {
-  if (props.typeFilter === 'needs') return 0; // deductions live in the wants envelope
-  const subTotal  = subsDeducted.value.reduce((s, sub) =>
-    s + (+sub.amount || 0) * sub.renewalDates.length, 0);
-  const loanTotal = loansDeducted.value.reduce((s, loan) =>
-    s + (+loan.paymentAmount || 0) * loan.renewalDates.length, 0);
-  return subTotal + loanTotal;
+// ─── Deductions — split by subs vs loans, support both budget types ──
+// Window end = today so we only show items that have already occurred this
+// period (not future renewals within the 14-day window).
+const periodWindow = computed(() => {
+  if (!currentPeriod.value) return null;
+  const start = new Date(currentPeriod.value.periodStart + 'T00:00:00');
+  const end   = new Date(today);
+  end.setHours(0, 0, 0, 0);
+  return { start, end };
 });
+
+const subsDeductedFiltered = computed(() => {
+  if (!periodWindow.value) return [];
+  return getSubsInWindow(budget.$state, periodWindow.value.start, periodWindow.value.end, props.typeFilter);
+});
+
+const loansDeductedFiltered = computed(() => {
+  if (!periodWindow.value) return [];
+  return getLoansInWindow(budget.$state, periodWindow.value.start, periodWindow.value.end, props.typeFilter);
+});
+
+const subsDeductionTotal = computed(() =>
+  subsDeductedFiltered.value.reduce((s, sub) => s + (+sub.amount || 0) * sub.renewalDates.length, 0),
+);
+
+const loansDeductionTotal = computed(() =>
+  loansDeductedFiltered.value.reduce((s, loan) => s + (+loan.paymentAmount || 0) * loan.renewalDates.length, 0),
+);
+
+const deductionTotal = computed(() => subsDeductionTotal.value + loansDeductionTotal.value);
 
 // ─── Current period window ────────────────────────────────────────
 // BUG-024: scope to the current bi-weekly window so stale purchases
@@ -124,10 +142,9 @@ const categoryList = computed(() =>
     })),
 );
 
-const isEmpty = computed(() => {
-  if (props.typeFilter === 'needs') return totalSpent.value === 0;
-  return categoryList.value.length === 0 && deductionTotal.value === 0;
-});
+const isEmpty = computed(() =>
+  categoryList.value.length === 0 && deductionTotal.value === 0,
+);
 
 /** Caption label below the donut. */
 const captionLabel = computed(() =>
@@ -188,17 +205,31 @@ const captionLabel = computed(() =>
           <span class="ptp__cat-pct">{{ cat.pct.toFixed(0) }}%</span>
         </div>
 
-        <!-- Auto-deductions row (wants envelope only) -->
+        <!-- Subscriptions row (wants or needs, whichever type is active) -->
         <div
-          v-if="deductionTotal > 0"
+          v-if="subsDeductionTotal > 0"
           class="ptp__cat-row ptp__cat-row--deductions"
         >
           <span
             class="ptp__cat-dot"
-            style="background: var(--muted)"
+            style="background: var(--accent)"
           />
-          <span class="ptp__cat-name">Auto-deducted</span>
-          <span class="ptp__cat-amount">{{ fmt(deductionTotal) }}</span>
+          <span class="ptp__cat-name">Subscriptions</span>
+          <span class="ptp__cat-amount">{{ fmt(subsDeductionTotal) }}</span>
+          <span class="ptp__cat-pct">—</span>
+        </div>
+
+        <!-- Loans row -->
+        <div
+          v-if="loansDeductionTotal > 0"
+          class="ptp__cat-row ptp__cat-row--deductions"
+        >
+          <span
+            class="ptp__cat-dot"
+            style="background: #fbbf24"
+          />
+          <span class="ptp__cat-name">Loans</span>
+          <span class="ptp__cat-amount">{{ fmt(loansDeductionTotal) }}</span>
           <span class="ptp__cat-pct">—</span>
         </div>
       </div>

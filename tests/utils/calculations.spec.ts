@@ -11,6 +11,8 @@ import {
   getSubsDeductedThisMonth,
   getLoansDeductedThisMonth,
   getLoansDeductedThisPeriod,
+  getSubsInWindow,
+  getLoansInWindow,
   calculateActualNeeds,
   calculateActualWants,
   calculateActualSavings,
@@ -261,6 +263,89 @@ describe('getLoansDeductedThisMonth', () => {
 describe('getLoansDeductedThisPeriod', () => {
   it('returns empty without payStart', () => {
     expect(getLoansDeductedThisPeriod(buildState(), new Date())).toEqual([]);
+  });
+});
+
+// ─── RS-32 — generic window helpers ─────────────────────────────
+describe('getSubsInWindow', () => {
+  const subs = [
+    { id: 'S1', name: 'Netflix',   amount: 18, frequency: 'monthly' as const, date: '2026-05-20', category: 'Entertainment', budgetType: 'wants' as const, cardId: null, daysOfWeek: [] },
+    { id: 'S2', name: 'Insurance', amount: 100, frequency: 'monthly' as const, date: '2026-05-05', category: 'Other',         budgetType: 'needs' as const, cardId: null, daysOfWeek: [] },
+  ];
+  const wStart = new Date('2026-05-15T00:00:00');
+  const wEnd   = new Date('2026-05-28T00:00:00');
+
+  it('returns wants subs whose renewal falls in the window', () => {
+    const result = getSubsInWindow({ subscriptions: subs }, wStart, wEnd, 'wants');
+    expect(result.length).toBe(1);
+    expect(result[0].name).toBe('Netflix');
+    expect(result[0].renewalDates).toContain('2026-05-20');
+  });
+
+  it('returns needs subs whose renewal falls in the window', () => {
+    // Insurance renews on the 5th — falls outside May 15–28 window
+    const result = getSubsInWindow({ subscriptions: subs }, wStart, wEnd, 'needs');
+    expect(result.length).toBe(0); // 5th is before the window start
+
+    // Widen window to include the 5th
+    const wStartWide = new Date('2026-05-01T00:00:00');
+    const result2 = getSubsInWindow({ subscriptions: subs }, wStartWide, wEnd, 'needs');
+    expect(result2.length).toBe(1);
+    expect(result2[0].name).toBe('Insurance');
+  });
+
+  it('returns empty for a window with no matching renewals', () => {
+    const future = new Date('2026-07-01T00:00:00');
+    const futureEnd = new Date('2026-07-14T00:00:00');
+    // Netflix renews on 20th — not in July 1–14 window
+    const result = getSubsInWindow({ subscriptions: subs }, future, futureEnd, 'wants');
+    expect(result.length).toBe(0);
+  });
+
+  it('expands multi-renewal subs into multiple renewalDates', () => {
+    // Weekly sub fires many times in a 14-day window
+    const weeklySub = [
+      { id: 'W1', name: 'Weekly', amount: 5, frequency: 'weekly' as const, date: '2026-05-01', category: 'Other', budgetType: 'wants' as const, cardId: null, daysOfWeek: [] },
+    ];
+    const result = getSubsInWindow({ subscriptions: weeklySub }, wStart, wEnd, 'wants');
+    expect(result.length).toBe(1);
+    expect(result[0].renewalDates.length).toBeGreaterThan(1);
+  });
+});
+
+describe('getLoansInWindow', () => {
+  const loans = [
+    { id: 'L1', name: 'Car Loan',  remaining: 5000, original: 10000, paymentAmount: 500, frequency: 'monthly' as const, date: '2026-05-10', budgetType: 'needs' as const, cardId: null },
+    { id: 'L2', name: 'Boat Loan', remaining: 2000, original: 5000,  paymentAmount: 200, frequency: 'monthly' as const, date: '2026-05-20', budgetType: 'wants' as const, cardId: null },
+    { id: 'L3', name: 'NoPay',     remaining: 1000, original: 2000,  paymentAmount: 0,   frequency: 'monthly' as const, date: '2026-05-12', budgetType: 'wants' as const, cardId: null },
+  ];
+  const wStart = new Date('2026-05-01T00:00:00');
+  const wEnd   = new Date('2026-05-31T00:00:00');
+
+  it('returns wants loans in the window', () => {
+    const result = getLoansInWindow({ loans }, wStart, wEnd, 'wants');
+    expect(result.length).toBe(1);
+    expect(result[0].name).toBe('Boat Loan');
+    expect(result[0].renewalDates).toContain('2026-05-20');
+  });
+
+  it('returns needs loans in the window', () => {
+    const result = getLoansInWindow({ loans }, wStart, wEnd, 'needs');
+    expect(result.length).toBe(1);
+    expect(result[0].name).toBe('Car Loan');
+  });
+
+  it('excludes loans with paymentAmount = 0', () => {
+    const result = getLoansInWindow({ loans }, wStart, wEnd, 'wants');
+    expect(result.every(l => l.paymentAmount > 0)).toBe(true);
+    expect(result.find(l => l.name === 'NoPay')).toBeUndefined();
+  });
+
+  it('returns empty when no loans fall in the window', () => {
+    const futureStart = new Date('2026-07-01T00:00:00');
+    const futureEnd   = new Date('2026-07-14T00:00:00');
+    const result = getLoansInWindow({ loans }, futureStart, futureEnd, 'wants');
+    expect(result.length).toBe(0);
   });
 });
 

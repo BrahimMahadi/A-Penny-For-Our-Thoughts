@@ -1800,6 +1800,69 @@ describe('PurchasesThisPeriod', () => {
     expect(w.find('.ptp__footer').exists()).toBe(true);
     w.unmount();
   });
+
+  // ── RS-32 — Subscriptions / Loans rows (replace Auto-deducted) ───
+  it('RS-32: shows a "Subscriptions" row (not "Auto-deducted") when a wants sub renews this period', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    // Netflix renews on the 22nd — within May 19–today window
+    budget.addSubscription({ name: 'Netflix', amount: 18, frequency: 'monthly', date: '2026-05-22', category: 'Entertainment', budgetType: 'wants', cardId: null });
+    // Add a purchase so isEmpty is false
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-05-20' });
+
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+
+    const rows = w.findAll('.ptp__cat-row');
+    const rowTexts = rows.map(r => r.text());
+    expect(rowTexts.some(t => t.includes('Subscriptions')), 'should show Subscriptions row').toBe(true);
+    expect(rowTexts.some(t => t.includes('Auto-deducted')), 'should NOT show Auto-deducted').toBe(false);
+
+    vi.useRealTimers();
+    w.unmount();
+  });
+
+  it('RS-32: shows a "Loans" row when a wants loan payment falls this period', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    budget.addLoan({ name: 'Car Loan', remaining: 5000, original: 10000, paymentAmount: 400, frequency: 'monthly', date: '2026-05-21', budgetType: 'wants', cardId: null });
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-05-20' });
+
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+
+    const rows = w.findAll('.ptp__cat-row');
+    expect(rows.some(r => r.text().includes('Loans'))).toBe(true);
+
+    vi.useRealTimers();
+    w.unmount();
+  });
+
+  it('RS-32: shows "Subscriptions" for needs type when a needs sub renews this period', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    // Needs sub (e.g. parking)
+    budget.addSubscription({ name: 'Parking', amount: 40, frequency: 'monthly', date: '2026-05-22', category: 'Transportation', budgetType: 'needs', cardId: null });
+    budget.addPurchase({ name: 'Groceries', amount: 60, category: 'Groceries', cardId: null, budgetType: 'needs', date: '2026-05-20' });
+
+    const w = mount(PurchasesThisPeriod, {
+      props: { typeFilter: 'needs' },
+      attachTo: document.body,
+    });
+    await nextTick();
+
+    const rows = w.findAll('.ptp__cat-row');
+    expect(rows.some(r => r.text().includes('Subscriptions'))).toBe(true);
+
+    vi.useRealTimers();
+    w.unmount();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -4060,6 +4123,157 @@ describe('SpendingPage — CRUD', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+//  SpendingPage — RS-32 virtual rows (subs + loans in table)
+// ─────────────────────────────────────────────────────────────────
+
+describe('SpendingPage — RS-32 virtual rows for subscriptions and loans', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); document.body.innerHTML = ''; });
+  afterEach(() => { vi.useRealTimers(); document.body.innerHTML = ''; });
+
+  it('shows a sub virtual row with "Sub" badge on its renewal date', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    budget.addSubscription({ name: 'Netflix', amount: 18, frequency: 'monthly', date: '2026-05-22', category: 'Entertainment', budgetType: 'wants', cardId: null });
+
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    const text = w.find('.purchases-table').text();
+    expect(text).toContain('Netflix');
+
+    const subBadge = w.findAll('.type-badge--sub');
+    expect(subBadge.length).toBeGreaterThan(0);
+    expect(subBadge[0].text()).toBe('Sub');
+
+    w.unmount();
+  });
+
+  it('shows a loan virtual row with "Loan" badge on its payment date', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    budget.addLoan({ name: 'Car Loan', remaining: 5000, original: 10000, paymentAmount: 400, frequency: 'monthly', date: '2026-05-21', budgetType: 'wants', cardId: null });
+
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    const text = w.find('.purchases-table').text();
+    expect(text).toContain('Car Loan');
+
+    const loanBadge = w.findAll('.type-badge--loan');
+    expect(loanBadge.length).toBeGreaterThan(0);
+    expect(loanBadge[0].text()).toBe('Loan');
+
+    w.unmount();
+  });
+
+  it('virtual rows sort by date alongside manual purchases (newest first)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    // Purchase on the 20th, sub renews on the 22nd → sub should appear BEFORE purchase (newest first)
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-05-20' });
+    budget.addSubscription({ name: 'Netflix', amount: 18, frequency: 'monthly', date: '2026-05-22', category: 'Entertainment', budgetType: 'wants', cardId: null });
+
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    const rows = w.findAll('.purchase-row');
+    const names = rows.map(r => r.find('.col-name').text());
+    // Netflix (22nd) should come before Coffee (20th) when sorted newest-first
+    expect(names.indexOf('Netflix')).toBeLessThan(names.indexOf('Coffee'));
+
+    w.unmount();
+  });
+
+  it('virtual rows are hidden when typeFilter excludes their budget type', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    // Wants sub
+    budget.addSubscription({ name: 'Netflix', amount: 18, frequency: 'monthly', date: '2026-05-22', category: 'Entertainment', budgetType: 'wants', cardId: null });
+
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Default type filter is '' (All) — Netflix should be visible
+    expect(w.find('.purchases-table').text()).toContain('Netflix');
+
+    // Switch to Needs filter via the table's type-filter chips (.cat-chips--type)
+    const needsChip = w.findAll('.cat-chips--type .cat-chip').find(b => b.text().includes('Needs'));
+    await needsChip!.trigger('click');
+    await nextTick();
+
+    expect(w.find('.purchases-table').text()).not.toContain('Netflix');
+
+    w.unmount();
+  });
+
+  it('needs subscription virtual rows appear when needs type filter is active', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    budget.addSubscription({ name: 'Parking', amount: 40, frequency: 'monthly', date: '2026-05-22', category: 'Transportation', budgetType: 'needs', cardId: null });
+
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Switch to Needs filter via table type-filter chips
+    const needsChip = w.findAll('.cat-chips--type .cat-chip').find(b => b.text().includes('Needs'));
+    await needsChip!.trigger('click');
+    await nextTick();
+
+    expect(w.find('.purchases-table').text()).toContain('Parking');
+    expect(w.findAll('.type-badge--sub').length).toBeGreaterThan(0);
+
+    w.unmount();
+  });
+
+  it('period total includes virtual row amounts', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    budget.addPurchase({ name: 'Coffee', amount: 10, category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-05-20' });
+    budget.addSubscription({ name: 'Netflix', amount: 18, frequency: 'monthly', date: '2026-05-22', category: 'Entertainment', budgetType: 'wants', cardId: null });
+
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Total should be $28.00 (10 purchase + 18 sub)
+    const countEl = w.find('.purchases-count');
+    expect(countEl.text()).toContain('28.00');
+
+    w.unmount();
+  });
+
+  it('virtual rows are NOT clickable (no edit modal opens)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    budget.addSubscription({ name: 'Netflix', amount: 18, frequency: 'monthly', date: '2026-05-22', category: 'Entertainment', budgetType: 'wants', cardId: null });
+
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Auto rows have purchase-row--auto class, not purchase-row--clickable
+    const autoRows = w.findAll('.purchase-row--auto');
+    expect(autoRows.length).toBeGreaterThan(0);
+    // They should not have the clickable class
+    expect(autoRows[0].classes()).not.toContain('purchase-row--clickable');
+
+    w.unmount();
+  });
+});
+
 //  SpendingPage — donut uses wants-only data (BUG fix)
 // ─────────────────────────────────────────────────────────────────
 
