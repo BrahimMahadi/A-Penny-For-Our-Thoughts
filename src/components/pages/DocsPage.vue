@@ -341,6 +341,23 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.25.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-32 — Subscriptions &amp; loans in the period view (Spending tab + Dashboard donut)
+            </p>
+            <ul class="docs-list">
+              <li><strong>Subscriptions and loan payments now appear in the Spending tab table.</strong> Every subscription renewal and loan payment that falls within the displayed pay period appears as a read-only row on its exact date, sorted alongside manually-logged purchases. These "virtual" rows are never stored as <code>Purchase</code> objects so they have no effect on archiving, DB sync, or rollover logic. They display a teal <strong>Sub</strong> or amber <strong>Loan</strong> badge instead of the Want/Need badge, and are not clickable (they're managed via the Subscriptions and Loans sections instead).</li>
+              <li><strong>"Purchases This Period" donut now shows Subscriptions and Loans rows separately.</strong> The old single "Auto-deducted" row has been replaced with two distinct rows — one for subscriptions and one for loans. Both now work for the Needs envelope as well as Wants: parking, car insurance, and other needs-type recurring items are correctly reflected when the Needs toggle is active. The period window uses <code>min(today, periodEnd)</code> so only items that have already occurred are counted.</li>
+              <li><strong>Period total includes virtual rows.</strong> The <code>X of Y · $total</code> count in the Spending tab and the <code>filteredAmountTotal</code> both include subscription and loan rows so the figure represents the full money drawn from each envelope.</li>
+              <li><strong>Two new generic calculation helpers.</strong> <code>getSubsInWindow(state, start, end, budgetType)</code> and <code>getLoansInWindow(state, start, end, budgetType)</code> replace the type-locked per-function approach and work for any period offset and any budget type.</li>
+              <li><strong>18 new regression tests.</strong> 8 tests for the new calculation helpers (wants/needs filtering, window edge cases, multi-renewal expansion), 3 for the updated dashboard donut (Subscriptions row, Loans row, needs-type support), 7 for SpendingPage virtual rows (Sub/Loan badges, date sort, type filter, period total, non-clickable).</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.24.0</span>
               <span class="release-date">June 2026</span>
             </div>

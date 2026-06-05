@@ -1718,6 +1718,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-023 | Archived purchases were never deleted from Supabase `purchases` table. On second-device login, DB fetch repopulated `budget.purchases` with stale rows; rollover guard skipped re-archiving because `lastArchivedPeriodStart` was already advanced. All three archive actions now fire `db.purchases.delete` for each archived purchase | `fix/bug-023-024-purchase-archive-sync` | ✅ Complete | v2.23.0 |
 | BUG-024 | Dashboard hero card and `PurchasesThisPeriod` widget summed all entries in `budget.purchases` with no date boundary, disagreeing with SpendingPage's period-scoped view. Both now filter by `[currentPeriodStart, currentPeriodEnd]` using `getPayPeriodForecast` | `fix/bug-023-024-purchase-archive-sync` | ✅ Complete | v2.23.0 |
 | BUG-025 | Dashboard quick-add modal stored category `id` (e.g. `'entertainment'`) instead of display `name` (e.g. `'Entertainment'`). Caused wrong category colour, blank edit-dropdown, and split analytics buckets. Fixed 3 lines in DashboardPage + added `migrateState` normalisation pass for existing data | `fix/bug-025-quick-add-category` | ✅ Complete | v2.24.0 |
+| RS-32 | Subscriptions and loan payments now appear as read-only virtual rows in the Spending tab table on their renewal date, sorted alongside purchases. Dashboard "Purchases This Period" donut splits "Auto-deducted" into separate "Subscriptions" and "Loans" rows, supporting both Wants and Needs envelopes. Added `getSubsInWindow`/`getLoansInWindow` helpers | `feat/rs-32-period-deductions-view` | ✅ Complete | v2.25.0 |
 
 ---
 
@@ -3990,3 +3991,60 @@ Three lines in `DashboardPage.vue` used `c.id` where they should have used `c.na
 
 ### Final gate
 - ✅ 1260/1260 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files
+
+---
+
+## RS-32 — Subscriptions & Loans in Period View ✅
+
+**Branch**: `feat/rs-32-period-deductions-view`
+**Version**: v2.25.0
+**Status**: ✅ **COMPLETE** — June 2026
+
+### Problem
+The "Purchases This Period" dashboard donut had a single "Auto-deducted" row that:
+- Only counted **wants-type** subscriptions and loans (needs-type items like parking, car insurance, car loan payments were silently excluded)
+- Showed a mystery amount with no breakdown of what it came from
+- Was inconsistent with the Spending tab, which showed no auto-deductions at all
+
+### Solution
+Two coordinated changes:
+
+**1. Dashboard donut (`PurchasesThisPeriod.vue`):**
+- Replaced the single "Auto-deducted" row with two separate rows: **Subscriptions** (teal dot) and **Loans** (amber dot)
+- Both rows now work for the active budget type (Wants **or** Needs), so needs-type recurring items appear when the Needs toggle is selected
+- Added `getSubsInWindow`/`getLoansInWindow` helpers and a `periodWindow` computed so the deduction logic is scoped to the exact pay period window rather than being hard-coded to wants-only
+
+**2. Spending tab virtual rows (`SpendingPage.vue`):**
+- Subscription renewals and loan payments that fall within the displayed period appear as **read-only virtual rows** in the table, on their exact date, sorted alongside manual purchases
+- Virtual rows display teal **Sub** or amber **Loan** type badges; purchase rows keep their existing Want/Need badges
+- Subscription rows show their category badge; loan rows (which have no category) show `—`
+- Virtual rows participate in the type filter (Wants/Needs), search (by name), and category filter (subs match their category; loans are hidden when any category filter is active)
+- Virtual rows are **not clickable** — they have `purchase-row--auto` styling and no edit handler
+- Virtual row amounts are included in `filteredAmountTotal` and the `X of Y · $total` count
+- Virtual rows are **never stored** as `Purchase` objects — they are computed at display time from `subscriptions`/`loans` state, so archiving, DB sync, and rollover are completely unaffected
+
+**3. New calculation helpers (`calculations.ts`):**
+- `getSubsInWindow(state, windowStart, windowEnd, budgetType)` — generic, window-based variant of `getSubsDeductedThisPeriod`; works for any offset and any budget type
+- `getLoansInWindow(state, windowStart, windowEnd, budgetType)` — same for loans
+- Existing `getSubsDeductedThisPeriod` / `getLoansDeductedThisPeriod` retained unchanged for backward compat
+
+### Files Changed
+- `src/utils/calculations.ts` — `getSubsInWindow` and `getLoansInWindow` added after `getLoansDeductedThisPeriod`
+- `src/components/sections/PurchasesThisPeriod.vue` — deduction computeds rewritten; "Auto-deducted" row split into "Subscriptions" and "Loans"; `isEmpty` guard simplified
+- `src/components/pages/SpendingPage.vue` — `PeriodicRow` type; `virtualRows`, `filteredVirtualRows`, `allDatedRows` computeds; table template updated; Sub/Loan CSS badges added
+- `tests/utils/calculations.spec.ts` — 8 new tests for `getSubsInWindow` / `getLoansInWindow`
+- `tests/components/sections/sections.spec.ts` — 3 PurchasesThisPeriod tests + 7 SpendingPage virtual-row tests
+- `src/components/onboarding/WhatsNewBanner.vue` — v2.25.0 release notes
+- `tests/components/onboarding.spec.ts` — version strings → 2.25.0
+- `src/components/pages/DocsPage.vue` — v2.25.0 release block
+- `tests/components/pages/pages.spec.ts` — regression-guard includes v2.25.0 + RS-32
+- `CLAUDE.md` — test count → 1278 across 39 spec files
+- `docs/PHASE_TRACKING.md` — this entry
+
+### Tests
+- 18 new tests; 1278/1278 pass across 39 spec files
+- `vue-tsc --noEmit` clean
+- ESLint clean on all touched files
+
+### Final gate
+- ✅ 1278/1278 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files

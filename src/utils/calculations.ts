@@ -333,6 +333,43 @@ export function getLoansDeductedThisPeriod(
     .filter((l) => l.renewalDates.length > 0);
 }
 
+/**
+ * Subs of a given budget type whose renewals fall within [windowStart, windowEnd].
+ *
+ * Generic, window-based variant of `getSubsDeductedThisPeriod` — works for any
+ * period offset (current or past) and any budget type (wants or needs).
+ * Used by PurchasesThisPeriod (dashboard donut) and SpendingPage (virtual rows).
+ */
+export function getSubsInWindow(
+  state: Pick<BudgetState, 'subscriptions'>,
+  windowStart: Date,
+  windowEnd: Date,
+  budgetType: 'wants' | 'needs' = 'wants',
+): SubscriptionWithRenewals[] {
+  return state.subscriptions
+    .filter((s) => (s.budgetType || 'wants') === budgetType)
+    .map((s) => ({ ...s, renewalDates: getRenewalDatesBetween(s, windowStart, windowEnd) }))
+    .filter((s) => s.renewalDates.length > 0);
+}
+
+/**
+ * Loans of a given budget type whose payment dates fall within [windowStart, windowEnd].
+ *
+ * Generic, window-based variant of `getLoansDeductedThisPeriod`.
+ * Used by PurchasesThisPeriod and SpendingPage.
+ */
+export function getLoansInWindow(
+  state: Pick<BudgetState, 'loans'>,
+  windowStart: Date,
+  windowEnd: Date,
+  budgetType: 'wants' | 'needs' = 'wants',
+): LoanWithRenewals[] {
+  return state.loans
+    .filter((l) => (l.budgetType || 'wants') === budgetType && l.paymentAmount > 0 && l.date)
+    .map((l) => ({ ...l, renewalDates: getRenewalDatesBetween(l, windowStart, windowEnd) }))
+    .filter((l) => l.renewalDates.length > 0);
+}
+
 // ─── Budget vs. actual ───────────────────────────────────────────
 
 /** Sum actual needs for the month — fixed expenses + needs subs/loans + needs purchases. */
