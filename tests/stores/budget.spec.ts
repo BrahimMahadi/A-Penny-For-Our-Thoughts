@@ -347,6 +347,66 @@ describe('migrateState — v1 schema migrations', () => {
     expect(migrated.fundsRemaining).toBe(0);
     expect(migrated.payStart).toBe(null);
   });
+
+  // ── BUG-025 — quick-add category id → name normalisation ────────
+  it('BUG-025: normalises purchase category ids to names on load', () => {
+    // Simulate what the old quick-add modal stored: category id ('entertainment')
+    // instead of the category name ('Entertainment').
+    const raw = {
+      spendingCategories: [
+        { id: 'entertainment', name: 'Entertainment', color: '#a78bfa' },
+        { id: 'food-drink',    name: 'Food & Drink',  color: '#ff8c42' },
+        { id: 'other',         name: 'Other',         color: '#8b95ad' },
+      ],
+      purchases: [
+        { id: 'p1', name: 'Netflix',  amount: 15, category: 'entertainment', budgetType: 'wants', cardId: null },
+        { id: 'p2', name: 'Pizza',    amount: 20, category: 'food-drink',    budgetType: 'wants', cardId: null },
+        { id: 'p3', name: 'Misc',     amount: 5,  category: 'other',         budgetType: 'wants', cardId: null },
+      ],
+    };
+    const migrated = migrateState(raw);
+    expect(migrated.purchases[0].category).toBe('Entertainment');
+    expect(migrated.purchases[1].category).toBe('Food & Drink');
+    expect(migrated.purchases[2].category).toBe('Other');
+  });
+
+  it('BUG-025: leaves category unchanged when it already matches a category name', () => {
+    const raw = {
+      spendingCategories: [
+        { id: 'entertainment', name: 'Entertainment', color: '#a78bfa' },
+      ],
+      purchases: [
+        { id: 'p1', name: 'Movie', amount: 12, category: 'Entertainment', budgetType: 'wants', cardId: null },
+      ],
+    };
+    const migrated = migrateState(raw);
+    // 'Entertainment' is a name, not an id — must not be transformed
+    expect(migrated.purchases[0].category).toBe('Entertainment');
+  });
+
+  it('BUG-025: leaves category unchanged when it does not match any known id or name', () => {
+    const raw = {
+      spendingCategories: [
+        { id: 'entertainment', name: 'Entertainment', color: '#a78bfa' },
+      ],
+      purchases: [
+        { id: 'p1', name: 'Custom', amount: 5, category: 'My Custom Category', budgetType: 'wants', cardId: null },
+      ],
+    };
+    const migrated = migrateState(raw);
+    expect(migrated.purchases[0].category).toBe('My Custom Category');
+  });
+
+  it('BUG-025: works correctly when purchases array is empty', () => {
+    const raw = {
+      spendingCategories: [
+        { id: 'entertainment', name: 'Entertainment', color: '#a78bfa' },
+      ],
+      purchases: [],
+    };
+    const migrated = migrateState(raw);
+    expect(migrated.purchases).toHaveLength(0);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────

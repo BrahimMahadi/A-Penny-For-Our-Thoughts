@@ -341,6 +341,21 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.24.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              BUG-025 — Quick-add category name fix + migrateState normalisation
+            </p>
+            <ul class="docs-list">
+              <li><strong>BUG-025 fixed: Dashboard quick-add modal now stores category display names.</strong> The quick-add modal was storing the category <em>id</em> (e.g. <code>'entertainment'</code>) instead of the category <em>name</em> (e.g. <code>'Entertainment'</code>). This caused category badges to render with the wrong colour (fallback grey), the edit-purchase dropdown to show blank, and the spending donut chart / analytics to create a separate bucket for quick-add purchases instead of merging them with the same category from the full add form. Fix: the active-state check and click handler now use <code>c.name</code> instead of <code>c.id</code> throughout the modal.</li>
+              <li><strong>One-time migration for existing data.</strong> Added a normalisation pass to <code>migrateState</code> in the budget store: on the next app load any purchase whose <code>category</code> field matches a known <code>SpendingCategory.id</code> is automatically remapped to the corresponding display name. Existing correctly-named purchases and custom category strings are left untouched.</li>
+              <li><strong>6 new regression tests.</strong> 4 in the budget store asserting the <code>migrateState</code> normalisation handles id→name conversion, already-correct names, unknown strings, and empty arrays correctly. 2 in DashboardPage confirming the modal defaults to the first category <em>name</em> and that submitting the form saves the display name (not the slug id).</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.23.0</span>
               <span class="release-date">June 2026</span>
             </div>

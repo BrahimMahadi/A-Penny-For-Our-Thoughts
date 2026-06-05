@@ -2056,6 +2056,84 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
     expect(headerBtns).toHaveLength(0);
     w.unmount();
   });
+
+  // ── BUG-025 — quick-add modal stores category NAME, not id ───────
+  // The modal is rendered inside a <Teleport to="body"> so DOM queries
+  // must target document.body directly — wrapper.find() only searches
+  // the component's own (non-teleported) DOM tree.
+  it('BUG-025: quick-add modal defaults active category to first category NAME (not id)', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(DashboardPage);
+    await nextTick();
+
+    // Open the quick-add modal via the header "Add purchase" button
+    const openBtn = document.body.querySelector<HTMLButtonElement>('.dash-header .btn-primary');
+    openBtn?.click();
+    await nextTick();
+    await nextTick(); // second tick to let Transition/Teleport fully flush
+
+    // Modal must be open
+    expect(document.body.querySelector('.base-modal'), 'modal should be open').not.toBeNull();
+
+    // The highlighted pill must show the *name* (e.g. 'Food & Drink'),
+    // NOT the id slug (e.g. 'food-drink').  Before the fix, defaultCategory
+    // was initialised from c.id so no pill ever matched quickAddCategory.
+    const activeBtn = document.body.querySelector<HTMLButtonElement>('.quick-add__cat-btn--active');
+    expect(activeBtn, 'one category pill must be active').not.toBeNull();
+    expect(activeBtn!.textContent?.trim()).toBe(budget.spendingCategories[0].name);
+
+    w.unmount();
+    document.body.innerHTML = '';
+  });
+
+  it('BUG-025: submitting quick-add saves purchase with category NAME, not id', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(DashboardPage);
+    await nextTick();
+
+    // Open modal
+    const openBtn = document.body.querySelector<HTMLButtonElement>('.dash-header .btn-primary');
+    openBtn?.click();
+    await nextTick();
+    await nextTick();
+
+    // Pick the 'Entertainment' category pill via direct DOM
+    const pills = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.quick-add__cat-btn'));
+    const entertainmentPill = pills.find(btn => btn.textContent?.trim() === 'Entertainment');
+    expect(entertainmentPill, '"Entertainment" pill should exist in modal').not.toBeNull();
+    entertainmentPill!.click();
+    await nextTick();
+
+    // Fill in name
+    const nameInput = document.body.querySelector<HTMLInputElement>('input.quick-add__input:not(.quick-add__input--amount)');
+    expect(nameInput).not.toBeNull();
+    nameInput!.value = 'Cinema';
+    nameInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    // Fill in amount
+    const amtInput = document.body.querySelector<HTMLInputElement>('input.quick-add__input--amount');
+    expect(amtInput).not.toBeNull();
+    amtInput!.value = '18.50';
+    amtInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    // Submit — find the "Add purchase" button inside the modal footer
+    const footerBtns = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.quick-add__footer .btn-primary'));
+    const submitBtn = footerBtns[0];
+    expect(submitBtn, 'submit button should exist').not.toBeNull();
+    submitBtn!.click();
+    await nextTick();
+
+    // The saved purchase must carry the display name, not the slug id
+    const saved = budget.purchases.find(p => p.name === 'Cinema');
+    expect(saved, 'purchase should have been saved').toBeTruthy();
+    expect(saved!.category).toBe('Entertainment');     // ← name, not 'entertainment'
+    expect(saved!.category).not.toBe('entertainment'); // regression guard
+
+    w.unmount();
+    document.body.innerHTML = '';
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────

@@ -272,6 +272,30 @@ export function migrateState(raw: unknown): BudgetState {
     }));
   }
 
+  // ── BUG-025: normalise purchase category ids → names ────────────
+  // The quick-add modal (Dashboard) previously stored the category *id*
+  // (e.g. 'entertainment') instead of the *name* ('Entertainment').
+  // On the next load, convert any purchase whose category matches a
+  // known SpendingCategory id to the corresponding display name so that
+  // catColor(), the donut chart, the edit-purchase dropdown, and all
+  // analytics code continue to work correctly.
+  //
+  // Safe against:
+  //   • Already-correct data  — 'Entertainment' has no matching id entry,
+  //     so it is left unchanged.
+  //   • Unknown / custom strings — no id match → untouched.
+  //   • 'other' id → 'Other' name conversion.
+  if (Array.isArray(s.spendingCategories) && Array.isArray(s.purchases)) {
+    const idToName = new Map<string, string>(
+      (s.spendingCategories as SpendingCategory[]).map((c) => [c.id, c.name]),
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    s.purchases = (s.purchases as any[]).map((p: any) => {
+      const normalized = idToName.get(p.category);
+      return normalized !== undefined ? { ...p, category: normalized } : p;
+    });
+  }
+
   return s as BudgetState;
 }
 

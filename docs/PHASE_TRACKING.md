@@ -1717,6 +1717,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | RS-31 | Supabase fetch reliability (Level 2): collapse 18 parallel queries into one RPC call (`fetch_user_data(uid)` returning `jsonb_build_object(...)`) so pool pressure becomes structurally impossible. SQL function + RLS audit + db.ts adapter rewrite + contract test | `feat/rs-31-fetch-rpc-collapse` | ✅ Complete | v2.22.0 |
 | BUG-023 | Archived purchases were never deleted from Supabase `purchases` table. On second-device login, DB fetch repopulated `budget.purchases` with stale rows; rollover guard skipped re-archiving because `lastArchivedPeriodStart` was already advanced. All three archive actions now fire `db.purchases.delete` for each archived purchase | `fix/bug-023-024-purchase-archive-sync` | ✅ Complete | v2.23.0 |
 | BUG-024 | Dashboard hero card and `PurchasesThisPeriod` widget summed all entries in `budget.purchases` with no date boundary, disagreeing with SpendingPage's period-scoped view. Both now filter by `[currentPeriodStart, currentPeriodEnd]` using `getPayPeriodForecast` | `fix/bug-023-024-purchase-archive-sync` | ✅ Complete | v2.23.0 |
+| BUG-025 | Dashboard quick-add modal stored category `id` (e.g. `'entertainment'`) instead of display `name` (e.g. `'Entertainment'`). Caused wrong category colour, blank edit-dropdown, and split analytics buckets. Fixed 3 lines in DashboardPage + added `migrateState` normalisation pass for existing data | `fix/bug-025-quick-add-category` | ✅ Complete | v2.24.0 |
 
 ---
 
@@ -3940,3 +3941,52 @@ Also fixed 2 pre-existing `RecurringCalendar` test failures caused by hardcoded 
 
 ### Final gate
 - ✅ 1254/1254 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files
+
+---
+
+## BUG-025 — Quick-add modal category id/name mismatch ✅
+
+**Branch**: `fix/bug-025-quick-add-category`
+**Version**: v2.24.0
+**Status**: ✅ **COMPLETE** — June 2026
+
+### Problem
+The Dashboard quick-add modal's category selector was storing the category **`id`** (e.g. `'entertainment'`) rather than the display **`name`** (e.g. `'Entertainment'`). The rest of the app — `catColor()`, the spending donut, the Spending tab's category filter chips, the edit-purchase dropdown, and analytics — all use `c.name` as the canonical `Purchase.category` value.
+
+Symptoms:
+1. Category badge showed the raw id slug with the fallback grey colour (e.g. `• entertainment` instead of `• Entertainment`)
+2. Opening a quick-add purchase in the edit modal showed a blank category dropdown
+3. The spending donut and analytics created a separate bucket (e.g. `entertainment`) instead of merging with the existing `Entertainment` bucket
+
+### Root cause
+Three lines in `DashboardPage.vue` used `c.id` where they should have used `c.name`:
+
+| Line | Before | After |
+|------|--------|-------|
+| `defaultCategory` computed | `?.id ?? 'other'` | `?.name ?? 'Other'` |
+| category pill active class | `quickAddCategory === c.id` | `quickAddCategory === c.name` |
+| category pill click handler | `quickAddCategory = c.id` | `quickAddCategory = c.name` |
+
+### Fix
+1. **`DashboardPage.vue`** — changed `defaultCategory` and both usages in the category pill template from `c.id` to `c.name`
+2. **`budget.ts` `migrateState`** — added a normalisation pass after the `spendingCategories` block that converts any `Purchase.category` matching a known `SpendingCategory.id` to the corresponding `name`. Runs once on next load; safe for correctly-named values, unknown strings, and empty arrays
+
+### Files Changed
+- `src/components/pages/DashboardPage.vue` — 3 lines: `c.id` → `c.name` for defaultCategory and category pill active/click
+- `src/stores/budget.ts` — BUG-025 normalisation pass in `migrateState`
+- `tests/stores/budget.spec.ts` — 4 new `migrateState` tests for the normalisation
+- `tests/components/sections/sections.spec.ts` — 2 new DashboardPage quick-add tests
+- `src/components/onboarding/WhatsNewBanner.vue` — v2.24.0 release notes
+- `tests/components/onboarding.spec.ts` — version strings → 2.24.0
+- `src/components/pages/DocsPage.vue` — v2.24.0 release block
+- `tests/components/pages/pages.spec.ts` — regression-guard includes v2.24.0 + BUG-025
+- `CLAUDE.md` — test count → 1260 across 39 spec files
+- `docs/PHASE_TRACKING.md` — this entry
+
+### Tests
+- 6 new tests; 1260/1260 pass across 39 spec files
+- `vue-tsc --noEmit` clean
+- ESLint clean on all touched files
+
+### Final gate
+- ✅ 1260/1260 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files
