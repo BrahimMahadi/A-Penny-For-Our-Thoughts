@@ -466,6 +466,24 @@ const purchaseValidation = useFormValidation(() => ({
   amount: rules.positiveNumber(purchaseForm.amount, 'Amount'),
 }));
 
+// ─── Add-purchase preview — always scoped to the CURRENT period ───
+// BUG-026: the preview must use the current pay period (offset = 0),
+// not the displayed period (spendingOffset) and NOT raw budget.purchases
+// (which can contain stale cross-period rows). A purchase added from
+// this form always lands on today's date, so the preview should always
+// reflect today's envelope regardless of which period the user is browsing.
+const currentPeriodWindowForPreview = computed(() =>
+  getPayPeriodForecast(budget.$state, 0, today),
+);
+
+const currentPeriodPurchasesForPreview = computed<Purchase[]>(() => {
+  const w = currentPeriodWindowForPreview.value;
+  if (!w) return budget.purchases;
+  return budget.purchases.filter(
+    p => p.date != null && p.date >= w.periodStart && p.date <= w.periodEnd,
+  );
+});
+
 /** Bi-weekly remaining for the selected budget type, minus the current form amount.
  *  Returns null in edit mode so the preview is not shown. */
 const spendingFormAfter = computed<number | null>(() => {
@@ -475,10 +493,29 @@ const spendingFormAfter = computed<number | null>(() => {
     ? (budget.$state.allocation.needs || 0)
     : (budget.$state.allocation.wants || 0);
   const bwBudget = (totalMonthlyIncome.value * pct / 100) / 2;
-  const spent = budget.purchases
+
+  // Period-scoped spent (BUG-026: was budget.purchases without date filter)
+  const spent = currentPeriodPurchasesForPreview.value
     .filter(p => (p.budgetType ?? 'wants') === type)
     .reduce((s, p) => s + p.amount, 0);
-  return bwBudget - spent - (purchaseForm.amount || 0);
+
+  // Subtract wants-envelope deductions (subs + loans this period) so the
+  // preview matches the DashboardPage quick-add calculation.
+  // Needs envelope does not deduct subs/loans (matches biWeeklyNeedsRemaining).
+  let deductions = 0;
+  const w = currentPeriodWindowForPreview.value;
+  if (type === 'wants' && w) {
+    const wStart = new Date(w.periodStart + 'T00:00:00');
+    const wEnd   = new Date(today);
+    wEnd.setHours(0, 0, 0, 0);
+    deductions =
+      getSubsInWindow(budget.$state, wStart, wEnd, 'wants')
+        .reduce((s, sub)  => s + (+sub.amount        || 0) * sub.renewalDates.length, 0) +
+      getLoansInWindow(budget.$state, wStart, wEnd, 'wants')
+        .reduce((s, loan) => s + (+loan.paymentAmount || 0) * loan.renewalDates.length, 0);
+  }
+
+  return bwBudget - spent - deductions - (purchaseForm.amount || 0);
 });
 
 const spendingFormPreviewLabel = computed(() =>

@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.25.0';
+const APP_VERSION = '2.26.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📅', text: 'RS-32: subscriptions and loan payments now appear as read-only rows in the Spending tab table on the day they occur — complete period view, not just manual purchases' },
-  { icon: '📊', text: 'The "Purchases This Period" dashboard donut now shows separate "Subscriptions" and "Loans" rows (instead of a single "Auto-deducted" total), and these work correctly for both Wants and Needs budget types' },
-  { icon: '🔀', text: 'Subscription and loan rows sort by date alongside manual purchases, respond to the type filter (Wants/Needs) and search, and are visually distinct with teal "Sub" and amber "Loan" badges' },
-  { icon: '🧪', text: '18 new regression tests: 8 for the new getSubsInWindow/getLoansInWindow calculation helpers, 3 for the updated dashboard donut, 7 for SpendingPage virtual rows' },
-  { icon: '✅', text: '1278 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '🔢', text: 'Fixed BUG-026: the "Bi-weekly remaining after" preview in the Spending tab Add Purchase modal now uses only current-period purchases instead of the raw store array, eliminating the -$364 over-budget display caused by stale cross-period data' },
+  { icon: '➕', text: 'The preview also now subtracts subscription and loan deductions for the wants envelope, matching the DashboardPage quick-add behaviour exactly' },
+  { icon: '🔍', text: 'Full app sweep: fixed the same unfiltered-purchases pattern in six additional locations — getEnvelopeForecast, getTriggeredAlerts, calculateActualNeeds, calculateActualWants, getWantsCategoryActuals, and getMonthlyWantsHistory' },
+  { icon: '🧪', text: '6 new regression tests: 1 SpendingPage preview accuracy test, 1 getEnvelopeForecast stale-data guard, 2 getTriggeredAlerts period-filter tests, 1 getWantsCategoryActuals cross-month guard' },
+  { icon: '✅', text: '1284 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();

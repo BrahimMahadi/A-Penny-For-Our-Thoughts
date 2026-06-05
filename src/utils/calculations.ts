@@ -391,8 +391,11 @@ export function calculateActualNeeds(
       (sum, l) => sum + l.paymentAmount * l.renewalDates.length,
       0,
     );
+    // BUG-026: filter to the current calendar month so stale cross-period
+    // rows from a previous month don't inflate this month's actual.
+    const currentMonthStr = `${year}-${String(month).padStart(2, '0')}`;
     const needsPurchaseTotal = state.purchases
-      .filter((p) => p.budgetType === 'needs')
+      .filter((p) => p.budgetType === 'needs' && p.date?.startsWith(currentMonthStr))
       .reduce((sum, p) => sum + p.amount, 0);
     return expenseTotal + needsSubTotal + needsLoanTotal + needsPurchaseTotal;
   }
@@ -412,8 +415,10 @@ export function calculateActualWants(
   const currentMonth = `${cmp.getFullYear()}-${String(cmp.getMonth() + 1).padStart(2, '0')}`;
 
   if (monthStr === currentMonth) {
+    // BUG-026: filter to the current calendar month so cross-month stale
+    // purchases don't inflate this month's wants actual.
     total += state.purchases
-      .filter((p) => (p.budgetType || 'wants') !== 'needs')
+      .filter((p) => (p.budgetType || 'wants') !== 'needs' && p.date?.startsWith(monthStr))
       .reduce((sum, p) => sum + p.amount, 0);
     total += getSubsDeductedThisPeriod(state, today).reduce(
       (sum, sub) => sum + sub.amount * sub.renewalDates.length,
@@ -473,9 +478,11 @@ export function getWantsCategoryActuals(
   const monthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   const map: Record<string, number> = {};
 
-  // Live period purchases (wants only)
+  // Live period purchases (wants only, current month only).
+  // BUG-026: add month filter so stale cross-period purchases don't
+  // show up in the category analytics for the current month.
   state.purchases
-    .filter((p) => (p.budgetType || 'wants') !== 'needs')
+    .filter((p) => (p.budgetType || 'wants') !== 'needs' && p.date?.startsWith(monthStr))
     .forEach((p) => {
       const cat = p.category || 'Other';
       map[cat] = (map[cat] || 0) + p.amount;
@@ -1261,8 +1268,10 @@ export function getMonthlyWantsHistory(
     const categories: Record<string, number> = {};
 
     if (isCurrent) {
+      // BUG-026: filter by monthKey so stale cross-month purchases don't
+      // inflate the current month's total in the 6-month trend chart.
       state.purchases
-        .filter((p) => (p.budgetType || 'wants') !== 'needs')
+        .filter((p) => (p.budgetType || 'wants') !== 'needs' && p.date?.startsWith(monthKey))
         .forEach((p) => {
           total += p.amount;
           const cat = p.category || 'Other';
@@ -1576,9 +1585,17 @@ export function getEnvelopeForecast(
   );
   const daysRemaining = Math.max(0, PERIOD_DAYS - daysElapsed);
 
-  // Purchases (wants only)
+  // Purchases (wants only) — BUG-026: filter to current period so stale
+  // cross-period rows don't inflate the forecast's "spent" total.
+  const periodEndDate = new Date(periodStart.getTime() + PERIOD_DAYS * 86_400_000);
+  const periodEndStr  = periodEndDate.toISOString().split('T')[0] as ISODate;
   const totalSpent = state.purchases
-    .filter((p) => (p.budgetType || 'wants') === 'wants')
+    .filter((p) =>
+      (p.budgetType || 'wants') === 'wants' &&
+      p.date != null &&
+      p.date >= periodStartStr &&
+      p.date <= periodEndStr,
+    )
     .reduce((s, p) => s + p.amount, 0);
 
   // Subscriptions + loans deducted this period
@@ -1651,11 +1668,20 @@ export interface TriggeredAlert extends BudgetAlert {
   spent: number;
 }
 
-/** Alerts whose spent amount exceeds the threshold (current-period purchases). */
+/** Alerts whose spent amount exceeds the threshold (current-period purchases).
+ *
+ * BUG-026: now filters purchases to the current bi-weekly period so
+ * out-of-period / stale rows don't cause phantom alert firings.
+ */
 export function getTriggeredAlerts(
-  state: Pick<BudgetState, 'purchases' | 'budgetAlerts'>,
+  state: Pick<BudgetState, 'purchases' | 'budgetAlerts' | 'payStart'>,
+  today: Date = new Date(),
 ): TriggeredAlert[] {
-  const spending = getCategorySpending(state.purchases);
+  const periodStart = getCurrentPeriodStart(state, today);
+  const periodPurchases = periodStart
+    ? state.purchases.filter(p => p.date != null && p.date >= periodStart)
+    : state.purchases;
+  const spending = getCategorySpending(periodPurchases);
   return state.budgetAlerts
     .map((alert) => ({ ...alert, spent: spending[alert.category] || 0 }))
     .filter((a) => a.spent > a.threshold);

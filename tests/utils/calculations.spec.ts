@@ -363,7 +363,8 @@ describe('calculateActualNeeds / Wants / Savings', () => {
       },
     ],
     purchases: [
-      { id: 'P1', name: 'Coffee', amount: 5, category: 'Food & Drink', cardId: null, budgetType: 'wants' },
+      // BUG-026: date must be in the current month (May 2026) to pass the month filter
+      { id: 'P1', name: 'Coffee', amount: 5, category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-05-10' },
     ],
   });
 
@@ -633,7 +634,8 @@ describe('getMonthlyWantsHistory', () => {
     const today = new Date(2026, 4, 15);
     const state = buildState({
       purchases: [
-        { id: 'P1', name: 'Coffee', amount: 5, category: 'Food & Drink', cardId: null, budgetType: 'wants' },
+        // BUG-026: date must be in May 2026 to pass the month filter
+        { id: 'P1', name: 'Coffee', amount: 5, category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-05-10' },
       ],
     });
     const result = getMonthlyWantsHistory(state, 1, today);
@@ -815,7 +817,8 @@ describe('getEnvelopeForecast', () => {
     const today = new Date('2026-05-08T00:00:00');
     const state = baseState('2026-05-01');
     state.purchases = [
-      { id: 'p1', name: 'Dinner', amount: 210, category: 'Food & Drink', cardId: null, budgetType: 'wants' },
+      // BUG-026: date must be within the period window (2026-05-01..2026-05-14)
+      { id: 'p1', name: 'Dinner', amount: 210, category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-05-04' },
     ];
 
     const result = getEnvelopeForecast(state, today);
@@ -835,7 +838,7 @@ describe('getEnvelopeForecast', () => {
     const today = new Date('2026-05-08T00:00:00');
     const state = baseState('2026-05-01');
     state.purchases = [
-      { id: 'p1', name: 'Shopping', amount: 270, category: 'Other', cardId: null, budgetType: 'wants' },
+      { id: 'p1', name: 'Shopping', amount: 270, category: 'Other', cardId: null, budgetType: 'wants', date: '2026-05-04' },
     ];
 
     const result = getEnvelopeForecast(state, today);
@@ -850,7 +853,7 @@ describe('getEnvelopeForecast', () => {
     const today = new Date('2026-05-08T00:00:00');
     const state = baseState('2026-05-01');
     state.purchases = [
-      { id: 'p1', name: 'Everything', amount: 500, category: 'Other', cardId: null, budgetType: 'wants' },
+      { id: 'p1', name: 'Everything', amount: 500, category: 'Other', cardId: null, budgetType: 'wants', date: '2026-05-04' },
     ];
 
     const result = getEnvelopeForecast(state, today);
@@ -869,8 +872,8 @@ describe('getEnvelopeForecast', () => {
     const today = new Date('2026-05-08T00:00:00');
     const state = baseState('2026-05-01');
     state.purchases = [
-      { id: 'p1', name: 'Groceries', amount: 100, category: 'Food & Drink', cardId: null, budgetType: 'needs' },
-      { id: 'p2', name: 'Coffee',    amount: 50,  category: 'Food & Drink', cardId: null, budgetType: 'wants' },
+      { id: 'p1', name: 'Groceries', amount: 100, category: 'Food & Drink', cardId: null, budgetType: 'needs', date: '2026-05-04' },
+      { id: 'p2', name: 'Coffee',    amount: 50,  category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-05-04' },
     ];
 
     const result = getEnvelopeForecast(state, today);
@@ -878,6 +881,25 @@ describe('getEnvelopeForecast', () => {
     // Only the $50 wants purchase should contribute
     expect(result.dailyRate).toBeCloseTo(50 / 7, 4);
     expect(result.projectedTotal).toBeCloseTo((50 / 7) * 14, 1);
+  });
+
+  // ── BUG-026 regression ──────────────────────────────────────────
+  it('BUG-026: ignores out-of-period purchases (stale cross-period data)', () => {
+    // Simulates a stale purchase from the PREVIOUS period still in state.purchases.
+    // Before BUG-026 it would inflate the forecast; after the fix it is excluded.
+    const today = new Date('2026-05-08T00:00:00');
+    const state = baseState('2026-05-01');
+    state.purchases = [
+      // In-period: should count
+      { id: 'p1', name: 'Coffee',     amount: 50,  category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-05-04' },
+      // Out-of-period: should be ignored (previous period: Apr 17–30)
+      { id: 'p2', name: 'Stale Shop', amount: 400, category: 'Shopping',     cardId: null, budgetType: 'wants', date: '2026-04-25' },
+    ];
+
+    const result = getEnvelopeForecast(state, today);
+
+    // Only the $50 in-period purchase should count
+    expect(result.dailyRate).toBeCloseTo(50 / 7, 4);
   });
 });
 
@@ -923,7 +945,8 @@ describe('getSpendingTrend', () => {
     const today = new Date('2026-03-15T00:00:00');
     const state = buildState({
       purchases: [
-        { id: 'p1', name: 'Coffee', amount: 45, category: 'Food & Drink', cardId: null, budgetType: 'wants' },
+        // BUG-026: date must be in March 2026 to pass the month filter
+        { id: 'p1', name: 'Coffee', amount: 45, category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-03-10' },
       ],
     });
     const rows = getSpendingTrend(state, 1, today);
@@ -1050,9 +1073,10 @@ describe('getWantsCategoryActuals', () => {
   it('aggregates current-period wants purchases by category', () => {
     const state = buildState({
       purchases: [
-        { id: '1', name: 'Coffee', amount: 10, category: 'Food & Drink', budgetType: 'wants', cardId: null },
-        { id: '2', name: 'Burger', amount: 15, category: 'Food & Drink', budgetType: 'wants', cardId: null },
-        { id: '3', name: 'Movie',  amount: 20, category: 'Entertainment', budgetType: 'wants', cardId: null },
+        // BUG-026: all must be dated in May 2026 to pass the month filter
+        { id: '1', name: 'Coffee', amount: 10, category: 'Food & Drink', budgetType: 'wants', cardId: null, date: '2026-05-10' },
+        { id: '2', name: 'Burger', amount: 15, category: 'Food & Drink', budgetType: 'wants', cardId: null, date: '2026-05-12' },
+        { id: '3', name: 'Movie',  amount: 20, category: 'Entertainment', budgetType: 'wants', cardId: null, date: '2026-05-14' },
       ],
     });
     const result = getWantsCategoryActuals(state, today);
@@ -1063,8 +1087,8 @@ describe('getWantsCategoryActuals', () => {
   it('excludes needs purchases', () => {
     const state = buildState({
       purchases: [
-        { id: '1', name: 'Rent', amount: 1000, category: 'Housing', budgetType: 'needs', cardId: null },
-        { id: '2', name: 'Coffee', amount: 5, category: 'Food & Drink', budgetType: 'wants', cardId: null },
+        { id: '1', name: 'Rent', amount: 1000, category: 'Housing', budgetType: 'needs', cardId: null, date: '2026-05-10' },
+        { id: '2', name: 'Coffee', amount: 5, category: 'Food & Drink', budgetType: 'wants', cardId: null, date: '2026-05-10' },
       ],
     });
     const result = getWantsCategoryActuals(state, today);
@@ -1111,11 +1135,66 @@ describe('getWantsCategoryActuals', () => {
   it('falls back to "Other" when category is missing', () => {
     const state = buildState({
       purchases: [
-        { id: '1', name: 'Mystery', amount: 30, category: '', budgetType: 'wants', cardId: null },
+        { id: '1', name: 'Mystery', amount: 30, category: '', budgetType: 'wants', cardId: null, date: '2026-05-10' },
       ],
     });
     const result = getWantsCategoryActuals(state, today);
     expect(result['Other']).toBe(30);
+  });
+
+  it('BUG-026: excludes purchases from a different month', () => {
+    const state = buildState({
+      purchases: [
+        { id: '1', name: 'Current',  amount: 20, category: 'Entertainment', budgetType: 'wants', cardId: null, date: '2026-05-10' },
+        { id: '2', name: 'Stale',    amount: 99, category: 'Entertainment', budgetType: 'wants', cardId: null, date: '2026-04-20' },
+      ],
+    });
+    const result = getWantsCategoryActuals(state, today);
+    // Only the May purchase should be counted
+    expect(result['Entertainment']).toBe(20);
+  });
+});
+
+// ─── getTriggeredAlerts — BUG-026 period filter ──────────────────
+describe('getTriggeredAlerts', () => {
+  it('fires when current-period category spending exceeds threshold', () => {
+    const state = buildState({
+      payStart: '2026-05-01',
+      budgetAlerts: [{ id: 'a1', category: 'Entertainment', threshold: 50 }],
+      purchases: [
+        { id: 'p1', name: 'Concert', amount: 80, category: 'Entertainment', budgetType: 'wants', cardId: null, date: '2026-05-05' },
+      ],
+    });
+    const alerts = getTriggeredAlerts(state, new Date('2026-05-10T00:00:00'));
+    expect(alerts.length).toBe(1);
+    expect(alerts[0].category).toBe('Entertainment');
+    expect(alerts[0].spent).toBe(80);
+  });
+
+  it('BUG-026: does NOT fire when only an out-of-period purchase exceeds threshold', () => {
+    // Stale purchase from a previous period should not trigger an alert
+    const state = buildState({
+      payStart: '2026-05-01',
+      budgetAlerts: [{ id: 'a1', category: 'Shopping', threshold: 50 }],
+      purchases: [
+        { id: 'p1', name: 'Old Shop', amount: 300, category: 'Shopping', budgetType: 'wants', cardId: null, date: '2026-04-15' },
+      ],
+    });
+    const alerts = getTriggeredAlerts(state, new Date('2026-05-10T00:00:00'));
+    expect(alerts.length).toBe(0);
+  });
+
+  it('does not fire when no payStart is set (full purchases list is used as fallback)', () => {
+    const state = buildState({
+      // payStart: null (default)
+      budgetAlerts: [{ id: 'a1', category: 'Food & Drink', threshold: 10 }],
+      purchases: [
+        { id: 'p1', name: 'Coffee', amount: 5, category: 'Food & Drink', budgetType: 'wants', cardId: null },
+      ],
+    });
+    const alerts = getTriggeredAlerts(state, new Date('2026-05-10T00:00:00'));
+    // payStart=null → fallback to all purchases → $5 < $10 threshold → no alert
+    expect(alerts.length).toBe(0);
   });
 });
 
