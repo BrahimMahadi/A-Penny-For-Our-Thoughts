@@ -1715,6 +1715,8 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-022 | `migrate.yml` regenerated `src/types/database.ts` after RS-29's SQL migration, wiping the hand-maintained `*Row` re-export block at the bottom; `npm run type-check` failed in CI on every `db.ts` import. Restored the block, updated the workflow to re-append it automatically, added a contract test to catch future drift | `fix/bug-022-database-types-regenerate` | ✅ Complete | v2.20.1 |
 | RS-30 | Supabase fetch reliability (Level 1): bump fetch timeout 20s → 30s; add single automatic retry on timeout via new `fetchUserDataWithRetry` helper; calmer toast wording for the "tried twice" path | `feat/rs-30-supabase-fetch-retry` | ✅ Complete | v2.21.0 |
 | RS-31 | Supabase fetch reliability (Level 2): collapse 18 parallel queries into one RPC call (`fetch_user_data(uid)` returning `jsonb_build_object(...)`) so pool pressure becomes structurally impossible. SQL function + RLS audit + db.ts adapter rewrite + contract test | `feat/rs-31-fetch-rpc-collapse` | ✅ Complete | v2.22.0 |
+| BUG-023 | Archived purchases were never deleted from Supabase `purchases` table. On second-device login, DB fetch repopulated `budget.purchases` with stale rows; rollover guard skipped re-archiving because `lastArchivedPeriodStart` was already advanced. All three archive actions now fire `db.purchases.delete` for each archived purchase | `fix/bug-023-024-purchase-archive-sync` | ✅ Complete | v2.23.0 |
+| BUG-024 | Dashboard hero card and `PurchasesThisPeriod` widget summed all entries in `budget.purchases` with no date boundary, disagreeing with SpendingPage's period-scoped view. Both now filter by `[currentPeriodStart, currentPeriodEnd]` using `getPayPeriodForecast` | `fix/bug-023-024-purchase-archive-sync` | ✅ Complete | v2.23.0 |
 
 ---
 
@@ -3844,3 +3846,97 @@ This catches the "new table added, forgot to wire it through the RPC" failure mo
 
 ### Final gate
 - ✅ 1240/1240 tests pass · `vue-tsc --noEmit` clean · `eslint` clean on touched files
+
+---
+
+## BUG-023 — Archived purchases not deleted from Supabase ✅
+**Branch**: `fix/bug-023-024-purchase-archive-sync`
+**Version**: v2.23.0
+**Status**: ✅ Complete
+
+### Symptom
+After a bi-weekly period reset on Device A, logging into the app on Device B showed the Dashboard with purchases from the previous period still counted in the "Available to Spend" hero card. The Spending tab correctly showed only the new period's data.
+
+The root cause was identified when the user noticed the bug appeared specifically after logging in on a second device — a clear DB sync gap rather than a display-only issue.
+
+### Root Cause
+All three archive actions (`closeCurrentPeriod`, `closeCurrentPeriodManually`, `autoArchiveMissedPeriods`) correctly:
+- Moved purchases to `spendingHistory` in local state
+- Inserted the new `SpendingHistoryPeriod` to Supabase
+- Advanced `lastArchivedPeriodStart` in the profile
+
+But **never** deleted the archived rows from the Supabase `purchases` table.
+
+On Device B:
+1. `initStore` → `fetch_user_data(uid)` RPC → returns all purchases (stale + current) from DB
+2. `lastArchivedPeriodStart` was already advanced by Device A
+3. `autoArchiveMissedPeriods` runs → guard check `currentStart <= lastArchivedPeriodStart` → returns 0 (no-op)
+4. Stale purchases remain in `budget.purchases` permanently
+
+### Fix (`src/stores/budget.ts`)
+Added `syncDb(() => db.purchases.delete(_userId, p.id), ...)` calls after each archive action:
+- `closeCurrentPeriod`: iterates `itemsToArchive` and deletes each
+- `closeCurrentPeriodManually`: same
+- `autoArchiveMissedPeriods`: computes `archivedPurchases = this.purchases.filter(p => !liveIds.has(p.id))` before committing, then deletes each
+
+### Tests (`tests/stores/purchaseArchiveSync.spec.ts`)
+9 new tests with a module-level `@/lib/db` mock and a real `_userId` via `initStore`:
+- `closeCurrentPeriod` calls delete for each archived purchase; no-op when array empty
+- `closeCurrentPeriodManually` calls delete for all three purchases including future-dated ones
+- `autoArchiveMissedPeriods` deletes archived purchases, preserves live ones, no-ops on init and on re-run in same period
+- "Cross-device scenario" test that directly simulates Device B re-loading stale DB purchases and verifies they get deleted on the next rollover
+
+---
+
+## BUG-024 — Dashboard period date filter missing ✅
+**Branch**: `fix/bug-023-024-purchase-archive-sync`
+**Version**: v2.23.0
+**Status**: ✅ Complete
+
+### Symptom
+The Dashboard hero card ("Available to Spend") and "Purchases This Period" donut widget summed **all** entries in `budget.purchases` regardless of date. The Spending tab applied a `[periodStart, periodEnd]` filter via `purchasesInPeriod`. When BUG-023 caused stale purchases to persist in the array, the Dashboard showed inflated totals while the Spending tab was correct.
+
+BUG-024 is independent of BUG-023 — even with the DB sync fixed, undated purchases (which the rollover sends to the most-recent missed period, not the live array) would still be counted. The period filter is architecturally correct regardless.
+
+### Fix
+**`src/components/pages/DashboardPage.vue`**:
+- Added `currentPeriod = computed(() => getPayPeriodForecast(budget.$state, 0, today))`
+- Added `currentPeriodPurchases` computed that filters `budget.purchases` to `[periodStart, periodEnd]` (falling back to all purchases when `payStart` isn't set yet)
+- `biWeeklySpent` and `biWeeklyNeedsSpent` now source from `currentPeriodPurchases`
+
+**`src/components/sections/PurchasesThisPeriod.vue`**:
+- Same pattern: added `currentPeriod` + `periodPurchases` computeds
+- `filteredPurchases` now chains type-filter on top of the period filter
+
+Both components now match `SpendingPage.vue`'s `purchasesInPeriod` exactly.
+
+### Tests (`tests/components/sections/sections.spec.ts`)
+5 new BUG-024 tests (2 for DashboardPage, 3 for PurchasesThisPeriod), all using `vi.setSystemTime` to pin "today" for a predictable period window:
+- Hero card only sums in-period purchases; out-of-period purchases ignored
+- Hero card shows $0 when all purchases are from a previous period
+- Undated purchases excluded from period total
+- PTP donut caption reflects only in-period total
+- PTP shows empty state when only out-of-period purchases exist
+
+Also fixed 2 pre-existing `RecurringCalendar` test failures caused by hardcoded `2026-05-19` `payStart` dates whose pay-period window had drifted into the past as real time advanced. Fixed by adding `vi.useFakeTimers()` + `vi.setSystemTime('2026-05-25')` to each test.
+
+### Files Changed
+- `src/stores/budget.ts` — delete archived purchases from DB in all three archive actions
+- `src/components/pages/DashboardPage.vue` — period-scoped `currentPeriodPurchases` computed
+- `src/components/sections/PurchasesThisPeriod.vue` — period-scoped `periodPurchases` computed
+- `tests/stores/purchaseArchiveSync.spec.ts` — NEW: 9 BUG-023 regression tests
+- `tests/components/sections/sections.spec.ts` — 7 new tests (5 BUG-024 + 2 pre-existing fixes)
+- `src/components/onboarding/WhatsNewBanner.vue` — v2.23.0 release notes
+- `tests/components/onboarding.spec.ts` — version strings → 2.23.0
+- `src/components/pages/DocsPage.vue` — v2.23.0 release block
+- `tests/components/pages/pages.spec.ts` — regression-guard includes v2.23.0 + BUG-023/024
+- `CLAUDE.md` — test count → 1254 across 39 spec files
+- `docs/PHASE_TRACKING.md` — this entry
+
+### Tests
+- 14 new tests; 1254/1254 pass across 39 spec files
+- `vue-tsc --noEmit` clean
+- ESLint clean on all touched files
+
+### Final gate
+- ✅ 1254/1254 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files
