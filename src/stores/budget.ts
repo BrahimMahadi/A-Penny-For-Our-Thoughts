@@ -956,6 +956,14 @@ export const useBudgetStore = defineStore('budget', {
       this.spendingHistory.push(period);
       this.purchases = [];
       syncDb(() => db.spendingHistory.insertPeriod(_userId, period), 'closeCurrentPeriod');
+      // BUG-023: the archived purchases must also be deleted from the
+      // `purchases` Supabase table. Without this, a second device loading
+      // from the DB would see all the old purchases in `budget.purchases`,
+      // and the rollover guard (lastArchivedPeriodStart already advanced)
+      // would silently skip re-archiving them.
+      for (const p of itemsToArchive) {
+        syncDb(() => db.purchases.delete(_userId, p.id), 'closeCurrentPeriod:deletePurchase');
+      }
       return period;
     },
 
@@ -1018,6 +1026,11 @@ export const useBudgetStore = defineStore('budget', {
         () => upsertProfile(_userId, { lastArchivedPeriodStart: this.lastArchivedPeriodStart }),
         'closeCurrentPeriodManually:lastArchivedPeriodStart',
       );
+      // BUG-023: delete archived purchases from the DB so a second device
+      // does not re-load them as live current-period purchases.
+      for (const p of itemsToArchive) {
+        syncDb(() => db.purchases.delete(_userId, p.id), 'closeCurrentPeriodManually:deletePurchase');
+      }
       return period;
     },
 
@@ -1143,6 +1156,12 @@ export const useBudgetStore = defineStore('budget', {
         };
       });
 
+      // Collect all purchases that were bucketed (archived) — needed for the
+      // DB delete below. Compute before committing so `this.purchases` is
+      // still the original full array at the point we read the IDs.
+      const liveIds = new Set(live.map((p) => p.id));
+      const archivedPurchases = this.purchases.filter((p) => !liveIds.has(p.id));
+
       // Commit
       this.spendingHistory = [...this.spendingHistory, ...newPeriods];
       this.purchases = live;
@@ -1160,6 +1179,16 @@ export const useBudgetStore = defineStore('budget', {
           () => db.spendingHistory.insertPeriod(_userId, period),
           'autoArchiveMissedPeriods',
         );
+      }
+
+      // BUG-023: delete archived purchases from the Supabase `purchases`
+      // table. Without this, the DB still contains the pre-rollover rows.
+      // A second device loading from the DB would re-hydrate them into
+      // `budget.purchases`, and the lastArchivedPeriodStart guard would
+      // prevent re-archiving — leaving stale purchases in the live array
+      // indefinitely (the discrepancy seen between devices after a reset).
+      for (const p of archivedPurchases) {
+        syncDb(() => db.purchases.delete(_userId, p.id), 'autoArchiveMissedPeriods:deletePurchase');
       }
 
       return newPeriods.length;

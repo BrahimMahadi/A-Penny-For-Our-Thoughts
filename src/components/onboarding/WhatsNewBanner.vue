@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.22.0';
+const APP_VERSION = '2.23.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🚀', text: 'Supabase sync collapsed from 18 parallel queries into a single RPC call (fetch_user_data). Pool pressure on the free tier is now structurally impossible — not just papered over by the retry' },
-  { icon: '🔒', text: 'The new RPC function runs as security invoker with a belt-and-braces auth.uid() check, so RLS still enforces per-user isolation on every subquery — same security model, just one round trip instead of eighteen' },
-  { icon: '🧪', text: 'New 13-test SQL contract suite reads the migration file and pins the function signature, key shape, ordering, and grants — so adding a future table to the schema without wiring it through the RPC fails loudly in PR review, not silently at runtime' },
-  { icon: '🛟', text: 'RS-30\'s retry helper kept as a defensive belt-and-braces. Cost is near-zero and it covers the transient deploy window where migrate.yml and deploy.yml race on push to main' },
-  { icon: '✅', text: '1240 tests passing, zero TypeScript errors, zero new ESLint warnings — full quality gate maintained' },
+  { icon: '🔄', text: 'Fixed a multi-device sync bug: when a bi-weekly period reset, the archived purchases were not being deleted from Supabase. Logging in on a second device would pull those stale rows back and show inflated totals on the Dashboard' },
+  { icon: '📊', text: 'Fixed the Dashboard hero card and "Purchases This Period" widget to only count purchases within the current bi-weekly window — matching how the Spending tab has always worked. Previously they summed all purchases in the array regardless of date' },
+  { icon: '🧪', text: '14 new regression tests: 9 for the DB sync fix (one specifically reproduces the Device B scenario) and 5 for the Dashboard date-filter correctness' },
+  { icon: '🐛', text: 'Also fixed 2 pre-existing RecurringCalendar test failures caused by hardcoded May 2026 dates that had drifted into the past — now pinned with fake timers' },
+  { icon: '✅', text: '1254 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();

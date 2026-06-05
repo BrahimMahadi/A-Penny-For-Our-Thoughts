@@ -42,6 +42,7 @@ import { fmt }           from '@/utils/format';
 import {
   getSubsDeductedThisPeriod,
   getLoansDeductedThisPeriod,
+  getPayPeriodForecast,
 } from '@/utils/calculations';
 import type { Purchase } from '@/types/budget';
 
@@ -72,13 +73,36 @@ const {
 // ─── Page header ───────────────────────────────────────────────────
 const today = new Date();
 
+// ─── Current pay-period window (offset 0 = in-progress period) ────
+// BUG-024: the Dashboard must date-filter purchases to the current
+// period window, exactly as SpendingPage does. Without this, any
+// purchases that survived in `budget.purchases` beyond a rollover
+// (due to the BUG-023 DB sync gap) would silently inflate the totals.
+// Even after BUG-023 is fixed this remains the correct behaviour —
+// undated purchases and any edge-case DB drift are filtered out rather
+// than silently counted.
+const currentPeriod = computed(() => getPayPeriodForecast(budget.$state, 0, today));
+
+/**
+ * Purchases that fall within the current bi-weekly period window.
+ * Mirrors the `purchasesInPeriod` filter in SpendingPage so both tabs
+ * always show the same set of purchases.
+ */
+const currentPeriodPurchases = computed<Purchase[]>(() => {
+  if (!currentPeriod.value) return budget.purchases; // no payStart set yet
+  const { periodStart, periodEnd } = currentPeriod.value;
+  return budget.purchases.filter(
+    p => p.date && p.date >= periodStart && p.date <= periodEnd,
+  );
+});
+
 // ─── Hero KPI: bi-weekly wants envelope ───────────────────────────
 const biWeeklyBudget = computed(() =>
   (totalMonthlyIncome.value * (budget.allocation.wants / 100)) / 2,
 );
 
 const biWeeklySpent = computed(() =>
-  budget.purchases
+  currentPeriodPurchases.value
     .filter(p => (p.budgetType || 'wants') === 'wants')
     .reduce((s, p) => s + p.amount, 0),
 );
@@ -248,9 +272,9 @@ const biWeeklyNeedsBudget = computed(() =>
   (totalMonthlyIncome.value * (budget.allocation.needs / 100)) / 2,
 );
 
-/** All needs purchases spent so far this period. */
+/** All needs purchases spent so far this period (current window only). */
 const biWeeklyNeedsSpent = computed(() =>
-  budget.purchases
+  currentPeriodPurchases.value
     .filter(p => p.budgetType === 'needs')
     .reduce((s, p) => s + p.amount, 0),
 );

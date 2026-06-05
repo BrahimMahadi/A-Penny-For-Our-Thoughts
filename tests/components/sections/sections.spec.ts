@@ -1387,6 +1387,10 @@ describe('RecurringCalendar — loan badges', () => {
   });
 
   it('pay period view shows the loan name as a cal-event when loan falls in the window', async () => {
+    // Pin "today" so the period window is always predictable regardless of
+    // when this test runs. payStart anchors the period to May 19 – Jun 1.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
     const budget = useBudgetStore();
     const ui = useUiStore();
     // Pay period: May 19 – Jun 1; loan on May 22 is inside the window
@@ -1409,6 +1413,7 @@ describe('RecurringCalendar — loan badges', () => {
     const eventNames = w.findAll('.cal-event-name').map(e => e.text());
     expect(eventNames.some(t => t.includes('PP Loan'))).toBe(true);
     w.unmount();
+    vi.useRealTimers();
   });
 
   it('loan badge does NOT appear when paymentAmount is 0', async () => {
@@ -2404,6 +2409,9 @@ describe('RecurringCalendar — day detail slide panel', () => {
   });
 
   it('pay-period cell with matching modelValue gets .cal-selected class', async () => {
+    // Pin "today" so the pay period window is always predictable.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
     const budget = useBudgetStore();
     const ui = useUiStore();
     budget.payStart = '2026-05-19';
@@ -2426,6 +2434,7 @@ describe('RecurringCalendar — day detail slide panel', () => {
     await nextTick();
     expect(w.find('.cal-selected').exists()).toBe(true);
     w.unmount();
+    vi.useRealTimers();
   });
 });
 
@@ -4223,6 +4232,139 @@ describe('DashboardPage — RS-16 shared type toggle', () => {
     const needsAmountText = w.find('.kpi-hero__amount').text();
     // The two views should show different numbers
     expect(needsAmountText).not.toBe(wantsAmountText);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  BUG-024 — Dashboard + PurchasesThisPeriod period date filter
+//
+//  Before the fix `biWeeklySpent` and `filteredPurchases` summed ALL
+//  purchases in `budget.purchases` with no date boundary. After a
+//  device-B load scenario (BUG-023), stale purchases from the previous
+//  period would be present and would inflate the hero-card totals.
+//
+//  The fix: both components date-filter `budget.purchases` to the
+//  current bi-weekly window [periodStart, periodEnd] exactly as
+//  SpendingPage does. Tests below pin "today" with fake timers so the
+//  period window is predictable.
+// ─────────────────────────────────────────────────────────────────
+
+describe('BUG-024 — DashboardPage hero KPI only counts current-period purchases', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    document.body.innerHTML = '';
+    // Pin today to 2026-05-25. payStart = 2026-05-19 → period: May 19 – Jun 1.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+  });
+  afterEach(() => {
+    document.body.innerHTML = '';
+    vi.useRealTimers();
+  });
+
+  it('hero card only sums wants purchases within the current period window', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+
+    // In-period purchase (May 22 is inside May 19 – Jun 1)
+    budget.addPurchase({ name: 'InPeriod',    amount: 50, category: 'Food', cardId: null, budgetType: 'wants', date: '2026-05-22' });
+    // Out-of-period purchase (May 3 is in the PREVIOUS period)
+    budget.addPurchase({ name: 'OutOfPeriod', amount: 999, category: 'Food', cardId: null, budgetType: 'wants', date: '2026-05-03' });
+
+    const w = mountWith(DashboardPage);
+    await nextTick();
+
+    // The hero card amount text should NOT contain 999 (old period) or 1049 (sum of both)
+    const heroText = w.find('.kpi-hero__amount').text();
+    expect(heroText).not.toContain('999');
+    expect(heroText).not.toContain('1,049');
+    // It should reflect only the in-period purchase ($50)
+    expect(heroText).toContain('50');
+    w.unmount();
+  });
+
+  it('hero card shows $0 when the only purchases are from a previous period', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+
+    // All purchases pre-date the current period window
+    budget.addPurchase({ name: 'Old1', amount: 100, category: 'Food', cardId: null, budgetType: 'wants', date: '2026-05-01' });
+    budget.addPurchase({ name: 'Old2', amount: 200, category: 'Food', cardId: null, budgetType: 'wants', date: '2026-05-10' });
+
+    const w = mountWith(DashboardPage);
+    await nextTick();
+
+    const heroText = w.find('.kpi-hero__amount').text();
+    // Old-period purchases must not appear in the hero spent/remaining display
+    expect(heroText).not.toContain('100');
+    expect(heroText).not.toContain('200');
+    expect(heroText).not.toContain('300');
+    w.unmount();
+  });
+
+  it('undated purchases are excluded from the period total (no date = not in window)', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+
+    budget.addPurchase({ name: 'Undated', amount: 77, category: 'Other', cardId: null, budgetType: 'wants' });
+    budget.addPurchase({ name: 'Dated',   amount: 10, category: 'Other', cardId: null, budgetType: 'wants', date: '2026-05-22' });
+
+    const w = mountWith(DashboardPage);
+    await nextTick();
+
+    const heroText = w.find('.kpi-hero__amount').text();
+    // Undated purchase ($77) must not inflate the total
+    expect(heroText).not.toContain('77');
+    expect(heroText).not.toContain('87');
+    w.unmount();
+  });
+});
+
+describe('BUG-024 — PurchasesThisPeriod only counts current-period purchases', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    document.body.innerHTML = '';
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+  });
+  afterEach(() => {
+    document.body.innerHTML = '';
+    vi.useRealTimers();
+  });
+
+  it('donut total reflects only current-period purchases', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+
+    // In-period
+    budget.addPurchase({ name: 'InPeriod', amount: 40, category: 'Food', cardId: null, budgetType: 'wants', date: '2026-05-22' });
+    // Out-of-period (stale — simulates BUG-023 scenario on Device B)
+    budget.addPurchase({ name: 'Stale',    amount: 500, category: 'Food', cardId: null, budgetType: 'wants', date: '2026-05-01' });
+
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+
+    const captionText = w.find('.ptp__donut-caption').text();
+    // Caption shows "totalSpent / budget". Should reflect $40 not $540.
+    expect(captionText).toContain('$40');
+    expect(captionText).not.toContain('540');
+    w.unmount();
+  });
+
+  it('shows empty state when only out-of-period purchases exist', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+
+    // Only old purchases — none in the current window
+    budget.addPurchase({ name: 'OldPurchase', amount: 200, category: 'Food', cardId: null, budgetType: 'wants', date: '2026-05-01' });
+
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+
+    expect(w.find('.ptp__empty').exists()).toBe(true);
     w.unmount();
   });
 });

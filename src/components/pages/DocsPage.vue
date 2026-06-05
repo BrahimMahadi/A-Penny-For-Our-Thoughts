@@ -341,6 +341,21 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.23.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              BUG-023 / BUG-024 — Multi-device sync fix + Dashboard period filter
+            </p>
+            <ul class="docs-list">
+              <li><strong>BUG-023 fixed: archived purchases now deleted from Supabase.</strong> When a bi-weekly period reset, the archived purchases were moved out of <code>budget.purchases</code> in memory but were never deleted from the <code>purchases</code> table in Supabase. On a second device, loading from the DB would repopulate the live array with all those stale rows. Because <code>lastArchivedPeriodStart</code> was already advanced, the rollover guard would skip re-archiving, leaving the old purchases in the Dashboard totals indefinitely. Fix: all three archive actions (<code>closeCurrentPeriod</code>, <code>closeCurrentPeriodManually</code>, <code>autoArchiveMissedPeriods</code>) now fire <code>db.purchases.delete</code> for each row they move to history.</li>
+              <li><strong>BUG-024 fixed: Dashboard now date-filters purchases to the current period.</strong> The hero "Available to Spend" card and "Purchases This Period" widget were summing <em>all</em> purchases in <code>budget.purchases</code> with no date boundary — matching the Spending tab's <code>purchasesInPeriod</code> behaviour was the intended design. The fix adds a <code>currentPeriodPurchases</code> computed that filters by <code>[periodStart, periodEnd]</code> exactly as SpendingPage does, so both tabs always agree. This also independently protects against any future DB drift.</li>
+              <li><strong>14 new regression tests.</strong> 9 tests for BUG-023 including a "cross-device scenario" that directly simulates Device B loading stale purchases after the rollover anchor was already advanced. 5 tests for BUG-024 confirming the hero card and donut widget ignore out-of-period and undated purchases. 2 pre-existing RecurringCalendar test failures (hardcoded May 2026 dates that drifted into the past) also fixed by pinning with fake timers.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.22.0</span>
               <span class="release-date">May 2026</span>
             </div>

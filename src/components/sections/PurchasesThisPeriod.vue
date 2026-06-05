@@ -22,6 +22,7 @@ import {
   getCategorySpending,
   getSubsDeductedThisPeriod,
   getLoansDeductedThisPeriod,
+  getPayPeriodForecast,
 } from '@/utils/calculations';
 import { CATEGORY_FALLBACK_COLOR } from '@/data/categories';
 
@@ -63,11 +64,24 @@ const deductionTotal = computed(() => {
   return subTotal + loanTotal;
 });
 
-// ─── Filtered purchases ───────────────────────────────────────────
+// ─── Current period window ────────────────────────────────────────
+// BUG-024: scope to the current bi-weekly window so stale purchases
+// that survived a rollover (BUG-023 DB sync gap) don't inflate totals.
+const currentPeriod = computed(() => getPayPeriodForecast(budget.$state, 0, today));
+
+const periodPurchases = computed(() => {
+  if (!currentPeriod.value) return budget.purchases;
+  const { periodStart, periodEnd } = currentPeriod.value;
+  return budget.purchases.filter(
+    p => p.date && p.date >= periodStart && p.date <= periodEnd,
+  );
+});
+
+// ─── Filtered purchases (type + period) ──────────────────────────
 const filteredPurchases = computed(() =>
   props.typeFilter === 'needs'
-    ? budget.purchases.filter(p => p.budgetType === 'needs')
-    : budget.purchases.filter(p => (p.budgetType || 'wants') === 'wants'),
+    ? periodPurchases.value.filter(p => p.budgetType === 'needs')
+    : periodPurchases.value.filter(p => (p.budgetType || 'wants') === 'wants'),
 );
 
 // ─── Category spending (type-filtered) ───────────────────────────
