@@ -262,7 +262,7 @@ const quickAddValidation = useFormValidation(() => ({
 const quickAddCats = computed(() => budget.spendingCategories);
 
 const defaultCategory = computed(() =>
-  quickAddCats.value[0]?.id ?? 'other',
+  quickAddCats.value[0]?.name ?? 'Other',
 );
 
 const quickAddCategory = ref(defaultCategory.value);
@@ -697,10 +697,10 @@ onMounted(() => {
             v-for="c in quickAddCats"
             :key="c.id"
             class="quick-add__cat-btn"
-            :class="{ 'quick-add__cat-btn--active': quickAddCategory === c.id }"
-            :style="quickAddCategory === c.id ? `--cat-color: ${c.color}` : ''"
+            :class="{ 'quick-add__cat-btn--active': quickAddCategory === c.name }"
+            :style="quickAddCategory === c.name ? `--cat-color: ${c.color}` : ''"
             type="button"
-            @click="quickAddCategory = c.id"
+            @click="quickAddCategory = c.name"
           >
             {{ c.name }}
           </button>

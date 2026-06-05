@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.23.0';
+const APP_VERSION = '2.24.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🔄', text: 'Fixed a multi-device sync bug: when a bi-weekly period reset, the archived purchases were not being deleted from Supabase. Logging in on a second device would pull those stale rows back and show inflated totals on the Dashboard' },
-  { icon: '📊', text: 'Fixed the Dashboard hero card and "Purchases This Period" widget to only count purchases within the current bi-weekly window — matching how the Spending tab has always worked. Previously they summed all purchases in the array regardless of date' },
-  { icon: '🧪', text: '14 new regression tests: 9 for the DB sync fix (one specifically reproduces the Device B scenario) and 5 for the Dashboard date-filter correctness' },
-  { icon: '🐛', text: 'Also fixed 2 pre-existing RecurringCalendar test failures caused by hardcoded May 2026 dates that had drifted into the past — now pinned with fake timers' },
-  { icon: '✅', text: '1254 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '🏷️', text: 'Fixed BUG-025: the Dashboard quick-add modal was storing category IDs (e.g. "entertainment") instead of display names (e.g. "Entertainment"), causing the category badge to render incorrectly and the edit-purchase dropdown to show blank' },
+  { icon: '🔄', text: 'Added a one-time data migration in migrateState that normalises any existing purchases with stored category IDs to their correct display names — no manual action required' },
+  { icon: '🧪', text: '6 new regression tests: 4 in the budget store for the migrateState normalisation, 2 in DashboardPage verifying the quick-add modal saves the category name not the id' },
+  { icon: '📊', text: 'Category colours, the spending donut chart, filter chips, and analytics now correctly group all purchases — including those added via quick-add — under the same category bucket' },
+  { icon: '✅', text: '1260 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();
