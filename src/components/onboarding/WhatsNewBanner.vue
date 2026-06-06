@@ -22,16 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.32.0';
+const APP_VERSION = '2.33.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📅', text: 'RS-33: the date picker in the Add/Edit Purchase modal is now constrained to the current pay-period window — you can no longer accidentally date a purchase outside the period, which was the root cause of several past sync/display bugs' },
-  { icon: '⏭️', text: 'You can still date a purchase later within the current period (e.g. a charge you know is coming this week), but not into a past or future period' },
-  { icon: '🔒', text: 'The "+ Add" button is now disabled when you navigate to a past or upcoming period, with a hint linking back to the current period — purchases can only be added to the period in progress' },
-  { icon: '🧪', text: '5 new regression tests covering the date bounds, future-within-period dates, the disabled state + hint, and the save-time guard' },
-  { icon: '✅', text: '1297 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '🔁', text: 'Fixed BUG-032: subscriptions no longer show "Expired" after their renewal date passes — the card now rolls forward to the next renewal date automatically based on the subscription frequency' },
+  { icon: '📆', text: 'On the day a subscription is due it now shows "Due today" with a "Today" badge; otherwise it counts down to the next renewal' },
+  { icon: '✏️', text: 'Editing a subscription now pre-fills the upcoming renewal date instead of a stale past one. (The underlying budget/forecast maths were always correct — this was a display-only fix.)' },
+  { icon: '🧪', text: '5 new regression tests covering past-anchor roll-forward (monthly + biweekly), the due-today state, the edit pre-fill, and custom-days subs' },
+  { icon: '✅', text: '1302 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();

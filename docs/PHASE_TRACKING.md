@@ -1726,6 +1726,8 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-030 | Spending tab "Daily average" and "Top category" KPI tiles always showed all-types figures, ignoring the Wants / Needs toggle in the Spent This Period card. `dailyAvg` divided `totalSpentInPeriod` and `topCategoryInfo` ran over all period purchases. Both now source from `donutPurchases` / `wantsSpentInPeriod` so all three top KPIs follow the toggle together | `fix/bug-030-spending-kpi-type-filter` | ✅ Complete | v2.30.0 |
 | BUG-031 | All Purchases table "Amount" header rendered left-aligned while its currency values were right-aligned, because `.purchases-table thead th { text-align: left }` (specificity 0,1,2) outweighed `.col-amt` (0,1,0). Added `.purchases-table thead th.col-amt { text-align: right }` to align the header with its values | `fix/bug-031-amount-column-header-align` | ✅ Complete | v2.31.0 |
 | RS-33 | Add/Edit Purchase date picker constrained to the displayed pay-period window (`min`/`max` on the date input) to prevent out-of-period purchases — the root cause of the BUG-023/024/026 family. Future-within-period dates allowed; "+ Add" disabled off the current period with a return-to-current hint; save-time guard backs up the native bounds | `feat/rs-33-period-scoped-date-picker` | ✅ Complete | v2.32.0 |
+| BUG-032 | Subscriptions showed "Expired" once the stored renewal anchor passed, and the displayed renewal date never advanced to the next cycle. Fixed by deriving the next renewal date for display via `getNextRenewal` (anchor untouched — calculations already recompute occurrences). Chip shows "Today"/countdown, date line shows "Due today"/next date, edit pre-fills the next date | `fix/bug-032-subscription-next-renewal` | ✅ Complete | v2.33.0 |
+| TECH-DEBT-1 | **(To discuss)** Full-app sweep for hard-coded values (dates, magic numbers, rate maps, status thresholds, string literals) to replace with shared constants/functions, so single-source-of-truth drift bugs (e.g. the stale renewal-date display in BUG-032) stop recurring. Scope, prioritisation, and risk to be agreed before work begins | _TBD_ | 🔲 PLANNED | — |
 
 ---
 
@@ -4158,3 +4160,49 @@ The Add/Edit Purchase date picker in the Spending tab had no bounds, so a purcha
 
 ### Final gate
 - ✅ 1297/1297 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files
+
+---
+
+## BUG-032 — Subscriptions stuck on "Expired" / stale renewal date ✅
+
+**Branch**: `fix/bug-032-subscription-next-renewal`
+**Version**: v2.33.0
+**Status**: ✅ **COMPLETE** — June 2026
+
+### Problem
+`Subscription.date` is a stored **anchor** date. The Subscriptions card read it raw — `daysUntil(sub.date)` and `displayDate(sub)`. Once the anchor passed, `daysUntil` went negative, so the chip showed **"Expired"** and the date line stayed stuck on a past date, never advancing to the next cycle of a recurring subscription.
+
+This was **display-only**: every budget/forecast/deduction calculation (`getSubsInWindow`, `getPayPeriodForecast`, etc.) recomputes occurrences from the anchor + frequency, so the numbers were always correct. Only the card's chip, date line, renewal-alert banner, and renewal sort read the stale anchor directly.
+
+### Decision — derive, don't mutate
+Agreed with the product owner: compute the next renewal for display rather than rewriting the stored anchor. The anchor stays the source of truth for all occurrence maths (no DB writes / sync churn), and the display always reflects "next" regardless of how old the anchor is. Recurring subscriptions retire the "Expired" state entirely (it only ever made sense for a one-time charge, which the app doesn't model).
+
+### Implementation (`Subscriptions.vue`)
+- New `nextRenewalDate(sub)` helper → `getNextRenewal(sub)` for dated frequencies; returns the stored date for `custom-days` (handled separately).
+- `chipText`: "Today" on the due day, `{n}d` countdown otherwise; "Expired" branch removed.
+- `chipClass`: status from the derived next date (< 60 days → warn, else green).
+- `displayDate`: formats the derived next date.
+- `renewalLineText` (new): row-3 shows "Due today" / "Renews {next date}" / weekday pattern for custom-days.
+- `upcomingRenewals` (≤ 7-day alert) and the `renewal` sort key both use the derived next date.
+- `openEdit` pre-fills `form.date` with the next renewal date (non-custom-days).
+
+### Follow-up logged
+Added **TECH-DEBT-1** to the summary table — a to-discuss full-app sweep for hard-coded values / single-source-of-truth drift, of which this bug was an instance.
+
+### Files Changed
+- `src/components/sections/Subscriptions.vue` — `getNextRenewal` import, `nextRenewalDate` + `renewalLineText` helpers, updated chip/date/alert/sort/edit logic
+- `tests/components/sections/sections.spec.ts` — 5 new BUG-032 tests
+- `src/components/onboarding/WhatsNewBanner.vue` — v2.33.0 release notes
+- `tests/components/onboarding.spec.ts` — version → 2.33.0
+- `src/components/pages/DocsPage.vue` — v2.33.0 release block
+- `tests/components/pages/pages.spec.ts` — regression guard includes v2.33.0 + BUG-032
+- `CLAUDE.md` — test count → 1302 across 39 spec files
+- `docs/PHASE_TRACKING.md` — summary rows (BUG-032 + TECH-DEBT-1) + this entry
+
+### Tests
+- 5 new tests; 1302/1302 pass across 39 spec files
+- `vue-tsc --noEmit` clean
+- ESLint clean on all touched files
+
+### Final gate
+- ✅ 1302/1302 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files
