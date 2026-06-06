@@ -105,7 +105,15 @@ const daysElapsed = computed(() => {
   return Math.min(elapsed, 14);
 });
 
-const dailyAvg = computed(() => totalSpentInPeriod.value / daysElapsed.value);
+// BUG-030: dailyAvg and topCategoryInfo must follow donutTypeFilter so they
+// update in sync with the "Wants / Needs" toggle in the Spent This Period card.
+// Both getters reference donutPurchases and wantsSpentInPeriod which are
+// declared below; this is safe because computed getters are lazy (the function
+// body only runs on access, by which time all consts in the setup scope are
+// initialised — standard JavaScript closure behaviour).
+
+/** Daily average spend for the ACTIVE type (wants or needs). */
+const dailyAvg = computed(() => wantsSpentInPeriod.value / daysElapsed.value);
 
 const daysLeft = computed(() => {
   if (!spendingPeriod.value) return 0;
@@ -114,10 +122,11 @@ const daysLeft = computed(() => {
   return Math.max(0, Math.ceil((end.getTime() - todayMs) / 86400000));
 });
 
-/** Category name with the most spending this period. */
+/** Top-spending category for the ACTIVE type (wants or needs). */
 const topCategoryInfo = computed(() => {
-  const spending = getCategorySpending(purchasesInPeriod.value);
-  const total    = totalSpentInPeriod.value;
+  // Use donutPurchases so this KPI matches the Spent This Period toggle
+  const spending = getCategorySpending(donutPurchases.value);
+  const total    = wantsSpentInPeriod.value;
   const top      = Object.entries(spending).sort((a, b) => b[1] - a[1])[0];
   if (!top) return null;
   return {
