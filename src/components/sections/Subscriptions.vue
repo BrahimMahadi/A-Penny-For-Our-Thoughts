@@ -22,6 +22,8 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 import { fmt } from '@/utils/format';
 import { daysUntil } from '@/utils/date';
 import { getNextRenewal } from '@/utils/calculations';
+import { MONTHS_SHORT as MONTHS, DOW_FULL, DOW_SHORT, DOW_MINI } from '@/constants/datetime';
+import { FALLBACK_CATEGORY_NAME } from '@/data/categories';
 import type { Frequency } from '@/types/budget';
 
 const budget = useBudgetStore();
@@ -35,12 +37,8 @@ const { onItemEnter, onItemLeave } = useListTransition({ enterY: 12, enterDurati
 const MO_RATE: Record<Frequency, number> = { weekly: 4.33, biweekly: 2.17, monthly: 1, quarterly: 1/3, biyearly: 1/6, yearly: 1/12, 'custom-days': 1 };
 const YR_RATE: Record<Frequency, number> = { weekly: 52,   biweekly: 26,   monthly: 12, quarterly: 4,   biyearly: 2,   yearly: 1,   'custom-days': 1 };
 const FREQ_LABEL: Record<Frequency, string> = { weekly: '/wk', biweekly: '/2wk', monthly: '/mo', quarterly: '/qtr', biyearly: '/6mo', yearly: '/yr', 'custom-days': '/day' };
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// MONTHS / DOW_* now imported from @/constants/datetime (TECH-DEBT-1)
 
-// ─── Day-of-week helpers ──────────────────────────────────────────
-const DOW_FULL  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-const DOW_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const DOW_MINI  = ['S','M','T','W','T','F','S'];
 /** Average occurrences per month for a given set of weekdays (365.25/12/7 ≈ 4.348). */
 const AVG_PER_WEEKDAY = 365.25 / 12 / 7;
 
@@ -250,7 +248,7 @@ const form = reactive({
   amount:     0,
   frequency:  'monthly' as Frequency,
   date:       '',
-  category:   'Other',
+  category:   FALLBACK_CATEGORY_NAME,
   budgetType: 'wants',
   cardId:     null as string | null,
   daysOfWeek: [] as number[],
@@ -281,7 +279,7 @@ function resetForm(): void {
   form.amount     = 0;
   form.frequency  = 'monthly';
   form.date       = '';
-  form.category   = 'Other';
+  form.category   = FALLBACK_CATEGORY_NAME;
   form.budgetType = 'wants';
   form.cardId     = null;
   form.daysOfWeek = [];
@@ -305,7 +303,7 @@ function openEdit(id: string): void {
   form.date       = sub.frequency === 'custom-days'
     ? (sub.date || '')
     : (nextRenewalDate(sub) || sub.date || '');
-  form.category   = sub.category || 'Other';
+  form.category   = sub.category || FALLBACK_CATEGORY_NAME;
   form.budgetType = sub.budgetType || 'wants';
   form.cardId     = sub.cardId ?? null;
   form.daysOfWeek = [...(sub.daysOfWeek ?? [])];

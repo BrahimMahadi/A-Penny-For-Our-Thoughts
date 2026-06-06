@@ -43,6 +43,14 @@ export const WANT_CATEGORIES = [
 /** Fallback colour for unknown category names */
 export const CATEGORY_FALLBACK_COLOR = '#8b95ad';
 
+/**
+ * Display name used when a purchase/subscription has no category set.
+ * Matches the built-in `'other'` category's `name`. Centralised (TECH-DEBT-1)
+ * so the fallback label has one definition across the ~8 sites that used the
+ * bare `'Other'` literal.
+ */
+export const FALLBACK_CATEGORY_NAME = 'Other';
+
 /** Asset categories for the Net Worth tracker */
 export const ASSET_CATEGORIES: ReadonlyArray<AssetCategoryMeta> = [
   { key: 'investment',  label: 'Investments', icon: '💰' },

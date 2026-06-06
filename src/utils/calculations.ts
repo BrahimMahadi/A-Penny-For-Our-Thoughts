@@ -13,7 +13,8 @@
  */
 
 import { calculateMonthsBetween, monthlyAmount, toMonthKey } from './date';
-import { ASSET_CATEGORIES } from '@/data/categories';
+import { ASSET_CATEGORIES, FALLBACK_CATEGORY_NAME } from '@/data/categories';
+import { PERIOD_DAYS } from '@/constants/budget';
 import { fmt } from './format';
 import type {
   BudgetType,
@@ -153,13 +154,13 @@ export function getRenewalDatesBetween(
   } else if (frequency === 'biweekly' || frequency === 'bi-weekly') {
     let candidate = new Date(baseDate);
     const daysDiff = Math.floor((startDate.getTime() - baseDate.getTime()) / 86400000);
-    if (daysDiff > 14) {
-      const steps = Math.floor(daysDiff / 14) - 1;
-      candidate = new Date(baseDate.getTime() + steps * 14 * 86400000);
+    if (daysDiff > PERIOD_DAYS) {
+      const steps = Math.floor(daysDiff / PERIOD_DAYS) - 1;
+      candidate = new Date(baseDate.getTime() + steps * PERIOD_DAYS * 86400000);
     }
     while (candidate <= endDate) {
       if (candidate >= startDate) results.push(toKey(candidate));
-      const next = new Date(candidate.getTime() + 14 * 86400000);
+      const next = new Date(candidate.getTime() + PERIOD_DAYS * 86400000);
       if (+next === +candidate) break;
       candidate = next;
     }
@@ -223,9 +224,9 @@ export function getCurrentPeriodStart(
   cmp.setHours(0, 0, 0, 0);
   const daysDiff = Math.floor((cmp.getTime() - payStart.getTime()) / 86400000);
   if (daysDiff < 0) return state.payStart;
-  const periodsElapsed = Math.floor(daysDiff / 14);
+  const periodsElapsed = Math.floor(daysDiff / PERIOD_DAYS);
   const result = new Date(payStart);
-  result.setDate(result.getDate() + periodsElapsed * 14);
+  result.setDate(result.getDate() + periodsElapsed * PERIOD_DAYS);
   return result.toISOString().split('T')[0];
 }
 
@@ -258,7 +259,7 @@ export function getPeriodStartsBetween(
   const cursor = new Date(from);
   while (cursor.getTime() < to.getTime()) {
     out.push(cursor.toISOString().split('T')[0]);
-    cursor.setDate(cursor.getDate() + 14);
+    cursor.setDate(cursor.getDate() + PERIOD_DAYS);
   }
   return out;
 }
@@ -484,7 +485,7 @@ export function getWantsCategoryActuals(
   state.purchases
     .filter((p) => (p.budgetType || 'wants') !== 'needs' && p.date?.startsWith(monthStr))
     .forEach((p) => {
-      const cat = p.category || 'Other';
+      const cat = p.category || FALLBACK_CATEGORY_NAME;
       map[cat] = (map[cat] || 0) + p.amount;
     });
 
@@ -493,7 +494,7 @@ export function getWantsCategoryActuals(
     .filter((period) => period.date && period.date.substring(0, 7) === monthStr)
     .forEach((period) => {
       period.items.forEach((item) => {
-        const cat = item.category || 'Other';
+        const cat = item.category || FALLBACK_CATEGORY_NAME;
         map[cat] = (map[cat] || 0) + item.amount;
       });
     });
@@ -997,9 +998,9 @@ export function getPayPeriodForecast(
 
   // Compute exact start / end dates for this pay period.
   const startDate = new Date(currentStart + 'T00:00:00');
-  startDate.setDate(startDate.getDate() + offset * 14);
+  startDate.setDate(startDate.getDate() + offset * PERIOD_DAYS);
   const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + 13); // 14 days inclusive
+  endDate.setDate(endDate.getDate() + (PERIOD_DAYS - 1)); // inclusive end
 
   const periodStart = startDate.toISOString().split('T')[0] as ISODate;
   const periodEnd   = endDate.toISOString().split('T')[0] as ISODate;
@@ -1018,9 +1019,9 @@ export function getPayPeriodForecast(
 
       if (dueDayRaw != null && Number(dueDayRaw) >= 1) {
         const dueDay = Number(dueDayRaw);
-        // Walk the 14-day window and collect every day whose date matches dueDay.
+        // Walk the period window and collect every day whose date matches dueDay.
         const matchingDates: ISODate[] = [];
-        for (let i = 0; i < 14; i++) {
+        for (let i = 0; i < PERIOD_DAYS; i++) {
           const d = new Date(startDate.getTime() + i * 86400000);
           if (d.getDate() === dueDay) {
             matchingDates.push(d.toISOString().split('T')[0] as ISODate);
@@ -1274,7 +1275,7 @@ export function getMonthlyWantsHistory(
         .filter((p) => (p.budgetType || 'wants') !== 'needs' && p.date?.startsWith(monthKey))
         .forEach((p) => {
           total += p.amount;
-          const cat = p.category || 'Other';
+          const cat = p.category || FALLBACK_CATEGORY_NAME;
           categories[cat] = (categories[cat] || 0) + p.amount;
         });
     }
@@ -1283,7 +1284,7 @@ export function getMonthlyWantsHistory(
       if ((period.date || '').substring(0, 7) !== monthKey) return;
       total += period.total;
       period.items.forEach((item) => {
-        const cat = item.category || 'Other';
+        const cat = item.category || FALLBACK_CATEGORY_NAME;
         categories[cat] = (categories[cat] || 0) + item.amount;
       });
     });
@@ -1554,8 +1555,7 @@ export function getEnvelopeForecast(
   >,
   today: Date = new Date(),
 ): EnvelopeForecast {
-  const PERIOD_DAYS = 14;
-
+  // PERIOD_DAYS imported from @/constants/budget (TECH-DEBT-1)
   const income = getTotalMonthlyIncome(state);
   const wantsRatio = (state.allocation.wants || 0) / 100;
   const budget = (income * wantsRatio) / 2;

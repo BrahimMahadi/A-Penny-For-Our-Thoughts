@@ -1727,7 +1727,10 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-031 | All Purchases table "Amount" header rendered left-aligned while its currency values were right-aligned, because `.purchases-table thead th { text-align: left }` (specificity 0,1,2) outweighed `.col-amt` (0,1,0). Added `.purchases-table thead th.col-amt { text-align: right }` to align the header with its values | `fix/bug-031-amount-column-header-align` | ✅ Complete | v2.31.0 |
 | RS-33 | Add/Edit Purchase date picker constrained to the displayed pay-period window (`min`/`max` on the date input) to prevent out-of-period purchases — the root cause of the BUG-023/024/026 family. Future-within-period dates allowed; "+ Add" disabled off the current period with a return-to-current hint; save-time guard backs up the native bounds | `feat/rs-33-period-scoped-date-picker` | ✅ Complete | v2.32.0 |
 | BUG-032 | Subscriptions showed "Expired" once the stored renewal anchor passed, and the displayed renewal date never advanced to the next cycle. Fixed by deriving the next renewal date for display via `getNextRenewal` (anchor untouched — calculations already recompute occurrences). Chip shows "Today"/countdown, date line shows "Due today"/next date, edit pre-fills the next date | `fix/bug-032-subscription-next-renewal` | ✅ Complete | v2.33.0 |
-| TECH-DEBT-1 | **(To discuss)** Full-app sweep for hard-coded values (dates, magic numbers, rate maps, status thresholds, string literals) to replace with shared constants/functions, so single-source-of-truth drift bugs (e.g. the stale renewal-date display in BUG-032) stop recurring. Scope, prioritisation, and risk to be agreed before work begins | _TBD_ | 🔲 PLANNED | — |
+| TECH-DEBT-1 | Full-app sweep for hard-coded values → shared constants/functions, to stop single-source-of-truth drift bugs (e.g. BUG-032). **Scope agreed: all three tiers, delivered in 3 phases (one PR each).** See detailed plan below | _see phases_ | 🟡 IN PROGRESS | v2.34.0+ |
+| TECH-DEBT-1 · Phase 1 | Tier 1 — single-source-of-truth constants: period length (`PERIOD_DAYS`), default allocation, `'Other'` fallback, shared `MONTHS`/`DOW` arrays. New `constants/budget.ts` + `constants/datetime.ts` + 7 guard tests | `feat/tech-debt-1-phase-1-constants` | ✅ Complete | v2.34.0 |
+| TECH-DEBT-1 · Phase 2 | Tier 2 — domain consolidation: frequency rate maps (`MO_RATE`/`YR_RATE`/`FREQ_LABEL`) → `constants/frequency.ts`; status thresholds (variance 110/90, sub-budget 60/30) → named constants | `feat/tech-debt-1-phase-2-domain` | 🔲 PLANNED | v2.35.0 |
+| TECH-DEBT-1 · Phase 3 | Tier 3 — `'wants'`/`'needs'` shared constants + chart-palette hex centralization (CSS-var fallbacks left as-is by decision) | `feat/tech-debt-1-phase-3-enums` | 🔲 PLANNED | v2.36.0 |
 
 ---
 
@@ -4206,3 +4209,37 @@ Added **TECH-DEBT-1** to the summary table — a to-discuss full-app sweep for h
 
 ### Final gate
 - ✅ 1302/1302 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files
+
+---
+
+## TECH-DEBT-1 — Hard-coded values sweep (planned, 3 phases) 🟡
+
+**Status**: 🟡 **IN PROGRESS** — June 2026
+**Scope agreed**: all three tiers; phased delivery (one PR per phase); pure refactor with no behaviour change; full `vitest` + `vue-tsc` after each phase; guard tests added where they prevent re-drift.
+
+### Recon (instances found)
+- **Period length `14`**: `budget.ts` (×2+) and a local `PERIOD_DAYS` in `calculations.ts` — no shared source.
+- **Default allocation `{needs:50,wants:30,savings:20}`**: `budget.ts` ×3.
+- **`'Other'` category fallback**: 8 files.
+- **Date arrays** (`MONTHS`, `DOW_FULL/SHORT/MINI`): duplicated in `Subscriptions.vue`, `RecurringCalendar.vue`, `SpendingPage.vue`.
+- **Frequency rate maps** (`MO_RATE`/`YR_RATE`/`FREQ_LABEL`): `Subscriptions.vue` (+ prose in `DocsPage.vue`).
+- **Status thresholds**: variance `110`/`90%` in `calculations.ts`; sub-budget bar `60`/`30` in `Subscriptions.vue`.
+- **`'wants'`/`'needs'` literals**: ~100+ (already type-safe via the `BudgetType` union).
+- **Hex colors in scripts**: ~290 (mostly `var(--x, #fallback)` CSS fallbacks — low value).
+
+### Phase 1 — Tier 1 (single source of truth) ✅ · `feat/tech-debt-1-phase-1-constants` · v2.34.0
+- ✅ New `src/constants/budget.ts`: `PERIOD_DAYS`, `PERIOD_WEEKS`, `DEFAULT_ALLOCATION`.
+- ✅ New `src/constants/datetime.ts`: `MONTHS_SHORT`, `DOW_FULL`, `DOW_SHORT`, `DOW_MINI`.
+- ✅ `FALLBACK_CATEGORY_NAME = 'Other'` (in `data/categories.ts`).
+- ✅ Refactored consumers: `budget.ts`, `calculations.ts` (all `14` period literals + `'Other'` fallbacks), `Subscriptions.vue`, `RecurringCalendar.vue`, `SpendingPage.vue` (DOW + `PERIOD_DAYS` loop), `SpendingAnalytics.vue`, `DashboardPage.vue`, `csvImportExport.ts`.
+- ✅ 7 guard tests (`tests/constants/constants.spec.ts`): canonical values + consumers derive from them (default-state allocation, period-window length).
+- Scoping notes: `CATEGORY_COLOURS` palette keys and `data/categories.ts` definitions left as literals (they ARE the definition, not a fallback). `'wants'`/`'needs'` literals deferred to Phase 3.
+- **Final gate**: ✅ 1309/1309 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files (RecurringCalendar's 24 pre-existing template warnings unchanged from main).
+
+### Phase 2 — Tier 2 (domain consolidation)  · `feat/tech-debt-1-phase-2-domain` · v2.35.0
+- New `src/constants/frequency.ts`: rate maps + display labels + `AVG_PER_WEEKDAY`; reusable by Subscriptions/Loans/forecasts.
+- Named threshold constants for variance + envelope + sub-budget-bar status.
+
+### Phase 3 — Tier 3 (literals + palette)  · `feat/tech-debt-1-phase-3-enums` · v2.36.0
+- Shared `BUDGET_TYPES` / `DEFAULT_BUDGET_TYPE` constants where they reduce risk.
+- Centralize chart-palette hex; document that CSS-var fallbacks are intentionally left inline.

@@ -15,7 +15,9 @@ import { useAnalytics } from '@/composables/useAnalytics';
 import { useToast } from '@/composables/useToast';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
 import { getPayPeriodForecast, getCategorySpending, applyRulesToName, getSubsInWindow, getLoansInWindow } from '@/utils/calculations';
-import { CATEGORY_FALLBACK_COLOR } from '@/data/categories';
+import { CATEGORY_FALLBACK_COLOR, FALLBACK_CATEGORY_NAME } from '@/data/categories';
+import { PERIOD_DAYS } from '@/constants/budget';
+import { DOW_SHORT } from '@/constants/datetime';
 import WantsDonut from '@/components/charts/WantsDonut.vue';
 import StatCard from '@/components/ui/StatCard.vue';
 import BaseCard from '@/components/ui/BaseCard.vue';
@@ -206,12 +208,11 @@ const dailyBars = computed<DailyBar[]>(() => {
   if (!spendingPeriod.value) return [];
   const startDate = new Date(spendingPeriod.value.periodStart + 'T00:00:00');
   const bars: DailyBar[] = [];
-  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < PERIOD_DAYS; i++) {
     const d    = new Date(startDate.getTime() + i * 86400000);
     const iso  = d.toISOString().split('T')[0] as ISODate;
-    const dow  = DOW[d.getDay()];
+    const dow  = DOW_SHORT[d.getDay()];
     const day  = d.getDate();
     const dayPurchases = purchasesInPeriod.value.filter(p => p.date === iso);
     const wants = dayPurchases
@@ -360,7 +361,7 @@ const virtualRows = computed<PeriodicRow[]>(() => {
           amount:     sub.amount,
           date,
           budgetType: bt,
-          category:   sub.category || 'Other',
+          category:   sub.category || FALLBACK_CATEGORY_NAME,
           cardId:     sub.cardId,
           kind:       'sub',
         });
@@ -480,7 +481,7 @@ const purchaseForm = reactive({
   name:       '',
   amount:     0,
   date:       '' as string,
-  category:   'Other' as string,
+  category:   FALLBACK_CATEGORY_NAME as string,
   budgetType: 'wants' as 'wants' | 'needs',
   cardId:     null as string | null,
 });
@@ -564,7 +565,7 @@ function resetPurchaseForm(): void {
   purchaseForm.name       = '';
   purchaseForm.amount     = 0;
   purchaseForm.date       = today.toISOString().split('T')[0];
-  purchaseForm.category   = categoryOptions.value[0] ?? 'Other';
+  purchaseForm.category   = categoryOptions.value[0] ?? FALLBACK_CATEGORY_NAME;
   purchaseForm.budgetType = 'wants';
   purchaseForm.cardId     = null;
   editingPurchaseId.value = null;
@@ -585,7 +586,7 @@ function openEditPurchase(id: string): void {
   purchaseForm.name       = p.name;
   purchaseForm.amount     = p.amount;
   purchaseForm.date       = p.date ?? '';
-  purchaseForm.category   = p.category || 'Other';
+  purchaseForm.category   = p.category || FALLBACK_CATEGORY_NAME;
   purchaseForm.budgetType = (p.budgetType as 'wants' | 'needs') || 'wants';
   purchaseForm.cardId     = p.cardId;
   editingPurchaseId.value = id;
@@ -1110,7 +1111,7 @@ function deletePurchase(id: string): void {
                       class="cat-badge-dot"
                       :style="{ background: catColor(p.category) }"
                     />
-                    {{ p.category || 'Other' }}
+                    {{ p.category || FALLBACK_CATEGORY_NAME }}
                   </span>
                 </td>
                 <td class="col-type">
