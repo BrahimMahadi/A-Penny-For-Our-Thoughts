@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  PERIOD_DAYS, PERIOD_WEEKS, DEFAULT_ALLOCATION,
+  PERIOD_DAYS, PERIOD_WEEKS, DEFAULT_ALLOCATION, DEFAULT_BUDGET_TYPE, BUDGET_TYPES,
   VARIANCE_OVER_PCT, VARIANCE_CAUTION_PCT, ENVELOPE_CAUTION_RATIO,
   SUB_BUDGET_OVER_PCT, SUB_BUDGET_CAUTION_PCT,
 } from '@/constants/budget';
@@ -36,6 +36,14 @@ describe('constants/budget', () => {
     expect(DEFAULT_ALLOCATION).toEqual({ needs: 50, wants: 30, savings: 20 });
     const sum = DEFAULT_ALLOCATION.needs + DEFAULT_ALLOCATION.wants + DEFAULT_ALLOCATION.savings;
     expect(sum).toBe(100);
+  });
+
+  it('BUDGET_TYPES contains wants and needs, with wants as the default', () => {
+    expect(BUDGET_TYPES).toContain('wants');
+    expect(BUDGET_TYPES).toContain('needs');
+    expect(BUDGET_TYPES).toHaveLength(2);
+    expect(DEFAULT_BUDGET_TYPE).toBe('wants');
+    expect(BUDGET_TYPES.includes(DEFAULT_BUDGET_TYPE)).toBe(true);
   });
 
   it('the store default state derives its allocation from DEFAULT_ALLOCATION', () => {

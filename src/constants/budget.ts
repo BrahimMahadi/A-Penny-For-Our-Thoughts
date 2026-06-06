@@ -20,6 +20,23 @@ export const PERIOD_DAYS = 14;
 export const PERIOD_WEEKS = 2;
 
 /**
+ * Default budget type assigned to a purchase / subscription / loan when none is set
+ * (new items, legacy migration, CSV import). Single source for "unspecified
+ * spend is a Want". Typed as the literal `'wants'` so it slots into both
+ * `BudgetType` and the narrower `'wants' | 'needs'` fields without a cast.
+ */
+export const DEFAULT_BUDGET_TYPE = 'wants' as const;
+
+/**
+ * Valid budget type values. All budget/transaction entities are classified as one of
+ * these — either a Want (discretionary) or a Need (essential/fixed). Used to split
+ * spending analytics, filter period forecasts, and drive UI toggles (e.g. dashboard
+ * hero card, Spending tab donut). Sourced from a single constant to prevent drift
+ * between type checking, validation, and UI label generation.
+ */
+export const BUDGET_TYPES = ['wants', 'needs'] as const;
+
+/**
  * Default budget split as integer percentages summing to 100.
  * The canonical 50/30/20 (needs / wants / savings) rule.
  * Spread into a fresh object at each use site so callers never share a ref.
