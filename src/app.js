@@ -37,7 +37,7 @@ import { uiState } from './uistate.js';
  * The empty-then-set pattern ensures re-announcing the same message.
  * @param {string} msg
  */
-export function srAnnounce(msg) {
+function srAnnounce(msg) {
   const el = document.getElementById('sr-announcer');
   if (!el) return;
   el.textContent = '';
@@ -86,7 +86,7 @@ export function toggleDocsDropdown() {
   if (chevron) chevron.style.transform = opening ? 'rotate(180deg)' : '';
 }
 
-export function _closeDocsDropdown() {
+function _closeDocsDropdown() {
   const list    = document.getElementById('docs-dropdown-list');
   const trigger = document.getElementById('docs-dropdown-trigger');
   const chevron = document.getElementById('docs-dropdown-chevron');
@@ -160,7 +160,7 @@ document.addEventListener('click', e => {
  *
  * @returns {boolean}
  */
-export function isTyping() {
+function isTyping() {
   const el  = document.activeElement;
   if (!el) return false;
   const tag = el.tagName;
@@ -342,7 +342,7 @@ document.addEventListener('focusin', e => {
 // ────────────────────────────────────────────────────────────────
 
 /** Re-renders the Schedule only when it is the active tab. */
-export function _scheduleIfActive() {
+function _scheduleIfActive() {
   if (document.getElementById('tab-schedule')?.classList.contains('active')) renderSchedule();
 }
 
@@ -351,7 +351,7 @@ export function _scheduleIfActive() {
  * (i.e. income, wants envelope, expense card remaining, BvA, savings, goals).
  * Called after any income-stream or allocation-% mutation.
  */
-export function _renderIncomeDependents() {
+function _renderIncomeDependents() {
   renderIncome();
   renderIncomeStreams();
   renderWants();
@@ -412,7 +412,7 @@ document.addEventListener('click', () => {
  * @param {Function} onSave   - Callback bound to the Save button's `onclick`.
  * @returns {void}
  */
-export let _modalOpener = null;
+let _modalOpener = null;
 
 export function openModal(title, bodyHTML, onSave) {
   _modalOpener = document.activeElement;
@@ -433,7 +433,7 @@ export function openModal(title, bodyHTML, onSave) {
 }
 
 /** Keep Tab/Shift+Tab focus inside the open modal. */
-export function _trapFocus(e) {
+function _trapFocus(e) {
   if (e.key !== 'Tab') return;
   const modal = document.getElementById('modal');
   const focusable = Array.from(modal.querySelectorAll(
@@ -482,7 +482,7 @@ export function handleOverlayClick(e) {
  * @param {string} id - The `id` attribute of the input/select element.
  * @returns {void}
  */
-export function markFieldInvalid(id) {
+function markFieldInvalid(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.add('is-invalid', 'shake');
@@ -503,7 +503,7 @@ export function markFieldInvalid(id) {
  * @param {string}  [extraAttrs='']  - Additional HTML attribute string (e.g. `'min="0" max="100"'`).
  * @returns {string} HTML string for the field.
  */
-export function mField(label, id, type, value, placeholder, extraAttrs) {
+function mField(label, id, type, value, placeholder, extraAttrs) {
   // Auto-add inputmode="decimal" for number inputs (shows numeric keypad on mobile)
   // unless extraAttrs already specifies an inputmode.
   const extra = extraAttrs || '';
@@ -717,7 +717,7 @@ export function setPurchaseBudgetType(id, type) {
 }
 
 /** Re-apply all rules to current-period purchases (non-destructive: only sets if a rule matches) */
-export function reapplyRulesToPurchases() {
+function reapplyRulesToPurchases() {
   let changed = 0;
   (state.purchases || []).forEach(p => {
     const matched = applyRulesToName(p.name);
@@ -912,7 +912,7 @@ export function openEditExpenseItem(cardId, itemId) {
 // ────────────────────────────────────────────────────────────────
 
 /** Shared frequency options used by both loan and subscription modals */
-export const LOAN_FREQ_OPTIONS = [
+const LOAN_FREQ_OPTIONS = [
   ['monthly',   'Monthly'],
   ['bi-weekly', 'Bi-Weekly'],
   ['quarterly', 'Quarterly'],
@@ -921,7 +921,7 @@ export const LOAN_FREQ_OPTIONS = [
 ];
 
 /** Build the loan modal body HTML, pre-populated when editing an existing loan */
-export function _loanModalBody(loan) {
+function _loanModalBody(loan) {
   const freqOpts = LOAN_FREQ_OPTIONS
     .map(([v, l]) => `<option value="${v}" ${v === (loan?.frequency || 'monthly') ? 'selected' : ''}>${l}</option>`)
     .join('');
@@ -969,7 +969,7 @@ export function _loanModalBody(loan) {
 }
 
 /** Read all loan fields from the open modal */
-export function _readLoanModal() {
+function _readLoanModal() {
   return {
     name:          document.getElementById('ml-name').value.trim(),
     remaining:     parseFloat(document.getElementById('ml-rem').value),
@@ -1257,9 +1257,9 @@ export function deleteGoal(id) {
 // ────────────────────────────────────────────────────────────────
 // SUBSCRIPTIONS — CRUD
 // ────────────────────────────────────────────────────────────────
-export const SUB_CATEGORIES = ['Entertainment', 'Utilities', 'Health', 'Productivity', 'Other'];
+const SUB_CATEGORIES = ['Entertainment', 'Utilities', 'Health', 'Productivity', 'Other'];
 
-export function _subModalBody(sub) {
+function _subModalBody(sub) {
   const catOpts  = SUB_CATEGORIES.map(c =>
     `<option value="${c}" ${c === (sub?.category || 'Other') ? 'selected' : ''}>${c}</option>`
   ).join('');
@@ -1321,7 +1321,7 @@ export function _subModalBody(sub) {
   );
 }
 
-export function _readSubModal() {
+function _readSubModal() {
   return {
     name:       document.getElementById('ms-name').value.trim(),
     amount:     parseFloat(document.getElementById('ms-amount').value) || 0,
@@ -1368,7 +1368,7 @@ export function deleteSubscription(id) {
  * Called oninput/onchange in the subscription modal.
  * Warns if the subscription name closely matches an item already on the selected card.
  */
-export function checkSubDuplicate() {
+function checkSubDuplicate() {
   const warn    = document.getElementById('ms-dup-warn');
   const cardSel = document.getElementById('ms-card');
   const nameEl  = document.getElementById('ms-name');
@@ -1422,13 +1422,13 @@ export function openSetPayStart() {
 // ────────────────────────────────────────────────────────────────
 // TRANSACTION RULES — CRUD
 // ────────────────────────────────────────────────────────────────
-export function _ruleCatOpts(selected) {
+function _ruleCatOpts(selected) {
   return WANT_CATEGORIES
     .map(c => `<option value="${c}" ${c === selected ? 'selected' : ''}>${c}</option>`)
     .join('');
 }
 
-export function _ruleModalBody(rule) {
+function _ruleModalBody(rule) {
   const matchOpts = [
     ['contains',   'Contains (default)'],
     ['startsWith', 'Starts With'],
@@ -1450,7 +1450,7 @@ export function _ruleModalBody(rule) {
   );
 }
 
-export function _readRuleModal() {
+function _readRuleModal() {
   return {
     pattern:   document.getElementById('rule-pattern').value.trim().toLowerCase(),
     matchType: document.getElementById('rule-matchtype').value,
@@ -1829,7 +1829,7 @@ export function clearAllData() {
  * @returns {Object} Parsed state object (not yet saved to storage).
  * @throws {Error} If parsing fails critically.
  */
-export function parseCsv(text) {
+function parseCsv(text) {
   const parsed = {};
   let currentSection = null;
   let headers        = null;
@@ -1992,7 +1992,7 @@ export function parseCsv(text) {
 // ────────────────────────────────────────────────────────────────
 
 /** @returns {boolean} True when the shortcuts panel is currently visible. */
-export function _shortcutsPanelVisible() {
+function _shortcutsPanelVisible() {
   return document.getElementById('shortcuts-panel')?.classList.contains('visible') ?? false;
 }
 

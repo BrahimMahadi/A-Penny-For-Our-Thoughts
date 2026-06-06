@@ -56,7 +56,7 @@ import { uiState } from './uistate.js';
  * @param {string} [hint=''] - Optional secondary hint in muted text.
  * @returns {string} HTML string ready for innerHTML assignment.
  */
-export function emptyState(icon, title, hint = '') {
+function emptyState(icon, title, hint = '') {
   return `<div class="empty-state">
     <div class="empty-state-icon" aria-hidden="true">${icon}</div>
     <div class="empty-state-title">${title}</div>
@@ -380,7 +380,7 @@ export function renderPurchaseList() {
  * Called from renderWants() so the list stays in sync when cards change.
  * Preserves any currently selected value to survive re-renders mid-session.
  */
-export function populatePurchaseCardSelect() {
+function populatePurchaseCardSelect() {
   const sel = document.getElementById('purchase-card');
   if (!sel) return;
   const current = sel.value;
@@ -405,7 +405,7 @@ export function renderBudgetVsActual() {
 }
 
 /** Render three variance cards (Needs, Wants, Savings) */
-export function renderBudgetVarianceCards(budgeted, actuals) {
+function renderBudgetVarianceCards(budgeted, actuals) {
   const container  = document.getElementById('budget-variance-cards');
   container.innerHTML = '';
 
@@ -439,7 +439,7 @@ export function renderBudgetVarianceCards(budgeted, actuals) {
 }
 
 /** Render variance summary table */
-export function renderVarianceSummary(budgeted, actuals, income) {
+function renderVarianceSummary(budgeted, actuals, income) {
   const container = document.getElementById('budget-variance-summary');
 
   const rows = ['needs', 'wants', 'savings'].map(key => {
@@ -528,7 +528,7 @@ export function renderSpendingAnalytics() {
 // ────────────────────────────────────────────────────────────────
 // MONTH-OVER-MONTH INSIGHTS
 // ────────────────────────────────────────────────────────────────
-export function renderMomSection() {
+function renderMomSection() {
   const statsEl    = document.getElementById('mom-stats');
   const insightsEl = document.getElementById('mom-insights');
   if (!statsEl || !insightsEl) return;
@@ -1578,7 +1578,7 @@ function renderCalendarGrid(year, month, fc, today) {
 }
 
 /** Format a day number as an ordinal string (1 → "1st", 15 → "15th"). */
-export function ordinal(n) {
+function ordinal(n) {
   const s = ['th','st','nd','rd'];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);

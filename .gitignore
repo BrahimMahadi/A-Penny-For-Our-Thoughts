@@ -36,3 +36,6 @@ build/
 # LocalStorage backup (keep actual file, ignore backups)
 *.backup
 *.bak
+
+# Claude Code agent worktrees (transient; not part of the repo)
+.claude/worktrees/

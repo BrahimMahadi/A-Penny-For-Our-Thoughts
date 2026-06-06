@@ -17,7 +17,7 @@ import { useThemeStore } from '@/stores/theme';
 import { cssVar, hexToRgba } from '@/utils/dom';
 
 // ─── Shared constant ─────────────────────────────────────────────
-export const CHART_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+const CHART_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 // ─── Type ────────────────────────────────────────────────────────
 export interface ChartStyles {

@@ -22,14 +22,14 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.35.0';
+const APP_VERSION = '2.36.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🧱', text: 'TECH-DEBT-1 (Phase 2): centralised the recurring-frequency rate maps (weekly/monthly/yearly multipliers + display labels) into one module shared by Subscriptions and Loans, plus the status thresholds for variance, the period envelope, and the subscription budget bar' },
-  { icon: '🛡️', text: 'Another behaviour-neutral reliability refactor — the per-frequency cost maths and the on-track/caution/over cutoffs now each have a single definition instead of duplicated magic numbers' },
-  { icon: '🧪', text: '5 new guard tests (annual≈12×monthly, threshold ordering, variance status derivation); 1314 tests passing across 40 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '🧱', text: 'TECH-DEBT-1 (Phase 3): the budget-type default ("Wants") is now a single shared constant, completing the hard-coded-values sweep across the app' },
+  { icon: '🧹', text: 'Code-health cleanup (fallow): removed unused exports, dead helpers, an unused dependency, and a stale design-handoff folder — leaner codebase, no behaviour change' },
+  { icon: '🧪', text: '1315 tests passing across 40 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();

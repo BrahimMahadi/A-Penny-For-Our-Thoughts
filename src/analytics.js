@@ -89,7 +89,7 @@ export function getMonthActuals(year, month) {
 }
 
 /** Sum all actual needs (fixed expenses + Needs subs renewed this month) for a month */
-export function calculateActualNeeds(year, month) {
+function calculateActualNeeds(year, month) {
   const expenseTotal = (state.expenseCards || []).reduce((sum, card) => {
     return sum + (card.items || []).reduce((s, i) => s + monthlyAmount(i), 0);
   }, 0);
@@ -110,7 +110,7 @@ export function calculateActualNeeds(year, month) {
 }
 
 /** Sum all actual wants (purchases + Wants subs this period + spending history) for a month */
-export function calculateActualWants(year, month) {
+function calculateActualWants(year, month) {
   const monthStr = `${year}-${String(month).padStart(2, '0')}`;
   let total = 0;
 
@@ -139,7 +139,7 @@ export function calculateActualWants(year, month) {
 }
 
 /** Calculate actual savings as Income - Needs - Wants */
-export function calculateActualSavings(year, month) {
+function calculateActualSavings(year, month) {
   const income = getTotalMonthlyIncome();
   const needs  = calculateActualNeeds(year, month);
   const wants  = calculateActualWants(year, month);
@@ -347,7 +347,7 @@ export function getSubsDeductedThisMonth() {
  * budgetType is 'needs'. Each returned item is augmented with `renewalDates`.
  * Only loans with a paymentAmount > 0 and a valid anchor date are included.
  */
-export function getLoansDeductedThisMonth() {
+function getLoansDeductedThisMonth() {
   const today        = new Date();
   today.setHours(0, 0, 0, 0);
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -363,7 +363,7 @@ export function getLoansDeductedThisMonth() {
  * budgetType is 'wants'. Each returned item is augmented with `renewalDates`.
  * Returns [] if payStart is not configured.
  */
-export function getLoansDeductedThisPeriod() {
+function getLoansDeductedThisPeriod() {
   const periodStart = getCurrentPeriodStart();
   if (!periodStart) return [];
 
@@ -382,7 +382,7 @@ export function getLoansDeductedThisPeriod() {
 // ────────────────────────────────────────────────────────────────
 
 /** Calculate months between two YYYY-MM date strings */
-export function calculateMonthsBetween(startDate, endDate) {
+function calculateMonthsBetween(startDate, endDate) {
   const [startYear, startMonth] = startDate.split('-').map(Number);
   const [endYear,   endMonth]   = endDate.split('-').map(Number);
   return (endYear - startYear) * 12 + (endMonth - startMonth);
@@ -499,7 +499,7 @@ export function recordNetWorthSnapshot() {
  * @param {number} year
  * @param {number} month - 1-based (1 = Jan)
  */
-export function daysInMonth(year, month) {
+function daysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
 

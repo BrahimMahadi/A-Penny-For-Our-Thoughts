@@ -235,13 +235,13 @@ describe('DocsPage', () => {
   });
 
   // ── RS-26: Release notes refreshed through v2.17.0 ─────────────
-  // (Updated in TECH-DEBT-1 Phase 2 to assert the new v2.35.0 entry.)
-  it('RS-26: Release Notes contains the latest v2.35.0 entry', async () => {
+  // (Updated in TECH-DEBT-1 Phase 3 + cleanup to assert the new v2.36.0 entry.)
+  it('RS-26: Release Notes contains the latest v2.36.0 entry', async () => {
     const w = mountWith(DocsPage);
     await nextTick();
     await w.findAll('.docs-nav-btn').find(b => b.text().includes('Release Notes'))!.trigger('click');
     await nextTick();
-    expect(w.find('.docs-section').text()).toContain('v2.35.0');
+    expect(w.find('.docs-section').text()).toContain('v2.36.0');
     w.unmount();
   });
 
@@ -253,7 +253,7 @@ describe('DocsPage', () => {
     const text = w.find('.docs-section').text();
     // Walk every tagged v2.x version we shipped — newest first
     const versions = [
-      'v2.35.0', 'v2.34.0', 'v2.33.0', 'v2.32.0', 'v2.31.0', 'v2.30.0', 'v2.29.0', 'v2.28.0', 'v2.27.0', 'v2.26.0', 'v2.25.0', 'v2.24.0', 'v2.23.0', 'v2.22.0', 'v2.21.0', 'v2.20.1', 'v2.20.0', 'v2.19.1', 'v2.19.0', 'v2.18.0',
+      'v2.36.0', 'v2.35.0', 'v2.34.0', 'v2.33.0', 'v2.32.0', 'v2.31.0', 'v2.30.0', 'v2.29.0', 'v2.28.0', 'v2.27.0', 'v2.26.0', 'v2.25.0', 'v2.24.0', 'v2.23.0', 'v2.22.0', 'v2.21.0', 'v2.20.1', 'v2.20.0', 'v2.19.1', 'v2.19.0', 'v2.18.0',
       'v2.17.0', 'v2.16.0', 'v2.15.0', 'v2.14.0', 'v2.13.0', 'v2.12.0',
       'v2.11.0', 'v2.10.1 – .3', 'v2.10.0',
       'v2.9.0', 'v2.8.0', 'v2.7.0', 'v2.6.0', 'v2.5.0',

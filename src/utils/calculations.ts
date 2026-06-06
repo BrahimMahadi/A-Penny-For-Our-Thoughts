@@ -1213,21 +1213,6 @@ export function getTopCategories(
     .slice(0, 10);
 }
 
-// ─── Category colour palette ─────────────────────────────────────
-/**
- * Per-category chart colours used by the Wants Donut and Analytics Bar charts.
- * Matches the palette defined in legacy analytics.js CATEGORY_COLOURS.
- */
-export const CATEGORY_COLOURS: Record<string, string> = {
-  'Food & Drink':    '#ff8c42',
-  'Groceries':       '#00d4aa',
-  'Entertainment':   '#a78bfa',
-  'Shopping':        '#60a5fa',
-  'Health & Fitness':'#34d399',
-  'Transportation':  '#fbbf24',
-  'Other':           '#8b95ad',
-};
-
 /** Aggregate spending by category for a set of purchases. */
 export function getCategorySpending(purchases: Purchase[]): Record<string, number> {
   const map: Record<string, number> = {};

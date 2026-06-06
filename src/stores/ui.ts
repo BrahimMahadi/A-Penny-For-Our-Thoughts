@@ -275,4 +275,5 @@ export const useUiStore = defineStore('ui', {
 });
 
 // Re-export for convenience so callers don't need to import dashboardSections separately
+// fallow-ignore-next-line unused-export
 export { DASHBOARD_SECTIONS, INSIGHTS_SECTIONS };

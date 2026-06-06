@@ -1731,6 +1731,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | TECH-DEBT-1 · Phase 1 | Tier 1 — single-source-of-truth constants: period length (`PERIOD_DAYS`), default allocation, `'Other'` fallback, shared `MONTHS`/`DOW` arrays. New `constants/budget.ts` + `constants/datetime.ts` + 7 guard tests | `feat/tech-debt-1-phase-1-constants` | ✅ Complete | v2.34.0 |
 | TECH-DEBT-1 · Phase 2 | Tier 2 — domain consolidation: frequency rate maps + labels → `constants/frequency.ts` (shared by Subscriptions + Loans); status thresholds (variance 110/100, envelope 0.9, sub-budget 60/30) → `constants/budget.ts`; 5 guard tests | `feat/tech-debt-1-phase-2-domain` | ✅ Complete | v2.35.0 |
 | TECH-DEBT-1 · Phase 3 | Tier 3 — `'wants'`/`'needs'` shared constants + chart-palette hex centralization (CSS-var fallbacks left as-is by decision) | `feat/tech-debt-1-phase-3-enums` | ✅ Complete | v2.36.0 |
+| CHORE-1 | Code-health cleanup (fallow static analysis): removed unused exports/dead helpers (`CATEGORY_COLOURS`, `WANT_CATEGORIES`, `SECTION_GROUPS`, imperative `showToast`), an unused runtime dependency (`date-fns`), and the stale `docs/design_handoff_schedule_spending/` mockup folder; trimmed dead code in the legacy vanilla-JS files. Pure housekeeping — no behaviour change | `chore/fallow-code-health-cleanup` | ✅ Complete | v2.36.0 |
 
 ---
 

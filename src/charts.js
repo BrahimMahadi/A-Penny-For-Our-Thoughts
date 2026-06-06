@@ -18,28 +18,28 @@ import { getTopCategories, CATEGORY_COLOURS } from './analytics.js';
 // ────────────────────────────────────────────────────────────────
 // CHART INSTANCES
 // ────────────────────────────────────────────────────────────────
-export let wantsChart             = null;
-export let ccChart                = null;
-export let analyticsLineChart     = null;
-export let analyticsBarChart      = null;
-export let momTrendChart          = null;
-export let budgetVsActualChart    = null;
-export let netWorthChart          = null;
-export let forecastBarChart       = null;
+let wantsChart             = null;
+let ccChart                = null;
+let analyticsLineChart     = null;
+let analyticsBarChart      = null;
+let momTrendChart          = null;
+let budgetVsActualChart    = null;
+let netWorthChart          = null;
+let forecastBarChart       = null;
 
 /**
  * Returns true if the Chart.js instance exists and its canvas is
  * still mounted in the DOM. If the canvas has been detached (e.g.
  * after a theme-triggered re-render) we must create a new instance.
  */
-export function _chartValid(instance) {
+function _chartValid(instance) {
   return !!(instance && instance.canvas && instance.canvas.isConnected);
 }
 
 // ────────────────────────────────────────────────────────────────
 // SHARED CHART STYLE HELPERS
 // ────────────────────────────────────────────────────────────────
-export const CHART_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+const CHART_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 /**
  * Read all theme-aware chart style tokens from the current CSS variables.
@@ -50,7 +50,7 @@ export const CHART_FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI",
  *             accent: string, accent2: string, surface: string,
  *             surface2: string, danger: string, warn: string }} Style tokens.
  */
-export function getChartStyles() {
+function getChartStyles() {
   const g = n => cssVar(n);
   return {
     tooltip: {
