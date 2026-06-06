@@ -68,6 +68,19 @@ function goPrev(): void { spendingOffset.value -= 1; }
 function goNext(): void { spendingOffset.value += 1; }
 function goCurrent(): void { spendingOffset.value = 0; }
 
+// ─── RS-33: period-scoped date picker ─────────────────────────────
+/** True when the user is viewing the in-progress (current) period. */
+const isCurrentPeriod = computed(() => spendingOffset.value === 0);
+
+/**
+ * Date-input bounds for the add/edit modal. Constrained to the displayed
+ * period window so purchases can't be dated outside any visible period
+ * (the root cause of the BUG-023/024/026 family). `undefined` when no
+ * pay date is configured (no period to constrain to).
+ */
+const formDateMin = computed(() => spendingPeriod.value?.periodStart);
+const formDateMax = computed(() => spendingPeriod.value?.periodEnd);
+
 const pageTitle = computed(() => {
   if (!spendingPeriod.value) return 'All Spending';
   return spendingPeriod.value.label;
@@ -559,6 +572,9 @@ function resetPurchaseForm(): void {
 }
 
 function openAddPurchase(): void {
+  // RS-33: purchases may only be added to the current period. The button is
+  // disabled off-period; this guard is a defensive backstop.
+  if (!isCurrentPeriod.value) return;
   resetPurchaseForm();
   showPurchaseModal.value = true;
 }
@@ -579,6 +595,20 @@ function openEditPurchase(id: string): void {
 function savePurchase(): void {
   purchaseValidation.touchAll();
   if (!purchaseValidation.isValid.value) return;
+
+  // RS-33: enforce the period window even if the native min/max is bypassed
+  // (e.g. manual keyboard entry). Only applies when a pay period exists and
+  // the purchase carries a date.
+  if (purchaseForm.date && formDateMin.value && formDateMax.value) {
+    if (purchaseForm.date < formDateMin.value || purchaseForm.date > formDateMax.value) {
+      toast.show(
+        `Date must be within the current period (${formDateMin.value} to ${formDateMax.value}).`,
+        'danger',
+      );
+      return;
+    }
+  }
+
   const payload = {
     name:       purchaseForm.name.trim(),
     amount:     purchaseForm.amount,
@@ -806,9 +836,11 @@ function deletePurchase(id: string): void {
         </div>
 
         <div class="purchases-controls">
-          <!-- Add purchase button -->
+          <!-- Add purchase button — RS-33: only enabled on the current period -->
           <BaseButton
             size="sm"
+            :disabled="!isCurrentPeriod"
+            :title="!isCurrentPeriod ? 'Switch to the current period to add purchases' : undefined"
             @click="openAddPurchase"
           >
             + Add
@@ -877,6 +909,22 @@ function deletePurchase(id: string): void {
           </select>
         </div>
       </div>
+
+      <!-- RS-33: hint shown when viewing a non-current period (Add disabled) -->
+      <p
+        v-if="!isCurrentPeriod"
+        class="add-period-hint"
+      >
+        Viewing a past or upcoming period — switch to
+        <button
+          type="button"
+          class="add-period-hint__link"
+          @click="goCurrent"
+        >
+          the current period
+        </button>
+        to add purchases.
+      </p>
 
       <!-- Type filter chips (All / Wants / Needs) -->
       <div class="cat-chips cat-chips--type">
@@ -1175,6 +1223,8 @@ function deletePurchase(id: string): void {
               v-model="purchaseForm.date"
               class="mf-input"
               type="date"
+              :min="formDateMin"
+              :max="formDateMax"
             >
           </div>
           <div class="mf-group">
@@ -1558,6 +1608,29 @@ function deletePurchase(id: string): void {
   gap: 0.5rem;
   align-items: center;
   flex-wrap: wrap;
+}
+
+/* ── RS-33: off-period "Add" hint ──────────────────────────────── */
+.add-period-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.add-period-hint__link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.add-period-hint__link:hover {
+  opacity: 0.85;
 }
 
 /* ── Pill search ─────────────────────────────────────────────── */

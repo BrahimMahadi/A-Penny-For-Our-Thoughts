@@ -1725,6 +1725,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-029 | "Newest first" sort in the Spending tab had no tiebreaker for same-date purchases; DB returns same-date rows in heap order (older first), so recently-added purchases appeared below older ones within the same day. Fixed `applySort` to use array position as a stable tiebreaker (later position = more recently added = sorts first). `allDatedRows` relies on ES2019 stable sort to propagate the order | `fix/bug-029-same-day-sort-order` | ✅ Complete | v2.29.0 |
 | BUG-030 | Spending tab "Daily average" and "Top category" KPI tiles always showed all-types figures, ignoring the Wants / Needs toggle in the Spent This Period card. `dailyAvg` divided `totalSpentInPeriod` and `topCategoryInfo` ran over all period purchases. Both now source from `donutPurchases` / `wantsSpentInPeriod` so all three top KPIs follow the toggle together | `fix/bug-030-spending-kpi-type-filter` | ✅ Complete | v2.30.0 |
 | BUG-031 | All Purchases table "Amount" header rendered left-aligned while its currency values were right-aligned, because `.purchases-table thead th { text-align: left }` (specificity 0,1,2) outweighed `.col-amt` (0,1,0). Added `.purchases-table thead th.col-amt { text-align: right }` to align the header with its values | `fix/bug-031-amount-column-header-align` | ✅ Complete | v2.31.0 |
+| RS-33 | Add/Edit Purchase date picker constrained to the displayed pay-period window (`min`/`max` on the date input) to prevent out-of-period purchases — the root cause of the BUG-023/024/026 family. Future-within-period dates allowed; "+ Add" disabled off the current period with a return-to-current hint; save-time guard backs up the native bounds | `feat/rs-33-period-scoped-date-picker` | ✅ Complete | v2.32.0 |
 
 ---
 
@@ -4116,3 +4117,44 @@ BUG-024 fixed the Dashboard and SpendingPage KPIs by adding date filters to thei
 
 ### Final gate
 - ✅ 1284/1284 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files
+
+---
+
+## RS-33 — Period-scoped date picker (Add/Edit Purchase) ✅
+
+**Branch**: `feat/rs-33-period-scoped-date-picker`
+**Version**: v2.32.0
+**Status**: ✅ **COMPLETE** — June 2026
+
+### Motivation
+The Add/Edit Purchase date picker in the Spending tab had no bounds, so a purchase could be dated into any past or future period. Out-of-period purchases were the shared root cause of the BUG-023 / BUG-024 / BUG-026 family (stale rows inflating totals, vanishing from period-scoped views, breaking the remaining-budget preview). Constraining input is a preventative measure so that class of bug cannot recur from manual entry.
+
+### Decisions (agreed with product owner)
+1. **Future-within-period allowed** — a purchase may be dated later in the current period (e.g. a known upcoming charge this fortnight), so `max` = period **end**, not today.
+2. **Add disabled off the current period** — purchases can only be added to the period in progress. Viewing a past/upcoming period disables "+ Add" and shows a hint linking back to the current period. (Editing existing purchases still works in any displayed period.)
+
+### Implementation
+- `isCurrentPeriod` computed (`spendingOffset === 0`) drives the Add button's `disabled` state and the hint's visibility.
+- `formDateMin` / `formDateMax` computeds derive from `spendingPeriod` (the displayed period window); `undefined` when no pay date is set (no constraint).
+- `<input type="date">` gains `:min` / `:max`.
+- `openAddPurchase` early-returns when off-period (defensive backstop behind the disabled button).
+- `savePurchase` re-validates the date against `[formDateMin, formDateMax]` and blocks with a danger toast if out of range — covers manual keyboard entry that bypasses the native picker bounds.
+- A small `.add-period-hint` with a `goCurrent()` link renders above the table when off-period.
+
+### Files Changed
+- `src/components/pages/SpendingPage.vue` — computeds, Add button disabled + hint, date input min/max, save guard, hint CSS
+- `tests/components/sections/sections.spec.ts` — 5 new RS-33 tests
+- `src/components/onboarding/WhatsNewBanner.vue` — v2.32.0 release notes
+- `tests/components/onboarding.spec.ts` — version → 2.32.0; note count → 5
+- `src/components/pages/DocsPage.vue` — v2.32.0 release block
+- `tests/components/pages/pages.spec.ts` — regression guard includes v2.32.0 + RS-33
+- `CLAUDE.md` — test count → 1297 across 39 spec files
+- `docs/PHASE_TRACKING.md` — this entry
+
+### Tests
+- 5 new tests; 1297/1297 pass across 39 spec files
+- `vue-tsc --noEmit` clean
+- ESLint clean on all touched files
+
+### Final gate
+- ✅ 1297/1297 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files

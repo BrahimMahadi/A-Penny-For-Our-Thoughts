@@ -4223,6 +4223,136 @@ describe('SpendingPage — BUG-031 amount header alignment', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  SpendingPage — RS-33 period-scoped date picker
+// ─────────────────────────────────────────────────────────────────
+describe('SpendingPage — RS-33 period-scoped date picker', () => {
+  let w: ReturnType<typeof mountWith>;
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); document.body.innerHTML = ''; });
+  afterEach(() => { vi.useRealTimers(); w?.unmount(); document.body.innerHTML = ''; });
+
+  it('RS-33: date input is constrained to the current period window when adding', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.payStart = '2026-05-19' as never; // current period 2026-05-19 .. 2026-06-01
+
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().trim() === '+ Add');
+    await addBtn!.trigger('click');
+    await nextTick();
+
+    const dateInput = document.body.querySelector<HTMLInputElement>('#sp-date');
+    expect(dateInput).not.toBeNull();
+    expect(dateInput!.getAttribute('min')).toBe('2026-05-19');
+    expect(dateInput!.getAttribute('max')).toBe('2026-06-01');
+  });
+
+  it('RS-33: max allows future dates within the current period', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-20T12:00:00')); // early in the period
+    const budget = useBudgetStore();
+    budget.payStart = '2026-05-19' as never;
+
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().trim() === '+ Add');
+    await addBtn!.trigger('click');
+    await nextTick();
+
+    const dateInput = document.body.querySelector<HTMLInputElement>('#sp-date');
+    // max is the period END (2026-06-01), which is in the future relative to today (05-20)
+    expect(dateInput!.getAttribute('max')).toBe('2026-06-01');
+    expect(dateInput!.getAttribute('max')! > '2026-05-20').toBe(true);
+  });
+
+  it('RS-33: Add button is disabled and a hint is shown when viewing a non-current period', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.payStart = '2026-05-19' as never;
+
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Navigate to the previous period
+    const prevBtn = w.findAll('.period-nav-btn').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Prev'));
+    await prevBtn!.trigger('click');
+    await nextTick();
+
+    // Add button now disabled
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().trim() === '+ Add');
+    expect(addBtn!.attributes('disabled')).toBeDefined();
+
+    // Hint visible with a "current period" link
+    const hint = w.find('.add-period-hint');
+    expect(hint.exists()).toBe(true);
+    expect(hint.text()).toContain('current period');
+  });
+
+  it('RS-33: clicking the hint link returns to the current period and re-enables Add', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.payStart = '2026-05-19' as never;
+
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    await w.findAll('.period-nav-btn').find((b: ReturnType<typeof w.findAll>[number]) => b.text().includes('Prev'))!.trigger('click');
+    await nextTick();
+    expect(w.find('.add-period-hint').exists()).toBe(true);
+
+    await w.find('.add-period-hint__link').trigger('click');
+    await nextTick();
+
+    expect(w.find('.add-period-hint').exists()).toBe(false);
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().trim() === '+ Add');
+    expect(addBtn!.attributes('disabled')).toBeUndefined();
+  });
+
+  it('RS-33: savePurchase rejects an out-of-period date (guard against bypass)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.payStart = '2026-05-19' as never;
+
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    const addBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text().trim() === '+ Add');
+    await addBtn!.trigger('click');
+    await nextTick();
+
+    // Fill name + amount
+    const nameInput = document.body.querySelector<HTMLInputElement>('#sp-name')!;
+    nameInput.value = 'Out of range';
+    nameInput.dispatchEvent(new Event('input'));
+    const amtInput = document.body.querySelector<HTMLInputElement>('#sp-amount')!;
+    amtInput.value = '50';
+    amtInput.dispatchEvent(new Event('input'));
+    // Force an out-of-period date (before period start), bypassing native min/max
+    const dateInput = document.body.querySelector<HTMLInputElement>('#sp-date')!;
+    dateInput.value = '2026-04-01';
+    dateInput.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    const before = budget.purchases.length;
+    // Click the modal's submit button (Add)
+    const footer = document.body.querySelector('.base-modal__footer');
+    const submitBtn = Array.from(footer?.querySelectorAll('button') ?? []).find(b => b.textContent?.trim() === 'Add');
+    submitBtn!.click();
+    await nextTick();
+
+    // Purchase NOT added; modal stays open
+    expect(budget.purchases.length).toBe(before);
+    expect(document.body.querySelector('.base-modal')).not.toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 //  SpendingPage — BUG-029 same-day sort order (newest-added first)
 // ─────────────────────────────────────────────────────────────────
 describe('SpendingPage — BUG-029 same-day newest-first sort', () => {
