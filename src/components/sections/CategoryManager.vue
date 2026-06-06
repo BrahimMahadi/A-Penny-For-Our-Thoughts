@@ -275,6 +275,49 @@ function remove(id: string): void {
   align-self: flex-start;
 }
 
+/* ─── Modal form ─────────────────────────────────────────────────── */
+/* BUG-027: these classes were missing, causing the "Name" label to render
+   inline beside the input on mobile instead of stacked above it.
+   Every other section component (CreditCards, Loans, Subscriptions, etc.)
+   defines the same .form-group / .form-label / .form-input block. */
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.form-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.form-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* ─── Colour picker ──────────────────────────────────────────────── */
 .cat-color-grid {
   display: flex;
