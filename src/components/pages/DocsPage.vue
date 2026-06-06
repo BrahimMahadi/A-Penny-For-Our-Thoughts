@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.32.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              RS-33 — Period-scoped date picker in the Add/Edit Purchase modal
+            </p>
+            <ul class="docs-list">
+              <li><strong>The Add/Edit Purchase date picker is now constrained to the displayed pay period.</strong> The <code>&lt;input type="date"&gt;</code> now carries <code>min</code> / <code>max</code> bound to the current period window (<code>periodStart</code> → <code>periodEnd</code>). This prevents dating a purchase outside any visible period — the underlying cause of the BUG-023 / BUG-024 / BUG-026 family, where out-of-period rows inflated totals or vanished from the period-scoped views. Future dates <em>within</em> the current period are still allowed (e.g. a charge you know is coming later this fortnight).</li>
+              <li><strong>"+ Add" is disabled outside the current period.</strong> Purchases can only be added to the period in progress. When you navigate to a past or upcoming period via the Prev / Next buttons, the Add button is disabled and a hint appears with a one-click link back to the current period. Editing existing purchases still works in any displayed period, scoped to that period's window.</li>
+              <li><strong>Save-time guard.</strong> <code>savePurchase</code> re-checks the date against the period window before committing, so the constraint holds even if the native <code>min</code> / <code>max</code> is bypassed by manual keyboard entry. An out-of-range date shows a clear error toast and blocks the save.</li>
+              <li><strong>5 new regression tests</strong> covering the date bounds, future-within-period allowance, the disabled state + hint, the hint's return-to-current link, and the save-time guard.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.31.0</span>
               <span class="release-date">June 2026</span>
             </div>

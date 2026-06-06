@@ -22,14 +22,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.31.0';
+const APP_VERSION = '2.32.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📐', text: 'Fixed BUG-031: the "Amount" column header in the All Purchases table now right-aligns with the currency values below it, instead of sitting left-aligned out of line with the numbers' },
-  { icon: '🧪', text: '1 new regression test: confirms the Amount header carries the col-amt class that the alignment rule targets' },
-  { icon: '✅', text: '1292 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '📅', text: 'RS-33: the date picker in the Add/Edit Purchase modal is now constrained to the current pay-period window — you can no longer accidentally date a purchase outside the period, which was the root cause of several past sync/display bugs' },
+  { icon: '⏭️', text: 'You can still date a purchase later within the current period (e.g. a charge you know is coming this week), but not into a past or future period' },
+  { icon: '🔒', text: 'The "+ Add" button is now disabled when you navigate to a past or upcoming period, with a hint linking back to the current period — purchases can only be added to the period in progress' },
+  { icon: '🧪', text: '5 new regression tests covering the date bounds, future-within-period dates, the disabled state + hint, and the save-time guard' },
+  { icon: '✅', text: '1297 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();
