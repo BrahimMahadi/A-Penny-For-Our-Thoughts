@@ -4194,6 +4194,57 @@ describe('SpendingPage — CRUD', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  SpendingPage — BUG-029 same-day sort order (newest-added first)
+// ─────────────────────────────────────────────────────────────────
+describe('SpendingPage — BUG-029 same-day newest-first sort', () => {
+  let w: ReturnType<typeof mountWith>;
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); document.body.innerHTML = ''; });
+  afterEach(() => { w?.unmount(); document.body.innerHTML = ''; });
+
+  it('BUG-029: a purchase added later on the same day appears first in "Newest first" sort', async () => {
+    const budget = useBudgetStore();
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.payStart = today;
+
+    // Add three purchases on the same date; the LAST one added should sort first
+    budget.addPurchase({ name: 'First added',  amount: 10, category: 'Other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Second added', amount: 20, category: 'Other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Third added',  amount: 30, category: 'Other', cardId: null, budgetType: 'wants', date: today });
+
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Default sort is "Newest first" — within the same date, most-recently-added should lead
+    const rows = w.findAll('.purchase-row--clickable');
+    expect(rows.length).toBeGreaterThanOrEqual(3);
+    expect(rows[0].find('.col-name').text()).toBe('Third added');
+    expect(rows[1].find('.col-name').text()).toBe('Second added');
+    expect(rows[2].find('.col-name').text()).toBe('First added');
+  });
+
+  it('BUG-029: "Oldest first" reverses same-day insertion order', async () => {
+    const budget = useBudgetStore();
+    const today = new Date().toISOString().split('T')[0] as never;
+    budget.payStart = today;
+
+    budget.addPurchase({ name: 'Alpha', amount: 5,  category: 'Other', cardId: null, budgetType: 'wants', date: today });
+    budget.addPurchase({ name: 'Beta',  amount: 10, category: 'Other', cardId: null, budgetType: 'wants', date: today });
+
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Switch to Oldest first
+    const sortSelect = w.find<HTMLSelectElement>('select.sort-select');
+    await sortSelect.setValue('oldest');
+    await nextTick();
+
+    const rows = w.findAll('.purchase-row--clickable');
+    expect(rows[0].find('.col-name').text()).toBe('Alpha');   // first added = oldest = first row
+    expect(rows[1].find('.col-name').text()).toBe('Beta');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 //  SpendingPage — BUG-026 add-purchase preview uses period-scoped data
 // ─────────────────────────────────────────────────────────────────
 describe('SpendingPage — BUG-026 add-purchase preview accuracy', () => {

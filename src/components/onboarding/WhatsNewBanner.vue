@@ -22,15 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.28.0';
+const APP_VERSION = '2.29.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🤖', text: 'Fixed BUG-028: transaction rules now auto-categorise purchases in the Dashboard quick-add modal — as you type a name, the matching category pill highlights automatically, just like the Spending tab form has always done' },
-  { icon: '🏷️', text: 'The category pills still work as before — you can still tap any pill to override the rule-matched category, and manually selected categories are never overridden' },
-  { icon: '🧪', text: '2 new regression tests: one proves rule match highlights the correct pill and saves the right category; one proves no-match leaves the default pill unchanged' },
-  { icon: '✅', text: '1287 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '🔢', text: 'Fixed BUG-029: when multiple purchases share the same date, the most recently added now correctly appears first under "Newest first" sort — previously the tiebreaker was undefined and older purchases could appear above newer ones' },
+  { icon: '📋', text: '"Oldest first" also benefits: purchases made earlier in the day now correctly appear before ones added later' },
+  { icon: '🧪', text: '2 new regression tests: one proves a 3-item same-day sequence sorts newest-first; one proves "Oldest first" reverses the insertion order correctly' },
+  { icon: '✅', text: '1289 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();

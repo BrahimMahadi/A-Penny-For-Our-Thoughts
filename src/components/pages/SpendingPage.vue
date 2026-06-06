@@ -252,21 +252,29 @@ function applySearch(items: Purchase[]): Purchase[] {
 }
 
 function applySort(items: Purchase[]): Purchase[] {
+  // BUG-029: pre-compute position map so the same-date tiebreaker is O(1)
+  // instead of O(n) per comparison. Later position in the source array means
+  // the purchase was added more recently, so for "newest" it should sort first.
+  const idx = new Map(items.map((p, i) => [p.id, i]));
   const arr = [...items];
   switch (sortKey.value) {
     case 'newest':
       return arr.sort((a, b) => {
-        if (!a.date && !b.date) return 0;
+        if (!a.date && !b.date) return (idx.get(b.id) ?? 0) - (idx.get(a.id) ?? 0);
         if (!a.date) return 1;
         if (!b.date) return -1;
-        return b.date.localeCompare(a.date);
+        const dateCmp = b.date.localeCompare(a.date);
+        // Same calendar day → fall back to insertion order (higher index = newer = first)
+        return dateCmp !== 0 ? dateCmp : (idx.get(b.id) ?? 0) - (idx.get(a.id) ?? 0);
       });
     case 'oldest':
       return arr.sort((a, b) => {
-        if (!a.date && !b.date) return 0;
+        if (!a.date && !b.date) return (idx.get(a.id) ?? 0) - (idx.get(b.id) ?? 0);
         if (!a.date) return -1;
         if (!b.date) return 1;
-        return a.date.localeCompare(b.date);
+        const dateCmp = a.date.localeCompare(b.date);
+        // Same calendar day → earlier insertion order first
+        return dateCmp !== 0 ? dateCmp : (idx.get(a.id) ?? 0) - (idx.get(b.id) ?? 0);
       });
     case 'amtHigh': return arr.sort((a, b) => b.amount - a.amount);
     case 'amtLow':  return arr.sort((a, b) => a.amount - b.amount);
@@ -399,6 +407,12 @@ const allDatedRows = computed<PeriodicRow[]>(() => {
 
   const merged = [...purchaseRows, ...filteredVirtualRows.value];
 
+  // BUG-029: `purchaseRows` is already sorted correctly by applySort (which
+  // uses insertion-order tiebreaking for same-date items). For same-date rows
+  // the comparator returns 0, and ES2019+ stable sort preserves the existing
+  // order — so `purchaseRows` stays in the right order and virtual rows (which
+  // come after all purchases in `merged`) naturally sort after purchases with
+  // the same date. No additional tiebreaker is needed here.
   switch (sortKey.value) {
     case 'newest':
       return merged.sort((a, b) => {
