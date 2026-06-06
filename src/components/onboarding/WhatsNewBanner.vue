@@ -22,15 +22,14 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.30.0';
+const APP_VERSION = '2.31.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📊', text: 'Fixed BUG-030: the "Daily average" and "Top category" KPI tiles in the Spending tab now follow the Wants / Needs toggle in the Spent This Period card — previously they always showed all-types figures regardless of the toggle' },
-  { icon: '🔄', text: 'Toggle between Wants and Needs and all three top KPIs (spent, daily average, top category) now update together and stay consistent' },
-  { icon: '🧪', text: '2 new regression tests: one proves daily average switches between the wants and needs totals; one proves top category switches to the correct per-type winner' },
-  { icon: '✅', text: '1291 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '📐', text: 'Fixed BUG-031: the "Amount" column header in the All Purchases table now right-aligns with the currency values below it, instead of sitting left-aligned out of line with the numbers' },
+  { icon: '🧪', text: '1 new regression test: confirms the Amount header carries the col-amt class that the alignment rule targets' },
+  { icon: '✅', text: '1292 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();

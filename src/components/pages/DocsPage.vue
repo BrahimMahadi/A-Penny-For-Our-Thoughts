@@ -341,6 +341,19 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.31.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              BUG-031 — Amount column header alignment
+            </p>
+            <ul class="docs-list">
+              <li><strong>BUG-031 fixed: the "Amount" column header now right-aligns with its values.</strong> In the All Purchases table the amount cells (<code>.col-amt</code>) are right-aligned for currency, but the header <code>&lt;th&gt;</code> stayed left-aligned because the global <code>.purchases-table thead th { text-align: left }</code> rule (specificity 0,1,2) outweighed the <code>.col-amt</code> class (0,1,0). Added a higher-specificity <code>.purchases-table thead th.col-amt { text-align: right }</code> rule so the header lines up with the numbers below it.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.30.0</span>
               <span class="release-date">June 2026</span>
             </div>

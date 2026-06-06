@@ -1704,6 +1704,13 @@ function deletePurchase(id: string): void {
   border-bottom: 1px solid var(--border);
 }
 
+/* BUG-031: right-align the AMOUNT header so it lines up with the
+   right-aligned currency values below it. Needs higher specificity
+   than `.purchases-table thead th` to win the cascade. */
+.purchases-table thead th.col-amt {
+  text-align: right;
+}
+
 .purchase-row td {
   padding: 0.5rem 0.5rem;
   border-bottom: 1px solid var(--border-light, rgba(42, 48, 65, 0.3));
