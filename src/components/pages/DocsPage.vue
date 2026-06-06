@@ -341,6 +341,19 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.30.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              BUG-030 — Spending KPIs now follow the Wants / Needs toggle
+            </p>
+            <ul class="docs-list">
+              <li><strong>BUG-030 fixed: "Daily average" and "Top category" tiles now respect the Spent This Period toggle.</strong> The Spending tab's top KPI row has a Wants / Needs toggle on the "Spent this period" card. The "Spent this period" value already followed the toggle, but "Daily average" and "Top category" were hard-wired to all-types figures: <code>dailyAvg</code> divided <code>totalSpentInPeriod</code> (every purchase regardless of type) and <code>topCategoryInfo</code> ran <code>getCategorySpending</code> over all period purchases. Fix: both now source from <code>donutPurchases</code> / <code>wantsSpentInPeriod</code> (the active-type data), so all three KPIs update together when the toggle flips. <code>Days left</code> is intentionally type-independent (it's a period property) and was left unchanged.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.29.0</span>
               <span class="release-date">June 2026</span>
             </div>

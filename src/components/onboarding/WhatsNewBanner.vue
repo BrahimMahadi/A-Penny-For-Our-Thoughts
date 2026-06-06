@@ -22,15 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.29.0';
+const APP_VERSION = '2.30.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🔢', text: 'Fixed BUG-029: when multiple purchases share the same date, the most recently added now correctly appears first under "Newest first" sort — previously the tiebreaker was undefined and older purchases could appear above newer ones' },
-  { icon: '📋', text: '"Oldest first" also benefits: purchases made earlier in the day now correctly appear before ones added later' },
-  { icon: '🧪', text: '2 new regression tests: one proves a 3-item same-day sequence sorts newest-first; one proves "Oldest first" reverses the insertion order correctly' },
-  { icon: '✅', text: '1289 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '📊', text: 'Fixed BUG-030: the "Daily average" and "Top category" KPI tiles in the Spending tab now follow the Wants / Needs toggle in the Spent This Period card — previously they always showed all-types figures regardless of the toggle' },
+  { icon: '🔄', text: 'Toggle between Wants and Needs and all three top KPIs (spent, daily average, top category) now update together and stay consistent' },
+  { icon: '🧪', text: '2 new regression tests: one proves daily average switches between the wants and needs totals; one proves top category switches to the correct per-type winner' },
+  { icon: '✅', text: '1291 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();

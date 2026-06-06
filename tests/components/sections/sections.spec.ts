@@ -4617,6 +4617,64 @@ describe('SpendingPage — RS-16 donut toggle', () => {
     expect(w.find('.spend-donut-total').text()).toContain('$900.00');
     w.unmount();
   });
+
+  // ── BUG-030 — Daily average + Top category follow the type toggle ──
+  // Helper: find a StatCard's value by its label text.
+  function statValue(w: ReturnType<typeof mountWith>, label: string): string {
+    const card = w.findAll('.base-stat-card').find(
+      (c: ReturnType<typeof w.findAll>[number]) => c.find('.base-stat-card__label').text() === label,
+    );
+    return card ? card.find('.base-stat-card__value').text() : '';
+  }
+
+  it('BUG-030: Daily average reflects the active type and updates on toggle', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-19T12:00:00')); // day 1 of the period
+    const budget = useBudgetStore();
+    budget.payStart = '2026-05-19' as never;
+    // daysElapsed = 1 on day 1, so dailyAvg === active-type total
+    budget.addPurchase({ name: 'Coffee', amount: 100, category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-05-19' });
+    budget.addPurchase({ name: 'Rent',   amount: 400, category: 'Housing',      cardId: null, budgetType: 'needs', date: '2026-05-19' });
+
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Default Wants → daily avg = $100.00 (not the all-types $500)
+    expect(statValue(w, 'Daily average')).toContain('$100.00');
+
+    // Toggle to Needs → daily avg = $400.00
+    await w.findAll('.dtt-btn')[1].trigger('click');
+    await nextTick();
+    expect(statValue(w, 'Daily average')).toContain('$400.00');
+
+    w.unmount();
+    vi.useRealTimers();
+  });
+
+  it('BUG-030: Top category reflects the active type and updates on toggle', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-19T12:00:00'));
+    const budget = useBudgetStore();
+    budget.payStart = '2026-05-19' as never;
+    // Wants top category = Entertainment; Needs top category = Groceries
+    budget.addPurchase({ name: 'Movie',     amount: 60, category: 'Entertainment', cardId: null, budgetType: 'wants', date: '2026-05-19' });
+    budget.addPurchase({ name: 'Coffee',    amount: 10, category: 'Food & Drink',  cardId: null, budgetType: 'wants', date: '2026-05-19' });
+    budget.addPurchase({ name: 'Groceries', amount: 90, category: 'Groceries',     cardId: null, budgetType: 'needs', date: '2026-05-19' });
+
+    const w = mountWith(SpendingPage);
+    await nextTick();
+
+    // Default Wants → top category = Entertainment (the $60 wants item)
+    expect(statValue(w, 'Top category')).toBe('Entertainment');
+
+    // Toggle to Needs → top category = Groceries (the only needs item)
+    await w.findAll('.dtt-btn')[1].trigger('click');
+    await nextTick();
+    expect(statValue(w, 'Top category')).toBe('Groceries');
+
+    w.unmount();
+    vi.useRealTimers();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────
