@@ -23,6 +23,7 @@ import StatCard from '@/components/ui/StatCard.vue';
 import BaseCard from '@/components/ui/BaseCard.vue';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
+import OneTimeIncomeSection from '@/components/sections/OneTimeIncomeSection.vue';
 import { fmt } from '@/utils/format';
 import type { Purchase, ISODate } from '@/types/budget';
 
@@ -106,7 +107,11 @@ const undatedPurchases = computed<Purchase[]>(() =>
 
 // ─── KPI tiles ────────────────────────────────────────────────────
 const wantsPct = computed(() => (budget.$state.allocation.wants || 0) / 100);
-const wantsBudgetPerPeriod = computed(() => totalMonthlyIncome.value * wantsPct.value / 2);
+/** Wants bi-weekly budget = income × wants% ÷ 2 + windfall wants boost. */
+const wantsBudgetPerPeriod = computed(() =>
+  totalMonthlyIncome.value * wantsPct.value / 2
+  + (isCurrentPeriod.value ? budget.currentPeriodExtraWants : 0),
+);
 
 const totalSpentInPeriod = computed(() =>
   purchasesInPeriod.value.reduce((s, p) => s + p.amount, 0),
@@ -171,9 +176,10 @@ const donutPurchases = computed(() =>
 /** Total spent for the active donut type. */
 const wantsSpentInPeriod = computed(() => donutPurchases.value.reduce((s, p) => s + p.amount, 0));
 
-/** Needs bi-weekly budget = income × needs% ÷ 2. */
+/** Needs bi-weekly budget = income × needs% ÷ 2 + windfall needs boost. */
 const needsBudgetPerPeriod = computed(() =>
-  (totalMonthlyIncome.value * ((budget.$state.allocation.needs || 0) / 100)) / 2,
+  (totalMonthlyIncome.value * ((budget.$state.allocation.needs || 0) / 100)) / 2
+  + (isCurrentPeriod.value ? budget.currentPeriodExtraNeeds : 0),
 );
 
 /** Budget for the active donut type. */
@@ -529,7 +535,10 @@ const spendingFormAfter = computed<number | null>(() => {
   const pct  = type === 'needs'
     ? (budget.$state.allocation.needs || 0)
     : (budget.$state.allocation.wants || 0);
-  const bwBudget = (totalMonthlyIncome.value * pct / 100) / 2;
+  const windfallBoost = type === 'needs'
+    ? budget.currentPeriodExtraNeeds
+    : budget.currentPeriodExtraWants;
+  const bwBudget = (totalMonthlyIncome.value * pct / 100) / 2 + windfallBoost;
 
   // Period-scoped spent (BUG-026: was budget.purchases without date filter)
   const spent = currentPeriodPurchasesForPreview.value
@@ -821,6 +830,17 @@ function deletePurchase(id: string): void {
         </div>
       </BaseCard>
     </div>
+
+    <!-- ── Windfall income this period ──────────────────────────── -->
+    <BaseCard
+      v-if="isCurrentPeriod"
+      title="Income This Period"
+    >
+      <p class="spend-section-eyebrow">
+        WINDFALL INCOME
+      </p>
+      <OneTimeIncomeSection />
+    </BaseCard>
 
     <!-- ── All purchases table ─────────────────────────────────── -->
     <BaseCard>

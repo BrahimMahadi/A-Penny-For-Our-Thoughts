@@ -25,6 +25,7 @@ import type {
   Rule,
   BudgetAlert,
   SpendingCategory,
+  OneTimeIncome,
   ISODate,
 } from './budget';
 
@@ -45,6 +46,8 @@ export interface BudgetState {
 
   // Income
   incomeStreams: IncomeStream[];
+  /** One-time income entries for the current and past periods */
+  oneTimeIncomes: OneTimeIncome[];
 
   // Expenses
   expenseCards: ExpenseCard[];

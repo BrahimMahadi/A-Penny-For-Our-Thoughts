@@ -341,6 +341,23 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.37.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              One-time income — windfall budget boosts
+            </p>
+            <ul class="docs-list">
+              <li><strong>Log windfall income for the current period.</strong> Use the new "Log income" button on the Dashboard (or the Windfall Income panel in Settings) to record e-transfers, gifts, bonuses, freelance payments, refunds, and sales. Each entry carries a proportional 50/30/20 allocation split by default — fully adjustable per bucket, locked to sum to 100%.</li>
+              <li><strong>Budget envelopes update automatically.</strong> The needs/wants/savings bi-weekly envelopes on the Dashboard hero and Spending tab both reflect the windfall boost, so "remaining" figures are always accurate. The add-purchase preview also accounts for windfall income.</li>
+              <li><strong>Dashboard callout.</strong> When windfall income is logged, a green "+$X windfall this period" pill appears beneath the hero spending caption.</li>
+              <li><strong>Income This Period section.</strong> The Spending tab shows a collapsible card listing current-period windfall entries with allocation chips, date, type badge, and edit/delete controls.</li>
+              <li><strong>39 new tests</strong> covering store actions, getters, allocation math, modal seeding/validation, and the section list component (1354 total).</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.36.0</span>
               <span class="release-date">June 2026</span>
             </div>

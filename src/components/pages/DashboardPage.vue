@@ -58,6 +58,7 @@ import Subscriptions       from '@/components/sections/Subscriptions.vue';
 import Savings             from '@/components/sections/Savings.vue';
 import Wishlist            from '@/components/sections/Wishlist.vue';
 import ChequingBalance     from '@/components/sections/ChequingBalance.vue';
+import OneTimeIncomeModal  from '@/components/modals/OneTimeIncomeModal.vue';
 
 // ─── Stores & composables ──────────────────────────────────────────
 const ui     = useUiStore();
@@ -100,7 +101,8 @@ const currentPeriodPurchases = computed<Purchase[]>(() => {
 
 // ─── Hero KPI: bi-weekly wants envelope ───────────────────────────
 const biWeeklyBudget = computed(() =>
-  (totalMonthlyIncome.value * (budget.allocation.wants / 100)) / 2,
+  (totalMonthlyIncome.value * (budget.allocation.wants / 100)) / 2
+  + budget.currentPeriodExtraWants,
 );
 
 const biWeeklySpent = computed(() =>
@@ -248,6 +250,13 @@ const heroUsedPct = computed(() => {
   return Math.min(100, (heroSpent.value / heroBudget.value) * 100);
 });
 
+// ─── Quick-income modal ───────────────────────────────────────────
+const showQuickIncome = ref(false);
+
+function openQuickIncome(): void {
+  showQuickIncome.value = true;
+}
+
 // ─── Quick-add modal ──────────────────────────────────────────────
 const showQuickAdd       = ref(false);
 const quickAddName       = ref('');
@@ -279,9 +288,10 @@ watch(quickAddName, (name) => {
   if (matched) quickAddCategory.value = matched;
 });
 
-/** Bi-weekly needs envelope (income × needs% ÷ 2). */
+/** Bi-weekly needs envelope (income × needs% ÷ 2) + windfall needs boost. */
 const biWeeklyNeedsBudget = computed(() =>
-  (totalMonthlyIncome.value * (budget.allocation.needs / 100)) / 2,
+  (totalMonthlyIncome.value * (budget.allocation.needs / 100)) / 2
+  + budget.currentPeriodExtraNeeds,
 );
 
 /** All needs purchases spent so far this period (current window only). */
@@ -384,6 +394,12 @@ onMounted(() => {
 
       <div class="dash-header__actions">
         <button
+          class="btn-secondary"
+          @click="openQuickIncome"
+        >
+          <span aria-hidden="true">+</span> Log income
+        </button>
+        <button
           class="btn-primary"
           @click="openQuickAdd"
         >
@@ -449,6 +465,15 @@ onMounted(() => {
 
           <p class="kpi-hero__caption">
             {{ fmt(heroSpent) }} spent of {{ fmt(heroBudget) }}
+          </p>
+
+          <!-- Windfall callout — only shown when extra income exists this period -->
+          <p
+            v-if="budget.currentPeriodWindfallTotal > 0"
+            class="kpi-hero__windfall"
+          >
+            <span class="kpi-hero__windfall-icon" aria-hidden="true">💰</span>
+            +{{ fmt(budget.currentPeriodWindfallTotal) }} windfall this period
           </p>
           <div
             class="kpi-hero__track"
@@ -629,6 +654,11 @@ onMounted(() => {
     >
       <Wishlist />
     </BaseCard>
+
+    <!-- ══ Quick-income modal ════════════════════════════════════════════ -->
+    <OneTimeIncomeModal
+      v-model:open="showQuickIncome"
+    />
 
     <!-- ══ Quick-add wants modal ══════════════════════════════════════════ -->
     <BaseModal
@@ -1002,6 +1032,23 @@ onMounted(() => {
   font-family: var(--font-mono);
   letter-spacing: 0.02em;
   color: rgba(255, 255, 255, 0.65);
+}
+
+.kpi-hero__windfall {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0 0 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.15);
+  border-radius: 99px;
+  padding: 0.15rem 0.55rem;
+  letter-spacing: 0.01em;
+}
+.kpi-hero__windfall-icon {
+  font-size: 0.8rem;
 }
 
 /* ─── Standard KPI cards ───────────────────────────────────────── */

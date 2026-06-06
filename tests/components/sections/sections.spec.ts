@@ -2215,12 +2215,14 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
     w.unmount();
   });
 
-  it('does NOT render the "Manage widgets" button (removed in RS-11)', async () => {
+  it('does NOT render the "Manage widgets" button (removed in RS-11), but does show the "Log income" button', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
-    // The old "Manage widgets" button had class btn-secondary in the header
+    // The old "Manage widgets" button was removed in RS-11.
+    // The header now has exactly one btn-secondary: the "Log income" quick-add button.
     const headerBtns = w.findAll('.dash-header__actions .btn-secondary');
-    expect(headerBtns).toHaveLength(0);
+    expect(headerBtns).toHaveLength(1);
+    expect(headerBtns[0].text()).toContain('Log income');
     w.unmount();
   });
 

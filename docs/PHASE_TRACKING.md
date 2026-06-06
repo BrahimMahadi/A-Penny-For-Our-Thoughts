@@ -1732,6 +1732,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | TECH-DEBT-1 · Phase 2 | Tier 2 — domain consolidation: frequency rate maps + labels → `constants/frequency.ts` (shared by Subscriptions + Loans); status thresholds (variance 110/100, envelope 0.9, sub-budget 60/30) → `constants/budget.ts`; 5 guard tests | `feat/tech-debt-1-phase-2-domain` | ✅ Complete | v2.35.0 |
 | TECH-DEBT-1 · Phase 3 | Tier 3 — `'wants'`/`'needs'` shared constants + chart-palette hex centralization (CSS-var fallbacks left as-is by decision) | `feat/tech-debt-1-phase-3-enums` | ✅ Complete | v2.36.0 |
 | CHORE-1 | Code-health cleanup (fallow static analysis): removed unused exports/dead helpers (`CATEGORY_COLOURS`, `WANT_CATEGORIES`, `SECTION_GROUPS`, imperative `showToast`), an unused runtime dependency (`date-fns`), and the stale `docs/design_handoff_schedule_spending/` mockup folder; trimmed dead code in the legacy vanilla-JS files. Pure housekeeping — no behaviour change | `chore/fallow-code-health-cleanup` | ✅ Complete | v2.36.0 |
+| ONE-TIME-INCOME | Log windfall income for the current period (e-transfer, gift, bonus, freelance, refund, sale). Proportional 50/30/20 allocation by default, user-adjustable per bucket. Boosts needs/wants/savings envelopes on Dashboard + Spending page. Quick-add button on Dashboard header, dedicated section on Spending tab, management panel in Settings. 39 new tests (store actions, getters, allocation math, modal, section component). | `feat/one-time-income` | ✅ Complete | v2.37.0 |
 
 ---
 

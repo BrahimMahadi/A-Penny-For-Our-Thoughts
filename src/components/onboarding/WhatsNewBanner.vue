@@ -22,14 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.36.0';
+const APP_VERSION = '2.37.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🧱', text: 'TECH-DEBT-1 (Phase 3): the budget-type default ("Wants") is now a single shared constant, completing the hard-coded-values sweep across the app' },
-  { icon: '🧹', text: 'Code-health cleanup (fallow): removed unused exports, dead helpers, an unused dependency, and a stale design-handoff folder — leaner codebase, no behaviour change' },
-  { icon: '🧪', text: '1315 tests passing across 40 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '💰', text: 'One-time income: log a windfall (e-transfer, gift, bonus, refund…) to boost your period budget — proportional 50/30/20 split by default, fully adjustable per bucket' },
+  { icon: '📊', text: 'Windfall income appears in the Dashboard hero ("+$X windfall" callout) and a dedicated Income This Period section on the Spending tab' },
+  { icon: '⚙️', text: 'Manage windfall entries from Settings (Windfall Income panel) or the new "Log income" quick-add button on the Dashboard' },
+  { icon: '🧪', text: '1354 tests passing across 42 spec files — 39 new income store + component tests added' },
 ];
 
 const budget = useBudgetStore();

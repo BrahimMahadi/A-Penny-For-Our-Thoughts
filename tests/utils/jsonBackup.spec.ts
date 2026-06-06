@@ -18,6 +18,7 @@ function makeMinimalState(overrides: Partial<BudgetState> = {}): BudgetState {
     allocation: { needs: 50, wants: 30, savings: 20 },
     budgetDisplayMode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
     incomeStreams: [],
+    oneTimeIncomes: [],
     expenseCards: [],
     purchases: [],
     spendingHistory: [],

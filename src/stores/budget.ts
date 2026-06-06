@@ -40,6 +40,9 @@ import type {
   BudgetDisplayModes,
   BudgetType,
   SpendingCategory,
+  OneTimeIncome,
+  IncomeSourceType,
+  IncomeAllocation,
   ISODate,
   ISOMonth,
 } from '@/types/budget';
@@ -59,6 +62,7 @@ export function makeDefaultState(): BudgetState {
     budgetDisplayMode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
 
     incomeStreams: [],
+    oneTimeIncomes: [],
     expenseCards: [],
     purchases: [],
     spendingHistory: [],
@@ -115,6 +119,7 @@ export function makeBlankState(): BudgetState {
     allocation: { ...DEFAULT_ALLOCATION },
     budgetDisplayMode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
     incomeStreams: [],
+    oneTimeIncomes: [],
     expenseCards: [],
     purchases: [],
     spendingHistory: [],
@@ -225,6 +230,8 @@ export function migrateState(raw: unknown): BudgetState {
   if (!s.allocation) s.allocation = { ...DEFAULT_ALLOCATION };
   if (!s.budgetDisplayMode) s.budgetDisplayMode = { needs: 'monthly', wants: 'monthly', savings: 'monthly' };
   if (!s.incomeStreams) s.incomeStreams = [];
+  // One-time income (added in v2.37.0 — default to empty array for legacy users)
+  if (!Array.isArray(s.oneTimeIncomes)) s.oneTimeIncomes = [];
   if (!s.expenseCards) s.expenseCards = [];
   if (!s.purchases) s.purchases = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -684,6 +691,51 @@ export const useBudgetStore = defineStore('budget', {
         return sum + card.items.reduce((s, i) => s + (i.biweekly ? i.amount * 2 : i.amount), 0);
       }, 0);
     },
+
+    // ─── One-time income getters ───────────────────────────────────
+
+    /**
+     * One-time incomes that belong to the current pay period.
+     * Matched by `periodStart` so switching periods never mixes entries.
+     */
+    currentPeriodIncomes(state): OneTimeIncome[] {
+      if (!state.payStart) return [];
+      const periodStart = getCurrentPeriodStart(state);
+      if (!periodStart) return [];
+      return state.oneTimeIncomes.filter(i => i.periodStart === periodStart);
+    },
+
+    /** Dollar boost to the needs envelope for the current period. */
+    currentPeriodExtraNeeds(): number {
+      return (this.currentPeriodIncomes as OneTimeIncome[]).reduce(
+        (sum, i) => sum + i.amount * (i.allocation.needs / 100),
+        0,
+      );
+    },
+
+    /** Dollar boost to the wants envelope for the current period. */
+    currentPeriodExtraWants(): number {
+      return (this.currentPeriodIncomes as OneTimeIncome[]).reduce(
+        (sum, i) => sum + i.amount * (i.allocation.wants / 100),
+        0,
+      );
+    },
+
+    /** Dollar boost to the savings envelope for the current period. */
+    currentPeriodExtraSavings(): number {
+      return (this.currentPeriodIncomes as OneTimeIncome[]).reduce(
+        (sum, i) => sum + i.amount * (i.allocation.savings / 100),
+        0,
+      );
+    },
+
+    /** Total windfall income received this period (all buckets combined). */
+    currentPeriodWindfallTotal(): number {
+      return (this.currentPeriodIncomes as OneTimeIncome[]).reduce(
+        (sum, i) => sum + i.amount,
+        0,
+      );
+    },
   },
 
   actions: {
@@ -939,6 +991,37 @@ export const useBudgetStore = defineStore('budget', {
     deletePurchase(id: string): void {
       this.purchases = this.purchases.filter((p) => p.id !== id);
       syncDb(() => db.purchases.delete(_userId, id), 'deletePurchase');
+    },
+
+    // ─── One-time income ──────────────────────────────────────────
+
+    /**
+     * Add a one-time income entry for the current pay period.
+     * `periodStart` is automatically set to the current period's start date.
+     */
+    addOneTimeIncome(income: Omit<OneTimeIncome, 'id' | 'createdAt' | 'periodStart'>): OneTimeIncome {
+      const periodStart = this.payStart
+        ? (getCurrentPeriodStart(this.$state) ?? new Date().toISOString().split('T')[0])
+        : new Date().toISOString().split('T')[0];
+      const item: OneTimeIncome = {
+        ...income,
+        id: genId(),
+        periodStart,
+        createdAt: new Date().toISOString(),
+      };
+      this.oneTimeIncomes.push(item);
+      return item;
+    },
+
+    /** Update fields on an existing one-time income entry. */
+    updateOneTimeIncome(id: string, patch: Partial<Omit<OneTimeIncome, 'id' | 'createdAt' | 'periodStart'>>): void {
+      const target = this.oneTimeIncomes.find(i => i.id === id);
+      if (target) Object.assign(target, patch);
+    },
+
+    /** Permanently remove a one-time income entry. */
+    deleteOneTimeIncome(id: string): void {
+      this.oneTimeIncomes = this.oneTimeIncomes.filter(i => i.id !== id);
     },
 
     /**

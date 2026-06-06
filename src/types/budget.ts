@@ -326,6 +326,51 @@ export interface AssetCategoryMeta {
   icon: string;
 }
 
+// ─── One-time income ─────────────────────────────────────────────
+
+/**
+ * Source type for a one-time income entry.
+ * Used for labelling and future analytics.
+ */
+export type IncomeSourceType = 'gift' | 'freelance' | 'refund' | 'bonus' | 'sale' | 'other';
+
+/**
+ * Per-bucket allocation for a one-time income entry.
+ * The three values must sum to 100 (enforced by the UI).
+ */
+export interface IncomeAllocation {
+  /** Percentage allocated to the needs budget (0–100) */
+  needs: number;
+  /** Percentage allocated to the wants budget (0–100) */
+  wants: number;
+  /** Percentage allocated to savings (0–100) */
+  savings: number;
+}
+
+/**
+ * A one-time income entry for the current pay period —
+ * e.g. an e-transfer, tax refund, freelance payment, or gift.
+ *
+ * Scoped to a single period via `periodStart`. The allocation
+ * split (proportional 50/30/20 default, user-overridable) boosts
+ * the needs/wants/savings envelopes for that period only.
+ */
+export interface OneTimeIncome {
+  id: string;
+  /** Human-readable label — e.g. "E-transfer from Dad" */
+  label: string;
+  amount: number;
+  /** ISO date the income was received (within current period) */
+  date: ISODate;
+  type: IncomeSourceType;
+  /** Allocation percentages — must sum to 100 */
+  allocation: IncomeAllocation;
+  /** Period start date this income belongs to (ISO 'YYYY-MM-DD') */
+  periodStart: ISODate;
+  /** ISO timestamp the record was created */
+  createdAt: string;
+}
+
 // ─── Spending categories ─────────────────────────────────────────
 
 /**

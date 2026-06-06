@@ -30,6 +30,7 @@ import BudgetAlerts from '@/components/sections/BudgetAlerts.vue';
 import CategoryManager from '@/components/sections/CategoryManager.vue';
 import IncomeStreams from '@/components/sections/IncomeStreams.vue';
 import ExpenseCards from '@/components/sections/ExpenseCards.vue';
+import OneTimeIncomeSection from '@/components/sections/OneTimeIncomeSection.vue';
 
 const budget = useBudgetStore();
 const auth   = useAuthStore();
@@ -175,6 +176,14 @@ function handleClearAll(): void {
             <p class="settings-panel__subtitle">Organize recurring bills by account</p>
           </div>
           <ExpenseCards />
+        </div>
+
+        <div class="settings-panel">
+          <div class="settings-panel__header">
+            <h2 class="settings-panel__title">Windfall Income</h2>
+            <p class="settings-panel__subtitle">One-time income logged for the current period</p>
+          </div>
+          <OneTimeIncomeSection />
         </div>
 
       </div><!-- /right col -->
