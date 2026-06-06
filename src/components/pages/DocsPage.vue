@@ -341,6 +341,19 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.29.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              BUG-029 — Same-day purchase sort order now reflects insertion order
+            </p>
+            <ul class="docs-list">
+              <li><strong>BUG-029 fixed: most-recently-added purchase now appears first when multiple purchases share the same date.</strong> The "Newest first" sort in the Spending tab compared purchases by ISO date string only. When two purchases had the same calendar date, the tiebreaker was undefined — the browser's sort left them in whatever internal order it chose, which often put older purchases above newer ones (since PostgreSQL returns same-date rows in heap order, meaning older rows come first). Fix: <code>applySort</code> now pre-computes each purchase's position in the source array and uses that as a stable tiebreaker. A later position means the purchase was added more recently, so it wins the "newest first" tie. The <code>allDatedRows</code> computation (which merges purchases with virtual subscription/loan rows) relies on ECMAScript's guaranteed stable sort to propagate this order correctly without a second tiebreaker pass.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.28.0</span>
               <span class="release-date">June 2026</span>
             </div>
