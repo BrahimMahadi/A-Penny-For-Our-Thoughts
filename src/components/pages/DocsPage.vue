@@ -341,6 +341,19 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.27.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              BUG-027 — Category Manager label layout fix
+            </p>
+            <ul class="docs-list">
+              <li><strong>BUG-027 fixed: "Name" label now stacks above the input in the Add/Edit Category modal.</strong> <code>CategoryManager.vue</code> was the only section component that used the shared <code>.form-group</code> / <code>.form-label</code> / <code>.form-input</code> CSS classes without defining them in its own <code>&lt;style scoped&gt;</code> block. Without those rules, the browser rendered the label inline beside the input (default flow layout) instead of stacked above it. Every other section form in the app — CreditCards, Loans, Subscriptions, IncomeStreams, Savings, SavingsGoals, Wishlist, NetWorth, ExpenseCards — already had the correct <code>display: flex; flex-direction: column</code> definition. The fix adds the same standard block to CategoryManager.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.26.0</span>
               <span class="release-date">June 2026</span>
             </div>

@@ -22,16 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.26.0';
+const APP_VERSION = '2.27.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🔢', text: 'Fixed BUG-026: the "Bi-weekly remaining after" preview in the Spending tab Add Purchase modal now uses only current-period purchases instead of the raw store array, eliminating the -$364 over-budget display caused by stale cross-period data' },
-  { icon: '➕', text: 'The preview also now subtracts subscription and loan deductions for the wants envelope, matching the DashboardPage quick-add behaviour exactly' },
-  { icon: '🔍', text: 'Full app sweep: fixed the same unfiltered-purchases pattern in six additional locations — getEnvelopeForecast, getTriggeredAlerts, calculateActualNeeds, calculateActualWants, getWantsCategoryActuals, and getMonthlyWantsHistory' },
-  { icon: '🧪', text: '6 new regression tests: 1 SpendingPage preview accuracy test, 1 getEnvelopeForecast stale-data guard, 2 getTriggeredAlerts period-filter tests, 1 getWantsCategoryActuals cross-month guard' },
-  { icon: '✅', text: '1284 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '🏷️', text: 'Fixed BUG-027: the "Name" label in the Add/Edit Category modal (Settings) was rendering inline beside the input instead of stacked above it on mobile — now consistent with every other form in the app' },
+  { icon: '🔍', text: 'Full app sweep confirmed: all other section forms (CreditCards, Loans, Subscriptions, IncomeStreams, Savings, SavingsGoals, Wishlist, NetWorth, ExpenseCards) already had the correct label-above-input layout' },
+  { icon: '🧪', text: '1 new regression test: verifies the label DOM order is before the input inside .form-group in the CategoryManager modal' },
+  { icon: '✅', text: '1285 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();
