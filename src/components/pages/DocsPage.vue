@@ -341,6 +341,19 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.35.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              TECH-DEBT-1 (Phase 2) — Frequency maps &amp; status thresholds
+            </p>
+            <ul class="docs-list">
+              <li><strong>Consolidated the recurring-frequency rate maps and the status thresholds.</strong> Phase 2 adds <code>src/constants/frequency.ts</code> (<code>MO_RATE</code>, <code>YR_RATE</code>, <code>FREQ_LABEL</code>, <code>FREQ_DISPLAY</code>, and the weekday-occurrence helpers used to cost <code>custom-days</code> subscriptions). The per-frequency cost maths previously lived inline in <code>Subscriptions.vue</code>, with <code>Loans.vue</code> keeping its own partial copy of the display labels — now both share one source. Status thresholds also moved into <code>constants/budget.ts</code>: <code>VARIANCE_OVER_PCT</code> / <code>VARIANCE_CAUTION_PCT</code> (category variance), <code>ENVELOPE_CAUTION_RATIO</code> (the bi-weekly forecast's 90% caution line), and <code>SUB_BUDGET_OVER_PCT</code> / <code>SUB_BUDGET_CAUTION_PCT</code> (the subscription budget bar's 60/30 cutoffs). Pure refactor — no behaviour change. 5 new guard tests (annual≈12×monthly, threshold ordering, variance status derivation). Phase 3 (budget-type constants + chart-palette hex) follows.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.34.0</span>
               <span class="release-date">June 2026</span>
             </div>

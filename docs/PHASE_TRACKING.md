@@ -1729,7 +1729,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-032 | Subscriptions showed "Expired" once the stored renewal anchor passed, and the displayed renewal date never advanced to the next cycle. Fixed by deriving the next renewal date for display via `getNextRenewal` (anchor untouched — calculations already recompute occurrences). Chip shows "Today"/countdown, date line shows "Due today"/next date, edit pre-fills the next date | `fix/bug-032-subscription-next-renewal` | ✅ Complete | v2.33.0 |
 | TECH-DEBT-1 | Full-app sweep for hard-coded values → shared constants/functions, to stop single-source-of-truth drift bugs (e.g. BUG-032). **Scope agreed: all three tiers, delivered in 3 phases (one PR each).** See detailed plan below | _see phases_ | 🟡 IN PROGRESS | v2.34.0+ |
 | TECH-DEBT-1 · Phase 1 | Tier 1 — single-source-of-truth constants: period length (`PERIOD_DAYS`), default allocation, `'Other'` fallback, shared `MONTHS`/`DOW` arrays. New `constants/budget.ts` + `constants/datetime.ts` + 7 guard tests | `feat/tech-debt-1-phase-1-constants` | ✅ Complete | v2.34.0 |
-| TECH-DEBT-1 · Phase 2 | Tier 2 — domain consolidation: frequency rate maps (`MO_RATE`/`YR_RATE`/`FREQ_LABEL`) → `constants/frequency.ts`; status thresholds (variance 110/90, sub-budget 60/30) → named constants | `feat/tech-debt-1-phase-2-domain` | 🔲 PLANNED | v2.35.0 |
+| TECH-DEBT-1 · Phase 2 | Tier 2 — domain consolidation: frequency rate maps + labels → `constants/frequency.ts` (shared by Subscriptions + Loans); status thresholds (variance 110/100, envelope 0.9, sub-budget 60/30) → `constants/budget.ts`; 5 guard tests | `feat/tech-debt-1-phase-2-domain` | ✅ Complete | v2.35.0 |
 | TECH-DEBT-1 · Phase 3 | Tier 3 — `'wants'`/`'needs'` shared constants + chart-palette hex centralization (CSS-var fallbacks left as-is by decision) | `feat/tech-debt-1-phase-3-enums` | 🔲 PLANNED | v2.36.0 |
 
 ---
@@ -4236,9 +4236,11 @@ Added **TECH-DEBT-1** to the summary table — a to-discuss full-app sweep for h
 - Scoping notes: `CATEGORY_COLOURS` palette keys and `data/categories.ts` definitions left as literals (they ARE the definition, not a fallback). `'wants'`/`'needs'` literals deferred to Phase 3.
 - **Final gate**: ✅ 1309/1309 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files (RecurringCalendar's 24 pre-existing template warnings unchanged from main).
 
-### Phase 2 — Tier 2 (domain consolidation)  · `feat/tech-debt-1-phase-2-domain` · v2.35.0
-- New `src/constants/frequency.ts`: rate maps + display labels + `AVG_PER_WEEKDAY`; reusable by Subscriptions/Loans/forecasts.
-- Named threshold constants for variance + envelope + sub-budget-bar status.
+### Phase 2 — Tier 2 (domain consolidation) ✅ · `feat/tech-debt-1-phase-2-domain` · v2.35.0
+- ✅ New `src/constants/frequency.ts`: `MO_RATE`, `YR_RATE`, `FREQ_LABEL`, `FREQ_DISPLAY`, `DAYS_PER_YEAR`, `AVG_WEEKDAY_OCCURRENCES_PER_MONTH`/`_PER_YEAR`. Subscriptions.vue (dropped its inline maps + `365.25/7` literal) and Loans.vue (dropped its partial `FREQ_DISPLAY`) both import from it.
+- ✅ Threshold constants in `constants/budget.ts`: `VARIANCE_OVER_PCT`/`VARIANCE_CAUTION_PCT` (calculations.ts `calculateVariance`), `ENVELOPE_CAUTION_RATIO` (the two `budget * 0.9` forecast caution lines), `SUB_BUDGET_OVER_PCT`/`SUB_BUDGET_CAUTION_PCT` (Subscriptions budget-bar status + stat colour classes).
+- ✅ 5 new guard tests (frequency map coverage, annual≈12×monthly, weekday-helper derivation, threshold ordering, `calculateVariance` status derivation).
+- **Final gate**: ✅ 1314/1314 tests pass · `vue-tsc --noEmit` clean · ESLint clean on touched files.
 
 ### Phase 3 — Tier 3 (literals + palette)  · `feat/tech-debt-1-phase-3-enums` · v2.36.0
 - Shared `BUDGET_TYPES` / `DEFAULT_BUDGET_TYPE` constants where they reduce risk.

@@ -22,14 +22,14 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.34.0';
+const APP_VERSION = '2.35.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🧱', text: 'TECH-DEBT-1 (Phase 1): centralised core constants — the bi-weekly period length, the default 50/30/20 split, the "Other" category fallback, and the shared month/weekday label arrays now each have a single definition' },
-  { icon: '🛡️', text: 'This is an under-the-hood reliability refactor with no behaviour change — it removes the duplicated values that were the root cause of several recent period/display bugs, so that class of bug can\'t recur' },
-  { icon: '🧪', text: '7 new guard tests lock the canonical values and assert consumers derive from them; 1309 tests passing across 40 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '🧱', text: 'TECH-DEBT-1 (Phase 2): centralised the recurring-frequency rate maps (weekly/monthly/yearly multipliers + display labels) into one module shared by Subscriptions and Loans, plus the status thresholds for variance, the period envelope, and the subscription budget bar' },
+  { icon: '🛡️', text: 'Another behaviour-neutral reliability refactor — the per-frequency cost maths and the on-track/caution/over cutoffs now each have a single definition instead of duplicated magic numbers' },
+  { icon: '🧪', text: '5 new guard tests (annual≈12×monthly, threshold ordering, variance status derivation); 1314 tests passing across 40 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();

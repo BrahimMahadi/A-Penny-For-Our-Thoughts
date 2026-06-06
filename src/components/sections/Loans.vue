@@ -21,6 +21,7 @@ import ProgressBar from '@/components/ui/ProgressBar.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import { fmt } from '@/utils/format';
 import { getNextRenewal } from '@/utils/calculations';
+import { FREQ_DISPLAY } from '@/constants/frequency';
 import type { Frequency } from '@/types/budget';
 
 const budget = useBudgetStore();
@@ -169,10 +170,7 @@ function linkedCardLabel(cardId: string | null): string | null {
 }
 
 const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'biyearly', 'yearly'] as const;
-const FREQ_DISPLAY: Record<string, string> = {
-  weekly: 'Weekly', biweekly: 'Bi-weekly', monthly: 'Monthly',
-  quarterly: 'Quarterly', biyearly: 'Every 6 months', yearly: 'Yearly',
-};
+// FREQ_DISPLAY imported from @/constants/frequency (TECH-DEBT-1)
 </script>
 
 <template>
