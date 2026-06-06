@@ -29,3 +29,24 @@ export const DEFAULT_ALLOCATION: Readonly<BudgetAllocation> = Object.freeze({
   wants: 30,
   savings: 20,
 });
+
+// ─── Status thresholds (TECH-DEBT-1 Phase 2) ─────────────────────
+// Behaviour-defining cutoffs for the on-track / caution / over status used by
+// variance, the bi-weekly envelope forecast, and the subscription budget bar.
+// Centralised so the boundaries have one definition instead of magic numbers.
+
+/** calculateVariance: spend above this % of budget is "over". */
+export const VARIANCE_OVER_PCT = 110;
+/** calculateVariance: spend above this % (but ≤ OVER) is "caution". */
+export const VARIANCE_CAUTION_PCT = 100;
+
+/**
+ * Envelope/period forecast: projected spend at or above this fraction of the
+ * budget (but below 100%) is "caution"; at/above the budget itself is "over".
+ */
+export const ENVELOPE_CAUTION_RATIO = 0.9;
+
+/** Subscriptions budget bar: wants-% above this is "over" (danger). */
+export const SUB_BUDGET_OVER_PCT = 60;
+/** Subscriptions budget bar: wants-% above this (but ≤ OVER) is "caution". */
+export const SUB_BUDGET_CAUTION_PCT = 30;

@@ -14,7 +14,7 @@
 
 import { calculateMonthsBetween, monthlyAmount, toMonthKey } from './date';
 import { ASSET_CATEGORIES, FALLBACK_CATEGORY_NAME } from '@/data/categories';
-import { PERIOD_DAYS } from '@/constants/budget';
+import { PERIOD_DAYS, VARIANCE_OVER_PCT, VARIANCE_CAUTION_PCT, ENVELOPE_CAUTION_RATIO } from '@/constants/budget';
 import { fmt } from './format';
 import type {
   BudgetType,
@@ -527,8 +527,8 @@ export function calculateVariance(budgeted: number, actual: number): VarianceRes
   const dollar = budgeted - actual;
   const percent = budgeted > 0 ? (actual / budgeted) * 100 : 0;
   let status: VarianceStatus = 'on-track';
-  if (percent > 110) status = 'over';
-  else if (percent > 100) status = 'caution';
+  if (percent > VARIANCE_OVER_PCT) status = 'over';
+  else if (percent > VARIANCE_CAUTION_PCT) status = 'caution';
   return { dollar, percent, status };
 }
 
@@ -1614,7 +1614,7 @@ export function getEnvelopeForecast(
 
   if (!hasData) {
     const rawStatus: ForecastStatus =
-      totalSoFar >= budget ? 'over' : totalSoFar >= budget * 0.9 ? 'caution' : 'on-track';
+      totalSoFar >= budget ? 'over' : totalSoFar >= budget * ENVELOPE_CAUTION_RATIO ? 'caution' : 'on-track';
     return {
       daysElapsed,
       daysTotal: PERIOD_DAYS,
@@ -1632,7 +1632,7 @@ export function getEnvelopeForecast(
   const projectedOverage = projectedTotal - budget;
 
   const status: ForecastStatus =
-    projectedTotal >= budget ? 'over' : projectedTotal >= budget * 0.9 ? 'caution' : 'on-track';
+    projectedTotal >= budget ? 'over' : projectedTotal >= budget * ENVELOPE_CAUTION_RATIO ? 'caution' : 'on-track';
 
   return {
     daysElapsed,

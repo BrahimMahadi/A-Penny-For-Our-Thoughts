@@ -24,6 +24,12 @@ import { daysUntil } from '@/utils/date';
 import { getNextRenewal } from '@/utils/calculations';
 import { MONTHS_SHORT as MONTHS, DOW_FULL, DOW_SHORT, DOW_MINI } from '@/constants/datetime';
 import { FALLBACK_CATEGORY_NAME } from '@/data/categories';
+import {
+  MO_RATE, YR_RATE, FREQ_LABEL, FREQ_DISPLAY,
+  AVG_WEEKDAY_OCCURRENCES_PER_MONTH as AVG_PER_WEEKDAY,
+  AVG_WEEKDAY_OCCURRENCES_PER_YEAR,
+} from '@/constants/frequency';
+import { SUB_BUDGET_OVER_PCT, SUB_BUDGET_CAUTION_PCT } from '@/constants/budget';
 import type { Frequency } from '@/types/budget';
 
 const budget = useBudgetStore();
@@ -31,16 +37,8 @@ const toast  = useToast();
 const { totalMonthlyIncome } = useAnalytics();
 const { onItemEnter, onItemLeave } = useListTransition({ enterY: 12, enterDuration: 0.25 });
 
-// ─── Frequency rate maps ──────────────────────────────────────────
-// custom-days rate is variable (depends on how many days are selected), so it
-// uses a per-occurrence sentinel of 1 here — actual cost is computed via helpers.
-const MO_RATE: Record<Frequency, number> = { weekly: 4.33, biweekly: 2.17, monthly: 1, quarterly: 1/3, biyearly: 1/6, yearly: 1/12, 'custom-days': 1 };
-const YR_RATE: Record<Frequency, number> = { weekly: 52,   biweekly: 26,   monthly: 12, quarterly: 4,   biyearly: 2,   yearly: 1,   'custom-days': 1 };
-const FREQ_LABEL: Record<Frequency, string> = { weekly: '/wk', biweekly: '/2wk', monthly: '/mo', quarterly: '/qtr', biyearly: '/6mo', yearly: '/yr', 'custom-days': '/day' };
-// MONTHS / DOW_* now imported from @/constants/datetime (TECH-DEBT-1)
-
-/** Average occurrences per month for a given set of weekdays (365.25/12/7 ≈ 4.348). */
-const AVG_PER_WEEKDAY = 365.25 / 12 / 7;
+// Frequency rate maps (MO_RATE/YR_RATE/FREQ_LABEL/FREQ_DISPLAY), AVG_PER_WEEKDAY,
+// MONTHS and DOW_* are all imported from @/constants (TECH-DEBT-1).
 
 function dayPatternLabel(days: number[]): string {
   if (!days || days.length === 0) return '—';
@@ -58,7 +56,7 @@ function subMonthlyAmount(sub: { amount: number; frequency: Frequency; daysOfWee
 /** Annual cost for any subscription. */
 function subAnnualAmount(sub: { amount: number; frequency: Frequency; daysOfWeek?: number[] }): number {
   if (sub.frequency === 'custom-days') {
-    return (+sub.amount || 0) * (sub.daysOfWeek?.length ?? 0) * (365.25 / 7);
+    return (+sub.amount || 0) * (sub.daysOfWeek?.length ?? 0) * AVG_WEEKDAY_OCCURRENCES_PER_YEAR;
   }
   return (+sub.amount || 0) * (YR_RATE[sub.frequency ?? 'monthly'] ?? 12);
 }
@@ -101,8 +99,8 @@ const wantsPct    = computed(() =>
 );
 
 const budgetBarStatus = computed<'on-track' | 'caution' | 'over'>(() => {
-  if (wantsPct.value > 60) return 'over';
-  if (wantsPct.value > 30) return 'caution';
+  if (wantsPct.value > SUB_BUDGET_OVER_PCT) return 'over';
+  if (wantsPct.value > SUB_BUDGET_CAUTION_PCT) return 'caution';
   return 'on-track';
 });
 
@@ -255,10 +253,7 @@ const form = reactive({
 });
 
 const FREQUENCIES_SUB: Frequency[] = ['monthly', 'quarterly', 'biyearly', 'yearly', 'biweekly', 'weekly', 'custom-days'];
-const FREQ_DISPLAY: Record<Frequency, string> = {
-  monthly: 'Monthly', quarterly: 'Quarterly', biyearly: 'Every 6 months', yearly: 'Yearly',
-  biweekly: 'Bi-weekly', weekly: 'Weekly', 'custom-days': 'Custom days',
-};
+// FREQ_DISPLAY imported from @/constants/frequency (TECH-DEBT-1)
 
 /** Estimated monthly cost for the current form values. */
 const formMonthlyCost = computed(() => {
@@ -388,8 +383,8 @@ function remove(id: string): void {
         <div
           class="subs-stat__value"
           :class="{
-            'text-danger': wantsPct > 60,
-            'text-warn': wantsPct > 30 && wantsPct <= 60,
+            'text-danger': wantsPct > SUB_BUDGET_OVER_PCT,
+            'text-warn': wantsPct > SUB_BUDGET_CAUTION_PCT && wantsPct <= SUB_BUDGET_OVER_PCT,
           }"
         >
           {{ subs.length && wantsBudget > 0 ? wantsPct.toFixed(1) + '%' : '—' }}
