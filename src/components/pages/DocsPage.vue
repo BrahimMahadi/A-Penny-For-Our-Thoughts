@@ -341,6 +341,19 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.33.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              BUG-032 — Subscriptions roll forward to their next renewal date
+            </p>
+            <ul class="docs-list">
+              <li><strong>BUG-032 fixed: subscriptions no longer show "Expired".</strong> <code>Subscription.date</code> is a stored <em>anchor</em> date. Once it passed, the card read it raw — <code>daysUntil(sub.date)</code> went negative, so the chip showed "Expired" and the date line stayed stuck on a past date, even though the subscription is recurring. All budget/forecast maths were already correct (they recompute occurrences from the anchor), so this was a display-only bug. Fix: the card now derives the next renewal via <code>getNextRenewal(sub)</code> (anchor untouched). The chip shows "Today" on the due date or an <em>Nd</em> countdown otherwise; the date line shows "Due today" or "Renews {next date}"; the renewal-alert banner and the renewal sort use the derived date; and the Edit modal pre-fills the upcoming renewal date instead of a stale anchor. Recurring subscriptions never display "Expired" again. <code>custom-days</code> subs are unaffected (they show their weekday pattern).</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.32.0</span>
               <span class="release-date">June 2026</span>
             </div>

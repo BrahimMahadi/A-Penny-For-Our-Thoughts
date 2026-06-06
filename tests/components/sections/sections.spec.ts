@@ -618,6 +618,110 @@ describe('Subscriptions', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  Subscriptions — BUG-032 next-renewal display (no more "Expired")
+// ─────────────────────────────────────────────────────────────────
+describe('Subscriptions — BUG-032 next renewal display', () => {
+  beforeEach(() => { setActivePinia(createPinia()); document.body.innerHTML = ''; });
+  afterEach(() => { vi.useRealTimers(); document.body.innerHTML = ''; });
+
+  function setSubs(budget: ReturnType<typeof useBudgetStore>, sub: Partial<import('@/types/budget').Subscription>) {
+    budget.subscriptions = [{
+      id: 's1', name: 'Test Sub', amount: 10, frequency: 'monthly',
+      date: '2026-01-01', category: 'Entertainment', budgetType: 'wants',
+      cardId: null, daysOfWeek: [],
+      ...sub,
+    }];
+  }
+
+  it('BUG-032: a monthly sub with a past anchor shows the next renewal, not "Expired"', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00'));
+    const budget = useBudgetStore();
+    // Anchor day-of-month = 5; today is June 10 → next renewal is Jul 5
+    setSubs(budget, { date: '2026-05-05', frequency: 'monthly' });
+
+    const w = mountWith(Subscriptions);
+    await nextTick();
+
+    const chip = w.find('.sub-chip');
+    expect(chip.text()).not.toBe('Expired');
+    const dateLine = w.find('.sub-date');
+    expect(dateLine.text()).toContain('Renews Jul 5, 2026');
+
+    w.unmount();
+  });
+
+  it('BUG-032: a sub due today shows "Today" chip and "Due today" line', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-15T12:00:00'));
+    const budget = useBudgetStore();
+    // Anchor day-of-month = 15; today is the 15th → due today
+    setSubs(budget, { date: '2026-04-15', frequency: 'monthly' });
+
+    const w = mountWith(Subscriptions);
+    await nextTick();
+
+    expect(w.find('.sub-chip').text()).toBe('Today');
+    expect(w.find('.sub-date').text()).toBe('Due today');
+
+    w.unmount();
+  });
+
+  it('BUG-032: a biweekly sub with a long-passed anchor rolls forward', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00'));
+    const budget = useBudgetStore();
+    // Anchor 2026-05-01, biweekly → occurrences 05-01, 05-15, 05-29, 06-12...
+    // First ≥ today (06-10) is 06-12
+    setSubs(budget, { date: '2026-05-01', frequency: 'biweekly' });
+
+    const w = mountWith(Subscriptions);
+    await nextTick();
+
+    expect(w.find('.sub-chip').text()).not.toBe('Expired');
+    expect(w.find('.sub-date').text()).toContain('Jun 12, 2026');
+
+    w.unmount();
+  });
+
+  it('BUG-032: edit modal pre-fills the next renewal date, not the stale anchor', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00'));
+    const budget = useBudgetStore();
+    setSubs(budget, { date: '2026-05-05', frequency: 'monthly' }); // next = 2026-07-05
+
+    const w = mountWith(Subscriptions);
+    await nextTick();
+
+    const editBtn = w.findAll('button').find((b: ReturnType<typeof w.findAll>[number]) => b.text() === 'Edit');
+    await editBtn!.trigger('click');
+    await nextTick();
+
+    const dateInput = document.body.querySelector<HTMLInputElement>('#sub-date');
+    expect(dateInput).not.toBeNull();
+    expect(dateInput!.value).toBe('2026-07-05');
+
+    w.unmount();
+  });
+
+  it('BUG-032: custom-days subs are unaffected (still show day pattern)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T12:00:00'));
+    const budget = useBudgetStore();
+    setSubs(budget, { frequency: 'custom-days', date: '2026-01-01', daysOfWeek: [1, 2, 3] });
+
+    const w = mountWith(Subscriptions);
+    await nextTick();
+
+    // Chip shows day letters (MTW), date line shows "Every ..."
+    expect(w.find('.sub-chip').text()).toBe('MTW');
+    expect(w.find('.sub-date').text()).toContain('Every');
+
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 //  8. SAVINGS
 // ─────────────────────────────────────────────────────────────────
 describe('Savings', () => {

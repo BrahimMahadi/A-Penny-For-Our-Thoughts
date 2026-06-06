@@ -21,6 +21,7 @@ import ProgressBar from '@/components/ui/ProgressBar.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import { fmt } from '@/utils/format';
 import { daysUntil } from '@/utils/date';
+import { getNextRenewal } from '@/utils/calculations';
 import type { Frequency } from '@/types/budget';
 
 const budget = useBudgetStore();
@@ -64,6 +65,24 @@ function subAnnualAmount(sub: { amount: number; frequency: Frequency; daysOfWeek
   return (+sub.amount || 0) * (YR_RATE[sub.frequency ?? 'monthly'] ?? 12);
 }
 
+/**
+ * BUG-032: the NEXT renewal date for display & status.
+ *
+ * `sub.date` is the stored anchor. Once it passes, the card used to read it
+ * raw — showing "Expired" and a stale past date forever. We instead derive the
+ * next occurrence ≥ today from the anchor + frequency via `getNextRenewal`,
+ * so the date always rolls forward. The anchor itself is never mutated (all
+ * budget/forecast maths recompute occurrences from it independently).
+ *
+ * Returns '' when there is no future occurrence (should not happen for a
+ * recurring sub within the 2-year lookahead). `custom-days` subs have no
+ * single renewal date — callers handle those separately.
+ */
+function nextRenewalDate(sub: { date?: string; frequency: Frequency; daysOfWeek?: number[] }): string {
+  if (sub.frequency === 'custom-days') return sub.date || '';
+  return getNextRenewal(sub) ?? '';
+}
+
 // ─── Aggregate stats ──────────────────────────────────────────────
 const subs = computed(() => budget.subscriptions);
 
@@ -98,17 +117,22 @@ const budgetBarLabel = computed(() => {
 });
 
 // ─── Renewal alerts (≤ 7 days) ───────────────────────────────────
+// BUG-032: countdown is based on the derived next renewal date, not the
+// stored anchor, so a passed anchor rolls forward instead of disappearing.
 const upcomingRenewals = computed(() =>
   [...subs.value]
     .filter(s => {
       if (s.frequency === 'custom-days') return false; // recurring daily pattern — no countdown
-      const d = daysUntil(s.date || '');
+      const next = nextRenewalDate(s);
+      if (!next) return false;
+      const d = daysUntil(next);
       return d >= 0 && d <= 7;
     })
-    .sort((a, b) => new Date(a.date || '').getTime() - new Date(b.date || '').getTime()),
+    .sort((a, b) => new Date(nextRenewalDate(a)).getTime() - new Date(nextRenewalDate(b)).getTime()),
 );
 
 function renewalDateLabel(dateStr: string): string {
+  if (!dateStr) return '—';
   const days = daysUntil(dateStr);
   if (days === 0) return 'today';
   const [, sm, sd] = dateStr.split('-');
@@ -134,9 +158,14 @@ function sortSubs(items: Subscription[]): Subscription[] {
   const arr = [...items];
   switch (sSortKey.value) {
     case 'renewal':
+      // BUG-032: sort by the derived next renewal so the list orders by the
+      // actual upcoming dates, not stale anchors. custom-days subs (no single
+      // date) sort last.
       return arr.sort((a, b) => {
-        const da = a.date ? new Date(a.date).getTime() : Infinity;
-        const db = b.date ? new Date(b.date).getTime() : Infinity;
+        const na = nextRenewalDate(a);
+        const nb = nextRenewalDate(b);
+        const da = na ? new Date(na).getTime() : Infinity;
+        const db = nb ? new Date(nb).getTime() : Infinity;
         return da - db;
       });
     case 'moCostHigh':
@@ -161,8 +190,10 @@ const subCategoryOptions = computed(() =>
 
 function chipClass(sub: { date: string; frequency: Frequency; daysOfWeek?: number[] }): string {
   if (sub.frequency === 'custom-days') return 'chip-custom';
-  const d = daysUntil(sub.date);
-  if (d < 0)  return 'chip-red';
+  // BUG-032: status from the derived next renewal — recurring subs never expire.
+  const next = nextRenewalDate(sub);
+  if (!next) return 'chip-red'; // no future occurrence (shouldn't happen for recurring)
+  const d = daysUntil(next);
   if (d < 60) return 'chip-warn';
   return 'chip-green';
 }
@@ -172,9 +203,11 @@ function chipText(sub: { date: string; frequency: Frequency; daysOfWeek?: number
     const n = sub.daysOfWeek?.length ?? 0;
     return n ? sub.daysOfWeek!.map(d => DOW_MINI[d]).join('') : '—';
   }
-  const d = daysUntil(sub.date);
-  if (d < 0)   return 'Expired';
-  if (d === 0) return 'Today!';
+  // BUG-032: countdown from the next renewal — "Today" on the day, never "Expired".
+  const next = nextRenewalDate(sub);
+  if (!next) return '—';
+  const d = daysUntil(next);
+  if (d === 0) return 'Today';
   return `${d}d`;
 }
 
@@ -188,9 +221,19 @@ function displayDate(sub: { date: string; frequency: Frequency; daysOfWeek?: num
   if (sub.frequency === 'custom-days') {
     return `Every ${dayPatternLabel(sub.daysOfWeek ?? [])}`;
   }
-  if (!sub.date) return '—';
-  const [sy, sm, sd] = sub.date.split('-');
+  // BUG-032: show the next renewal date, not the (possibly stale) stored anchor.
+  const next = nextRenewalDate(sub);
+  if (!next) return '—';
+  const [sy, sm, sd] = next.split('-');
   return `${MONTHS[+sm - 1]} ${+sd}, ${sy}`;
+}
+
+/** Row-3 renewal line: "Every Mon · Tue" (custom-days), "Due today", or "Renews {date}". */
+function renewalLineText(sub: { date: string; frequency: Frequency; daysOfWeek?: number[] }): string {
+  if (sub.frequency === 'custom-days') return displayDate(sub);
+  const next = nextRenewalDate(sub);
+  if (next && daysUntil(next) === 0) return 'Due today';
+  return `Renews ${displayDate(sub)}`;
 }
 
 function cardLabel(cardId: string | null | undefined): string | null {
@@ -256,7 +299,12 @@ function openEdit(id: string): void {
   form.name       = sub.name;
   form.amount     = +sub.amount || 0;
   form.frequency  = sub.frequency || 'monthly';
-  form.date       = sub.date || '';
+  // BUG-032: pre-fill the NEXT renewal date so the modal shows the upcoming
+  // date rather than a stale past anchor. custom-days keeps its effective-from
+  // date (the date field is hidden for that frequency).
+  form.date       = sub.frequency === 'custom-days'
+    ? (sub.date || '')
+    : (nextRenewalDate(sub) || sub.date || '');
   form.category   = sub.category || 'Other';
   form.budgetType = sub.budgetType || 'wants';
   form.cardId     = sub.cardId ?? null;
@@ -375,7 +423,7 @@ function remove(id: string): void {
         :key="sub.id"
       >
         <strong>{{ sub.name }}</strong>
-        <span class="renewal-date">{{ renewalDateLabel(sub.date || '') }}</span>
+        <span class="renewal-date">{{ renewalDateLabel(nextRenewalDate(sub)) }}</span>
         <span v-if="i < upcomingRenewals.length - 1"> · </span>
       </span>
     </div>
@@ -657,7 +705,7 @@ function remove(id: string): void {
           </span>
         </div>
         <div class="sub-row-3">
-          <span class="sub-date">{{ sub.frequency === 'custom-days' ? displayDate(sub) : 'Renews ' + displayDate(sub) }}</span>
+          <span class="sub-date">{{ renewalLineText(sub) }}</span>
           <div class="sub-actions">
             <BaseButton
               size="xs"
