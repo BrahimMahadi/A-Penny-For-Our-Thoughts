@@ -2197,6 +2197,77 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
     w.unmount();
     document.body.innerHTML = '';
   });
+
+  // ── BUG-028 — transaction rules auto-categorise in quick-add ────
+  it('BUG-028: typing a name that matches a rule auto-selects the matching category pill', async () => {
+    const budget = useBudgetStore();
+    // Add a rule: any name containing "netflix" → Entertainment
+    budget.addRule({ pattern: 'netflix', matchType: 'contains', category: 'Entertainment' });
+
+    const w = mountWith(DashboardPage);
+    await nextTick();
+
+    // Open the quick-add modal
+    const openBtn = document.body.querySelector<HTMLButtonElement>('.dash-header .btn-primary');
+    openBtn?.click();
+    await nextTick();
+    await nextTick();
+
+    // Type a name that matches the rule
+    const nameInput = document.body.querySelector<HTMLInputElement>('input.quick-add__input:not(.quick-add__input--amount)');
+    expect(nameInput).not.toBeNull();
+    nameInput!.value = 'Netflix';
+    nameInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    // The Entertainment pill must now be active
+    const activeBtn = document.body.querySelector<HTMLButtonElement>('.quick-add__cat-btn--active');
+    expect(activeBtn, 'a pill should be active after rule fires').not.toBeNull();
+    expect(activeBtn!.textContent?.trim()).toBe('Entertainment');
+
+    // The saved purchase must carry the rule-matched category
+    const amtInput = document.body.querySelector<HTMLInputElement>('input.quick-add__input--amount');
+    amtInput!.value = '15';
+    amtInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    const submitBtn = document.body.querySelector<HTMLButtonElement>('.quick-add__footer .btn-primary');
+    submitBtn!.click();
+    await nextTick();
+
+    const saved = budget.purchases.find(p => p.name === 'Netflix');
+    expect(saved, 'purchase should be saved').toBeTruthy();
+    expect(saved!.category).toBe('Entertainment');
+
+    w.unmount();
+    document.body.innerHTML = '';
+  });
+
+  it('BUG-028: no rule match leaves the default category unchanged', async () => {
+    const budget = useBudgetStore();
+    const defaultCat = budget.spendingCategories[0].name; // e.g. 'Food & Drink'
+
+    const w = mountWith(DashboardPage);
+    await nextTick();
+
+    const openBtn = document.body.querySelector<HTMLButtonElement>('.dash-header .btn-primary');
+    openBtn?.click();
+    await nextTick();
+    await nextTick();
+
+    const nameInput = document.body.querySelector<HTMLInputElement>('input.quick-add__input:not(.quick-add__input--amount)');
+    nameInput!.value = 'Random purchase with no rule';
+    nameInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    // Active pill should still be the default (first category)
+    const activeBtn = document.body.querySelector<HTMLButtonElement>('.quick-add__cat-btn--active');
+    expect(activeBtn).not.toBeNull();
+    expect(activeBtn!.textContent?.trim()).toBe(defaultCat);
+
+    w.unmount();
+    document.body.innerHTML = '';
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────
