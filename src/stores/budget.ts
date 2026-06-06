@@ -17,6 +17,7 @@ import { exportStateToJSON, parseJSONToState, triggerJSONDownload } from '@/util
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { db, fetchAllUserData, upsertProfile, deleteAllUserData } from '@/lib/db';
 import { getCurrentPeriodStart, getPeriodStartsBetween, getTotalMonthlyIncome } from '@/utils/calculations';
+import { PERIOD_DAYS, DEFAULT_ALLOCATION } from '@/constants/budget';
 import { useToast } from '@/composables/useToast';
 import { migrateIfNeeded, runMigration } from '@/lib/migrateLocalStorage';
 import type {
@@ -44,7 +45,7 @@ import type {
 } from '@/types/budget';
 import type { BudgetState } from '@/types/state';
 import { STORAGE_KEYS } from '@/types/state';
-import { DEFAULT_SPENDING_CATEGORIES } from '@/data/categories';
+import { DEFAULT_SPENDING_CATEGORIES, FALLBACK_CATEGORY_NAME } from '@/data/categories';
 
 // ─── Factory: DEFAULT_STATE (matches legacy state.js exactly) ───
 
@@ -54,7 +55,7 @@ import { DEFAULT_SPENDING_CATEGORIES } from '@/data/categories';
  */
 export function makeDefaultState(): BudgetState {
   return {
-    allocation: { needs: 50, wants: 30, savings: 20 },
+    allocation: { ...DEFAULT_ALLOCATION },
     budgetDisplayMode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
 
     incomeStreams: [],
@@ -111,7 +112,7 @@ export function makeDefaultState(): BudgetState {
  */
 export function makeBlankState(): BudgetState {
   return {
-    allocation: { needs: 50, wants: 30, savings: 20 },
+    allocation: { ...DEFAULT_ALLOCATION },
     budgetDisplayMode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
     incomeStreams: [],
     expenseCards: [],
@@ -199,7 +200,7 @@ export function migrateState(raw: unknown): BudgetState {
     s.subscriptions.forEach((sub: any) => {
       if (sub.amount === undefined) sub.amount = 0;
       if (!sub.frequency) sub.frequency = 'monthly';
-      if (!sub.category) sub.category = 'Other';
+      if (!sub.category) sub.category = FALLBACK_CATEGORY_NAME;
       if (!sub.budgetType) sub.budgetType = 'wants';
       if (sub.cardId === undefined) sub.cardId = null;
       // Sprint 17: custom-days support
@@ -221,7 +222,7 @@ export function migrateState(raw: unknown): BudgetState {
   }
 
   // ── Forward-compat: ensure all keys exist ──
-  if (!s.allocation) s.allocation = { needs: 50, wants: 30, savings: 20 };
+  if (!s.allocation) s.allocation = { ...DEFAULT_ALLOCATION };
   if (!s.budgetDisplayMode) s.budgetDisplayMode = { needs: 'monthly', wants: 'monthly', savings: 'monthly' };
   if (!s.incomeStreams) s.incomeStreams = [];
   if (!s.expenseCards) s.expenseCards = [];
@@ -267,7 +268,7 @@ export function migrateState(raw: unknown): BudgetState {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     s.spendingCategories = s.spendingCategories.map((c: any) => ({
       id:    c.id    || genId(),
-      name:  c.name  || 'Other',
+      name:  c.name  || FALLBACK_CATEGORY_NAME,
       color: c.color || '#8b95ad',
     }));
   }
@@ -1042,7 +1043,7 @@ export const useBudgetStore = defineStore('budget', {
       this.purchases = [];
       // Advance the rollover anchor to the NEXT period start so the natural
       // auto-rollover skips this window (it's already archived).
-      this.lastArchivedPeriodStart = addDaysISO(currentStart, 14);
+      this.lastArchivedPeriodStart = addDaysISO(currentStart, PERIOD_DAYS);
 
       syncDb(() => db.spendingHistory.insertPeriod(_userId, period), 'closeCurrentPeriodManually');
       // RS-29: lastArchivedPeriodStart is now a real DB column; sync it.

@@ -341,6 +341,19 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.34.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              TECH-DEBT-1 (Phase 1) — Single-source-of-truth constants
+            </p>
+            <ul class="docs-list">
+              <li><strong>Centralised the core hard-coded values that caused recent drift bugs.</strong> Phase 1 of the hard-coded-values sweep introduces <code>src/constants/budget.ts</code> (<code>PERIOD_DAYS</code>, <code>PERIOD_WEEKS</code>, <code>DEFAULT_ALLOCATION</code>) and <code>src/constants/datetime.ts</code> (shared <code>MONTHS_SHORT</code> / <code>DOW_FULL</code> / <code>DOW_SHORT</code> / <code>DOW_MINI</code>), plus a <code>FALLBACK_CATEGORY_NAME</code> export in <code>data/categories.ts</code>. The bi-weekly period length (previously a bare <code>14</code> scattered across the store and calculations), the 50/30/20 default split (3 copies in the store), the month/weekday label arrays (duplicated across three components), and the <code>'Other'</code> category fallback (~20 literals across 7 files) now each have one definition. Pure refactor — no behaviour change. 7 guard tests lock the canonical values and assert consumers derive from them so the drift can't silently return. Phases 2 (frequency rate maps + status thresholds) and 3 (budget-type constants + chart-palette hex) follow.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.33.0</span>
               <span class="release-date">June 2026</span>
             </div>

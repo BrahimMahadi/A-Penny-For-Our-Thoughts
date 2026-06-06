@@ -16,6 +16,7 @@ import { useUiStore } from '@/stores/ui';
 import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics } from '@/composables/useAnalytics';
 import { fmt } from '@/utils/format';
+import { DOW_SHORT } from '@/constants/datetime';
 import type { ForecastItem } from '@/utils/calculations';
 import type { ISODate } from '@/types/budget';
 
@@ -30,8 +31,9 @@ const emit = defineEmits<{
 }>();
 
 // ─── Day-of-week labels ───────────────────────────────────────────
-const DOW_SHORT  = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+// DOW_SHORT imported from @/constants/datetime (TECH-DEBT-1).
+// DOW_LABELS kept as a local alias — the grid rotation slices a mutable copy.
+const DOW_LABELS = [...DOW_SHORT];
 
 /** Render a sorted day-pattern label, e.g. [1,3] → "Mon · Wed" */
 function dayPatternLabel(days: number[] | undefined): string {

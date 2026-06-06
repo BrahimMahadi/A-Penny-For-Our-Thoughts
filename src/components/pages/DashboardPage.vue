@@ -45,6 +45,7 @@ import {
   getPayPeriodForecast,
   applyRulesToName,
 } from '@/utils/calculations';
+import { FALLBACK_CATEGORY_NAME } from '@/data/categories';
 import type { Purchase } from '@/types/budget';
 
 // ─── Section components ───────────────────────────────────────────
@@ -263,7 +264,7 @@ const quickAddValidation = useFormValidation(() => ({
 const quickAddCats = computed(() => budget.spendingCategories);
 
 const defaultCategory = computed(() =>
-  quickAddCats.value[0]?.name ?? 'Other',
+  quickAddCats.value[0]?.name ?? FALLBACK_CATEGORY_NAME,
 );
 
 const quickAddCategory = ref(defaultCategory.value);

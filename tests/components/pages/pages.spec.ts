@@ -235,13 +235,13 @@ describe('DocsPage', () => {
   });
 
   // ── RS-26: Release notes refreshed through v2.17.0 ─────────────
-  // (Updated in BUG-032 to assert the new v2.33.0 entry.)
-  it('RS-26: Release Notes contains the latest v2.33.0 entry', async () => {
+  // (Updated in TECH-DEBT-1 Phase 1 to assert the new v2.34.0 entry.)
+  it('RS-26: Release Notes contains the latest v2.34.0 entry', async () => {
     const w = mountWith(DocsPage);
     await nextTick();
     await w.findAll('.docs-nav-btn').find(b => b.text().includes('Release Notes'))!.trigger('click');
     await nextTick();
-    expect(w.find('.docs-section').text()).toContain('v2.33.0');
+    expect(w.find('.docs-section').text()).toContain('v2.34.0');
     w.unmount();
   });
 
@@ -253,7 +253,7 @@ describe('DocsPage', () => {
     const text = w.find('.docs-section').text();
     // Walk every tagged v2.x version we shipped — newest first
     const versions = [
-      'v2.33.0', 'v2.32.0', 'v2.31.0', 'v2.30.0', 'v2.29.0', 'v2.28.0', 'v2.27.0', 'v2.26.0', 'v2.25.0', 'v2.24.0', 'v2.23.0', 'v2.22.0', 'v2.21.0', 'v2.20.1', 'v2.20.0', 'v2.19.1', 'v2.19.0', 'v2.18.0',
+      'v2.34.0', 'v2.33.0', 'v2.32.0', 'v2.31.0', 'v2.30.0', 'v2.29.0', 'v2.28.0', 'v2.27.0', 'v2.26.0', 'v2.25.0', 'v2.24.0', 'v2.23.0', 'v2.22.0', 'v2.21.0', 'v2.20.1', 'v2.20.0', 'v2.19.1', 'v2.19.0', 'v2.18.0',
       'v2.17.0', 'v2.16.0', 'v2.15.0', 'v2.14.0', 'v2.13.0', 'v2.12.0',
       'v2.11.0', 'v2.10.1 – .3', 'v2.10.0',
       'v2.9.0', 'v2.8.0', 'v2.7.0', 'v2.6.0', 'v2.5.0',
@@ -300,7 +300,7 @@ describe('DocsPage', () => {
     await nextTick();
     const text = w.find('.docs-section').text();
     // Spot-check that the redesign-sprint identifiers are documented
-    for (const sprint of ['BUG-032', 'RS-33', 'BUG-031', 'BUG-030', 'BUG-029', 'BUG-028', 'BUG-027', 'BUG-026', 'RS-32', 'BUG-025', 'BUG-023', 'BUG-024', 'RS-31', 'RS-30', 'RS-29', 'RS-28', 'RS-27', 'RS-25', 'RS-24', 'RS-23', 'RS-22', 'RS-21', 'RS-20', 'RS-19', 'RS-11', 'RS-1 through RS-9']) {
+    for (const sprint of ['TECH-DEBT-1', 'BUG-032', 'RS-33', 'BUG-031', 'BUG-030', 'BUG-029', 'BUG-028', 'BUG-027', 'BUG-026', 'RS-32', 'BUG-025', 'BUG-023', 'BUG-024', 'RS-31', 'RS-30', 'RS-29', 'RS-28', 'RS-27', 'RS-25', 'RS-24', 'RS-23', 'RS-22', 'RS-21', 'RS-20', 'RS-19', 'RS-11', 'RS-1 through RS-9']) {
       expect(text, `release notes should reference ${sprint}`).toContain(sprint);
     }
     w.unmount();

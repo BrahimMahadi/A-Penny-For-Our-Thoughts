@@ -18,6 +18,7 @@
 
 import { csvEscape, parseCSVRow } from '@/utils/csv';
 import { makeBlankState } from '@/stores/budget';
+import { FALLBACK_CATEGORY_NAME } from '@/data/categories';
 import type { BudgetState } from '@/types/state';
 import type { Frequency } from '@/types/budget';
 
@@ -83,7 +84,7 @@ export function exportStateToCSV(state: BudgetState): string {
   rows.push('SECTION:purchases', 'id,name,amount,category,cardId,budgetType');
   (state.purchases ?? []).forEach((p) =>
     rows.push(
-      `${e(p.id)},${e(p.name)},${p.amount},${e(p.category ?? 'Other')},${e(p.cardId ?? '')},${e(p.budgetType ?? 'wants')}`,
+      `${e(p.id)},${e(p.name)},${p.amount},${e(p.category ?? FALLBACK_CATEGORY_NAME)},${e(p.cardId ?? '')},${e(p.budgetType ?? 'wants')}`,
     ),
   );
   rows.push('');
@@ -99,7 +100,7 @@ export function exportStateToCSV(state: BudgetState): string {
     } else {
       period.items.forEach((p) =>
         rows.push(
-          `${e(period.id)},${e(period.date)},${e(period.label)},${period.total},${e(p.id)},${e(p.name)},${p.amount},${e(p.category ?? 'Other')}`,
+          `${e(period.id)},${e(period.date)},${e(period.label)},${period.total},${e(p.id)},${e(p.name)},${p.amount},${e(p.category ?? FALLBACK_CATEGORY_NAME)}`,
         ),
       );
     }
@@ -134,7 +135,7 @@ export function exportStateToCSV(state: BudgetState): string {
     // daysOfWeek serialised as pipe-separated integers, e.g. "1|2|3" for Mon·Tue·Wed
     const dow = (s.daysOfWeek ?? []).join('|');
     rows.push(
-      `${e(s.id)},${e(s.name)},${s.amount ?? 0},${e(s.frequency ?? 'monthly')},${e(s.date)},${e(s.category ?? 'Other')},${e(s.budgetType ?? 'wants')},${e(s.cardId ?? '')},${e(dow)}`,
+      `${e(s.id)},${e(s.name)},${s.amount ?? 0},${e(s.frequency ?? 'monthly')},${e(s.date)},${e(s.category ?? FALLBACK_CATEGORY_NAME)},${e(s.budgetType ?? 'wants')},${e(s.cardId ?? '')},${e(dow)}`,
     );
   });
   rows.push('');
@@ -311,7 +312,7 @@ export function parseCSVToState(text: string): BudgetState {
           id:         vals[0],
           name:       vals[1],
           amount:     +vals[2],
-          category:   vals[3] || 'Other',
+          category:   vals[3] || FALLBACK_CATEGORY_NAME,
           cardId:     vals[4] || null,
           budgetType: vals[5] || 'wants',
         });
@@ -330,7 +331,7 @@ export function parseCSVToState(text: string): BudgetState {
             id:       purchId,
             name:     purchName,
             amount:   +purchAmt,
-            category: purchCat || 'Other',
+            category: purchCat || FALLBACK_CATEGORY_NAME,
           });
         }
         break;
@@ -377,7 +378,7 @@ export function parseCSVToState(text: string): BudgetState {
             amount:     +vals[2] || 0,
             frequency:  (vals[3] || 'monthly') as Frequency,
             date:       vals[4],
-            category:   vals[5] || 'Other',
+            category:   vals[5] || FALLBACK_CATEGORY_NAME,
             budgetType: vals[6] || 'wants',
             cardId:     vals[7] || null,
             daysOfWeek,
@@ -390,7 +391,7 @@ export function parseCSVToState(text: string): BudgetState {
             amount:     0,
             frequency:  'monthly' as Frequency,
             date:       vals[2],
-            category:   'Other',
+            category:   FALLBACK_CATEGORY_NAME,
             budgetType: 'wants',
             cardId:     null,
             daysOfWeek: [],

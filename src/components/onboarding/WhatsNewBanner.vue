@@ -22,16 +22,14 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.33.0';
+const APP_VERSION = '2.34.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🔁', text: 'Fixed BUG-032: subscriptions no longer show "Expired" after their renewal date passes — the card now rolls forward to the next renewal date automatically based on the subscription frequency' },
-  { icon: '📆', text: 'On the day a subscription is due it now shows "Due today" with a "Today" badge; otherwise it counts down to the next renewal' },
-  { icon: '✏️', text: 'Editing a subscription now pre-fills the upcoming renewal date instead of a stale past one. (The underlying budget/forecast maths were always correct — this was a display-only fix.)' },
-  { icon: '🧪', text: '5 new regression tests covering past-anchor roll-forward (monthly + biweekly), the due-today state, the edit pre-fill, and custom-days subs' },
-  { icon: '✅', text: '1302 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '🧱', text: 'TECH-DEBT-1 (Phase 1): centralised core constants — the bi-weekly period length, the default 50/30/20 split, the "Other" category fallback, and the shared month/weekday label arrays now each have a single definition' },
+  { icon: '🛡️', text: 'This is an under-the-hood reliability refactor with no behaviour change — it removes the duplicated values that were the root cause of several recent period/display bugs, so that class of bug can\'t recur' },
+  { icon: '🧪', text: '7 new guard tests lock the canonical values and assert consumers derive from them; 1309 tests passing across 40 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();

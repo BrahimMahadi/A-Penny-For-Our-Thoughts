@@ -20,6 +20,7 @@ import AnalyticsLine from '@/components/charts/AnalyticsLine.vue';
 import AnalyticsBar from '@/components/charts/AnalyticsBar.vue';
 import MoMTrend from '@/components/charts/MoMTrend.vue';
 import { fmt } from '@/utils/format';
+import { FALLBACK_CATEGORY_NAME } from '@/data/categories';
 
 const ui     = useUiStore();
 const budget = useBudgetStore();
@@ -143,7 +144,7 @@ function isPeriodExpanded(id: string): boolean {
 function periodCategorySummary(items: Array<{ category: string; amount: number }>): Array<[string, number]> {
   const map: Record<string, number> = {};
   items.forEach(item => {
-    const cat = item.category || 'Other';
+    const cat = item.category || FALLBACK_CATEGORY_NAME;
     map[cat] = (map[cat] || 0) + item.amount;
   });
   return Object.entries(map).sort(([, a], [, b]) => b - a);
@@ -552,7 +553,7 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
                     :ref="(el) => { if (el) (el as HTMLSelectElement).focus(); }"
                     class="period-purchase-cat-select"
                     data-testid="tag-select"
-                    :value="item.category || 'Other'"
+                    :value="item.category || FALLBACK_CATEGORY_NAME"
                     @change="commitTagEdit(period.id, idx, ($event.target as HTMLSelectElement).value)"
                     @blur="cancelTagEdit"
                     @keydown.escape.stop="cancelTagEdit"
@@ -569,7 +570,7 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
                     >{{ cat }}</option>
                   </select>
                   <template v-else>
-                    <span class="period-purchase-cat">{{ item.category || 'Other' }}</span>
+                    <span class="period-purchase-cat">{{ item.category || FALLBACK_CATEGORY_NAME }}</span>
                     <button
                       class="period-tag-edit-btn"
                       :aria-label="`Edit category for ${item.name}`"
