@@ -4194,6 +4194,35 @@ describe('SpendingPage — CRUD', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  SpendingPage — BUG-031 amount column header alignment
+// ─────────────────────────────────────────────────────────────────
+describe('SpendingPage — BUG-031 amount header alignment', () => {
+  let w: ReturnType<typeof mountWith>;
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); document.body.innerHTML = ''; });
+  afterEach(() => { w?.unmount(); document.body.innerHTML = ''; });
+
+  it('BUG-031: the AMOUNT header carries the col-amt class so it right-aligns with values', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = new Date().toISOString().split('T')[0] as never;
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'Other', cardId: null, budgetType: 'wants', date: new Date().toISOString().split('T')[0] as never });
+
+    w = mountWith(SpendingPage);
+    await nextTick();
+
+    // The Amount header <th> must share the same .col-amt class as the
+    // amount cells — that class is what the right-align CSS rule targets.
+    const headers = w.findAll('.purchases-table thead th');
+    const amountHeader = headers.find((h: ReturnType<typeof w.findAll>[number]) => h.text() === 'Amount');
+    expect(amountHeader, 'AMOUNT header should exist').toBeTruthy();
+    expect(amountHeader!.classes()).toContain('col-amt');
+
+    // And the amount data cells use the same class
+    const amtCell = w.find('.purchase-row .col-amt');
+    expect(amtCell.exists()).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 //  SpendingPage — BUG-029 same-day sort order (newest-added first)
 // ─────────────────────────────────────────────────────────────────
 describe('SpendingPage — BUG-029 same-day newest-first sort', () => {
