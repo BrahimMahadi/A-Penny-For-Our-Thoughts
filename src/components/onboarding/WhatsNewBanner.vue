@@ -22,15 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.27.0';
+const APP_VERSION = '2.28.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🏷️', text: 'Fixed BUG-027: the "Name" label in the Add/Edit Category modal (Settings) was rendering inline beside the input instead of stacked above it on mobile — now consistent with every other form in the app' },
-  { icon: '🔍', text: 'Full app sweep confirmed: all other section forms (CreditCards, Loans, Subscriptions, IncomeStreams, Savings, SavingsGoals, Wishlist, NetWorth, ExpenseCards) already had the correct label-above-input layout' },
-  { icon: '🧪', text: '1 new regression test: verifies the label DOM order is before the input inside .form-group in the CategoryManager modal' },
-  { icon: '✅', text: '1285 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
+  { icon: '🤖', text: 'Fixed BUG-028: transaction rules now auto-categorise purchases in the Dashboard quick-add modal — as you type a name, the matching category pill highlights automatically, just like the Spending tab form has always done' },
+  { icon: '🏷️', text: 'The category pills still work as before — you can still tap any pill to override the rule-matched category, and manually selected categories are never overridden' },
+  { icon: '🧪', text: '2 new regression tests: one proves rule match highlights the correct pill and saves the right category; one proves no-match leaves the default pill unchanged' },
+  { icon: '✅', text: '1287 tests passing across 39 spec files, zero TypeScript errors, zero new ESLint warnings' },
 ];
 
 const budget = useBudgetStore();

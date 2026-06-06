@@ -341,6 +341,19 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.28.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              BUG-028 — Transaction rules now apply in the Dashboard quick-add modal
+            </p>
+            <ul class="docs-list">
+              <li><strong>BUG-028 fixed: transaction rules auto-categorise in the Dashboard quick-add modal.</strong> The "Log a purchase" modal on the Dashboard was missing the same <code>watch</code> on the name field that the Spending tab's Add Purchase form already had. As a result, typing a purchase name that matched a configured rule (Settings → Rules Engine) had no effect — the category pill stayed on the default and had to be changed manually. Fix: added a <code>watch(quickAddName, ...)</code> that calls <code>applyRulesToName</code> and updates <code>quickAddCategory</code> when a match is found, causing the corresponding pill to highlight automatically. The user can still tap any other pill to override the rule.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.27.0</span>
               <span class="release-date">June 2026</span>
             </div>

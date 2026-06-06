@@ -27,7 +27,7 @@
 -->
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import BaseCard    from '@/components/ui/BaseCard.vue';
 import BaseModal   from '@/components/ui/BaseModal.vue';
 import ProgressBar from '@/components/ui/ProgressBar.vue';
@@ -43,6 +43,7 @@ import {
   getSubsDeductedThisPeriod,
   getLoansDeductedThisPeriod,
   getPayPeriodForecast,
+  applyRulesToName,
 } from '@/utils/calculations';
 import type { Purchase } from '@/types/budget';
 
@@ -266,6 +267,16 @@ const defaultCategory = computed(() =>
 );
 
 const quickAddCategory = ref(defaultCategory.value);
+
+// ─── Auto-categorise by rules (BUG-028) ──────────────────────────
+// Mirror the same watch that SpendingPage uses so transaction rules
+// apply as the user types in the quick-add name field. When a rule
+// matches, the corresponding category pill highlights automatically.
+// The user can still override by tapping any other pill.
+watch(quickAddName, (name) => {
+  const matched = applyRulesToName(budget.rules, name);
+  if (matched) quickAddCategory.value = matched;
+});
 
 /** Bi-weekly needs envelope (income × needs% ÷ 2). */
 const biWeeklyNeedsBudget = computed(() =>
