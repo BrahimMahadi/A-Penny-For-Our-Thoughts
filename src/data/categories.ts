@@ -25,21 +25,6 @@ export const DEFAULT_SPENDING_CATEGORIES: SpendingCategory[] = [
   { id: 'other',           name: 'Other',             color: '#8b95ad' },
 ];
 
-/**
- * Legacy static list kept for backward-compat (e.g. CSV importer that
- * maps old category name strings to current categories).
- * @deprecated Use `state.spendingCategories` from the budget store instead.
- */
-export const WANT_CATEGORIES = [
-  'Food & Drink',
-  'Groceries',
-  'Entertainment',
-  'Shopping',
-  'Health & Fitness',
-  'Transportation',
-  'Other',
-] as const;
-
 /** Fallback colour for unknown category names */
 export const CATEGORY_FALLBACK_COLOR = '#8b95ad';
 

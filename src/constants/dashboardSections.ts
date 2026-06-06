@@ -170,8 +170,3 @@ export const DEFAULT_SECTION_ORDER: string[] = DASHBOARD_SECTIONS.map(s => s.id)
 
 /** Default section order for the Insights tab (renamed from Advanced in RS-27) */
 export const DEFAULT_INSIGHTS_ORDER: string[] = INSIGHTS_SECTIONS.map(s => s.id);
-
-/** Unique ordered group names for the dashboard section picker */
-export const SECTION_GROUPS: string[] = [
-  ...new Set(DASHBOARD_SECTIONS.map(s => s.group)),
-];

@@ -37,7 +37,7 @@ export function setThemeCallbacks(resetFn, renderFn) {
 // ────────────────────────────────────────────────────────────────
 // DEFAULT STATE
 // ────────────────────────────────────────────────────────────────
-export const DEFAULT_STATE = {
+const DEFAULT_STATE = {
   allocation:        { needs: 50, wants: 30, savings: 20 },
   budgetDisplayMode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
 
@@ -245,8 +245,8 @@ export function saveToStorage() {
 // ────────────────────────────────────────────────────────────────
 // THEME
 // ────────────────────────────────────────────────────────────────
-export const THEME_KEY     = 'penny_theme';
-export const TOGGLE_BTN_ID = 'theme-toggle';
+const THEME_KEY     = 'penny_theme';
+const TOGGLE_BTN_ID = 'theme-toggle';
 
 /**
  * Read the persisted theme preference from localStorage and apply it.
@@ -277,7 +277,7 @@ export function toggleTheme() {
  * @param {'dark'|'light'} theme - Theme name to activate.
  * @returns {void}
  */
-export function applyTheme(theme) {
+function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem(THEME_KEY, theme);
   const btn = document.getElementById(TOGGLE_BTN_ID);

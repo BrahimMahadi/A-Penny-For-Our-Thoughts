@@ -36,32 +36,5 @@ export function hexToRgba(hex: string, alpha: number): string {
 
 /** Toast visual variant */
 export type ToastType = 'success' | 'danger' | 'info';
-
-/**
- * Display a self-dismissing toast notification at the bottom-right of the screen.
- * Appends a toast element to #toast-container, animates it in, then removes it
- * after 2.5 s via an exit animation. Safe to call before the DOM is ready —
- * silently no-ops if the container is absent.
- *
- * NOTE: Sprint 2 introduces a `<ToastContainer />` Vue component that replaces
- * this imperative helper. Keep this function around until composable+component
- * adoption is complete.
- *
- * @param message Text to display in the toast.
- * @param type Visual variant.
- */
-export function showToast(message: string, type: ToastType = 'success'): void {
-  const container = document.getElementById('toast-container');
-  if (!container) return;
-
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  toast.setAttribute('role', 'status');
-  toast.textContent = message;
-  container.appendChild(toast);
-
-  setTimeout(() => {
-    toast.classList.add('toast--out');
-    toast.addEventListener('animationend', () => toast.remove(), { once: true });
-  }, 2500);
-}
+// NOTE: the imperative `showToast` helper was removed (TECH-DEBT cleanup) — the
+// app uses the `useToast()` composable + `<ToastContainer />` component instead.

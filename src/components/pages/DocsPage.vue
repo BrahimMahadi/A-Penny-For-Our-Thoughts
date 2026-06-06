@@ -341,6 +341,20 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.36.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              TECH-DEBT-1 (Phase 3) + code-health cleanup
+            </p>
+            <ul class="docs-list">
+              <li><strong>Finished the hard-coded-values sweep (Phase 3).</strong> The budget-type default ("Wants" for new / legacy-migrated / CSV-imported items) is now a single shared <code>DEFAULT_BUDGET_TYPE</code> constant in <code>constants/budget.ts</code>, with a guard test. Per the Phase-3 scoping decision, type-safe comparison literals and CSS-var colour fallbacks were intentionally left inline.</li>
+              <li><strong>Code-health cleanup (fallow).</strong> Ran a static-analysis pass and removed dead weight: unused exports demoted/deleted (<code>CATEGORY_COLOURS</code>, <code>WANT_CATEGORIES</code>, <code>SECTION_GROUPS</code>, the legacy imperative <code>showToast</code> helper), an unused runtime dependency (<code>date-fns</code>), and a stale <code>design_handoff_schedule_spending/</code> design-mockup folder. Pure housekeeping — no behaviour change, full suite still green.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.35.0</span>
               <span class="release-date">June 2026</span>
             </div>
