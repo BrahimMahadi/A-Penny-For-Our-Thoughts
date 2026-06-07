@@ -22,17 +22,43 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
 
+## Versioning Policy (Semantic Versioning — semver.org)
+
+Every merge to `main` must carry the correct version bump. Use the following table to decide which digit to increment:
+
+| Change type | Version bump | Examples |
+|---|---|---|
+| New user-facing feature, new page/tab, new setting, backward-compatible schema addition | **MINOR** — `x.+1.0` | New income log, GSAP animations, new sidebar tab |
+| Bug fix, refactoring, tech-debt sprint, chore, dependency update, docs/test-only change — no new user-facing behaviour | **PATCH** — `x.x.+1` | Fix wrong sort order, constants sweep, code cleanup |
+| Breaking localStorage schema change that requires a migration and would silently corrupt data on older builds, or a ground-up redesign | **MAJOR** — `+1.0.0` | Complete UI redesign (v1→v2), schema field removal |
+
+**Decision rule in plain English:**
+- Does the user gain something new they couldn't do before? → **MINOR**
+- Does the user's experience improve silently (fewer bugs, faster load, cleaner code)? → **PATCH**
+- Could old data break without a migration? → **MAJOR**
+
+Branch naming maps directly to the bump:
+- `feat/…` → MINOR
+- `fix/…` → PATCH
+- `refactor/…`, `chore/…`, `tech-debt/…` → PATCH
+
+Existing versions (v2.0.0 – v2.38.0) are locked. Semver applies from the next release onward.
+
+---
+
 ## Release Process (MANDATORY — run on every merge to main)
 
-Every time a new version is merged to `main` and tagged, ALL of the following must be updated before the sprint is considered done:
+Every time a new version is merged to `main`, ALL of the following must be updated before the sprint is considered done:
 
 1. **`docs/PHASE_TRACKING.md`** — Add a sprint entry section + update the summary table with the new version number and ✅ Complete status.
 2. **`src/components/onboarding/WhatsNewBanner.vue`** — Bump `APP_VERSION` to the new version string and update `RELEASE_NOTES` with 3–5 bullet highlights for what changed.
-3. **`src/pages/DocsPage.vue`** (or wherever the in-app docs render) — Update any version references so the docs match the deployed version.
-4. **`CLAUDE.md`** — Update the "Tech Stack" test count line to reflect the new total (e.g., "577 tests across 23 spec files").
-5. **Any other version-bearing docs** (`docs/ARCHITECTURE.md`, `docs/README.md`, etc.) — Update version references as applicable.
+3. **`src/components/pages/DocsPage.vue`** — Add a release block for the new version so the in-app docs stay current.
+4. **`CLAUDE.md`** — Update the "Tech Stack" test count line to reflect the new total (e.g., "1358 tests across 42 spec files").
+5. **`tests/components/pages/pages.spec.ts`** — Update the version sentinel test and regression-guard array to include the new version.
+6. **`tests/components/onboarding.spec.ts`** — Update the two version-pinned WhatsNewBanner tests to the new version string.
+7. **Any other version-bearing docs** (`docs/ARCHITECTURE.md`, `docs/README.md`, etc.) — Update version references as applicable.
 
-This checklist must be completed in the same commit/PR as the feature work. Never ship to main without completing all five items.
+This checklist must be completed in the same commit/PR as the feature work. Never ship to main without completing all items.
 
 ---
 
@@ -40,7 +66,7 @@ This checklist must be completed in the same commit/PR as the feature work. Neve
 
 **All changes must be done in separate branches, tested thoroughly, and have all documentation updated to reflect the change before being ready to merge into the main branch.**
 
-- Branch naming convention: `feat/sprint-N-short-description` for features, `fix/short-description` for bug fixes.
+- Branch naming: `feat/short-description` (MINOR), `fix/short-description` (PATCH), `refactor/…` / `chore/…` / `tech-debt/…` (PATCH).
 - Every branch must pass the full test suite (`npx vitest run`) and **`npx vue-tsc --noEmit`** (not plain `tsc`) with zero errors before opening a PR. `vue-tsc` performs full template type inference on `.vue` files — plain `tsc --noEmit` silently skips Vue template expressions and will miss type errors in component templates.
 - Every branch must also pass the **Design Consistency Checklist** (see section below) — UI changes that don't follow the established design language must be corrected before the PR is opened.
 - All documentation (CLAUDE.md test count, PHASE_TRACKING.md, WhatsNewBanner, DocsPage, ARCHITECTURE.md) must be updated in the same branch as the feature work.
