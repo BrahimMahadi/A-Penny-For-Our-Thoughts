@@ -31,7 +31,10 @@ import gsap from 'gsap';
 export function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined') return false;
   if (typeof window.matchMedia !== 'function') return false;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Defensive null check: in jsdom test environments the mock may be
+  // reset by vi.restoreAllMocks() between async lifecycle calls, causing
+  // matchMedia() to return undefined. Fall back to false (no reduction).
+  return window.matchMedia('(prefers-reduced-motion: reduce)')?.matches ?? false;
 }
 
 export function useGsap() {
