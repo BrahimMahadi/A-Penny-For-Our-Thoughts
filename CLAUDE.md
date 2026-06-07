@@ -17,7 +17,7 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (1315 tests across 40 spec files)  <!-- v2.36.0 -->
+- Testing: Vitest + @vue/test-utils (1354 tests across 42 spec files)  <!-- v2.37.0 -->
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
@@ -42,8 +42,101 @@ This checklist must be completed in the same commit/PR as the feature work. Neve
 
 - Branch naming convention: `feat/sprint-N-short-description` for features, `fix/short-description` for bug fixes.
 - Every branch must pass the full test suite (`npx vitest run`) and **`npx vue-tsc --noEmit`** (not plain `tsc`) with zero errors before opening a PR. `vue-tsc` performs full template type inference on `.vue` files — plain `tsc --noEmit` silently skips Vue template expressions and will miss type errors in component templates.
+- Every branch must also pass the **Design Consistency Checklist** (see section below) — UI changes that don't follow the established design language must be corrected before the PR is opened.
 - All documentation (CLAUDE.md test count, PHASE_TRACKING.md, WhatsNewBanner, DocsPage, ARCHITECTURE.md) must be updated in the same branch as the feature work.
 - Never commit directly to `main`. Direct pushes to `main` are reserved solely for the initial project bootstrap or emergency hotfixes that cannot wait for a PR cycle — and must be flagged as such.
+
+---
+
+## Design Consistency (MANDATORY — every new component or UI change)
+
+**Every new component, modal, form, or UI element must visually match the app's established design language before it can be pushed.** This is a third gate alongside `npx vitest run` and `npx vue-tsc --noEmit` — all three must pass.
+
+The canonical reference is the "Log a purchase" quick-add modal in `DashboardPage.vue` (`.quick-add__*` styles). When in doubt, match it exactly.
+
+### CSS design tokens — always use these, never hard-code values
+
+| Element | Correct token | Never use |
+|---|---|---|
+| Input / control background | `var(--bg)` | `var(--surface)`, hex values |
+| Surface / card background | `var(--surface)` | — |
+| Primary text | `var(--text)` | — |
+| Secondary / label / icon text | `var(--muted)` | `var(--text-muted)` |
+| Accent / interactive colour | `var(--accent)` | — |
+| Error / destructive colour | `var(--danger)` | — |
+| Border colour | `var(--border)` | — |
+| Monospace font | `var(--font-mono)` | — |
+| Transition speed | `var(--transition-fast)` | Raw durations (`0.15s`, `200ms`) |
+
+### Border widths and radii — exact values, no approximations
+
+- **All borders on inputs, chips, panels:** `1px solid var(--border)` — never `1.5px` or `2px`
+- **Inputs, panels, preview boxes, allocation grids:** `border-radius: 10px`
+- **Pill chips / category / type selector buttons:** `border-radius: 999px`
+- **Small compact controls inside a panel (e.g. allocation percentage inputs):** `border-radius: 8px`
+- **Cards and modals:** defined by `BaseCard` / `BaseModal` — never override their radius
+
+### Labels and eyebrows
+
+All form field labels must use:
+```css
+font-size: 0.72rem;
+font-weight: 700;
+letter-spacing: 0.04em;
+text-transform: uppercase;
+color: var(--muted);
+font-family: var(--font-mono);
+margin-bottom: 0.3rem;
+```
+
+Section eyebrow / descriptor text (smaller line above a block):
+```css
+font-size: 0.68rem;
+font-weight: 700;
+letter-spacing: 0.08em;
+color: var(--muted);
+font-family: var(--font-mono);
+```
+
+### Buttons
+
+- **Primary and secondary actions** — always use the global `.btn-primary` and `.btn-secondary` classes. These are defined in `src/css/ui.css` as the canonical source. **For any component whose buttons are inside a `<Teleport>` boundary (e.g. modals using `BaseModal`), also duplicate `.btn-primary` / `.btn-secondary` in that component's own `<style scoped>` block** — Vue's scoped attribute co-locates the styles with the buttons and guarantees delivery through the teleport. Never define them only in a *parent* component's scoped block, as parent scoped styles cannot reach teleported slot content.
+- **Pill chips / type selectors / category toggles:**
+  - Default: `border: 1px solid var(--border)`, `background: transparent`, `color: var(--muted)`
+  - Active: `background: color-mix(in srgb, var(--accent) 20%, transparent)`, `border-color: var(--accent)`, `color: var(--accent)`
+  - Hover (non-active): `border-color: var(--text)`, `color: var(--text)`
+  - Transition: `background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast)`
+
+### Field error messages
+
+```css
+font-size: 0.75rem;
+color: var(--danger, #f87171);
+margin: -0.65rem 0 0.75rem; /* negative top pulls the message close to the input above it */
+```
+
+### Numeric / monetary values
+
+Inline monetary displays and numbers in panels should use `font-family: var(--font-mono)` and `color: var(--text)`. Muted secondary amounts (e.g. dollar equivalents next to a percentage) use `color: var(--muted)`.
+
+### CSS class naming convention
+
+Use BEM-style naming scoped to a component-level prefix:
+- ✅ `.oti-form__label`, `.quick-add__input`, `.dash-header__actions`
+- ❌ Generic unscoped names like `.label`, `.input`, `.error` inside `<style scoped>` blocks
+
+### Pre-push design checklist
+
+Run through this before opening any PR that touches UI:
+
+- [ ] All inputs: `background: var(--bg)`, `border: 1px solid var(--border)`, `border-radius: 10px`
+- [ ] All form labels: uppercase, `var(--font-mono)`, `var(--muted)`, `0.72rem`, weight 700
+- [ ] No raw hex or `rgb()` colour values (except as fallbacks inside `color-mix()`)
+- [ ] No raw transition durations — every `transition:` uses `var(--transition-fast)`
+- [ ] No `var(--surface)` on form inputs (inputs use `var(--bg)`; `var(--surface)` is for cards/panels)
+- [ ] No `var(--text-muted)` anywhere — the correct token is `var(--muted)`
+- [ ] Primary/secondary buttons use `.btn-primary` / `.btn-secondary`, not custom styles
+- [ ] Visual spot-check: open the new UI side-by-side with an existing modal or panel and confirm fonts, colours, spacing, and border radii match
 
 ---
 
