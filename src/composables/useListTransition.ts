@@ -44,15 +44,29 @@ export function useListTransition(options: ListTransitionOptions = {}) {
     leaveEase    = 'power2.in',
   } = options;
 
-  const { to, from } = useGsap();
+  const { to, from, raw } = useGsap();
 
   /**
    * Vue TransitionGroup @enter hook.
    * Animates the item in from below with a fade.
+   * Kills any in-progress leave tween first and clears stale inline styles
+   * (height/overflow left by an interrupted collapse) so rapid filter
+   * switching never leaves items invisible or zero-height.
    * `done` is called in onComplete so Vue removes the entering state.
+   *
+   * NOTE: We disable any CSS animation on the element before GSAP reads its
+   * "to" values.  `extras.css` applies `animation: listItemIn … fill-mode: both`
+   * to `.sub-item` / `.wish-item`, which pre-applies `opacity:0` as the
+   * initial keyframe state.  If we let that stand, GSAP's `from()` captures
+   * opacity:0 as the target and the item never becomes visible.
    */
   function onItemEnter(el: Element, done: () => void): void {
-    from(el as HTMLElement, {
+    const htmlEl = el as HTMLElement;
+    // Disable conflicting CSS animation before GSAP captures the "to" state.
+    htmlEl.style.animation = 'none';
+    raw.killTweensOf(el);
+    raw.set(el, { clearProps: 'height,overflow,paddingTop,paddingBottom,opacity,y,transform' });
+    from(htmlEl, {
       opacity:  0,
       y:        enterY,
       duration: enterDuration,
@@ -63,15 +77,30 @@ export function useListTransition(options: ListTransitionOptions = {}) {
 
   /**
    * Vue TransitionGroup @leave hook.
-   * Fades the item out and floats it slightly upward.
-   * `done` is called in onComplete so Vue removes the element.
+   * Collapses the item's height to 0 while fading out, which naturally
+   * removes it from the document flow as it shrinks — entering items render
+   * at the correct positions from the very first frame.
+   *
+   * This avoids the position:absolute approach, which breaks when multiple
+   * items leave in the same JS tick: Vue calls each leave hook sequentially,
+   * so by the time item N's hook fires, items 1…N-1 are already out of flow
+   * and item N's getBoundingClientRect() reflects the shifted layout, not the
+   * original position — causing all leaving items to pile up at top:0.
+   *
+   * `done` is called in onComplete so Vue removes the element from the DOM.
    */
   function onItemLeave(el: Element, done: () => void): void {
-    to(el as HTMLElement, {
-      opacity:  0,
-      y:        -(enterY * 0.5),
-      duration: leaveDuration,
-      ease:     leaveEase,
+    raw.killTweensOf(el);
+    const htmlEl = el as HTMLElement;
+    // Fix the height at its current rendered value so GSAP can animate it to 0.
+    raw.set(htmlEl, { height: htmlEl.offsetHeight, overflow: 'hidden' });
+    to(htmlEl, {
+      opacity:    0,
+      height:     0,
+      paddingTop: 0,
+      paddingBottom: 0,
+      duration:   leaveDuration,
+      ease:       leaveEase,
       onComplete: done,
     });
   }

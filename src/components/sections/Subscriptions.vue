@@ -1017,6 +1017,7 @@ function remove(id: string): void {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  position: relative; /* required: leaving items are pinned absolute so new items render in place */
 }
 
 .sub-item {
