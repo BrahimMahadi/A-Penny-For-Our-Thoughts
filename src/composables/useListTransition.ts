@@ -44,14 +44,19 @@ export function useListTransition(options: ListTransitionOptions = {}) {
     leaveEase    = 'power2.in',
   } = options;
 
-  const { to, from } = useGsap();
+  const { to, from, raw } = useGsap();
 
   /**
    * Vue TransitionGroup @enter hook.
    * Animates the item in from below with a fade.
+   * Kills any in-progress leave tween first and clears stale inline styles
+   * (e.g. opacity:0 or position:absolute left by a previous interrupted leave)
+   * so rapid filter switching never leaves items invisible or misplaced.
    * `done` is called in onComplete so Vue removes the entering state.
    */
   function onItemEnter(el: Element, done: () => void): void {
+    raw.killTweensOf(el);
+    raw.set(el, { clearProps: 'position,top,left,width,opacity,y,transform' });
     from(el as HTMLElement, {
       opacity:  0,
       y:        enterY,
@@ -63,11 +68,29 @@ export function useListTransition(options: ListTransitionOptions = {}) {
 
   /**
    * Vue TransitionGroup @leave hook.
-   * Fades the item out and floats it slightly upward.
+   * Pins the element at its current viewport position using position:absolute
+   * so it is taken out of the normal document flow immediately — entering items
+   * render in their correct positions rather than stacking below the leaving one.
+   * Requires the parent container to have `position: relative`.
    * `done` is called in onComplete so Vue removes the element.
    */
   function onItemLeave(el: Element, done: () => void): void {
-    to(el as HTMLElement, {
+    raw.killTweensOf(el);
+
+    const htmlEl   = el as HTMLElement;
+    const parentEl = htmlEl.parentElement;
+    if (parentEl) {
+      const elRect     = htmlEl.getBoundingClientRect();
+      const parentRect = parentEl.getBoundingClientRect();
+      raw.set(htmlEl, {
+        position: 'absolute',
+        top:      elRect.top  - parentRect.top  + parentEl.scrollTop,
+        left:     elRect.left - parentRect.left + parentEl.scrollLeft,
+        width:    elRect.width,
+      });
+    }
+
+    to(htmlEl, {
       opacity:  0,
       y:        -(enterY * 0.5),
       duration: leaveDuration,

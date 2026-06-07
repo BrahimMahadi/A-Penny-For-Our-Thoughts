@@ -65,6 +65,7 @@ vi.mock('gsap', () => ({
     from:           vi.fn((_t: unknown, vars?: Record<string, unknown>) => { callOnComplete(vars); return fakeTween(); }),
     fromTo:         vi.fn((_t: unknown, _f: unknown, vars?: Record<string, unknown>) => { callOnComplete(vars); return fakeTween(); }),
     set:            vi.fn(),
+    killTweensOf:   vi.fn(),
     timeline:       vi.fn((vars?: Record<string, unknown>) => fakeTimeline(vars)),
     registerPlugin: vi.fn(),
     utils: {

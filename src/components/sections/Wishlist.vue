@@ -818,6 +818,7 @@ defineExpose({ openAdd });
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 1rem;
+  position: relative; /* required: leaving cards are pinned absolute so remaining cards reflow correctly */
 }
 
 /* ─── Card FLIP move transition (reorder on sort / delete) ──── */
