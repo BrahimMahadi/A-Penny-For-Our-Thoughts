@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.38.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              GSAP Flip — sliding pill indicators on all toggles
+            </p>
+            <ul class="docs-list">
+              <li><strong>Sliding pill indicators everywhere.</strong> The sidebar nav bar, theme switcher, Dashboard hero Wants/Needs toggle, Schedule view toggle, and Spending donut toggle all animate with a smooth GSAP Flip sliding pill — the background moves with the active state rather than crossfading.</li>
+              <li><strong>Chip bounce &amp; row stagger.</strong> Clicking any type or category filter chip in the Spending tab triggers a back.out spring bounce. Changing filters stagger-fades the table rows in.</li>
+              <li><strong>Reduced-motion safe.</strong> All indicators snap instantly when <code>prefers-reduced-motion: reduce</code> is set in the OS — no animation at all, just immediate repositioning.</li>
+              <li><strong>Shared composable.</strong> A new <code>useFlipIndicator</code> composable drives every indicator — one source of truth for axis modes, easing, and reveal-on-mount logic.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.37.0</span>
               <span class="release-date">June 2026</span>
             </div>

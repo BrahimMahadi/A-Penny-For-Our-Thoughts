@@ -1733,6 +1733,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | TECH-DEBT-1 · Phase 3 | Tier 3 — `'wants'`/`'needs'` shared constants + chart-palette hex centralization (CSS-var fallbacks left as-is by decision) | `feat/tech-debt-1-phase-3-enums` | ✅ Complete | v2.36.0 |
 | CHORE-1 | Code-health cleanup (fallow static analysis): removed unused exports/dead helpers (`CATEGORY_COLOURS`, `WANT_CATEGORIES`, `SECTION_GROUPS`, imperative `showToast`), an unused runtime dependency (`date-fns`), and the stale `docs/design_handoff_schedule_spending/` mockup folder; trimmed dead code in the legacy vanilla-JS files. Pure housekeeping — no behaviour change | `chore/fallow-code-health-cleanup` | ✅ Complete | v2.36.0 |
 | ONE-TIME-INCOME | Log windfall income for the current period (e-transfer, gift, bonus, freelance, refund, sale). Proportional 50/30/20 allocation by default, user-adjustable per bucket. Boosts needs/wants/savings envelopes on Dashboard + Spending page. Quick-add button on Dashboard header, dedicated section on Spending tab, management panel in Settings. 39 new tests (store actions, getters, allocation math, modal, section component). | `feat/one-time-income` | ✅ Complete | v2.37.0 |
+| GSAP-FLIP-TOGGLES | GSAP Flip sliding pill indicators on all interactive toggles: sidebar 3px nav indicator (power3.inOut), SVG icon theme pill (☀/☾, power2.inOut), Dashboard hero Wants/Needs pill + fade+drift on hero amount (back.out(2.5)), Schedule view toggle (back.out(2.5)), Spending donut toggle + chip bounce (back.out(2.5)), Spending table row stagger-fade on filter change. `useFlipIndicator` shared composable, `prefers-reduced-motion` aware. 4 new tests (theme pill, nav indicator), all 1358 passing. | `feat/gsap-flip-toggles` | ✅ Complete | v2.38.0 |
 
 ---
 
@@ -3263,6 +3264,8 @@ Inserted newest-first, immediately above the existing v1.18.0 entry:
 
 | Version | Sprint | Tagline |
 |---|---|---|
+| v2.38.0 | GSAP-FLIP-TOGGLES | GSAP Flip sliding pill indicators on all toggles |
+| v2.37.0 | ONE-TIME-INCOME | Windfall / one-time income feature |
 | v2.17.0 | RS-26 | Release notes refreshed (this sprint) |
 | v2.16.0 | RS-25 | Code cleanup: orphaned WantsTracker removed |
 | v2.15.0 | RS-24 | Pay-period rollover UX enhancements |
@@ -4247,3 +4250,41 @@ Added **TECH-DEBT-1** to the summary table — a to-discuss full-app sweep for h
 ### Phase 3 — Tier 3 (literals + palette)  · `feat/tech-debt-1-phase-3-enums` · v2.36.0
 - Shared `BUDGET_TYPES` / `DEFAULT_BUDGET_TYPE` constants where they reduce risk.
 - Centralize chart-palette hex; document that CSS-var fallbacks are intentionally left inline.
+
+---
+
+## GSAP-FLIP-TOGGLES — Sliding pill indicators on all interactive toggles ✅
+
+**Status**: ✅ **COMPLETE** — June 2026
+**Branch**: `feat/gsap-flip-toggles`
+**Version**: v2.38.0
+
+### Goal
+Replace static CSS background-swap on toggle buttons with smooth GSAP Flip sliding pill indicators across every interactive toggle in the app. Shared `useFlipIndicator` composable handles all axis modes, reduced-motion awareness, and reveal-on-mount.
+
+### Delivered
+
+- ✅ `src/composables/useFlipIndicator.ts` — new shared composable: `Flip.getState()` + `Flip.from()` sliding indicator. Two axis modes: `'both'` (horizontal pill) and `'y'` (vertical left-bar). `prefers-reduced-motion` aware — snaps instantly when OS requests reduced motion. Reveals indicator after first snap (starts at `opacity:0`) to prevent flash of un-positioned element.
+- ✅ `AppSidebar.vue` — 3px vertical left-bar nav indicator (`axis:'y'`, `power3.inOut`) + SVG icon theme pill (☀/☾, `power2.inOut`, `scheduleThemeReinit` on hover to handle CSS expansion)
+- ✅ `DashboardPage.vue` — hero Wants/Needs Flip pill (`back.out(2.5)`) + GSAP `from` fade+drift on hero amount on toggle
+- ✅ `SchedulePage.vue` — List/Month view toggle Flip pill (`back.out(2.5)`)
+- ✅ `SpendingPage.vue` — donut Wants/Needs Flip pill (`back.out(2.5)`), chip bounce (`back.out(2.5)`) on every type/category chip click, purchase table row stagger-fade on filter change
+- ✅ `useGsap.ts` — defensive `?.matches ?? false` null-check in `prefersReducedMotion()` (guards against `vi.restoreAllMocks()` clearing the jsdom mock between async lifecycle calls)
+- ✅ `tests/setup.ts` — added `vi.mock('gsap/Flip', ...)` stub (synchronous `Flip.getState` + `Flip.from` with `onComplete` forwarding)
+- ✅ `tests/components/ui/AppSidebar.spec.ts` — updated two tests for the new SVG icon theme pill (checks `[aria-label="Light mode"]`, `[aria-label="Dark mode"]`, `.app-sidebar__theme-btn--active`)
+
+### Files changed
+- `src/composables/useFlipIndicator.ts` — NEW
+- `src/composables/useGsap.ts` — defensive matchMedia null-check
+- `src/components/ui/AppSidebar.vue` — nav indicator + theme icon pill
+- `src/components/pages/DashboardPage.vue` — hero toggle Flip pill + amount drift
+- `src/components/pages/SchedulePage.vue` — view toggle Flip pill
+- `src/components/pages/SpendingPage.vue` — donut toggle Flip pill + chip bounce + row stagger
+- `tests/setup.ts` — gsap/Flip mock
+- `tests/components/ui/AppSidebar.spec.ts` — theme pill test update
+- `CLAUDE.md` — test count → 1358 across 42 spec files
+- `docs/PHASE_TRACKING.md` — this entry
+
+### Tests
+- 4 new tests (AppSidebar theme pill × 2, nav indicator assertion updated × 2)
+- **Final gate**: ✅ 1358/1358 tests pass · `vue-tsc --noEmit` clean
