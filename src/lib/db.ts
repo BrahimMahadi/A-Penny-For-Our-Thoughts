@@ -22,7 +22,7 @@ import type {
   IncomeStream, ExpenseCard, ExpenseItem, Purchase,
   SpendingHistoryPeriod, Loan, CreditCard, Subscription,
   WishlistItem, SavingsAccount, Goal, Asset, NetWorthSnapshot,
-  Rule, BudgetAlert, SpendingCategory,
+  Rule, BudgetAlert, SpendingCategory, OneTimeIncome,
 } from '@/types/budget';
 import type { BudgetAllocation, BudgetDisplayModes } from '@/types/budget';
 import type { BudgetState } from '@/types/state';
@@ -33,7 +33,7 @@ import type {
   SpendingHistoryPeriodRow, SpendingHistoryItemRow,
   LoanRow, CreditCardRow, SubscriptionRow, WishlistItemRow,
   SavingsAccountRow, GoalRow, AssetRow, NetWorthSnapshotRow,
-  RuleRow, BudgetAlertRow, SpendingCategoryRow,
+  RuleRow, BudgetAlertRow, SpendingCategoryRow, OneTimeIncomeRow,
 } from '@/types/database';
 
 // ─── Throw helper ──────────────────────────────────────────────────
@@ -182,6 +182,19 @@ function toSpendingCategory(r: SpendingCategoryRow): SpendingCategory {
   return { id: r.id, name: r.name, color: r.color };
 }
 
+function toOneTimeIncome(r: OneTimeIncomeRow): OneTimeIncome {
+  return {
+    id:          r.id,
+    label:       r.label,
+    amount:      r.amount,
+    date:        r.date,
+    type:        r.type as OneTimeIncome['type'],
+    allocation:  r.allocation as unknown as OneTimeIncome['allocation'],
+    periodStart: r.period_start,
+    createdAt:   r.created_at,
+  };
+}
+
 // ─── Delete all user data ──────────────────────────────────────────
 
 /**
@@ -214,6 +227,7 @@ export async function deleteAllUserData(userId: string): Promise<void> {
     'rules',
     'budget_alerts',
     'spending_categories',
+    'one_time_incomes',
   ] as const;
 
   await Promise.all(
@@ -257,6 +271,7 @@ interface FetchUserDataPayload {
   rules: RuleRow[];
   budgetAlerts: BudgetAlertRow[];
   spendingCategories: SpendingCategoryRow[];
+  oneTimeIncomes: OneTimeIncomeRow[];
 }
 
 /**
@@ -317,6 +332,7 @@ export async function fetchAllUserData(userId: string): Promise<Partial<BudgetSt
     rules:               (payload.rules ?? []).map(toRule),
     budgetAlerts:        (payload.budgetAlerts ?? []).map(toBudgetAlert),
     spendingCategories:  (payload.spendingCategories ?? []).map(toSpendingCategory),
+    oneTimeIncomes:      (payload.oneTimeIncomes ?? []).map(toOneTimeIncome),
   };
 }
 
@@ -627,6 +643,33 @@ export const db = {
     update: (userId: string, c: SpendingCategory) =>
       updateRow('spending_categories', c.id, userId, { name: c.name, color: c.color }),
     delete: (userId: string, id: string) => deleteRow('spending_categories', id, userId),
+  },
+
+  // ─── One-time (windfall) incomes ───────────────────────────────
+
+  oneTimeIncomes: {
+    insert: (userId: string, i: OneTimeIncome) =>
+      insertRow('one_time_incomes', {
+        id:           i.id,
+        user_id:      userId,
+        label:        i.label,
+        amount:       i.amount,
+        date:         i.date,
+        type:         i.type,
+        allocation:   i.allocation as unknown as Json,
+        period_start: i.periodStart,
+        created_at:   i.createdAt,
+      }),
+    update: (userId: string, i: OneTimeIncome) =>
+      updateRow('one_time_incomes', i.id, userId, {
+        label:        i.label,
+        amount:       i.amount,
+        date:         i.date,
+        type:         i.type,
+        allocation:   i.allocation as unknown as Json,
+        period_start: i.periodStart,
+      }),
+    delete: (userId: string, id: string) => deleteRow('one_time_incomes', id, userId),
   },
 
 } as const;

@@ -341,6 +341,21 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.39.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              Windfall income now persists to the cloud across sign-out/sign-in
+            </p>
+            <ul class="docs-list">
+              <li><strong>One-time income saved to Supabase.</strong> Windfall / one-time income entries are now written to a new <code>one_time_incomes</code> table in the database. They were previously only stored in <code>localStorage</code>, so they were lost on sign-out or on any new device.</li>
+              <li><strong>Full CRUD synced.</strong> Adding, editing, and deleting a windfall income entry all fire fire-and-forget Supabase writes (same pattern as purchases, subscriptions, etc.). On next sign-in the entries are loaded back via the <code>fetch_user_data</code> RPC alongside all other user data.</li>
+              <li><strong>Import/export covered.</strong> The JSON import migration path (<code>runMigration</code>) and full-reset delete path (<code>deleteAllUserData</code>) both include <code>one_time_incomes</code>, so data integrity is maintained across all state-management flows.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.38.1</span>
               <span class="release-date">June 2026</span>
             </div>
