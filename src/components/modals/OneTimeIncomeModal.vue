@@ -35,6 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   'update:open': [value: boolean];
   saved: [];
+  delete: [];
 }>();
 
 // ─── Store / composables ──────────────────────────────────────────
@@ -373,6 +374,16 @@ function close(): void {
 
       <!-- Footer -->
       <div class="oti-form__footer">
+        <!-- Remove button — edit mode only, left-aligned -->
+        <button
+          v-if="isEditMode"
+          class="btn-danger"
+          type="button"
+          @click="emit('delete')"
+        >
+          Remove
+        </button>
+        <span class="oti-form__footer-spacer" />
         <button
           class="btn-secondary"
           type="button"
@@ -610,11 +621,34 @@ function close(): void {
 /* ── Footer ───────────────────────────────────────────── */
 .oti-form__footer {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 0.6rem;
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border);
+}
+
+/* Pushes cancel/save to the right when Remove is present */
+.oti-form__footer-spacer { flex: 1; }
+
+/* Danger (remove) button — scoped so it reaches through Teleport */
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 1rem;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.btn-danger:hover {
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  border-color: var(--danger);
 }
 
 /* ── Buttons (co-located so scoped attribute guarantees delivery

@@ -831,17 +831,6 @@ function deletePurchase(id: string): void {
       </BaseCard>
     </div>
 
-    <!-- ── Windfall income this period ──────────────────────────── -->
-    <BaseCard
-      v-if="isCurrentPeriod"
-      title="Income This Period"
-    >
-      <p class="spend-section-eyebrow">
-        WINDFALL INCOME
-      </p>
-      <OneTimeIncomeSection />
-    </BaseCard>
-
     <!-- ── All purchases table ─────────────────────────────────── -->
     <BaseCard>
       <!-- Card header -->
@@ -1175,6 +1164,14 @@ function deletePurchase(id: string): void {
           </tbody>
         </table>
       </div>
+    </BaseCard>
+
+    <!-- ── Additional income this period ─────────────────────── -->
+    <BaseCard
+      v-if="isCurrentPeriod"
+      title="Additional Income This Period"
+    >
+      <OneTimeIncomeSection />
     </BaseCard>
 
     <!-- ── Add / Edit purchase modal ──────────────────────────── -->
