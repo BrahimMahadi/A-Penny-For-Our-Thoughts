@@ -119,12 +119,12 @@ describe('useListTransition', () => {
     expect(done).toHaveBeenCalledTimes(1);
   });
 
-  it('onItemLeave animates to negative y (float upward)', () => {
-    const { onItemLeave } = useListTransition({ enterY: 14 });
+  it('onItemLeave collapses height to 0 (removes item from document flow)', () => {
+    const { onItemLeave } = useListTransition();
     onItemLeave(makeEl(), vi.fn());
     expect(gsap.to).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ y: -7 }),  // -(14 * 0.5)
+      expect.objectContaining({ height: 0, opacity: 0 }),
     );
   });
 
@@ -185,7 +185,7 @@ describe('useListTransition', () => {
     onItemLeave(makeEl(), done);
     expect(gsap.to).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ y: -10, duration: 0.15, ease: 'power3.in' }),
+      expect.objectContaining({ height: 0, opacity: 0, duration: 0.15, ease: 'power3.in' }),
     );
   });
 });
