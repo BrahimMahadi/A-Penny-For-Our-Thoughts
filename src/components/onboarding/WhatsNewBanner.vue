@@ -22,15 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.39.0';
+const APP_VERSION = '2.39.1';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '💾', text: 'Windfall income now persists to the cloud — entries survive sign-out and opening the app on any device' },
-  { icon: '🐛', text: 'Fixed Subscriptions category filter — switching categories no longer causes items to appear below empty space or stay invisible' },
-  { icon: '✨', text: 'Sliding pill indicators on all toggles — sidebar nav, theme switcher, hero Wants/Needs, Schedule view, and Spending donut' },
-  { icon: '🧪', text: '1358 tests passing across 42 spec files' },
+  { icon: '📋', text: 'New Database Sync Policy — every persisted entity is now covered by a mandatory 6-item checklist enforced in CLAUDE.md' },
+  { icon: '🧪', text: 'New db-coverage spec: 35 tests guard that every store entity has Supabase CRUD helpers — the class of oversight that caused the windfall bug can\'t slip through again' },
+  { icon: '💾', text: 'Windfall income now persists to the cloud — entries survive sign-out and opening the app on any device (v2.39.0)' },
+  { icon: '🐛', text: 'Fixed Subscriptions category filter — switching categories no longer causes items to appear below empty space or stay invisible (v2.38.1)' },
 ];
 
 const budget = useBudgetStore();

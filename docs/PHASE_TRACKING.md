@@ -1736,6 +1736,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | GSAP-FLIP-TOGGLES | GSAP Flip sliding pill indicators on all interactive toggles: sidebar 3px nav indicator (power3.inOut), SVG icon theme pill (☀/☾, power2.inOut), Dashboard hero Wants/Needs pill + fade+drift on hero amount (back.out(2.5)), Schedule view toggle (back.out(2.5)), Spending donut toggle + chip bounce (back.out(2.5)), Spending table row stagger-fade on filter change. `useFlipIndicator` shared composable, `prefers-reduced-motion` aware. 4 new tests (theme pill, nav indicator), all 1358 passing. | `feat/gsap-flip-toggles` | ✅ Complete | v2.38.0 |
 | SUBSCRIPTION-FILTER-FIX | Bug fix: Subscriptions category filter left items permanently invisible after switching back to "All categories". Root cause: `extras.css` `animation: listItemIn … fill-mode:both` pre-applied `opacity:0` to `.sub-item` elements; GSAP's `from()` captured that as its "to" value and animated 0→0, leaving items invisible. Fix: `onItemEnter` now sets `el.style.animation = 'none'` before GSAP reads the natural opacity. Leave animation switched to height-collapse approach (avoids multi-item position bug). | `fix/subscription-filter-leave-animation` | ✅ Complete | v2.38.1 |
 | ONE-TIME-INCOME-DB | Bug fix + schema: windfall / one-time income entries were only saved to `localStorage` — they were lost on sign-out or in a new browser. Added `one_time_incomes` Supabase table, RLS policy, `handle_updated_at` trigger, CRUD helpers in `db.ts`, updated `fetch_user_data` RPC, wired `syncDb` in all three store actions (`addOneTimeIncome` / `updateOneTimeIncome` / `deleteOneTimeIncome`), added step 17 to `runMigration`, and `one_time_incomes` to `deleteAllUserData`. | `feat/one-time-income-db-persistence` | ✅ Complete | v2.39.0 |
+| DB-SYNC-POLICY | Chore: formalised the Database Sync Policy (6-item mandatory checklist in CLAUDE.md) + `tests/lib/db-coverage.spec.ts` (35 new tests) that fails if any store entity is missing from `db` or lacks CRUD methods. Prevents the class of oversight that caused the v2.38.x windfall income data-loss bug. | `chore/db-sync-policy-and-coverage-test` | ✅ Complete | v2.39.1 |
 
 ---
 
@@ -4406,3 +4407,48 @@ The SQL migration must be run in the Supabase Dashboard **before** this branch i
 ### Tests
 - No new unit tests — the DB layer uses the same fire-and-forget `syncDb` pattern already tested at the store level across other entities; the mapper and CRUD helpers follow the established pattern exactly.
 - **Final gate**: ✅ 1358/1358 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## DB-SYNC-POLICY — Database Sync Policy + coverage test ✅
+
+**Branch**: `chore/db-sync-policy-and-coverage-test`
+**Status**: ✅ **COMPLETE** — June 2026
+**Version**: v2.39.1
+
+### Motivation
+
+The windfall income bug (v2.38.x → v2.39.0) demonstrated a systemic gap: a store entity can exist for months with full UI and test coverage, yet have zero database integration, because nothing in the project enforced that pairing. The fix was reactive. This sprint makes the gap impossible to miss.
+
+### What changed
+
+**`CLAUDE.md`** — New mandatory section "Database Sync Policy" inserted between the Release Process and Branching & Merge Policy sections. Defines a 6-item checklist that must be completed in the same branch as any add/change/remove of a persisted entity:
+
+1. Migration file (`supabase/migrations/NNN_*.sql`) — table, RLS, trigger, RPC update
+2. Database types (`src/types/database.ts`) — `Row`/`Insert`/`Update` + `*Row` alias
+3. DB helpers (`src/lib/db.ts`) — mapper + `insert`/`update`/`delete` on `db` object
+4. Store wiring (`src/stores/budget.ts`) — `syncDb()` in every mutating action
+5. Migration import (`src/lib/migrateLocalStorage.ts`) — numbered back-fill step
+6. RPC verification — `fetch_user_data` includes the new entity key
+
+Also documents non-standard shapes (`spendingHistory`, `netWorthHistory`), non-persisted scalar fields (covered by `upsertProfile`), and points to the automated canary.
+
+**`tests/lib/db-coverage.spec.ts`** (new file) — 35 tests across three suites:
+
+- *Entity registry* (18 tests): `it.each(ALL_DB_ENTITY_KEYS)` asserts each of the 17 entity keys exists on the `db` object, plus a count sentinel that forces a deliberate update of the spec whenever the list changes.
+- *Standard CRUD shape* (15 tests): `it.each(STANDARD_CRUD_ENTITY_KEYS)` asserts `insert`, `update`, and `delete` are all functions for each of the 15 standard-shape entities.
+- *Non-standard shapes* (2 tests): `spendingHistory` has `insertPeriod`/`updatePeriodSnapshots`/`deletePeriod`; `netWorthHistory` has `insert`/`delete` with an explicit assertion that `update` is `undefined` (snapshots are intentionally immutable).
+
+### Files changed
+
+- `CLAUDE.md` — Database Sync Policy section added; test count updated to 1393/43
+- `tests/lib/db-coverage.spec.ts` — new file, 35 tests
+- `src/components/onboarding/WhatsNewBanner.vue` — `APP_VERSION` → `'2.39.1'`; release notes updated
+- `src/components/pages/DocsPage.vue` — v2.39.1 release block added
+- `tests/components/onboarding.spec.ts` — version sentinels updated to `'2.39.1'`
+- `tests/components/pages/pages.spec.ts` — `'v2.39.1'` added to versions array; test description updated
+- `docs/PHASE_TRACKING.md` — summary table row + this entry
+
+### Tests
+- 35 new tests in `tests/lib/db-coverage.spec.ts` — all passing
+- **Final gate**: ✅ 1393/1393 tests pass · `vue-tsc --noEmit` clean
