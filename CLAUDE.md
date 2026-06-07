@@ -17,7 +17,7 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (1358 tests across 42 spec files)  <!-- v2.39.0 -->
+- Testing: Vitest + @vue/test-utils (1393 tests across 43 spec files)  <!-- v2.39.1 -->
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
@@ -59,6 +59,41 @@ Every time a new version is merged to `main`, ALL of the following must be updat
 7. **Any other version-bearing docs** (`docs/ARCHITECTURE.md`, `docs/README.md`, etc.) — Update version references as applicable.
 
 This checklist must be completed in the same commit/PR as the feature work. Never ship to main without completing all items.
+
+---
+
+## Database Sync Policy (MANDATORY — every new/changed/removed persisted entity)
+
+**Whenever a store entity is added, modified, or removed, the database layer must be updated in the same branch.** Skipping any step causes data loss on sign-out — exactly the class of bug that kept windfall income from persisting (fixed in v2.39.0).
+
+### The 6-item checklist
+
+Every PR that touches a persisted entity must complete **all six** of the following before it can merge:
+
+1. **Migration file** — `supabase/migrations/NNN_<entity>.sql`
+   Creates / alters / drops the table, adds the RLS policy (`user_id = auth.uid()`), adds the `updated_at` trigger, and recreates `fetch_user_data` via `create or replace function` to include the new/changed entity in its JSONB payload.
+
+2. **Database types** — `src/types/database.ts`
+   Add the table block (`Row`, `Insert`, `Update`, `Relationships`) inside `Database['public']['Tables']`, then append a hand-maintained `export type <Entity>Row = _DbTables['<table>']['Row']` alias to the bottom of the file (the BUG-022 block). `databaseRowExports.spec.ts` guards this.
+
+3. **DB helpers** — `src/lib/db.ts`
+   Add a camelCase mapper function (`toMyEntity(r: MyEntityRow): MyEntity { … }`) and a new key on the `db` object with at minimum `insert`, `update`, and `delete` helpers. See non-standard shapes (`spendingHistory`, `netWorthHistory`) for exceptions. `db-coverage.spec.ts` guards this.
+
+4. **Store wiring** — `src/stores/budget.ts`
+   Every action that mutates the entity must call `syncDb(() => db.myEntity.insert/update/delete(…), 'actionName')` immediately after updating `this` state. Fire-and-forget — never `await` `syncDb`.
+
+5. **Migration import** — `src/lib/migrateLocalStorage.ts`
+   Add a numbered step at the bottom of `runMigration` that loops the entity array and calls `await db.myEntity.insert(userId, item)` for each entry. This back-fills existing localStorage data when an existing user first signs in after the upgrade.
+
+6. **RPC update** — already covered by step 1, but double-check: `fetch_user_data` must return the new entity key so `fetchAllUserData` in `db.ts` can map it.
+
+### Automated canary
+
+`tests/lib/db-coverage.spec.ts` fails if any entity in `ALL_DB_ENTITY_KEYS` is missing from `db` or lacks the expected CRUD methods. **Update that file's `ALL_DB_ENTITY_KEYS` array whenever you add or remove an entity** — the sentinel count test will force you to.
+
+### Non-persisted fields
+
+Not every store field needs a DB table. Scalar config fields (`allocation`, `budgetDisplayMode`, `payStart`, `hasOnboarded`, `dismissedVersion`, etc.) are stored in the `profiles` table via `upsertProfile`. Only **array entities** with their own identity (`id` field) need the full 6-item treatment.
 
 ---
 

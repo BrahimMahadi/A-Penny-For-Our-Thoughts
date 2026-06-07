@@ -280,7 +280,7 @@ describe('WhatsNewBanner', () => {
 
   it('is hidden when dismissedVersion matches APP_VERSION', async () => {
     const store = useBudgetStore();
-    store.dismissWhatsNew('2.39.0');
+    store.dismissWhatsNew('2.39.1');
     wrapper = mount(WhatsNewBanner, { attachTo: document.body });
     await nextTick();
     expect(wrapper.find('.wnb').exists()).toBe(false);
@@ -294,7 +294,7 @@ describe('WhatsNewBanner', () => {
     await wrapper.find('.wnb__close').trigger('click');
     await nextTick();
 
-    expect(store.dismissedVersion).toBe('2.39.0');
+    expect(store.dismissedVersion).toBe('2.39.1');
   });
 
   it('renders all release notes', async () => {

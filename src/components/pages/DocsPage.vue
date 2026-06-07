@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.39.1</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              Database Sync Policy + automated coverage test for all persisted entities
+            </p>
+            <ul class="docs-list">
+              <li><strong>Database Sync Policy added to CLAUDE.md.</strong> A new mandatory section defines a 6-item checklist (migration file, database types, db helpers, store wiring, migration import, RPC update) that must be completed whenever a persisted store entity is added, changed, or removed. Skipping any step causes the same class of data-loss bug as the windfall income oversight in v2.38.x.</li>
+              <li><strong>New <code>tests/lib/db-coverage.spec.ts</code>.</strong> 35 new tests act as an automated tripwire: every entity in the canonical <code>ALL_DB_ENTITY_KEYS</code> list is checked for presence on the <code>db</code> object and for the expected CRUD methods. A sentinel "total count" test means you cannot add or remove an entity without deliberately updating the spec — CI catches the gap before merge.</li>
+              <li><strong>Non-standard shapes documented.</strong> <code>spendingHistory</code> (<code>insertPeriod / deletePeriod</code>) and <code>netWorthHistory</code> (insert-only snapshots) each have dedicated assertions so their intentional deviations from standard CRUD are explicit and guarded.</li>
+              <li><strong>1393 tests across 43 spec files.</strong></li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.39.0</span>
               <span class="release-date">June 2026</span>
             </div>
