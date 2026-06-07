@@ -249,12 +249,15 @@ describe('AppSidebar', () => {
     w.unmount();
   });
 
-  it('renders the theme toggle button', async () => {
+  // feat/gsap-flip-toggles: theme toggle replaced with icon pill.
+  // The old single button (aria-label="Switch to ...") is now a two-button
+  // pill: [aria-label="Light mode"] + [aria-label="Dark mode"], no text label.
+  it('renders the theme toggle pill with light and dark mode buttons', async () => {
     const w = mountSidebar();
     await nextTick();
-    // aria-label contains "Switch to"
-    const themeBtn = w.find('[aria-label^="Switch to"]');
-    expect(themeBtn.exists()).toBe(true);
+    expect(w.find('[aria-label="Theme"]').exists()).toBe(true);
+    expect(w.find('[aria-label="Light mode"]').exists()).toBe(true);
+    expect(w.find('[aria-label="Dark mode"]').exists()).toBe(true);
     w.unmount();
   });
 
@@ -268,14 +271,12 @@ describe('AppSidebar', () => {
     w.unmount();
   });
 
-  it('renders a theme mode label inside the theme button', async () => {
+  it('exactly one theme pill button is active at a time', async () => {
     const w = mountSidebar();
     await nextTick();
-    const themeBtn = w.find('[aria-label^="Switch to"]');
-    const label = themeBtn.find('.app-sidebar__label');
-    expect(label.exists()).toBe(true);
-    // Either "Light mode" or "Dark mode"
-    expect(label.text()).toMatch(/^(Light mode|Dark mode)$/);
+    // The icon pill (light/dark) uses --active class; exactly one should be active.
+    const activeBtns = w.findAll('.app-sidebar__theme-btn--active');
+    expect(activeBtns).toHaveLength(1);
     w.unmount();
   });
 

@@ -14,6 +14,7 @@ import { computed, ref } from 'vue';
 import { useUiStore } from '@/stores/ui';
 import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics } from '@/composables/useAnalytics';
+import { useFlipIndicator } from '@/composables/useFlipIndicator';
 import { getCurrentPeriodStart } from '@/utils/calculations';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseCard from '@/components/ui/BaseCard.vue';
@@ -68,11 +69,26 @@ function goNext(): void {
   selectedKey.value = null;
 }
 
-// ─── View toggle ─────────────────────────────────────────────────
+// ─── View toggle — Flip sliding pill ─────────────────────────────
+const viewToggleRef = ref<HTMLElement | null>(null);
+const viewIndRef    = ref<HTMLElement | null>(null);
+
+const { move: moveViewInd } = useFlipIndicator(
+  viewToggleRef,
+  viewIndRef,
+  {
+    activeSel: '.view-toggle-btn--active',
+    ease:      'back.out(2.5)',
+    duration:  0.32,
+    axis:      'both',
+  },
+);
+
 function setView(v: 'list' | 'calendar' | 'payperiod'): void {
   ui.setScheduleView(v);
   if (v === 'payperiod') ui.resetToCurrentPayPeriod();
   selectedKey.value = null;
+  void moveViewInd();
 }
 
 // ─── KPI tiles ───────────────────────────────────────────────────
@@ -222,8 +238,17 @@ const payScheduleLabel = computed(() => {
           </button>
         </div>
 
-        <!-- Month | Pay period | List toggle -->
-        <div class="view-toggle">
+        <!-- Month | Pay period | List toggle — Flip sliding pill -->
+        <div
+          ref="viewToggleRef"
+          class="view-toggle"
+        >
+          <!-- Sliding indicator (GSAP Flip manages position) -->
+          <span
+            ref="viewIndRef"
+            class="view-toggle-ind"
+            aria-hidden="true"
+          />
           <button
             class="view-toggle-btn"
             :class="{ 'view-toggle-btn--active': ui.scheduleView === 'calendar' }"
@@ -498,8 +523,9 @@ const payScheduleLabel = computed(() => {
   filter: brightness(0.93);
 }
 
-/* ── View toggle ─────────────────────────────────────────────── */
+/* ── View toggle — Flip sliding pill ─────────────────────────── */
 .view-toggle {
+  position: relative; /* anchors the abs indicator */
   display: flex;
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -508,7 +534,19 @@ const payScheduleLabel = computed(() => {
   gap: 1px;
 }
 
+/* Sliding indicator — GSAP Flip moves left/top/width/height */
+.view-toggle-ind {
+  position: absolute;
+  background: var(--accent);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0; /* revealed by composable after first snap */
+}
+
 .view-toggle-btn {
+  position: relative;
+  z-index: 1;
   padding: 5px 13px;
   background: transparent;
   border: none;
@@ -518,18 +556,16 @@ const payScheduleLabel = computed(() => {
   font-family: inherit;
   border-radius: 999px;
   font-weight: 500;
-  transition: background 0.12s, color 0.12s;
+  transition: color var(--transition-fast);
   white-space: nowrap;
 }
 
 .view-toggle-btn--active {
-  background: var(--accent);
   color: #fff;
   font-weight: 700;
 }
 
 .view-toggle-btn:not(.view-toggle-btn--active):hover {
-  background: var(--border);
   color: var(--text);
 }
 

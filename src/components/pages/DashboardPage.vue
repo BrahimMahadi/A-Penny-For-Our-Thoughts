@@ -35,8 +35,9 @@ import { useUiStore }    from '@/stores/ui';
 import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics }  from '@/composables/useAnalytics';
 import { useToast }      from '@/composables/useToast';
-import { useGsap }       from '@/composables/useGsap';
-import { useCountUp }    from '@/composables/useCountUp';
+import { useGsap }            from '@/composables/useGsap';
+import { useFlipIndicator }   from '@/composables/useFlipIndicator';
+import { useCountUp }         from '@/composables/useCountUp';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
 import { fmt }           from '@/utils/format';
 import {
@@ -222,6 +223,41 @@ const kpiIsOver = computed(() =>
 // ─── Dashboard shared type toggle (RS-16) ────────────────────────
 /** Drives the hero card + Purchases This Period. Persists per session only. */
 const dashboardTypeFilter = ref<'wants' | 'needs'>('wants');
+
+// ── Flip pill indicator for the hero toggle ───────────────────────
+const heroToggleRef = ref<HTMLElement | null>(null);
+const heroIndRef    = ref<HTMLElement | null>(null);
+const heroAmountRef = ref<HTMLElement | null>(null);
+
+const { move: moveHeroInd } = useFlipIndicator(
+  heroToggleRef,
+  heroIndRef,
+  {
+    activeSel: '.htt-btn--active',
+    ease:      'back.out(2.5)',
+    duration:  0.32,
+    axis:      'both',
+  },
+);
+
+/** Set the hero type filter and trigger Flip + fade-drift animations. */
+function setHeroFilter(type: 'wants' | 'needs'): void {
+  if (dashboardTypeFilter.value === type) return;
+  dashboardTypeFilter.value = type; // reactive update first — tests rely on this
+  void moveHeroInd();               // Flip pill animates after nextTick
+  // Fade + vertical drift on the amount so it feels refreshed
+  nextTick(() => {
+    if (heroAmountRef.value) {
+      gsapFrom(heroAmountRef.value, {
+        y: 6,
+        opacity: 0,
+        duration: 0.26,
+        ease: 'power2.out',
+        clearProps: 'opacity,y,transform',
+      });
+    }
+  });
+}
 
 /** Hero card: budget for the active type. */
 const heroBudget = computed(() =>
@@ -421,19 +457,28 @@ onMounted(() => {
             <p class="kpi-hero__label">
               Available to spend
             </p>
-            <!-- Wants / Needs toggle -->
-            <div class="hero-type-toggle">
+            <!-- Wants / Needs toggle — Flip sliding pill -->
+            <div
+              ref="heroToggleRef"
+              class="hero-type-toggle"
+            >
+              <!-- Sliding indicator (GSAP Flip manages position) -->
+              <span
+                ref="heroIndRef"
+                class="htt-ind"
+                aria-hidden="true"
+              />
               <button
                 class="htt-btn"
                 :class="{ 'htt-btn--active': dashboardTypeFilter === 'wants' }"
-                @click="dashboardTypeFilter = 'wants'"
+                @click="setHeroFilter('wants')"
               >
                 Wants
               </button>
               <button
                 class="htt-btn"
                 :class="{ 'htt-btn--active': dashboardTypeFilter === 'needs' }"
-                @click="dashboardTypeFilter = 'needs'"
+                @click="setHeroFilter('needs')"
               >
                 Needs
               </button>
@@ -452,7 +497,10 @@ onMounted(() => {
             Bi-weekly {{ dashboardTypeFilter }} · set a pay date in Settings
           </p>
 
-          <div class="kpi-hero__amount">
+          <div
+            ref="heroAmountRef"
+            class="kpi-hero__amount"
+          >
             <!-- animHeroRemaining counts up from $0 on mount and transitions
                  smoothly when the Wants/Needs toggle changes. heroRemaining
                  still drives the OVER badge so it flips immediately. -->
@@ -918,6 +966,7 @@ onMounted(() => {
 
 /* ── Wants / Needs toggle pill (inside hero card) ────────────────── */
 .hero-type-toggle {
+  position: relative; /* anchors the abs indicator */
   display: flex;
   background: rgba(0, 0, 0, 0.25);
   border-radius: 999px;
@@ -925,7 +974,19 @@ onMounted(() => {
   gap: 2px;
 }
 
+/* Sliding indicator — GSAP Flip moves left/top/width/height */
+.htt-ind {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0; /* revealed by composable after first snap */
+}
+
 .htt-btn {
+  position: relative;
+  z-index: 1;
   padding: 3px 10px;
   border: none;
   border-radius: 999px;
@@ -936,17 +997,15 @@ onMounted(() => {
   cursor: pointer;
   font-family: inherit;
   letter-spacing: 0.02em;
-  transition: background 0.15s, color 0.15s;
+  transition: color var(--transition-fast);
   white-space: nowrap;
 }
 
 .htt-btn--active {
-  background: rgba(255, 255, 255, 0.22);
   color: #fff;
 }
 
 .htt-btn:not(.htt-btn--active):hover {
-  background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.85);
 }
 

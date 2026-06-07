@@ -22,15 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.37.0';
+const APP_VERSION = '2.38.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '💰', text: 'One-time income: log a windfall (e-transfer, gift, bonus, refund…) to boost your period budget — proportional 50/30/20 split by default, fully adjustable per bucket' },
-  { icon: '📊', text: 'Windfall income appears in the Dashboard hero ("+$X windfall" callout) and a dedicated Income This Period section on the Spending tab' },
-  { icon: '⚙️', text: 'Manage windfall entries from Settings (Windfall Income panel) or the new "Log income" quick-add button on the Dashboard' },
-  { icon: '🧪', text: '1354 tests passing across 42 spec files — 39 new income store + component tests added' },
+  { icon: '✨', text: 'Sliding pill indicators on all toggles — sidebar nav, theme switcher, hero Wants/Needs, Schedule view, and Spending donut now animate with a smooth GSAP Flip sliding pill' },
+  { icon: '🎯', text: 'Category and type filter chips in Spending bounce on click with a back.out spring; table rows stagger-fade in when filters change' },
+  { icon: '♿', text: 'All animations respect prefers-reduced-motion — every toggle snaps instantly when the OS requests reduced motion' },
+  { icon: '🧪', text: '1358 tests passing across 42 spec files' },
 ];
 
 const budget = useBudgetStore();

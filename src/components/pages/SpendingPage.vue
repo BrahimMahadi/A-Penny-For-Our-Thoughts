@@ -9,11 +9,13 @@
 -->
 
 <script setup lang="ts">
-import { computed, ref, reactive, watch } from 'vue';
+import { computed, ref, reactive, watch, nextTick } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics } from '@/composables/useAnalytics';
 import { useToast } from '@/composables/useToast';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
+import { useFlipIndicator } from '@/composables/useFlipIndicator';
+import { useGsap } from '@/composables/useGsap';
 import { getPayPeriodForecast, getCategorySpending, applyRulesToName, getSubsInWindow, getLoansInWindow } from '@/utils/calculations';
 import { CATEGORY_FALLBACK_COLOR, FALLBACK_CATEGORY_NAME } from '@/data/categories';
 import { PERIOD_DAYS } from '@/constants/budget';
@@ -160,6 +162,59 @@ const topCategoryInfo = computed(() => {
 /** Which type the donut card shows — independent from the table typeFilter. */
 const donutTypeFilter = ref<'wants' | 'needs'>('wants');
 
+// ── Flip pill for the donut type toggle ──────────────────────────
+const donutToggleRef = ref<HTMLElement | null>(null);
+const donutIndRef    = ref<HTMLElement | null>(null);
+
+const { move: moveDonutInd } = useFlipIndicator(
+  donutToggleRef,
+  donutIndRef,
+  {
+    activeSel: '.dtt-btn--active',
+    ease:      'back.out(2.5)',
+    duration:  0.32,
+    axis:      'both',
+  },
+);
+
+function setDonutFilter(type: 'wants' | 'needs'): void {
+  if (donutTypeFilter.value === type) return;
+  donutTypeFilter.value = type;
+  void moveDonutInd();
+}
+
+// ── GSAP for chip bounce ──────────────────────────────────────────
+const { fromTo: gsapFromTo } = useGsap();
+
+/** Apply a quick back-out scale bounce on a chip element. */
+function bounceChip(el: HTMLElement | null): void {
+  if (!el) return;
+  gsapFromTo(el,
+    { scale: 0.88 },
+    { scale: 1, duration: 0.42, ease: 'back.out(2.5)', clearProps: 'scale,transform' },
+  );
+}
+
+/** Click handler for type filter chips (All / Wants / Needs). */
+function clickTypeChip(val: '' | 'wants' | 'needs', ev: MouseEvent): void {
+  const newVal = (val !== '' && typeFilter.value === val) ? '' : val;
+  typeFilter.value = newVal;
+  bounceChip(ev.currentTarget as HTMLElement);
+}
+
+/** Click handler for category chips. */
+function clickCatChip(cat: string, ev: MouseEvent): void {
+  const newVal = catFilter.value === cat ? '' : cat;
+  catFilter.value = newVal;
+  bounceChip(ev.currentTarget as HTMLElement);
+}
+
+// ── Purchase table row enter animation ────────────────────────────
+/** Ref to the table wrapper — used to query .purchase-row elements. */
+const purchaseTableRef = ref<HTMLElement | null>(null);
+
+const { from: gsapFrom } = useGsap();
+
 const wantsPurchasesInPeriod = computed(() =>
   purchasesInPeriod.value.filter(p => (p.budgetType ?? 'wants') !== 'needs'),
 );
@@ -239,6 +294,22 @@ const searchQuery  = ref('');
 const catFilter    = ref('');
 const typeFilter   = ref<'' | 'wants' | 'needs'>('');
 const sortKey      = ref<'newest' | 'oldest' | 'amtHigh' | 'amtLow' | 'nameAZ'>('newest');
+
+/** Stagger-fade purchase rows in when the active filter set changes. */
+watch([typeFilter, catFilter, searchQuery], async () => {
+  await nextTick();
+  const rows = purchaseTableRef.value
+    ?.querySelectorAll<HTMLElement>('.purchase-row');
+  if (!rows?.length) return;
+  gsapFrom(Array.from(rows), {
+    opacity: 0,
+    y: 4,
+    duration: 0.22,
+    ease: 'power2.out',
+    stagger: 0.015,
+    clearProps: 'opacity,y,transform',
+  });
+});
 
 /** All categories present in the period — ALL purchase types, independent of the
  *  donut toggle. These drive the filter chips in the "All purchases" table, which
@@ -699,18 +770,27 @@ function deletePurchase(id: string): void {
       <div class="spend-stat-typed">
         <div class="spend-stat-typed__header">
           <span class="spend-stat-typed__label">Spent this period</span>
-          <div class="donut-type-toggle">
+          <!-- Donut type toggle — Flip sliding pill -->
+          <div
+            ref="donutToggleRef"
+            class="donut-type-toggle"
+          >
+            <span
+              ref="donutIndRef"
+              class="dtt-ind"
+              aria-hidden="true"
+            />
             <button
               class="dtt-btn"
               :class="{ 'dtt-btn--active': donutTypeFilter === 'wants' }"
-              @click="donutTypeFilter = 'wants'"
+              @click="setDonutFilter('wants')"
             >
               🛍 Wants
             </button>
             <button
               class="dtt-btn"
               :class="{ 'dtt-btn--active': donutTypeFilter === 'needs' }"
-              @click="donutTypeFilter = 'needs'"
+              @click="setDonutFilter('needs')"
             >
               🏠 Needs
             </button>
@@ -936,12 +1016,12 @@ function deletePurchase(id: string): void {
         to add purchases.
       </p>
 
-      <!-- Type filter chips (All / Wants / Needs) -->
+      <!-- Type filter chips (All / Wants / Needs) with back.out(2.5) bounce -->
       <div class="cat-chips cat-chips--type">
         <button
           class="cat-chip"
           :class="{ 'cat-chip--active': typeFilter === '' }"
-          @click="typeFilter = ''"
+          @click="clickTypeChip('', $event)"
         >
           All
         </button>
@@ -949,7 +1029,7 @@ function deletePurchase(id: string): void {
           class="cat-chip"
           :class="{ 'cat-chip--active': typeFilter === 'wants' }"
           :style="typeFilter === 'wants' ? { background: 'var(--accent)22', borderColor: 'var(--accent)', color: 'var(--accent)' } : {}"
-          @click="typeFilter = typeFilter === 'wants' ? '' : 'wants'"
+          @click="clickTypeChip('wants', $event)"
         >
           🛍 Wants
         </button>
@@ -957,13 +1037,13 @@ function deletePurchase(id: string): void {
           class="cat-chip"
           :class="{ 'cat-chip--active': typeFilter === 'needs' }"
           :style="typeFilter === 'needs' ? { background: 'var(--danger, #f87171)22', borderColor: 'var(--danger, #f87171)', color: 'var(--danger, #f87171)' } : {}"
-          @click="typeFilter = typeFilter === 'needs' ? '' : 'needs'"
+          @click="clickTypeChip('needs', $event)"
         >
           🏠 Needs
         </button>
       </div>
 
-      <!-- Category chips -->
+      <!-- Category chips with back.out(2.5) bounce -->
       <div
         v-if="activeCategories.length > 0"
         class="cat-chips"
@@ -971,7 +1051,7 @@ function deletePurchase(id: string): void {
         <button
           class="cat-chip"
           :class="{ 'cat-chip--active': catFilter === '' }"
-          @click="catFilter = ''"
+          @click="clickCatChip('', $event)"
         >
           All
         </button>
@@ -981,7 +1061,7 @@ function deletePurchase(id: string): void {
           class="cat-chip"
           :class="{ 'cat-chip--active': catFilter === cat }"
           :style="catFilter === cat ? { background: catColor(cat) + '22', borderColor: catColor(cat), color: catColor(cat) } : {}"
-          @click="catFilter = catFilter === cat ? '' : cat"
+          @click="clickCatChip(cat, $event)"
         >
           <span
             class="cat-chip-dot"
@@ -992,7 +1072,10 @@ function deletePurchase(id: string): void {
       </div>
 
       <!-- Purchases table -->
-      <div class="purchases-table-wrap">
+      <div
+        ref="purchaseTableRef"
+        class="purchases-table-wrap"
+      >
         <table class="purchases-table">
           <thead>
             <tr>
@@ -1997,14 +2080,33 @@ function deletePurchase(id: string): void {
   color: var(--muted, #8b8b95);
 }
 
+/* ── Donut type toggle — Flip sliding pill ─────────────────────── */
 .donut-type-toggle {
+  position: relative; /* anchors the abs indicator */
   display: flex;
-  gap: 3px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+/* Sliding indicator — GSAP Flip moves left/top/width/height */
+.dtt-ind {
+  position: absolute;
+  background: color-mix(in srgb, var(--accent, #5b3df5) 18%, transparent);
+  border: 1px solid var(--accent, #5b3df5);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0; /* revealed by composable after first snap */
 }
 
 .dtt-btn {
+  position: relative;
+  z-index: 1;
   padding: 3px 9px;
-  border: 1px solid var(--border);
+  border: none;
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
@@ -2012,18 +2114,15 @@ function deletePurchase(id: string): void {
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  transition: color var(--transition-fast);
   white-space: nowrap;
 }
 
 .dtt-btn--active {
-  background: color-mix(in srgb, var(--accent, #5b3df5) 12%, transparent);
-  border-color: var(--accent, #5b3df5);
   color: var(--accent, #5b3df5);
 }
 
 .dtt-btn:not(.dtt-btn--active):hover {
-  background: var(--surface2);
   color: var(--text);
 }
 

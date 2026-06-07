@@ -72,3 +72,17 @@ vi.mock('gsap', () => ({
     },
   },
 }));
+
+// ─── GSAP Flip mock ───────────────────────────────────────────────────────────
+// Flip.getState() / Flip.from() require real browser layout APIs (getBoundingClientRect,
+// computed styles) which jsdom does not implement. Stub the entire Flip module so
+// tests are not affected by animation-layer code in components.
+vi.mock('gsap/Flip', () => ({
+  Flip: {
+    getState: vi.fn(() => ({})),
+    from:     vi.fn((_state: unknown, vars?: Record<string, unknown>) => {
+      callOnComplete(vars);
+      return fakeTween();
+    }),
+  },
+}));
