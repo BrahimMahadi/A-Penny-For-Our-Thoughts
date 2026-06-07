@@ -272,6 +272,48 @@ describe('OneTimeIncomeModal — edit mode', () => {
     w.unmount();
   });
 
+  it('shows "Remove" button in edit mode', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = PAY_START;
+    budget.allocation = { needs: 50, wants: 30, savings: 20 };
+
+    const w = mountModal({ income: existingIncome });
+    await nextTick();
+
+    const removeBtn = document.body.querySelector<HTMLButtonElement>('.btn-danger');
+    expect(removeBtn).not.toBeNull();
+    expect(removeBtn?.textContent?.trim()).toContain('Remove');
+    w.unmount();
+  });
+
+  it('Remove button emits "delete" event', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = PAY_START;
+    budget.allocation = { needs: 50, wants: 30, savings: 20 };
+
+    const w = mountModal({ income: existingIncome });
+    await nextTick();
+
+    const removeBtn = document.body.querySelector<HTMLButtonElement>('.btn-danger');
+    removeBtn?.click();
+    await nextTick();
+
+    expect(w.emitted('delete')).toBeTruthy();
+    w.unmount();
+  });
+
+  it('"Remove" button is NOT shown in add mode', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = PAY_START;
+    budget.allocation = { needs: 50, wants: 30, savings: 20 };
+
+    const w = mountModal(); // no income prop → add mode
+    await nextTick();
+
+    expect(document.body.querySelector('.btn-danger')).toBeNull();
+    w.unmount();
+  });
+
   it('calls updateOneTimeIncome on save', async () => {
     const budget = useBudgetStore();
     budget.payStart = PAY_START;
@@ -314,7 +356,7 @@ describe('OneTimeIncomeSection', () => {
     await nextTick();
 
     expect(w.find('.oti-section__empty').exists()).toBe(true);
-    expect(w.find('.oti-section__empty-text').text()).toContain('No windfall income');
+    expect(w.find('.oti-section__empty-text').text()).toContain('No additional income');
     w.unmount();
   });
 
@@ -384,7 +426,7 @@ describe('OneTimeIncomeSection', () => {
     w.unmount();
   });
 
-  it('clicking delete shows confirmation inline', async () => {
+  it('clicking a row opens the edit modal', async () => {
     const budget = useBudgetStore();
     budget.payStart = PAY_START;
     budget.oneTimeIncomes.push({
@@ -396,35 +438,34 @@ describe('OneTimeIncomeSection', () => {
     const w = mountSection();
     await nextTick();
 
-    expect(w.find('.oti-section__confirm').exists()).toBe(false);
-    await w.find('.oti-section__action-btn--danger').trigger('click');
+    expect(document.body.querySelector('.base-modal')).toBeNull();
+    await w.find('.oti-section__item').trigger('click');
     await nextTick();
-    expect(w.find('.oti-section__confirm').exists()).toBe(true);
+    expect(document.body.querySelector('.base-modal')).not.toBeNull();
     w.unmount();
   });
 
-  it('confirming delete removes the entry from the store', async () => {
+  it('edit modal shows "Remove" button in edit mode', async () => {
     const budget = useBudgetStore();
     budget.payStart = PAY_START;
     budget.oneTimeIncomes.push({
-      id: 'a', label: 'Sale', amount: 75, date: IN_PERIOD_DATE, type: 'sale',
-      allocation: { needs: 0, wants: 0, savings: 100 }, periodStart: PAY_START,
+      id: 'a', label: 'Bonus', amount: 200, date: IN_PERIOD_DATE, type: 'bonus',
+      allocation: { needs: 50, wants: 30, savings: 20 }, periodStart: PAY_START,
       createdAt: new Date().toISOString(),
     });
 
     const w = mountSection();
     await nextTick();
-
-    await w.find('.oti-section__action-btn--danger').trigger('click');
-    await nextTick();
-    await w.find('.btn-danger').trigger('click');
+    await w.find('.oti-section__item').trigger('click');
     await nextTick();
 
-    expect(budget.oneTimeIncomes).toHaveLength(0);
+    const removeBtn = document.body.querySelector<HTMLButtonElement>('.btn-danger');
+    expect(removeBtn).not.toBeNull();
+    expect(removeBtn?.textContent?.trim()).toContain('Remove');
     w.unmount();
   });
 
-  it('cancelling delete keeps the entry intact and hides confirm panel', async () => {
+  it('Remove in edit modal + window.confirm=true deletes the entry', async () => {
     const budget = useBudgetStore();
     budget.payStart = PAY_START;
     budget.oneTimeIncomes.push({
@@ -433,17 +474,42 @@ describe('OneTimeIncomeSection', () => {
       createdAt: new Date().toISOString(),
     });
 
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
+
     const w = mountSection();
     await nextTick();
-
-    await w.find('.oti-section__action-btn--danger').trigger('click');
+    await w.find('.oti-section__item').trigger('click');
     await nextTick();
-    // Click cancel inside the confirm panel
-    await w.find('.oti-section__confirm .btn-secondary').trigger('click');
+
+    const removeBtn = document.body.querySelector<HTMLButtonElement>('.btn-danger');
+    removeBtn?.click();
+    await nextTick();
+
+    expect(budget.oneTimeIncomes).toHaveLength(0);
+    w.unmount();
+  });
+
+  it('Remove in edit modal + window.confirm=false keeps the entry', async () => {
+    const budget = useBudgetStore();
+    budget.payStart = PAY_START;
+    budget.oneTimeIncomes.push({
+      id: 'a', label: 'Gift', amount: 50, date: IN_PERIOD_DATE, type: 'gift',
+      allocation: { needs: 0, wants: 100, savings: 0 }, periodStart: PAY_START,
+      createdAt: new Date().toISOString(),
+    });
+
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false);
+
+    const w = mountSection();
+    await nextTick();
+    await w.find('.oti-section__item').trigger('click');
+    await nextTick();
+
+    const removeBtn = document.body.querySelector<HTMLButtonElement>('.btn-danger');
+    removeBtn?.click();
     await nextTick();
 
     expect(budget.oneTimeIncomes).toHaveLength(1);
-    expect(w.find('.oti-section__confirm').exists()).toBe(false);
     w.unmount();
   });
 
