@@ -397,111 +397,129 @@ function close(): void {
 .oti-form {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0;
 }
 
+/* ── Eyebrow ──────────────────────────────────────────── */
 .oti-form__eyebrow {
-  font-size: 0.65rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--accent);
-  margin: 0 0 0.25rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-family: var(--font-mono);
 }
 
+/* ── Labels ───────────────────────────────────────────── */
 .oti-form__label {
   display: block;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-top: 0.5rem;
-  margin-bottom: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin-bottom: 0.3rem;
 }
 
+/* ── Inputs ───────────────────────────────────────────── */
 .oti-form__input {
   width: 100%;
-  padding: 0.55rem 0.75rem;
-  border-radius: 0.5rem;
-  border: 1.5px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+  padding: 0.65rem 0.8rem;
   font-size: 0.9rem;
-  transition: border-color 0.15s;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  outline: none;
   box-sizing: border-box;
+  transition: border-color var(--transition-fast);
+  margin-bottom: 1rem;
 }
 .oti-form__input:focus {
-  outline: none;
   border-color: var(--accent);
 }
 .oti-form__input.form-input--error {
   border-color: var(--danger);
 }
 
+/* Per-field error — negative top margin pulls message close to the input */
 .oti-form__field-error {
   font-size: 0.75rem;
-  color: var(--danger);
-  margin: 0.1rem 0 0;
+  color: var(--danger, #f87171);
+  margin: -0.65rem 0 0.75rem;
 }
 
+/* ── Amount wrap ──────────────────────────────────────── */
 .oti-form__amount-wrap {
   position: relative;
+  margin-bottom: 1rem;
 }
 .oti-form__dollar {
   position: absolute;
-  left: 0.75rem;
+  left: 0.85rem;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-muted);
+  color: var(--muted);
   font-size: 0.9rem;
   pointer-events: none;
 }
 .oti-form__input--amount {
-  padding-left: 1.75rem;
+  padding-left: 1.6rem;
+  margin-bottom: 0;
+  font-family: var(--font-mono);
 }
 
-/* ── Type buttons ─────────────────────────────────────── */
+/* ── Type chip row ────────────────────────────────────── */
 .oti-form__type-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
-  margin-bottom: 0.25rem;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
 }
 
 .oti-form__type-btn {
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.3rem 0.65rem;
-  border-radius: 99px;
-  border: 1.5px solid var(--border);
-  background: var(--surface);
-  color: var(--text-muted);
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
   font-size: 0.78rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
-.oti-form__type-btn:hover {
-  border-color: var(--accent);
+.oti-form__type-btn:hover:not(.oti-form__type-btn--active) {
+  border-color: var(--text);
   color: var(--text);
 }
 .oti-form__type-btn--active {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
-  font-weight: 600;
 }
 
-/* ── Allocation grid ──────────────────────────────────── */
+/* ── Allocation block ─────────────────────────────────── */
 .oti-form__alloc-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+/* Label inside flex row needs no bottom margin */
+.oti-form__alloc-header .oti-form__label {
+  margin-bottom: 0;
 }
 
 .oti-form__alloc-total {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
   color: var(--accent);
 }
 .oti-form__alloc-total--invalid {
@@ -509,8 +527,10 @@ function close(): void {
 }
 
 .oti-form__alloc-hint {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
   margin: 0 0 0.5rem;
 }
 
@@ -518,10 +538,11 @@ function close(): void {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding: 0.75rem;
-  background: var(--surface-alt, var(--surface));
-  border-radius: 0.6rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg);
+  border-radius: 10px;
   border: 1px solid var(--border);
+  margin-bottom: 1rem;
 }
 
 .oti-form__alloc-row {
@@ -557,28 +578,31 @@ function close(): void {
 .oti-form__alloc-input {
   width: 3.5rem;
   padding: 0.3rem 0.4rem;
-  border-radius: 0.4rem;
-  border: 1.5px solid var(--border);
-  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
   color: var(--text);
   font-size: 0.85rem;
   font-weight: 600;
+  font-family: var(--font-mono);
   text-align: center;
+  outline: none;
+  transition: border-color var(--transition-fast);
 }
 .oti-form__alloc-input:focus {
-  outline: none;
   border-color: var(--accent);
 }
 
 .oti-form__alloc-pct {
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: var(--muted);
   min-width: 0.75rem;
 }
 
 .oti-form__alloc-dollars {
   font-size: 0.8rem;
-  color: var(--text-muted);
+  font-family: var(--font-mono);
+  color: var(--muted);
   min-width: 3rem;
   text-align: right;
 }
@@ -587,9 +611,46 @@ function close(): void {
 .oti-form__footer {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
+  gap: 0.6rem;
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border);
 }
+
+/* ── Buttons (co-located so scoped attribute guarantees delivery
+       through BaseModal's Teleport boundary) ──────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 1.1rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: opacity var(--transition-fast), box-shadow var(--transition-fast);
+}
+.btn-primary:hover    { opacity: 0.9; }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 1rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.btn-secondary:hover { background: var(--surface2); }
 </style>

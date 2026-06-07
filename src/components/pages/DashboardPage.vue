@@ -842,42 +842,6 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-/* ─── Shared button styles ─────────────────────────────────────── */
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.55rem 1.1rem;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 40%, transparent);
-  transition: opacity var(--transition-fast), box-shadow var(--transition-fast);
-}
-.btn-primary:hover { opacity: 0.9; }
-.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
-
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.55rem 1rem;
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
-}
-.btn-secondary:hover { background: var(--surface2); }
-
 /* ─── KPI row ──────────────────────────────────────────────────── */
 .kpi-row {
   display: grid;
@@ -1457,8 +1421,4 @@ onMounted(() => {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .btn-primary,
-  .btn-secondary { transition: none; }
-}
 </style>
