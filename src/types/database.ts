@@ -207,6 +207,45 @@ export type Database = {
           },
         ]
       }
+      one_time_incomes: {
+        Row: {
+          allocation:   Json
+          amount:       number
+          created_at:   string
+          date:         string
+          id:           string
+          label:        string
+          period_start: string
+          type:         string
+          updated_at:   string
+          user_id:      string
+        }
+        Insert: {
+          allocation?:   Json
+          amount?:       number
+          created_at?:   string
+          date?:         string
+          id:            string
+          label?:        string
+          period_start?: string
+          type?:         string
+          updated_at?:   string
+          user_id:       string
+        }
+        Update: {
+          allocation?:   Json
+          amount?:       number
+          created_at?:   string
+          date?:         string
+          id?:           string
+          label?:        string
+          period_start?: string
+          type?:         string
+          updated_at?:   string
+          user_id?:      string
+        }
+        Relationships: []
+      }
       income_streams: {
         Row: {
           amount: number
@@ -817,3 +856,4 @@ export type NetWorthSnapshotRow      = _DbTables['net_worth_snapshots']['Row']
 export type RuleRow                  = _DbTables['rules']['Row']
 export type BudgetAlertRow           = _DbTables['budget_alerts']['Row']
 export type SpendingCategoryRow      = _DbTables['spending_categories']['Row']
+export type OneTimeIncomeRow         = _DbTables['one_time_incomes']['Row']

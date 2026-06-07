@@ -1735,6 +1735,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | ONE-TIME-INCOME | Log windfall income for the current period (e-transfer, gift, bonus, freelance, refund, sale). Proportional 50/30/20 allocation by default, user-adjustable per bucket. Boosts needs/wants/savings envelopes on Dashboard + Spending page. Quick-add button on Dashboard header, dedicated section on Spending tab, management panel in Settings. 39 new tests (store actions, getters, allocation math, modal, section component). | `feat/one-time-income` | ✅ Complete | v2.37.0 |
 | GSAP-FLIP-TOGGLES | GSAP Flip sliding pill indicators on all interactive toggles: sidebar 3px nav indicator (power3.inOut), SVG icon theme pill (☀/☾, power2.inOut), Dashboard hero Wants/Needs pill + fade+drift on hero amount (back.out(2.5)), Schedule view toggle (back.out(2.5)), Spending donut toggle + chip bounce (back.out(2.5)), Spending table row stagger-fade on filter change. `useFlipIndicator` shared composable, `prefers-reduced-motion` aware. 4 new tests (theme pill, nav indicator), all 1358 passing. | `feat/gsap-flip-toggles` | ✅ Complete | v2.38.0 |
 | SUBSCRIPTION-FILTER-FIX | Bug fix: Subscriptions category filter left items permanently invisible after switching back to "All categories". Root cause: `extras.css` `animation: listItemIn … fill-mode:both` pre-applied `opacity:0` to `.sub-item` elements; GSAP's `from()` captured that as its "to" value and animated 0→0, leaving items invisible. Fix: `onItemEnter` now sets `el.style.animation = 'none'` before GSAP reads the natural opacity. Leave animation switched to height-collapse approach (avoids multi-item position bug). | `fix/subscription-filter-leave-animation` | ✅ Complete | v2.38.1 |
+| ONE-TIME-INCOME-DB | Bug fix + schema: windfall / one-time income entries were only saved to `localStorage` — they were lost on sign-out or in a new browser. Added `one_time_incomes` Supabase table, RLS policy, `handle_updated_at` trigger, CRUD helpers in `db.ts`, updated `fetch_user_data` RPC, wired `syncDb` in all three store actions (`addOneTimeIncome` / `updateOneTimeIncome` / `deleteOneTimeIncome`), added step 17 to `runMigration`, and `one_time_incomes` to `deleteAllUserData`. | `feat/one-time-income-db-persistence` | ✅ Complete | v2.39.0 |
 
 ---
 
@@ -4345,4 +4346,63 @@ Also retained from earlier commits:
 
 ### Tests
 - No new tests (fix is in composable internals; existing 17 `useListTransition` tests all pass)
+- **Final gate**: ✅ 1358/1358 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## ONE-TIME-INCOME-DB — Windfall income DB persistence ✅
+
+**Status**: ✅ **COMPLETE** — June 2026
+**Branch**: `feat/one-time-income-db-persistence`
+**Version**: v2.39.0
+
+### Goal
+Make windfall / one-time income entries survive sign-out and re-sign-in. They were only stored in `localStorage` and were silently discarded whenever the user signed out, cleared the browser, or opened the app on a different device.
+
+### Root Cause
+`oneTimeIncomes` was fully implemented in the Pinia store and `BudgetState` type, but was never wired to Supabase. No table existed in the DB, no CRUD helpers existed in `db.ts`, the `fetchAllUserData` RPC did not include it, and the three store actions (`addOneTimeIncome`, `updateOneTimeIncome`, `deleteOneTimeIncome`) had no `syncDb` calls. Every other entity (purchases, subscriptions, loans, etc.) had the full stack; `oneTimeIncomes` was the sole omission.
+
+### Fix
+
+**Migration `007_one_time_incomes.sql`** (run in Supabase Dashboard SQL Editor):
+- Creates `one_time_incomes` table: `id` (text PK), `user_id` (uuid FK → auth.users CASCADE), `label`, `amount`, `date`, `type`, `allocation` (jsonb), `period_start`, `created_at`, `updated_at`
+- Attaches `handle_updated_at()` trigger
+- Enables RLS with `"Own one-time incomes"` policy (`user_id = auth.uid()`)
+- Updates `fetch_user_data` RPC to include `oneTimeIncomes` key (ordered by `date desc`)
+
+**`src/types/database.ts`**: Added `one_time_incomes` table definition (Row/Insert/Update) + `OneTimeIncomeRow` alias at the bottom of the hand-maintained re-exports section.
+
+**`src/lib/db.ts`**:
+- Added `OneTimeIncome` to budget-types import; `OneTimeIncomeRow` to database-types import
+- Added `toOneTimeIncome(r)` row mapper
+- Added `oneTimeIncomes: OneTimeIncomeRow[]` to `FetchUserDataPayload`
+- Added `oneTimeIncomes: (payload.oneTimeIncomes ?? []).map(toOneTimeIncome)` to `fetchAllUserData` return
+- Added `'one_time_incomes'` to `deleteAllUserData` tables list
+- Added `db.oneTimeIncomes` with `insert`, `update`, `delete` helpers
+
+**`src/stores/budget.ts`** — wired `syncDb` in all three actions:
+- `addOneTimeIncome`: `syncDb(() => db.oneTimeIncomes.insert(_userId, item), 'addOneTimeIncome')`
+- `updateOneTimeIncome`: `syncDb(() => db.oneTimeIncomes.update(_userId, target), 'updateOneTimeIncome')`
+- `deleteOneTimeIncome`: `syncDb(() => db.oneTimeIncomes.delete(_userId, id), 'deleteOneTimeIncome')`
+
+**`src/lib/migrateLocalStorage.ts`**: Added step 17 — loops `state.oneTimeIncomes` and calls `db.oneTimeIncomes.insert` for full-import/reset path coverage.
+
+### Files changed
+- `supabase/migrations/007_one_time_incomes.sql` — new table + RLS + updated RPC
+- `src/types/database.ts` — `one_time_incomes` table type + `OneTimeIncomeRow` alias
+- `src/lib/db.ts` — mapper, FetchUserDataPayload, fetchAllUserData, deleteAllUserData, CRUD helpers
+- `src/stores/budget.ts` — `syncDb` wired in 3 actions
+- `src/lib/migrateLocalStorage.ts` — step 17 for import path
+- `src/components/onboarding/WhatsNewBanner.vue` — `APP_VERSION` → `'2.39.0'`; release note added
+- `src/components/pages/DocsPage.vue` — v2.39.0 release block added
+- `CLAUDE.md` — version comment updated to v2.39.0
+- `tests/components/onboarding.spec.ts` — version sentinels updated to `'2.39.0'`
+- `tests/components/pages/pages.spec.ts` — `'v2.39.0'` added to versions array; test description updated
+- `docs/PHASE_TRACKING.md` — this entry
+
+### Deployment note
+The SQL migration must be run in the Supabase Dashboard **before** this branch is deployed, otherwise `syncDb` writes will fail with `relation "one_time_incomes" does not exist`. Existing windfall income entries in localStorage are already present in the store on first load, but they will not be pushed to Supabase retroactively — they'll sync on the next add/edit/delete action. A one-time migration could be triggered by the user doing a JSON export+import through Settings.
+
+### Tests
+- No new unit tests — the DB layer uses the same fire-and-forget `syncDb` pattern already tested at the store level across other entities; the mapper and CRUD helpers follow the established pattern exactly.
 - **Final gate**: ✅ 1358/1358 tests pass · `vue-tsc --noEmit` clean

@@ -1010,18 +1010,23 @@ export const useBudgetStore = defineStore('budget', {
         createdAt: new Date().toISOString(),
       };
       this.oneTimeIncomes.push(item);
+      syncDb(() => db.oneTimeIncomes.insert(_userId, item), 'addOneTimeIncome');
       return item;
     },
 
     /** Update fields on an existing one-time income entry. */
     updateOneTimeIncome(id: string, patch: Partial<Omit<OneTimeIncome, 'id' | 'createdAt' | 'periodStart'>>): void {
       const target = this.oneTimeIncomes.find(i => i.id === id);
-      if (target) Object.assign(target, patch);
+      if (target) {
+        Object.assign(target, patch);
+        syncDb(() => db.oneTimeIncomes.update(_userId, target), 'updateOneTimeIncome');
+      }
     },
 
     /** Permanently remove a one-time income entry. */
     deleteOneTimeIncome(id: string): void {
       this.oneTimeIncomes = this.oneTimeIncomes.filter(i => i.id !== id);
+      syncDb(() => db.oneTimeIncomes.delete(_userId, id), 'deleteOneTimeIncome');
     },
 
     /**

@@ -165,4 +165,9 @@ export async function runMigration(userId: string, state: BudgetState): Promise<
   for (const c of state.spendingCategories ?? []) {
     await db.spendingCategories.insert(userId, c);
   }
+
+  // 17. One-time (windfall) incomes
+  for (const i of state.oneTimeIncomes ?? []) {
+    await db.oneTimeIncomes.insert(userId, i);
+  }
 }
