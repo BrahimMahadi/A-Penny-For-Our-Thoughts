@@ -22,14 +22,14 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.38.0';
+const APP_VERSION = '2.38.1';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
+  { icon: '🐛', text: 'Fixed Subscriptions category filter — switching categories no longer causes items to appear below empty space or stay invisible; leaving items are pinned out of document flow during their exit animation' },
   { icon: '✨', text: 'Sliding pill indicators on all toggles — sidebar nav, theme switcher, hero Wants/Needs, Schedule view, and Spending donut now animate with a smooth GSAP Flip sliding pill' },
   { icon: '🎯', text: 'Category and type filter chips in Spending bounce on click with a back.out spring; table rows stagger-fade in when filters change' },
-  { icon: '♿', text: 'All animations respect prefers-reduced-motion — every toggle snaps instantly when the OS requests reduced motion' },
   { icon: '🧪', text: '1358 tests passing across 42 spec files' },
 ];
 

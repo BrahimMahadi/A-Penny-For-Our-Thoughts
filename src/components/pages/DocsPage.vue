@@ -341,6 +341,20 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.38.1</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              Bug fix — Subscriptions category filter no longer misplaces items
+            </p>
+            <ul class="docs-list">
+              <li><strong>Subscriptions filter fixed.</strong> Switching category filters in the Subscriptions section no longer causes items to appear far below empty space or stay invisible. Leaving items are now pinned with <code>position: absolute</code> during their exit animation so they are taken out of the document flow immediately — entering items render at the top of the list where they belong.</li>
+              <li><strong>Rapid switching safe.</strong> Interrupting an in-flight enter or leave animation (e.g. clicking filters quickly) no longer leaves items stuck at partial opacity — in-progress tweens are killed before each new animation starts, and stale inline styles are cleared on re-enter.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.38.0</span>
               <span class="release-date">June 2026</span>
             </div>
