@@ -1734,7 +1734,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | CHORE-1 | Code-health cleanup (fallow static analysis): removed unused exports/dead helpers (`CATEGORY_COLOURS`, `WANT_CATEGORIES`, `SECTION_GROUPS`, imperative `showToast`), an unused runtime dependency (`date-fns`), and the stale `docs/design_handoff_schedule_spending/` mockup folder; trimmed dead code in the legacy vanilla-JS files. Pure housekeeping — no behaviour change | `chore/fallow-code-health-cleanup` | ✅ Complete | v2.36.0 |
 | ONE-TIME-INCOME | Log windfall income for the current period (e-transfer, gift, bonus, freelance, refund, sale). Proportional 50/30/20 allocation by default, user-adjustable per bucket. Boosts needs/wants/savings envelopes on Dashboard + Spending page. Quick-add button on Dashboard header, dedicated section on Spending tab, management panel in Settings. 39 new tests (store actions, getters, allocation math, modal, section component). | `feat/one-time-income` | ✅ Complete | v2.37.0 |
 | GSAP-FLIP-TOGGLES | GSAP Flip sliding pill indicators on all interactive toggles: sidebar 3px nav indicator (power3.inOut), SVG icon theme pill (☀/☾, power2.inOut), Dashboard hero Wants/Needs pill + fade+drift on hero amount (back.out(2.5)), Schedule view toggle (back.out(2.5)), Spending donut toggle + chip bounce (back.out(2.5)), Spending table row stagger-fade on filter change. `useFlipIndicator` shared composable, `prefers-reduced-motion` aware. 4 new tests (theme pill, nav indicator), all 1358 passing. | `feat/gsap-flip-toggles` | ✅ Complete | v2.38.0 |
-| SUBSCRIPTION-FILTER-FIX | Bug fix: `useListTransition.onItemLeave` pinned leaving elements to `position:absolute` so they leave document flow immediately — fixes items appearing below empty space or staying invisible when switching category filters in Subscriptions. Also adds `killTweensOf` + `clearProps` guards for rapid filter switching. `position:relative` added to `.subs-list` and `.wish-grid`. `killTweensOf` added to GSAP mock in test setup. | `fix/subscription-filter-leave-animation` | ✅ Complete | v2.38.1 |
+| SUBSCRIPTION-FILTER-FIX | Bug fix: Subscriptions category filter left items permanently invisible after switching back to "All categories". Root cause: `extras.css` `animation: listItemIn … fill-mode:both` pre-applied `opacity:0` to `.sub-item` elements; GSAP's `from()` captured that as its "to" value and animated 0→0, leaving items invisible. Fix: `onItemEnter` now sets `el.style.animation = 'none'` before GSAP reads the natural opacity. Leave animation switched to height-collapse approach (avoids multi-item position bug). | `fix/subscription-filter-leave-animation` | ✅ Complete | v2.38.1 |
 
 ---
 
@@ -4292,27 +4292,47 @@ Replace static CSS background-swap on toggle buttons with smooth GSAP Flip slidi
 
 ---
 
-## SUBSCRIPTION-FILTER-FIX — Leave-animation document-flow bug ✅
+## SUBSCRIPTION-FILTER-FIX — Subscriptions category filter permanently invisible items ✅
 
 **Status**: ✅ **COMPLETE** — June 2026
 **Branch**: `fix/subscription-filter-leave-animation`
 **Version**: v2.38.1
 
 ### Goal
-Fix a bug where switching category filters in the Subscriptions section caused items matching the new filter to appear far below the list (or to stay invisible) because leaving items remained in the document flow during their 0.2s GSAP leave animation.
+Fix a bug where switching category filters in the Subscriptions section caused items to remain permanently invisible after switching back to "All categories". Affected items occupied their full layout height (creating an empty-looking gap above the visible ones) but had `opacity: 0` locked on them and never recovered.
 
-### Root Cause
-`useListTransition.onItemLeave` called `gsap.to()` with the element still in normal document flow. New items entering via `onItemEnter` rendered in DOM order after the still-in-flow leaving items, placing them well below their intended position. Rapid filter switching could also interrupt tweens without calling `done()`, leaving items at partial opacity with stale inline styles.
+### Root Cause (confirmed via live DOM instrumentation)
+
+**CSS animation vs GSAP `from()` conflict.** `extras.css` applies:
+```css
+@keyframes listItemIn { from { opacity: 0; transform: translateY(8px); } }
+.sub-item { animation: listItemIn 200ms ease both; }
+```
+`animation-fill-mode: both` pre-applies the `from` keyframe (`opacity: 0`) to every `.sub-item` **before** the animation begins.
+
+When Vue's `@enter` hook fires for a re-entering item (after a filter change removes it and brings it back), GSAP's `from({ opacity: 0 })` calls `getComputedStyle(el).opacity` to record what it should animate *to*. Because `fill-mode: both` has already stamped `opacity: 0` on the element, GSAP captures `"to = 0"`. The tween animates from 0 → 0 (a no-op), then leaves `el.style.opacity = "0"` as a permanent inline override — which blocks the CSS animation from ever overwriting it. Items stay invisible indefinitely.
+
+Items that *stayed* in the list through a filter change (e.g. Entertainment items when filtering to Entertainment) never triggered `@enter`, so their CSS animation ran cleanly and they remained visible — explaining why only *some* items disappeared.
+
+Two earlier fix attempts addressed the wrong layer:
+1. `position: absolute` on leaving items — broken when multiple items leave in the same JS tick (sequential `getBoundingClientRect()` calls capture shifted positions, all items pile at top:0).
+2. Height-collapse leave animation — correct leave approach, but didn't address the `@enter` opacity capture bug.
 
 ### Fix
 
-- **`src/composables/useListTransition.ts`** — `onItemLeave` now captures the element's `getBoundingClientRect()`, sets `position: absolute` (relative to parent) via `raw.set()` before starting the tween, and calls `raw.killTweensOf(el)` to cancel any in-progress animation. `onItemEnter` also calls `raw.killTweensOf(el)` and `raw.set(el, { clearProps: '...' })` to wipe stale inline styles from an interrupted leave before animating in.
-- **`src/components/sections/Subscriptions.vue`** — added `position: relative` to `.subs-list` (required for absolute-positioned leaving items to anchor correctly).
-- **`src/components/sections/Wishlist.vue`** — added `position: relative` to `.wish-grid` (same composable, same fix applied proactively).
-- **`tests/setup.ts`** — added `killTweensOf: vi.fn()` to the GSAP mock (was missing; caused test failures after the fix).
+**`src/composables/useListTransition.ts` — one line in `onItemEnter`:**
+```typescript
+htmlEl.style.animation = 'none';   // ← added before killTweensOf
+```
+Setting `animation: none` as an inline style before GSAP reads the element's natural opacity disables the competing CSS animation. `getComputedStyle(el).opacity` now returns `1` (browser default — no CSS rule overrides it), so GSAP correctly records `"to = 1"` and animates `0 → 1`. The inline `animation: none` persists on the element for all future filter cycles, permanently preventing the conflict.
+
+Also retained from earlier commits:
+- `onItemLeave` uses height-collapse (not `position: absolute`) — avoids the multi-item sequential-hook layout bug.
+- `onItemEnter` calls `raw.killTweensOf` + `raw.set(clearProps)` to cancel any in-progress leave tween and wipe stale styles before animating in.
+- `tests/setup.ts` — `killTweensOf: vi.fn()` added to the GSAP mock.
 
 ### Files changed
-- `src/composables/useListTransition.ts` — position-absolute leave + killTweensOf + clearProps
+- `src/composables/useListTransition.ts` — `animation:none` guard + height-collapse leave + killTweensOf + clearProps
 - `src/components/sections/Subscriptions.vue` — `position: relative` on `.subs-list`
 - `src/components/sections/Wishlist.vue` — `position: relative` on `.wish-grid`
 - `tests/setup.ts` — `killTweensOf` added to GSAP mock
@@ -4324,5 +4344,5 @@ Fix a bug where switching category filters in the Subscriptions section caused i
 - `docs/PHASE_TRACKING.md` — this entry
 
 ### Tests
-- No new tests (fix is in composable internals; existing 17 useListTransition tests all pass with updated mock)
+- No new tests (fix is in composable internals; existing 17 `useListTransition` tests all pass)
 - **Final gate**: ✅ 1358/1358 tests pass · `vue-tsc --noEmit` clean

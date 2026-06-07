@@ -53,11 +53,20 @@ export function useListTransition(options: ListTransitionOptions = {}) {
    * (height/overflow left by an interrupted collapse) so rapid filter
    * switching never leaves items invisible or zero-height.
    * `done` is called in onComplete so Vue removes the entering state.
+   *
+   * NOTE: We disable any CSS animation on the element before GSAP reads its
+   * "to" values.  `extras.css` applies `animation: listItemIn … fill-mode: both`
+   * to `.sub-item` / `.wish-item`, which pre-applies `opacity:0` as the
+   * initial keyframe state.  If we let that stand, GSAP's `from()` captures
+   * opacity:0 as the target and the item never becomes visible.
    */
   function onItemEnter(el: Element, done: () => void): void {
+    const htmlEl = el as HTMLElement;
+    // Disable conflicting CSS animation before GSAP captures the "to" state.
+    htmlEl.style.animation = 'none';
     raw.killTweensOf(el);
     raw.set(el, { clearProps: 'height,overflow,paddingTop,paddingBottom,opacity,y,transform' });
-    from(el as HTMLElement, {
+    from(htmlEl, {
       opacity:  0,
       y:        enterY,
       duration: enterDuration,
