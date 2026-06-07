@@ -755,6 +755,13 @@ export function getMonthForecast(
     startOfMonth.setHours(0, 0, 0, 0);
     endOfMonth.setHours(0, 0, 0, 0);
 
+    // Resolve linked card label (same pattern as loans). Falls back to '' so
+    // the day-panel hides the badge instead of showing a redundant "Subscriptions".
+    const subLinkedCard = sub.cardId
+      ? state.expenseCards.find((c) => c.id === sub.cardId)
+      : null;
+    const subCardLabel = subLinkedCard ? subLinkedCard.label : '';
+
     if (frequency === 'custom-days') {
       // One ForecastItem per occurrence day so each calendar cell gets its badge.
       // The list view collapses items sharing the same id into a single row.
@@ -767,7 +774,7 @@ export function getMonthForecast(
           amount:       sub.amount,
           dueDay:       day,
           source:       'subscription',
-          cardLabel:    'Subscriptions',
+          cardLabel:    subCardLabel,
           occurrences:  1,
           totalForMonth: sub.amount,
           biweekly:     false,
@@ -802,7 +809,7 @@ export function getMonthForecast(
       amount: sub.amount,
       dueDay,
       source: 'subscription',
-      cardLabel: 'Subscriptions',
+      cardLabel: subCardLabel,
       occurrences,
       totalForMonth: sub.amount * occurrences,
       biweekly: false,
@@ -1065,6 +1072,13 @@ export function getPayPeriodForecast(
     const renewalDates = getRenewalDatesBetween(sub, startDate, endDate);
     if (renewalDates.length === 0) return; // not renewing in this period
 
+    // Resolve linked card label. Falls back to '' so the day-panel hides the
+    // badge instead of showing a redundant "SUBSCRIPTIONS" next to "SUBSCRIPTION".
+    const subLinkedCard = sub.cardId
+      ? state.expenseCards.find((c) => c.id === sub.cardId)
+      : null;
+    const subCardLabel = subLinkedCard ? subLinkedCard.label : '';
+
     if ((sub.frequency || 'monthly') === 'custom-days') {
       // One item per occurrence day so every matching day gets its grid badge.
       renewalDates.forEach((dateStr) => {
@@ -1075,7 +1089,7 @@ export function getPayPeriodForecast(
           amount:       sub.amount,
           dueDay,
           source:       'subscription',
-          cardLabel:    'Subscriptions',
+          cardLabel:    subCardLabel,
           occurrences:  1,
           totalForMonth: sub.amount,
           biweekly:     false,
@@ -1096,7 +1110,7 @@ export function getPayPeriodForecast(
       amount: sub.amount,
       dueDay,
       source: 'subscription',
-      cardLabel: 'Subscriptions',
+      cardLabel: subCardLabel,
       occurrences: renewalDates.length,
       totalForMonth: sub.amount * renewalDates.length,
       biweekly: false,
