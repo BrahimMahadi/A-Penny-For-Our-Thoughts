@@ -1737,6 +1737,11 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | SUBSCRIPTION-FILTER-FIX | Bug fix: Subscriptions category filter left items permanently invisible after switching back to "All categories". Root cause: `extras.css` `animation: listItemIn … fill-mode:both` pre-applied `opacity:0` to `.sub-item` elements; GSAP's `from()` captured that as its "to" value and animated 0→0, leaving items invisible. Fix: `onItemEnter` now sets `el.style.animation = 'none'` before GSAP reads the natural opacity. Leave animation switched to height-collapse approach (avoids multi-item position bug). | `fix/subscription-filter-leave-animation` | ✅ Complete | v2.38.1 |
 | ONE-TIME-INCOME-DB | Bug fix + schema: windfall / one-time income entries were only saved to `localStorage` — they were lost on sign-out or in a new browser. Added `one_time_incomes` Supabase table, RLS policy, `handle_updated_at` trigger, CRUD helpers in `db.ts`, updated `fetch_user_data` RPC, wired `syncDb` in all three store actions (`addOneTimeIncome` / `updateOneTimeIncome` / `deleteOneTimeIncome`), added step 17 to `runMigration`, and `one_time_incomes` to `deleteAllUserData`. | `feat/one-time-income-db-persistence` | ✅ Complete | v2.39.0 |
 | DB-SYNC-POLICY | Chore: formalised the Database Sync Policy (6-item mandatory checklist in CLAUDE.md) + `tests/lib/db-coverage.spec.ts` (35 new tests) that fails if any store entity is missing from `db` or lacks CRUD methods. Prevents the class of oversight that caused the v2.38.x windfall income data-loss bug. | `chore/db-sync-policy-and-coverage-test` | ✅ Complete | v2.39.1 |
+| GSAP-SPLITTEXT | GSAP SplitText animated tab/page headings on navigation. Each page heading splits into individual characters that cascade in with a per-char stagger (~30ms) and autoAlpha fade when switching tabs. KPI category labels ("Needs", "Wants", "Savings") get the same treatment on first load. | `feat/gsap-splittext-headings` | 🔲 Planned | v2.40.0 |
+| GSAP-DRAGGABLE-REORDER | GSAP Draggable + Flip drag-to-reorder for income streams and subscriptions. Draggable handles the drag gesture; Flip.getState() + Flip.from() animate the list items flowing to their new positions in real time. Dragged row scales up with a drop shadow while in-flight; sibling rows stagger-animate around it. | `feat/gsap-draggable-reorder` | 🔲 Planned | v2.41.0 |
+| GSAP-FLIP-LOG-PURCHASE | GSAP Flip "log purchase" form-to-list morph. On quick-add submission, Flip.getState() captures the target row's resting position, the item is added to the store, then Flip.from() animates the row morphing from the submit button position into the purchases list — a "receipt printing" effect. Reversed on delete: row Flips toward the trash icon before leaving. | `feat/gsap-flip-log-purchase` | 🔲 Planned | v2.42.0 |
+| GSAP-OBSERVER-SWIPE | GSAP Observer swipe-to-navigate between tabs on mobile. Observer detects horizontal swipe velocity/direction across the full viewport; swipe left = next tab, right = previous tab. Simultaneously drives the existing Flip sidebar indicator via useFlipIndicator. Respects dragMinimum threshold to prevent accidental triggers on scroll. | `feat/gsap-observer-swipe` | 🔲 Planned | v2.43.0 |
+| GSAP-SCROLLTRIGGER-HISTORY | GSAP ScrollTrigger spending history timeline reveal. Each archived period card staggers in from the right (x: 40→0, autoAlpha) as it enters the viewport. Advanced option: pin the History section header while cards scroll up behind it, with velocity-based snap-to-period on release. | `feat/gsap-scrolltrigger-history` | 🔲 Planned | v2.44.0 |
 
 ---
 
@@ -4452,3 +4457,132 @@ Also documents non-standard shapes (`spendingHistory`, `netWorthHistory`), non-p
 ### Tests
 - 35 new tests in `tests/lib/db-coverage.spec.ts` — all passing
 - **Final gate**: ✅ 1393/1393 tests pass · `vue-tsc --noEmit` clean
+
+---
+
+## GSAP-SPLITTEXT — Animated tab/page headings with SplitText 🔲
+
+**Branch**: `feat/gsap-splittext-headings`
+**Status**: 🔲 **PLANNED** — June 2026
+**Version**: v2.40.0 (MINOR — new user-facing animation)
+
+### Motivation
+
+Tab navigation currently swaps page headings as a plain text swap. SplitText lets each heading's characters cascade in individually, adding editorial polish to what is otherwise an invisible transition. Pairs with the existing `useCountUp` (numbers) to give every tab change a cohesive animated entrance — label text and KPI figures both animate in together.
+
+### Planned scope
+
+- **`src/composables/useSplitText.ts`** (new) — thin wrapper around `SplitText.create()` that respects `prefers-reduced-motion` (skips split, jumps to final state), cleans up on unmount, and exposes `chars`, `words`, `lines` refs for use in templates.
+- **`src/components/ui/AnimatedHeading.vue`** (new) — drop-in `<AnimatedHeading>` component that accepts a `text` prop and a `trigger` ref. When `trigger` changes, re-splits and replays the stagger-in. Used on all page headings (Dashboard, Schedule, Spending, Settings, Docs).
+- **KPI labels** — `"Needs"`, `"Wants"`, `"Savings"` labels on the Dashboard hero get a one-time stagger-in on mount (30ms per char, `power2.out`, `y: -12 → 0`).
+- **Tab heading** — the main `<h1>` on each page re-plays the entrance whenever the active tab changes.
+
+### Design constraints
+
+- Characters animate: `y: -12 → 0`, `autoAlpha: 0 → 1`, `stagger: 0.028s`, `duration: 0.45s`, `ease: power2.out`
+- `prefers-reduced-motion`: duration set to 0, stagger set to 0 — text appears instantly
+- SplitText reverted after animation completes (reduces DOM node count per GSAP recommendation)
+- No interaction with `useListTransition` or `useFlipIndicator` — orthogonal
+
+### Tests
+
+- Mount `AnimatedHeading`, change `trigger`, assert GSAP `from` was called with correct stagger params
+- Assert no split occurs when `prefers-reduced-motion` is active
+
+---
+
+## GSAP-DRAGGABLE-REORDER — Drag-to-reorder income streams & subscriptions 🔲
+
+**Branch**: `feat/gsap-draggable-reorder`
+**Status**: 🔲 **PLANNED** — June 2026
+**Version**: v2.41.0 (MINOR — new user-facing interaction)
+
+### Motivation
+
+Income streams and subscriptions are currently fixed in creation order with no way to manually sort them. Drag-to-reorder with live Flip animation gives users direct control and makes the list feel physically real — items flow around the dragged row in real time rather than snapping abruptly after drop.
+
+### Planned scope
+
+- **`src/composables/useDraggableList.ts`** (new) — composable that registers `Draggable` on a list container, calls `Flip.getState()` on the sibling items before each drag move, updates the order in the source array, then calls `Flip.from()` to animate siblings to their new positions.
+- **Income Streams section** — drag handle icon (⠿) on each row activates the composable. Order persisted to store (new `order` field on `IncomeStream`, stored in `profiles` via `upsertProfile` — not a new DB table).
+- **Subscriptions section** — same composable, same drag handle pattern.
+- In-flight dragged row: `scale: 1.03`, `boxShadow: elevated`, `zIndex: 100`; siblings animate with `stagger: 0.04s`.
+- `prefers-reduced-motion`: Draggable still works (drag is still functional) but Flip animation duration set to 0 — items snap to new positions instantly.
+
+### Tests
+
+- Unit: store action for reordering (`reorderIncomeStreams`, `reorderSubscriptions`)
+- Component: assert drag handle renders, assert `Draggable.create` called on mount
+
+---
+
+## GSAP-FLIP-LOG-PURCHASE — "Log purchase" form-to-list Flip morph 🔲
+
+**Branch**: `feat/gsap-flip-log-purchase`
+**Status**: 🔲 **PLANNED** — June 2026
+**Version**: v2.42.0 (MINOR — new user-facing animation)
+
+### Motivation
+
+The quick-add purchase form currently submits and the new row appears in the list without any spatial connection between the two. The Flip morph creates a visual throughline — the row appears to "print out" from the submit button and fly to its resting position in the list, giving immediate, unambiguous confirmation that the entry was saved.
+
+### Planned scope
+
+- **`DashboardPage.vue`** — after `addPurchase()` call, assign a `data-flip-id` to the newly created row. Capture final position with `Flip.getState()`, then call `Flip.from(state, { duration: 0.5, ease: 'power3.out' })` so the row animates from the submit button area to the list.
+- **Delete path** — on purchase delete, use `Flip.to()` so the row morphs toward the trash icon position before the `useListTransition` height-collapse leave animation takes over.
+- No new store changes; purely a presentation layer enhancement.
+- `prefers-reduced-motion`: standard GSAP duration-0 path — row appears/disappears instantly.
+
+### Tests
+
+- Assert `Flip.getState` and `Flip.from` called after form submission
+- Assert standard list behavior unchanged when motion is reduced
+
+---
+
+## GSAP-OBSERVER-SWIPE — Swipe-to-navigate between tabs (mobile) 🔲
+
+**Branch**: `feat/gsap-observer-swipe`
+**Status**: 🔲 **PLANNED** — June 2026
+**Version**: v2.43.0 (MINOR — new user-facing interaction)
+
+### Motivation
+
+On mobile, the sidebar is hidden and tab switching requires tapping the hamburger/bottom nav. Horizontal swipe is the natural mobile navigation gesture and makes the app feel native rather than web-wrapped. Observer is the cleanest GSAP tool for this — it normalises mouse/touch/pointer events, provides velocity data, and doesn't interfere with vertical scroll.
+
+### Planned scope
+
+- **`src/composables/useSwipeNav.ts`** (new) — registers an `Observer` instance on the app root. `onLeft` / `onRight` callbacks fire only when `Math.abs(deltaX) > Math.abs(deltaY)` (horizontal intent) and `dragMinimum: 30px` is cleared. Emits a `navigate` event with direction; the caller advances or retreats the active tab in the `TabId` order.
+- **`App.vue`** — consumes `useSwipeNav`, updates `activeTab`, which already drives `useFlipIndicator` for the sidebar pill — the swipe and the indicator are automatically in sync.
+- Desktop: Observer still registered but `type: 'touch'` only — no mouse swipe on desktop to avoid conflicting with chart interactions.
+- `prefers-reduced-motion`: tab changes still trigger (navigation is functional), but the page transition animation duration is set to 0.
+
+### Tests
+
+- Unit: `useSwipeNav` emits correct direction for horizontal swipe, ignores vertical swipe
+- Assert `Observer.create` called on mount, destroyed on unmount
+
+---
+
+## GSAP-SCROLLTRIGGER-HISTORY — Spending history timeline scroll reveal 🔲
+
+**Branch**: `feat/gsap-scrolltrigger-history`
+**Status**: 🔲 **PLANNED** — June 2026
+**Version**: v2.44.0 (MINOR — new user-facing animation)
+
+### Motivation
+
+The spending history archive dumps all period cards on screen at once. ScrollTrigger lets each card reveal itself as the user scrolls into it — making the history feel like a timeline being uncovered rather than a static list. The pinned-header variant takes this further, giving the section a magazine-editorial quality that reinforces the premium financial dashboard positioning.
+
+### Planned scope
+
+- **`src/composables/useHistoryReveal.ts`** (new) — iterates the `.history-period` cards and creates one `ScrollTrigger` per card: `start: "top 85%"`, `x: 40 → 0`, `autoAlpha: 0 → 1`, `stagger: 0.06s` within the card's inner items.
+- **Phase 1 (baseline)**: simple per-card entrance animation only.
+- **Phase 2 (stretch)**: pin the "Spending History" section `<h2>` header while the cards scroll up behind it (`pin: true`, `pinSpacing: false`). Velocity-based snap: `snap: { snapTo: 1 / (cards.length - 1), duration: 0.3, ease: 'power1.inOut' }` so the user lands cleanly on each period.
+- `prefers-reduced-motion`: `ScrollTrigger` still fires (cards reveal at their trigger point) but animation values set to duration 0 — no motion, just instant appearance.
+- Cleanup: all `ScrollTrigger` instances killed on component unmount and on tab change (avoid stale scroll contexts).
+
+### Tests
+
+- Assert `ScrollTrigger.create` called once per period card
+- Assert all ScrollTrigger instances killed on component unmount
