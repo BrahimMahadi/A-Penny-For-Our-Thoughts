@@ -2,16 +2,24 @@
   Module:   components/sections/IncomeStreams.vue
   Project:  A Penny For Our Thoughts
   Created:  May 2026 (Vue 3 migration — Sprint 4)
+  Updated:  June 2026 (feat/gsap-draggable-reorder — v2.41.0)
   Summary:  CRUD list of income streams. Each stream shows its name,
             bi-weekly chip (when applicable), and monthly amount.
             Add / Edit use a shared BaseModal form.
+
+            v2.41.0: drag-to-reorder via GSAP Draggable + Flip.
+            A drag handle (⠿) on the left of each row lets the user
+            reorder income streams — always visible on mobile, hover-
+            reveal on desktop. Order is persisted via reorderIncomeStreams()
+            → profiles.income_stream_order in Supabase.
 -->
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, watch, nextTick } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
+import { useDraggableList } from '@/composables/useDraggableList';
 import BaseModal from '@/components/ui/BaseModal.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -25,6 +33,27 @@ const props = withDefaults(defineProps<Props>(), { readonly: false });
 
 const budget = useBudgetStore();
 const toast  = useToast();
+
+// ─── Drag-to-reorder ────────────────────────────────────────────
+/** Template ref to the <ul> list element */
+const listRef = ref<HTMLElement | null>(null);
+
+const { reinit } = useDraggableList(listRef, {
+  handleSelector: '.income-stream-item__handle',
+  itemSelector:   '.income-stream-item',
+  onReorder: (orderedIds) => {
+    budget.reorderIncomeStreams(orderedIds);
+  },
+});
+
+// Reinit Draggable whenever items are added or removed (not just reordered)
+watch(
+  () => budget.incomeStreams.length,
+  async () => {
+    await nextTick();
+    reinit();
+  },
+);
 
 // ─── Modal state ─────────────────────────────────────────────────
 const showModal  = ref(false);
@@ -141,16 +170,43 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
       </BaseButton>
     </EmptyState>
 
-    <!-- Stream list -->
+    <!-- Stream list — ref wired to useDraggableList -->
     <ul
       v-else
+      ref="listRef"
       class="income-streams__list"
     >
       <li
-        v-for="stream in budget.incomeStreams"
+        v-for="stream in budget.orderedIncomeStreams"
         :key="stream.id"
+        :data-id="stream.id"
         class="income-stream-item card-hfx"
       >
+        <!-- Drag handle — always visible on mobile, hover-reveal on desktop -->
+        <button
+          v-if="!props.readonly"
+          class="income-stream-item__handle"
+          type="button"
+          aria-label="Drag to reorder"
+          tabindex="-1"
+        >
+          <svg
+            viewBox="0 0 10 16"
+            width="10"
+            height="16"
+            aria-hidden="true"
+            fill="currentColor"
+          >
+            <!-- 6-dot grip icon -->
+            <circle cx="2" cy="2" r="1.5" />
+            <circle cx="8" cy="2" r="1.5" />
+            <circle cx="2" cy="8" r="1.5" />
+            <circle cx="8" cy="8" r="1.5" />
+            <circle cx="2" cy="14" r="1.5" />
+            <circle cx="8" cy="14" r="1.5" />
+          </svg>
+        </button>
+
         <div class="income-stream-item__left">
           <span class="income-stream-item__name">{{ stream.name }}</span>
           <span
@@ -307,6 +363,8 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  /* required so the absolute drop-indicator sits inside the list */
+  position: relative;
 }
 
 .income-stream-item {
@@ -318,7 +376,48 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
   border-radius: 8px;
   border: 1px solid var(--border);
   gap: 0.5rem;
+  /* prevent the item from collapsing during a GSAP y-transform */
+  will-change: transform;
 }
+
+/* ─── Drag handle ─────────────────────────────────────────────── */
+
+.income-stream-item__handle {
+  background: none;
+  border: none;
+  padding: 0 0.25rem;
+  cursor: grab;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 4px;
+  line-height: 0;
+  /* Always visible on mobile; fade in on desktop hover */
+  opacity: 1;
+  transition: color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.income-stream-item__handle:active {
+  cursor: grabbing;
+}
+
+.income-stream-item__handle:hover {
+  color: var(--text);
+}
+
+/* Desktop: hide handle by default, reveal on row hover */
+@media (hover: hover) and (pointer: fine) {
+  .income-stream-item__handle {
+    opacity: 0;
+  }
+
+  .income-stream-item:hover .income-stream-item__handle {
+    opacity: 1;
+  }
+}
+
+/* ─── Row content ─────────────────────────────────────────────── */
 
 .income-stream-item__left {
   display: flex;
@@ -371,7 +470,8 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
   gap: 0.35rem;
 }
 
-/* Modal form */
+/* ─── Modal form ──────────────────────────────────────────────── */
+
 .modal-form {
   display: flex;
   flex-direction: column;
@@ -400,7 +500,7 @@ function monthlyAmt(amount: number, biweekly: boolean): number {
   font-size: 0.9rem;
   color: var(--text);
   width: 100%;
-  transition: border-color 0.15s;
+  transition: border-color var(--transition-fast);
 }
 
 .form-input:focus {

@@ -364,6 +364,7 @@ export type Database = {
           funds_remaining_updated: string
           has_onboarded: boolean
           id: string
+          income_stream_order: Json
           last_archived_period_start: string | null
           pay_start: string | null
           updated_at: string
@@ -377,6 +378,7 @@ export type Database = {
           funds_remaining_updated?: string
           has_onboarded?: boolean
           id: string
+          income_stream_order?: Json
           last_archived_period_start?: string | null
           pay_start?: string | null
           updated_at?: string
@@ -390,6 +392,7 @@ export type Database = {
           funds_remaining_updated?: string
           has_onboarded?: boolean
           id?: string
+          income_stream_order?: Json
           last_archived_period_start?: string | null
           pay_start?: string | null
           updated_at?: string

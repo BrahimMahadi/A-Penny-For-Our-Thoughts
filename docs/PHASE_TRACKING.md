@@ -1738,7 +1738,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | ONE-TIME-INCOME-DB | Bug fix + schema: windfall / one-time income entries were only saved to `localStorage` — they were lost on sign-out or in a new browser. Added `one_time_incomes` Supabase table, RLS policy, `handle_updated_at` trigger, CRUD helpers in `db.ts`, updated `fetch_user_data` RPC, wired `syncDb` in all three store actions (`addOneTimeIncome` / `updateOneTimeIncome` / `deleteOneTimeIncome`), added step 17 to `runMigration`, and `one_time_incomes` to `deleteAllUserData`. | `feat/one-time-income-db-persistence` | ✅ Complete | v2.39.0 |
 | DB-SYNC-POLICY | Chore: formalised the Database Sync Policy (6-item mandatory checklist in CLAUDE.md) + `tests/lib/db-coverage.spec.ts` (35 new tests) that fails if any store entity is missing from `db` or lacks CRUD methods. Prevents the class of oversight that caused the v2.38.x windfall income data-loss bug. | `chore/db-sync-policy-and-coverage-test` | ✅ Complete | v2.39.1 |
 | GSAP-SPLITTEXT | GSAP SplitText animated tab/page headings on navigation. Each page heading splits into individual characters that cascade in with a per-char stagger (~30ms) and autoAlpha fade when switching tabs. KPI category labels ("Needs", "Wants", "Savings") get the same treatment on first load. | `feat/gsap-splittext-headings` | ⏸ Deferred | v2.40.0 |
-| GSAP-DRAGGABLE-REORDER | GSAP Draggable + Flip drag-to-reorder for income streams and subscriptions. Draggable handles the drag gesture; Flip.getState() + Flip.from() animate the list items flowing to their new positions in real time. Dragged row scales up with a drop shadow while in-flight; sibling rows stagger-animate around it. | `feat/gsap-draggable-reorder` | 🔲 Planned | v2.41.0 |
+| GSAP-DRAGGABLE-REORDER | GSAP Draggable + Flip drag-to-reorder for income streams and subscriptions. Draggable handles the drag gesture; Flip.getState() + Flip.from() animate the list items flowing to their new positions in real time. Dragged row scales up with a drop shadow while in-flight; sibling rows stagger-animate around it. | `feat/gsap-draggable-reorder` | ✅ Complete | v2.41.0 |
 | GSAP-FLIP-LOG-PURCHASE | GSAP Flip "log purchase" form-to-list morph. On quick-add submission, Flip.getState() captures the target row's resting position, the item is added to the store, then Flip.from() animates the row morphing from the submit button position into the purchases list — a "receipt printing" effect. Reversed on delete: row Flips toward the trash icon before leaving. | `feat/gsap-flip-log-purchase` | 🔲 Planned | v2.42.0 |
 | GSAP-OBSERVER-SWIPE | GSAP Observer swipe-to-navigate between tabs on mobile. Observer detects horizontal swipe velocity/direction across the full viewport; swipe left = next tab, right = previous tab. Simultaneously drives the existing Flip sidebar indicator via useFlipIndicator. Respects dragMinimum threshold to prevent accidental triggers on scroll. | `feat/gsap-observer-swipe` | 🔲 Planned | v2.43.0 |
 | GSAP-SCROLLTRIGGER-HISTORY | GSAP ScrollTrigger spending history timeline reveal. Each archived period card staggers in from the right (x: 40→0, autoAlpha) as it enters the viewport. Advanced option: pin the History section header while cards scroll up behind it, with velocity-based snap-to-period on release. | `feat/gsap-scrolltrigger-history` | 🔲 Planned | v2.44.0 |
@@ -4491,28 +4491,57 @@ Tab navigation currently swaps page headings as a plain text swap. SplitText let
 
 ---
 
-## GSAP-DRAGGABLE-REORDER — Drag-to-reorder income streams & subscriptions 🔲
+## GSAP-DRAGGABLE-REORDER — Drag-to-reorder income streams ✅
 
 **Branch**: `feat/gsap-draggable-reorder`
-**Status**: 🔲 **PLANNED** — June 2026
+**Status**: ✅ **COMPLETE** — June 2026
 **Version**: v2.41.0 (MINOR — new user-facing interaction)
 
 ### Motivation
 
-Income streams and subscriptions are currently fixed in creation order with no way to manually sort them. Drag-to-reorder with live Flip animation gives users direct control and makes the list feel physically real — items flow around the dragged row in real time rather than snapping abruptly after drop.
+Income streams were fixed in creation order with no way to manually sort them. Drag-to-reorder with live Flip animation gives users direct control and makes the list feel physically real — items flow around the dragged row in real time rather than snapping abruptly after drop.
 
-### Planned scope
+### Delivered scope
 
-- **`src/composables/useDraggableList.ts`** (new) — composable that registers `Draggable` on a list container, calls `Flip.getState()` on the sibling items before each drag move, updates the order in the source array, then calls `Flip.from()` to animate siblings to their new positions.
-- **Income Streams section** — drag handle icon (⠿) on each row activates the composable. Order persisted to store (new `order` field on `IncomeStream`, stored in `profiles` via `upsertProfile` — not a new DB table).
-- **Subscriptions section** — same composable, same drag handle pattern.
-- In-flight dragged row: `scale: 1.03`, `boxShadow: elevated`, `zIndex: 100`; siblings animate with `stagger: 0.04s`.
-- `prefers-reduced-motion`: Draggable still works (drag is still functional) but Flip animation duration set to 0 — items snap to new positions instantly.
+- **`src/composables/useDraggableList.ts`** (new) — composable that attaches GSAP `Draggable` to a list container (y-axis only, bounded to the list), triggers from a per-item handle, shows an absolutely-positioned drop-indicator line during drag, uses `Flip.getState()` + `Flip.from()` on drop, and exposes `reinit()` for data-change rebuilds.
+- **`supabase/migrations/008_income_stream_order.sql`** — `ALTER TABLE profiles ADD COLUMN income_stream_order jsonb NOT NULL DEFAULT '[]'` so the order survives sign-out.
+- **`src/types/database.ts`** — `income_stream_order: Json` added to profiles `Row/Insert/Update`.
+- **`src/types/state.ts`** — `incomeStreamOrder: string[]` added to `BudgetState`.
+- **`src/lib/db.ts`** — `fetchAllUserData` returns `incomeStreamOrder`; `upsertProfile` accepts `incomeStreamOrder`.
+- **`src/stores/budget.ts`** — `makeDefaultState/makeBlankState` seed `incomeStreamOrder: []`; `migrateState` forward-compat guard; `orderedIncomeStreams` getter (sorts by order array, items missing from array sort to end, original array never mutated); `reorderIncomeStreams(ids)` action; `deleteIncomeStream` now also purges the deleted id from `incomeStreamOrder`.
+- **`src/components/sections/IncomeStreams.vue`** — drag handle (⠿ SVG, always visible on mobile / hover-reveal on desktop) on each row; `v-for` switched to `budget.orderedIncomeStreams`; `data-id` attribute on each `<li>`; composable wired with `watch` on list length for reinit after add/delete.
+- **Income streams only this sprint** — subscriptions reorder deferred to a follow-up sprint.
 
-### Tests
+### Decision log
 
-- Unit: store action for reordering (`reorderIncomeStreams`, `reorderSubscriptions`)
-- Component: assert drag handle renders, assert `Draggable.create` called on mount
+- **Profiles table / scalar exemption**: `incomeStreamOrder` stored in `profiles.income_stream_order` as JSONB — qualifies as a scalar config field; no separate entity table, no 6-item DB checklist.
+- **Drag handle visibility**: always visible on mobile (touch devices), fade-in on desktop row-hover (`@media (hover: hover) and (pointer: fine)`).
+
+### Tests added
+
+- `tests/composables/useDraggableList.spec.ts` (new, 7 tests) — return contract, `Draggable.create` call count, cleanup on unmount, reinit rebuilds, indicator injection/removal, null-ref guard.
+- `tests/stores/income.spec.ts` — 7 new tests: `orderedIncomeStreams` getter (empty order, set order, missing-from-order tail, non-mutating), `reorderIncomeStreams` action, immediate getter reflection, `deleteIncomeStream` order-cleanup.
+- `vi.mock('@/composables/useDraggableList')` added to `sections.spec.ts` and `pages.spec.ts` to prevent jsdom GSAP Draggable crash.
+- **1407 tests across 44 spec files** — all green.
+
+### Files changed
+
+- `supabase/migrations/008_income_stream_order.sql` (new)
+- `src/types/database.ts`
+- `src/types/state.ts`
+- `src/lib/db.ts`
+- `src/stores/budget.ts`
+- `src/composables/useDraggableList.ts` (new)
+- `src/components/sections/IncomeStreams.vue`
+- `tests/composables/useDraggableList.spec.ts` (new)
+- `tests/stores/income.spec.ts`
+- `tests/components/sections/sections.spec.ts`
+- `tests/components/pages/pages.spec.ts`
+- `tests/utils/jsonBackup.spec.ts`
+- `src/components/onboarding/WhatsNewBanner.vue`
+- `src/components/pages/DocsPage.vue`
+- `docs/PHASE_TRACKING.md`
+- `CLAUDE.md`
 
 ---
 

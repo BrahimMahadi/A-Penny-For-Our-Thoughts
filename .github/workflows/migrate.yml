@@ -132,6 +132,7 @@ jobs:
           export type RuleRow                  = _DbTables['rules']['Row']
           export type BudgetAlertRow           = _DbTables['budget_alerts']['Row']
           export type SpendingCategoryRow      = _DbTables['spending_categories']['Row']
+          export type OneTimeIncomeRow         = _DbTables['one_time_incomes']['Row']
           EOF
 
       - name: Commit updated types (if schema drifted)

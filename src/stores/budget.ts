@@ -62,6 +62,7 @@ export function makeDefaultState(): BudgetState {
     budgetDisplayMode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
 
     incomeStreams: [],
+    incomeStreamOrder: [],
     oneTimeIncomes: [],
     expenseCards: [],
     purchases: [],
@@ -119,6 +120,7 @@ export function makeBlankState(): BudgetState {
     allocation: { ...DEFAULT_ALLOCATION },
     budgetDisplayMode: { needs: 'monthly', wants: 'monthly', savings: 'monthly' },
     incomeStreams: [],
+    incomeStreamOrder: [],
     oneTimeIncomes: [],
     expenseCards: [],
     purchases: [],
@@ -230,6 +232,8 @@ export function migrateState(raw: unknown): BudgetState {
   if (!s.allocation) s.allocation = { ...DEFAULT_ALLOCATION };
   if (!s.budgetDisplayMode) s.budgetDisplayMode = { needs: 'monthly', wants: 'monthly', savings: 'monthly' };
   if (!s.incomeStreams) s.incomeStreams = [];
+  // Income stream order (added in v2.41.0 — default to empty array for legacy users)
+  if (!Array.isArray(s.incomeStreamOrder)) s.incomeStreamOrder = [];
   // One-time income (added in v2.37.0 — default to empty array for legacy users)
   if (!Array.isArray(s.oneTimeIncomes)) s.oneTimeIncomes = [];
   if (!s.expenseCards) s.expenseCards = [];
@@ -685,6 +689,21 @@ export const useBudgetStore = defineStore('budget', {
       return !state.hasOnboarded && state.incomeStreams.length === 0;
     },
 
+    /**
+     * Income streams sorted by the user's drag-to-reorder preference.
+     * When `incomeStreamOrder` is empty (default), insertion order is used.
+     * Streams not present in the order array sort to the end.
+     */
+    orderedIncomeStreams(state): IncomeStream[] {
+      if (!state.incomeStreamOrder.length) return state.incomeStreams;
+      const orderMap = new Map(state.incomeStreamOrder.map((id, i) => [id, i]));
+      return [...state.incomeStreams].sort((a, b) => {
+        const ia = orderMap.get(a.id) ?? Infinity;
+        const ib = orderMap.get(b.id) ?? Infinity;
+        return ia - ib;
+      });
+    },
+
     /** Sum of monthly expense-card item costs (biweekly items doubled). */
     grandTotalExpenses(state): number {
       return state.expenseCards.reduce((sum, card) => {
@@ -908,7 +927,19 @@ export const useBudgetStore = defineStore('budget', {
 
     deleteIncomeStream(id: string): void {
       this.incomeStreams = this.incomeStreams.filter((s) => s.id !== id);
+      // Also remove the deleted ID from the order array to keep them in sync
+      this.incomeStreamOrder = this.incomeStreamOrder.filter((id_) => id_ !== id);
       syncDb(() => db.incomeStreams.delete(_userId, id), 'deleteIncomeStream');
+    },
+
+    /**
+     * Persist a new display order for income streams.
+     * `ids` is the full ordered array of income-stream IDs in the new order.
+     * Stored in `profiles.income_stream_order` (scalar exemption — no entity table).
+     */
+    reorderIncomeStreams(ids: string[]): void {
+      this.incomeStreamOrder = ids;
+      syncDb(() => upsertProfile(_userId, { incomeStreamOrder: ids }), 'reorderIncomeStreams');
     },
 
     // ─── Budget allocation ────────────────────────────────────

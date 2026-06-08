@@ -46,6 +46,13 @@ export interface BudgetState {
 
   // Income
   incomeStreams: IncomeStream[];
+  /**
+   * Ordered list of income-stream IDs controlling display order.
+   * Empty array = use insertion order (the default).
+   * Stored in `profiles.income_stream_order` via upsertProfile — no
+   * separate DB table required (scalar config field exemption).
+   */
+  incomeStreamOrder: string[];
   /** One-time income entries for the current and past periods */
   oneTimeIncomes: OneTimeIncome[];
 
