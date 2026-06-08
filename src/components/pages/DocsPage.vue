@@ -341,6 +341,23 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.42.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              GSAP Flip purchase animations — smooth add and delete transitions in the Spending tab
+            </p>
+            <ul class="docs-list">
+              <li><strong>New purchase flies in.</strong> When you add a purchase from the Spending tab modal, the modal closes and the new row flies down from above while existing rows ripple to make room — powered by GSAP Flip's layout-state snapshot.</li>
+              <li><strong>Delete animates out.</strong> Clicking Delete in the edit modal closes the modal first, then the row fades and shrinks out before the remaining rows close the gap with a staggered Flip animation.</li>
+              <li><strong>Dashboard quick-add pulse.</strong> After logging a purchase from the "Log a purchase" hero button, the "Available to Spend" amount briefly pulses to confirm the balance has updated.</li>
+              <li><strong>Reduced-motion respected.</strong> All three animations are instant snaps when the OS has reduced motion enabled — no duration, no stagger.</li>
+              <li><strong>1407 tests across 44 spec files.</strong></li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.41.0</span>
               <span class="release-date">June 2026</span>
             </div>

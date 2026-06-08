@@ -35,7 +35,8 @@ import { useUiStore }    from '@/stores/ui';
 import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics }  from '@/composables/useAnalytics';
 import { useToast }      from '@/composables/useToast';
-import { useGsap }            from '@/composables/useGsap';
+import { useGsap, prefersReducedMotion } from '@/composables/useGsap';
+import gsap from 'gsap';
 import { useFlipIndicator }   from '@/composables/useFlipIndicator';
 import { useCountUp }         from '@/composables/useCountUp';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
@@ -384,6 +385,15 @@ function submitQuickAdd(): void {
   const typeLabel = quickAddBudgetType.value === 'needs' ? 'needs' : 'wants';
   toast.show(`Added "${purchase.name}" (${fmt(purchase.amount)}) to ${typeLabel}.`, 'success');
   showQuickAdd.value = false;
+
+  // Brief pulse on the hero amount to confirm the balance just changed
+  if (heroAmountRef.value && !prefersReducedMotion()) {
+    gsap.fromTo(
+      heroAmountRef.value,
+      { scale: 1 },
+      { scale: 1.06, duration: 0.14, ease: 'power2.out', yoyo: true, repeat: 1 },
+    );
+  }
 }
 
 // ─── Page-load animations ─────────────────────────────────────────────────

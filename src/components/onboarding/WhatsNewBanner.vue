@@ -22,15 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.41.0';
+const APP_VERSION = '2.42.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '↕️', text: 'Drag-to-reorder income streams — grab the ⠿ handle and drag any stream up or down; the list flows to its new order with a smooth Flip animation' },
-  { icon: '💾', text: 'Reorder preference persists across sign-out — your chosen stream order is saved to the cloud and restored on any device' },
-  { icon: '📋', text: 'New Database Sync Policy in CLAUDE.md + 35-test db-coverage spec to prevent future data-persistence gaps (v2.39.1)' },
-  { icon: '🐛', text: 'Windfall income now persists to the cloud — entries survive sign-out and opening the app on any device (v2.39.0)' },
+  { icon: '✨', text: 'New purchase animations — adding a purchase flows existing rows down while the new entry flies in from above; deleting fades and shrinks the row before the list closes the gap' },
+  { icon: '💡', text: 'Dashboard quick-add confirmation — the "Available to Spend" amount pulses when you log a purchase from the hero card' },
+  { icon: '↕️', text: 'Drag-to-reorder income streams — grab the ⠿ handle to reorder; order persists to the cloud (v2.41.0)' },
+  { icon: '💾', text: 'Windfall income persists to the cloud across sign-out (v2.39.0)' },
 ];
 
 const budget = useBudgetStore();
