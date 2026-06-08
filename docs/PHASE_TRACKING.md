@@ -1739,7 +1739,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | DB-SYNC-POLICY | Chore: formalised the Database Sync Policy (6-item mandatory checklist in CLAUDE.md) + `tests/lib/db-coverage.spec.ts` (35 new tests) that fails if any store entity is missing from `db` or lacks CRUD methods. Prevents the class of oversight that caused the v2.38.x windfall income data-loss bug. | `chore/db-sync-policy-and-coverage-test` | ✅ Complete | v2.39.1 |
 | GSAP-SPLITTEXT | GSAP SplitText animated tab/page headings on navigation. Each page heading splits into individual characters that cascade in with a per-char stagger (~30ms) and autoAlpha fade when switching tabs. KPI category labels ("Needs", "Wants", "Savings") get the same treatment on first load. | `feat/gsap-splittext-headings` | ⏸ Deferred | v2.40.0 |
 | GSAP-DRAGGABLE-REORDER | GSAP Draggable + Flip drag-to-reorder for income streams and subscriptions. Draggable handles the drag gesture; Flip.getState() + Flip.from() animate the list items flowing to their new positions in real time. Dragged row scales up with a drop shadow while in-flight; sibling rows stagger-animate around it. | `feat/gsap-draggable-reorder` | ✅ Complete | v2.41.0 |
-| GSAP-FLIP-LOG-PURCHASE | GSAP Flip "log purchase" form-to-list morph. On quick-add submission, Flip.getState() captures the target row's resting position, the item is added to the store, then Flip.from() animates the row morphing from the submit button position into the purchases list — a "receipt printing" effect. Reversed on delete: row Flips toward the trash icon before leaving. | `feat/gsap-flip-log-purchase` | 🔲 Planned | v2.42.0 |
+| GSAP-FLIP-LOG-PURCHASE | GSAP Flip "log purchase" form-to-list morph. On quick-add submission, Flip.getState() captures the target row's resting position, the item is added to the store, then Flip.from() animates the row morphing from the submit button position into the purchases list — a "receipt printing" effect. Reversed on delete: row Flips toward the trash icon before leaving. | `feat/gsap-flip-log-purchase` | ✅ Complete | v2.42.0 |
 | GSAP-OBSERVER-SWIPE | GSAP Observer swipe-to-navigate between tabs on mobile. Observer detects horizontal swipe velocity/direction across the full viewport; swipe left = next tab, right = previous tab. Simultaneously drives the existing Flip sidebar indicator via useFlipIndicator. Respects dragMinimum threshold to prevent accidental triggers on scroll. | `feat/gsap-observer-swipe` | 🔲 Planned | v2.43.0 |
 | GSAP-SCROLLTRIGGER-HISTORY | GSAP ScrollTrigger spending history timeline reveal. Each archived period card staggers in from the right (x: 40→0, autoAlpha) as it enters the viewport. Advanced option: pin the History section header while cards scroll up behind it, with velocity-based snap-to-period on release. | `feat/gsap-scrolltrigger-history` | 🔲 Planned | v2.44.0 |
 
@@ -4545,27 +4545,41 @@ Income streams were fixed in creation order with no way to manually sort them. D
 
 ---
 
-## GSAP-FLIP-LOG-PURCHASE — "Log purchase" form-to-list Flip morph 🔲
+## GSAP-FLIP-LOG-PURCHASE — Purchase add/delete animations ✅
 
 **Branch**: `feat/gsap-flip-log-purchase`
-**Status**: 🔲 **PLANNED** — June 2026
+**Status**: ✅ **COMPLETE** — June 2026
 **Version**: v2.42.0 (MINOR — new user-facing animation)
 
 ### Motivation
 
-The quick-add purchase form currently submits and the new row appears in the list without any spatial connection between the two. The Flip morph creates a visual throughline — the row appears to "print out" from the submit button and fly to its resting position in the list, giving immediate, unambiguous confirmation that the entry was saved.
+Purchase rows previously snapped in and out instantly. Adding a Flip animation for the add/delete cycle creates a spatial connection between the action and its result — the new row flows into place, and the deleted row visually exits before the list closes the gap.
 
-### Planned scope
+### Delivered scope
 
-- **`DashboardPage.vue`** — after `addPurchase()` call, assign a `data-flip-id` to the newly created row. Capture final position with `Flip.getState()`, then call `Flip.from(state, { duration: 0.5, ease: 'power3.out' })` so the row animates from the submit button area to the list.
-- **Delete path** — on purchase delete, use `Flip.to()` so the row morphs toward the trash icon position before the `useListTransition` height-collapse leave animation takes over.
-- No new store changes; purely a presentation layer enhancement.
-- `prefers-reduced-motion`: standard GSAP duration-0 path — row appears/disappears instantly.
+- **`SpendingPage.vue` — add path**: `savePurchase()` made async. On submit, modal closes and `resetPurchaseForm()` fires first. After `nextTick`, `Flip.getState()` snapshots all existing `.purchase-row` elements. `budget.addPurchase()` adds to store. After another `nextTick`, `Flip.from()` stagger-animates existing rows flowing to new positions (0.52s, `power3.out`, stagger 0.04s), and `gsap.from()` flies the newly inserted row in from above (0.46s, `power2.out`, 0.06s delay).
+- **`SpendingPage.vue` — delete path**: `deletePurchase()` made async. After `window.confirm()`, modal closes immediately. A 200ms pause lets BaseModal's leave animation complete. `gsap.to()` fades and shrinks the target row (0.32s, `power2.in`). `Flip.getState()` snapshots remaining rows. `budget.deletePurchase()` removes from store. After `nextTick`, `Flip.from()` closes the gap (0.42s, `power3.out`, stagger 0.03s).
+- **`DashboardPage.vue` — quick-add pulse**: After `budget.addPurchase()` in `submitQuickAdd()`, `heroAmountRef` gets a scale pulse (`1 → 1.06 → 1`, 0.14s × 2) confirming the balance has changed.
+- `data-purchase-id` attribute added to both dated and undated `<tr>` rows so the delete animation can locate the target row by ID.
+- No store changes; purely a presentation layer enhancement.
+- `prefers-reduced-motion`: all durations → 0 via `prefersReducedMotion()` from `useGsap`.
 
-### Tests
+### Tests fixed
 
-- Assert `Flip.getState` and `Flip.from` called after form submission
-- Assert standard list behavior unchanged when motion is reduced
+- `sections.spec.ts > SpendingPage — CRUD > Delete button in modal removes the purchase when confirm returns true` — updated to use `vi.useFakeTimers()` + `vi.runAllTimersAsync()` to advance the 200ms modal-close wait before asserting.
+- **1407 tests across 44 spec files** — all green.
+
+### Files changed
+
+- `src/components/pages/SpendingPage.vue`
+- `src/components/pages/DashboardPage.vue`
+- `tests/components/sections/sections.spec.ts`
+- `src/components/onboarding/WhatsNewBanner.vue`
+- `src/components/pages/DocsPage.vue`
+- `tests/components/onboarding.spec.ts`
+- `tests/components/pages/pages.spec.ts`
+- `docs/PHASE_TRACKING.md`
+- `CLAUDE.md`
 
 ---
 

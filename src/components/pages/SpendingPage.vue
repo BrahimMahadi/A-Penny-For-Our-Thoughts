@@ -15,7 +15,11 @@ import { useAnalytics } from '@/composables/useAnalytics';
 import { useToast } from '@/composables/useToast';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
 import { useFlipIndicator } from '@/composables/useFlipIndicator';
-import { useGsap } from '@/composables/useGsap';
+import { useGsap, prefersReducedMotion } from '@/composables/useGsap';
+import gsap from 'gsap';
+import { Flip } from 'gsap/Flip';
+
+gsap.registerPlugin(Flip);
 import { getPayPeriodForecast, getCategorySpending, applyRulesToName, getSubsInWindow, getLoansInWindow } from '@/utils/calculations';
 import { CATEGORY_FALLBACK_COLOR, FALLBACK_CATEGORY_NAME } from '@/data/categories';
 import { PERIOD_DAYS } from '@/constants/budget';
@@ -673,7 +677,7 @@ function openEditPurchase(id: string): void {
   showPurchaseModal.value = true;
 }
 
-function savePurchase(): void {
+async function savePurchase(): Promise<void> {
   purchaseValidation.touchAll();
   if (!purchaseValidation.isValid.value) return;
 
@@ -698,26 +702,109 @@ function savePurchase(): void {
     budgetType: purchaseForm.budgetType,
     cardId:     purchaseForm.cardId,
   };
+
   if (editingPurchaseId.value) {
+    // ── Update path — no animation change ──────────────────────
     budget.updatePurchase(editingPurchaseId.value, payload);
     toast.show('Purchase updated.', 'success');
+    showPurchaseModal.value = false;
+    resetPurchaseForm();
   } else {
+    // ── Add path — Flip row-in animation ───────────────────────
+    // Close modal first so the table is fully visible for GSAP
+    showPurchaseModal.value = false;
+    resetPurchaseForm();
+    await nextTick();
+
+    // Snapshot all existing rows before the new one appears
+    const existing = purchaseTableRef.value
+      ? Array.from(purchaseTableRef.value.querySelectorAll<HTMLElement>('.purchase-row'))
+      : [];
+    const flipState = existing.length ? Flip.getState(existing) : null;
+
+    // Add to store — Vue will re-render with the new row
     budget.addPurchase(payload);
     toast.show('Purchase added.', 'success');
+    await nextTick();
+
+    // Animate existing rows flowing to their new positions
+    if (flipState) {
+      Flip.from(flipState, {
+        duration: prefersReducedMotion() ? 0 : 0.52,
+        ease:     'power3.out',
+        stagger:  prefersReducedMotion() ? 0 : 0.04,
+      });
+    }
+
+    // Find the newly inserted row (the one not in the original snapshot)
+    // and animate it flying in from above
+    const allRows = purchaseTableRef.value
+      ? Array.from(purchaseTableRef.value.querySelectorAll<HTMLElement>('.purchase-row'))
+      : [];
+    const newRow = allRows.find(r => !existing.includes(r));
+    if (newRow) {
+      gsap.from(newRow, {
+        opacity:  0,
+        y:        -22,
+        scale:    0.95,
+        duration: prefersReducedMotion() ? 0 : 0.46,
+        ease:     'power2.out',
+        delay:    prefersReducedMotion() ? 0 : 0.06,
+      });
+    }
   }
-  showPurchaseModal.value = false;
-  resetPurchaseForm();
 }
 
-function deletePurchase(id: string): void {
+async function deletePurchase(id: string): Promise<void> {
   const p = budget.purchases.find(x => x.id === id);
   if (!p) return;
   if (!window.confirm(`Delete "${p.name}"?`)) return;
-  budget.deletePurchase(id);
-  toast.show('Purchase deleted.', 'success');
-  // Close the modal if delete was triggered from inside it
+
+  // Close the modal first so the table row is unobstructed
   showPurchaseModal.value = false;
   resetPurchaseForm();
+
+  // Wait for BaseModal's leave animation to finish (~180ms) before
+  // animating the row so the two don't compete visually
+  await new Promise<void>(r => setTimeout(r, prefersReducedMotion() ? 0 : 200));
+
+  // Find the target row by its purchase ID
+  const rowEl = purchaseTableRef.value
+    ?.querySelector<HTMLElement>(`[data-purchase-id="${id}"]`);
+
+  if (rowEl) {
+    // Animate the row fading and shrinking out
+    await new Promise<void>(resolve => {
+      gsap.to(rowEl, {
+        opacity:    0,
+        scale:      0.91,
+        y:          8,
+        duration:   prefersReducedMotion() ? 0 : 0.32,
+        ease:       'power2.in',
+        onComplete: resolve,
+      });
+    });
+  }
+
+  // Snapshot remaining rows before Vue removes the deleted one
+  const remaining = purchaseTableRef.value
+    ? Array.from(purchaseTableRef.value.querySelectorAll<HTMLElement>('.purchase-row'))
+        .filter(r => r !== rowEl)
+    : [];
+  const flipState = remaining.length ? Flip.getState(remaining) : null;
+
+  // Remove from store, then let remaining rows animate into the gap
+  budget.deletePurchase(id);
+  toast.show('Purchase deleted.', 'success');
+  await nextTick();
+
+  if (flipState) {
+    Flip.from(flipState, {
+      duration: prefersReducedMotion() ? 0 : 0.42,
+      ease:     'power3.out',
+      stagger:  prefersReducedMotion() ? 0 : 0.03,
+    });
+  }
 }
 </script>
 
@@ -1094,6 +1181,7 @@ function deletePurchase(id: string): void {
             <tr
               v-for="row in allDatedRows"
               :key="row.id"
+              :data-purchase-id="row.kind === 'purchase' ? row.id : undefined"
               :class="[
                 'purchase-row',
                 row.kind === 'purchase' ? 'purchase-row--clickable' : 'purchase-row--auto',
@@ -1177,6 +1265,7 @@ function deletePurchase(id: string): void {
               <tr
                 v-for="p in filteredUndated"
                 :key="`ud-${p.id}`"
+                :data-purchase-id="p.id"
                 class="purchase-row purchase-row--undated purchase-row--clickable"
                 tabindex="0"
                 role="button"

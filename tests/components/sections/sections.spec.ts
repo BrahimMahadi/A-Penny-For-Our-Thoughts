@@ -4213,10 +4213,15 @@ describe('SpendingPage — CRUD', () => {
     await nextTick();
 
     // Click Delete inside the modal
+    // deletePurchase() is async: it waits ~200ms for the modal leave animation
+    // before removing the row, so we advance fake timers to flush the full chain.
+    vi.useFakeTimers();
     const deleteBtn = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.base-modal button'))
       .find(b => b.textContent?.trim() === 'Delete');
     deleteBtn!.click();
+    await vi.runAllTimersAsync();
     await nextTick();
+    vi.useRealTimers();
 
     expect(budget.purchases).toHaveLength(0);
     // Modal should close after delete
