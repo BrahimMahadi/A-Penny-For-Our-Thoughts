@@ -35,6 +35,11 @@ vi.mock('chart.js', () => ({
   registerables: [],
 }));
 
+// ─── Mock GSAP Draggable composable (Draggable requires a real browser) ──
+vi.mock('@/composables/useDraggableList', () => ({
+  useDraggableList: () => ({ reinit: vi.fn() }),
+}));
+
 // ─── Chart sub-components (direct tests) ─────────────────────────
 import WantsDonut        from '@/components/charts/WantsDonut.vue';
 

@@ -342,3 +342,103 @@ describe('one-time income — allocation math', () => {
     expect(budget.currentPeriodExtraSavings).toBeCloseTo(0);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  income stream ordering (v2.41.0)
+// ─────────────────────────────────────────────────────────────────
+
+describe('income stream ordering', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  // ─── orderedIncomeStreams getter ─────────────────────────────────
+
+  it('orderedIncomeStreams: returns insertion order when incomeStreamOrder is empty', () => {
+    const budget = useBudgetStore();
+    budget.incomeStreams = [
+      { id: 'a', name: 'Job A', amount: 1000, biweekly: false },
+      { id: 'b', name: 'Job B', amount: 2000, biweekly: true },
+      { id: 'c', name: 'Job C', amount: 500,  biweekly: false },
+    ];
+    budget.incomeStreamOrder = [];
+    expect(budget.orderedIncomeStreams.map(s => s.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('orderedIncomeStreams: sorts by incomeStreamOrder when set', () => {
+    const budget = useBudgetStore();
+    budget.incomeStreams = [
+      { id: 'a', name: 'Job A', amount: 1000, biweekly: false },
+      { id: 'b', name: 'Job B', amount: 2000, biweekly: true },
+      { id: 'c', name: 'Job C', amount: 500,  biweekly: false },
+    ];
+    budget.incomeStreamOrder = ['c', 'a', 'b'];
+    expect(budget.orderedIncomeStreams.map(s => s.id)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('orderedIncomeStreams: items not in order array sort to the end', () => {
+    const budget = useBudgetStore();
+    budget.incomeStreams = [
+      { id: 'a', name: 'Job A', amount: 1000, biweekly: false },
+      { id: 'b', name: 'Job B', amount: 2000, biweekly: true },
+      { id: 'c', name: 'Job C', amount: 500,  biweekly: false },
+    ];
+    // 'b' is missing from order — it should sort after 'a' and 'c'
+    budget.incomeStreamOrder = ['c', 'a'];
+    const ids = budget.orderedIncomeStreams.map(s => s.id);
+    expect(ids[0]).toBe('c');
+    expect(ids[1]).toBe('a');
+    expect(ids[2]).toBe('b');
+  });
+
+  it('orderedIncomeStreams: does not mutate incomeStreams source array', () => {
+    const budget = useBudgetStore();
+    budget.incomeStreams = [
+      { id: 'a', name: 'Job A', amount: 1000, biweekly: false },
+      { id: 'b', name: 'Job B', amount: 2000, biweekly: true },
+    ];
+    budget.incomeStreamOrder = ['b', 'a'];
+    // consume the getter (triggers the sort on a copy)
+    const _result = budget.orderedIncomeStreams;
+    // original array must remain in insertion order
+    expect(budget.incomeStreams.map(s => s.id)).toEqual(['a', 'b']);
+  });
+
+  // ─── reorderIncomeStreams action ─────────────────────────────────
+
+  it('reorderIncomeStreams: updates incomeStreamOrder in the store', () => {
+    const budget = useBudgetStore();
+    budget.incomeStreams = [
+      { id: 'x', name: 'X', amount: 100, biweekly: false },
+      { id: 'y', name: 'Y', amount: 200, biweekly: false },
+      { id: 'z', name: 'Z', amount: 300, biweekly: false },
+    ];
+    budget.reorderIncomeStreams(['z', 'x', 'y']);
+    expect(budget.incomeStreamOrder).toEqual(['z', 'x', 'y']);
+  });
+
+  it('reorderIncomeStreams: immediately reflected in orderedIncomeStreams getter', () => {
+    const budget = useBudgetStore();
+    budget.incomeStreams = [
+      { id: 'x', name: 'X', amount: 100, biweekly: false },
+      { id: 'y', name: 'Y', amount: 200, biweekly: false },
+    ];
+    budget.reorderIncomeStreams(['y', 'x']);
+    expect(budget.orderedIncomeStreams.map(s => s.id)).toEqual(['y', 'x']);
+  });
+
+  // ─── deleteIncomeStream cleans up order array ────────────────────
+
+  it('deleteIncomeStream: removes deleted id from incomeStreamOrder', () => {
+    const budget = useBudgetStore();
+    budget.incomeStreams = [
+      { id: 'a', name: 'A', amount: 100, biweekly: false },
+      { id: 'b', name: 'B', amount: 200, biweekly: false },
+      { id: 'c', name: 'C', amount: 300, biweekly: false },
+    ];
+    budget.incomeStreamOrder = ['b', 'a', 'c'];
+    budget.deleteIncomeStream('a');
+    expect(budget.incomeStreamOrder).not.toContain('a');
+    expect(budget.incomeStreamOrder).toEqual(['b', 'c']);
+  });
+});

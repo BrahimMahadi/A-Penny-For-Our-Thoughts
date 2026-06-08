@@ -341,6 +341,23 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.41.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              Drag-to-reorder income streams with GSAP Draggable + Flip
+            </p>
+            <ul class="docs-list">
+              <li><strong>Income streams are now reorderable.</strong> A grip handle (⠿) appears on the left of each income-stream row — always visible on mobile, hover-reveal on desktop. Drag any row up or down and the rest of the list flows to its new position using GSAP Flip's layout-state animation.</li>
+              <li><strong>Order persists to the cloud.</strong> The chosen stream order is stored in <code>profiles.income_stream_order</code> in Supabase so it survives sign-out and is restored correctly on any device. No separate entity table is needed — this qualifies as a scalar config field (profiles table exemption).</li>
+              <li><strong>Reduced-motion respected.</strong> When the OS has reduced-motion enabled, the drag gesture still works but the Flip animation plays at duration 0 — items snap to their new positions without animation.</li>
+              <li><strong>New <code>useDraggableList</code> composable.</strong> Encapsulates Draggable init, drop-indicator positioning, Flip snapshot/from logic, and lifecycle cleanup. Exported <code>reinit()</code> function lets callers rebuild instances after list-data changes.</li>
+              <li><strong>1407 tests across 44 spec files.</strong></li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.39.1</span>
               <span class="release-date">June 2026</span>
             </div>

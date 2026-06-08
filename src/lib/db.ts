@@ -316,6 +316,7 @@ export async function fetchAllUserData(userId: string): Promise<Partial<BudgetSt
     fundsRemainingUpdated: profile.funds_remaining_updated as string,
     hasOnboarded:        profile.has_onboarded,
     dismissedVersion:    profile.dismissed_version,
+    incomeStreamOrder:   (profile.income_stream_order as string[]) ?? [],
 
     incomeStreams:       (payload.incomeStreams ?? []).map(toIncomeStream),
     expenseCards:        (payload.expenseCards ?? []).map(r => toExpenseCard(r, expenseItems)),
@@ -348,6 +349,8 @@ export async function upsertProfile(userId: string, data: {
   fundsRemainingUpdated?: string;
   hasOnboarded?: boolean;
   dismissedVersion?: string | null;
+  /** Drag-to-reorder preference for income streams (v2.41.0). */
+  incomeStreamOrder?: string[];
 }): Promise<void> {
   const { error } = await sb.from('profiles').upsert({
     id: userId,
@@ -359,6 +362,7 @@ export async function upsertProfile(userId: string, data: {
     ...(data.fundsRemainingUpdated !== undefined && { funds_remaining_updated: data.fundsRemainingUpdated }),
     ...(data.hasOnboarded !== undefined      && { has_onboarded: data.hasOnboarded }),
     ...(data.dismissedVersion !== undefined  && { dismissed_version: data.dismissedVersion }),
+    ...(data.incomeStreamOrder !== undefined && { income_stream_order: data.incomeStreamOrder }),
   });
   assertNoError(error, 'upsertProfile');
 }
