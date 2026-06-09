@@ -87,3 +87,16 @@ vi.mock('gsap/Flip', () => ({
     }),
   },
 }));
+
+// ─── GSAP ScrollTrigger mock ──────────────────────────────────────────────────
+// ScrollTrigger.create() uses real scroll/layout APIs that jsdom does not provide.
+// Stub it globally so tests that render pages with scroll animations (DashboardPage,
+// SpendingPage) don't generate unhandled rejections.
+vi.mock('gsap/ScrollTrigger', () => ({
+  ScrollTrigger: {
+    create:  vi.fn(() => ({ kill: vi.fn() })),
+    refresh: vi.fn(),
+    getAll:  vi.fn(() => []),
+    kill:    vi.fn(),
+  },
+}));

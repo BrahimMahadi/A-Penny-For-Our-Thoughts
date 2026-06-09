@@ -9,17 +9,19 @@
 -->
 
 <script setup lang="ts">
-import { computed, ref, reactive, watch, nextTick } from 'vue';
+import { computed, ref, reactive, watch, nextTick, onMounted } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics } from '@/composables/useAnalytics';
 import { useToast } from '@/composables/useToast';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
 import { useFlipIndicator } from '@/composables/useFlipIndicator';
 import { useGsap, prefersReducedMotion } from '@/composables/useGsap';
+import { useScrollReveal } from '@/composables/useScrollReveal';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-gsap.registerPlugin(Flip);
+gsap.registerPlugin(Flip, ScrollTrigger);
 import { getPayPeriodForecast, getCategorySpending, applyRulesToName, getSubsInWindow, getLoansInWindow } from '@/utils/calculations';
 import { CATEGORY_FALLBACK_COLOR, FALLBACK_CATEGORY_NAME } from '@/data/categories';
 import { PERIOD_DAYS } from '@/constants/budget';
@@ -53,6 +55,7 @@ interface PeriodicRow {
 const budget = useBudgetStore();
 const { totalMonthlyIncome } = useAnalytics();
 const toast = useToast();
+const { revealImmediate, revealOnScrollX } = useScrollReveal();
 
 // ─── CSV export ───────────────────────────────────────────────────
 function handleExport(): void {
@@ -806,10 +809,43 @@ async function deletePurchase(id: string): Promise<void> {
     });
   }
 }
+
+// ─── Page-load scroll animations ──────────────────────────────────────────
+// spendPageRef: root element used as the query scope for section targeting.
+const spendPageRef = ref<HTMLElement | null>(null);
+
+onMounted(() => {
+  nextTick(() => {
+    const root = spendPageRef.value;
+    if (!root) return;
+
+    // ── 1. KPI tiles row — immediate stagger (above fold) ──────────────────
+    const kpiItems = Array.from(
+      root.querySelectorAll<HTMLElement>('.spend-kpi-row .stat-card, .spend-kpi-row .spend-stat-typed'),
+    );
+    if (kpiItems.length) revealImmediate(kpiItems, 0.1);
+
+    // ── 2. Charts row (conditional on data) — X-axis ScrollTrigger ─────────
+    const chartsRow = root.querySelector<HTMLElement>('.spend-charts-row');
+    if (chartsRow) {
+      const chartsCards = Array.from(chartsRow.querySelectorAll<HTMLElement>('.base-card'));
+      chartsCards.forEach(card => revealOnScrollX(card, chartsRow));
+    }
+
+    // ── 3. Purchases table card — X-axis ScrollTrigger ──────────────────────
+    const purchasesCard = root.querySelector<HTMLElement>('.spend-purchases-card');
+    if (purchasesCard) revealOnScrollX(purchasesCard);
+
+    ScrollTrigger.refresh();
+  });
+});
 </script>
 
 <template>
-  <div class="page-spending">
+  <div
+    ref="spendPageRef"
+    class="page-spending"
+  >
 
     <!-- ── Page header ─────────────────────────────────────────── -->
     <div class="spend-header">
@@ -999,7 +1035,7 @@ async function deletePurchase(id: string): Promise<void> {
     </div>
 
     <!-- ── All purchases table ─────────────────────────────────── -->
-    <BaseCard>
+    <BaseCard class="spend-purchases-card">
       <!-- Card header -->
       <div class="purchases-card-header">
         <div>
