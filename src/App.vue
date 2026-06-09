@@ -36,7 +36,7 @@ import { useUiStore } from '@/stores/ui';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useKeyboard } from '@/composables/useKeyboard';
-import { useSwipe } from '@/composables/useSwipe';
+import { useGsapObserver } from '@/composables/useGsapObserver';
 import { usePeriodRollover } from '@/composables/usePeriodRollover';
 import type { TabId } from '@/types/state';
 
@@ -134,8 +134,8 @@ useKeyboard('g', () => { ui.toggleSectionPicker(); }, { guardFromInputs: true })
 
 // ─── Tab transition ────────────────────────────────────────────────────────
 // Track which direction the user is navigating so the slide goes the right way.
-// Positive = moving forward in the tab order (new content slides in from right).
-// Negative = moving backward (new content slides in from left).
+// Positive = moving forward in the tab order (new content slides in from the
+// appropriate direction). Negative = moving backward.
 //
 // BUG-020b: Replaced GSAP JS-hook approach (gsap.fromTo + done callback) with
 // a plain CSS <Transition>. The GSAP approach used Vue's mode="out-in" with a
@@ -144,12 +144,16 @@ useKeyboard('g', () => { ui.toggleSectionPicker(); }, { guardFromInputs: true })
 // fire and Vue's transition state machine would be permanently stuck with the
 // entering page set to opacity:0. CSS transitions never need a done() callback;
 // the browser compositor handles timing and Vue listens for transitionend
-// automatically. The directional slide is preserved via two named transitions.
+// automatically. The directional slide is preserved via named transitions.
 // RS-27: 'insights' inserted between 'goals' and 'docs' — matches the sidebar's
 // visual order. (The keyboard shortcut for Insights remains '7' for backward
 // compatibility; see App.vue header comment.)
+// v2.43.0: Two transition axes — 'y' (vertical) for desktop sidebar nav,
+// 'x' (horizontal) for mobile swipe/BottomNav. Axis is auto-detected via
+// window.innerWidth at the moment the tab change fires.
 const TAB_ORDER: TabId[] = ['dashboard', 'schedule', 'spending', 'goals', 'insights', 'docs', 'settings'];
 const tabDirection = ref(1);
+const tabNavAxis   = ref<'x' | 'y'>('y');
 
 watch(
   () => ui.activeTab as TabId,
@@ -157,34 +161,40 @@ watch(
     const prev = TAB_ORDER.indexOf(oldTab ?? 'dashboard');
     const next = TAB_ORDER.indexOf(newTab);
     tabDirection.value = next >= prev ? 1 : -1;
+    // Desktop (>768 px, pointer device) → vertical slide matches sidebar layout.
+    // Mobile (≤768 px) → horizontal slide matches bottom-nav / swipe gesture.
+    tabNavAxis.value = window.innerWidth <= 768 ? 'x' : 'y';
   },
 );
 
 /**
- * Name of the <Transition> to use for the current navigation direction.
- *   tab-fwd: leave slides left,  enter comes from right  (forward navigation)
- *   tab-bwd: leave slides right, enter comes from left   (backward navigation)
+ * Name of the <Transition> to use for the current navigation.
+ *   tab-fwd-y / tab-bwd-y — vertical (desktop sidebar clicks, keyboard)
+ *   tab-fwd-x / tab-bwd-x — horizontal (mobile swipe, BottomNav taps)
  */
-const tabTransitionName = computed<string>(() =>
-  tabDirection.value >= 0 ? 'tab-fwd' : 'tab-bwd',
-);
+const tabTransitionName = computed<string>(() => {
+  const dir = tabDirection.value >= 0 ? 'fwd' : 'bwd';
+  return `tab-${dir}-${tabNavAxis.value}`;
+});
 
-// ─── Swipe to change tab on mobile ────────────────────────────────────────
+// ─── Swipe to change tab on mobile (GSAP Observer) ────────────────────────
+// Replaces raw useSwipe touch listeners. GSAP Observer provides built-in
+// tolerance, drag-minimum, and axis-locking so diagonal gestures don't
+// accidentally trigger tab switches.
 const appMainRef = ref<HTMLElement | null>(null);
 
-useSwipe(
-  appMainRef,
-  () => {
+useGsapObserver(appMainRef, {
+  onSwipeLeft: () => {
     // Swipe left → next tab
     const idx = TAB_ORDER.indexOf(ui.activeTab as TabId);
     if (idx >= 0 && idx < TAB_ORDER.length - 1) ui.setActiveTab(TAB_ORDER[idx + 1]);
   },
-  () => {
+  onSwipeRight: () => {
     // Swipe right → previous tab
     const idx = TAB_ORDER.indexOf(ui.activeTab as TabId);
     if (idx > 0) ui.setActiveTab(TAB_ORDER[idx - 1]);
   },
-);
+});
 </script>
 
 <template>
@@ -518,35 +528,54 @@ useSwipe(
  *
  * Without mode: entering page is mounted immediately (blank screen impossible).
  * Leaving page uses position:absolute so it's taken out of normal flow —
- * no layout jump. Both fade+slide over 0.18 s simultaneously.
+ * no layout jump. Both fade+slide simultaneously.
  *
- * tab-fwd  (Dashboard→Settings): old exits left,  new enters from right.
- * tab-bwd  (Settings→Dashboard): old exits right, new enters from left.
+ * v2.43.0: Two axes, four named transitions (0.28s / 52px — approved from demo):
+ *
+ * Horizontal (mobile swipe / BottomNav):
+ *   tab-fwd-x: old exits left,  new enters from right
+ *   tab-bwd-x: old exits right, new enters from left
+ *
+ * Vertical (desktop sidebar / keyboard):
+ *   tab-fwd-y: old exits upward,   new enters from below
+ *   tab-bwd-y: old exits downward, new enters from above
  */
 
-/* Leaving page: removed from flow so entering page can take its height */
-.tab-fwd-leave-active,
-.tab-bwd-leave-active {
+/* ── Shared leave setup ────────────────────────────────────────── */
+.tab-fwd-x-leave-active,
+.tab-bwd-x-leave-active,
+.tab-fwd-y-leave-active,
+.tab-bwd-y-leave-active {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transition: opacity 0.28s ease, transform 0.28s ease;
 }
 
-/* Entering page: normal flow */
-.tab-fwd-enter-active,
-.tab-bwd-enter-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
+/* ── Shared enter setup ────────────────────────────────────────── */
+.tab-fwd-x-enter-active,
+.tab-bwd-x-enter-active,
+.tab-fwd-y-enter-active,
+.tab-bwd-y-enter-active {
+  transition: opacity 0.28s ease, transform 0.28s ease;
 }
 
-/* Forward: old exits left, new enters from right */
-.tab-fwd-leave-to   { opacity: 0; transform: translateX(-20px); }
-.tab-fwd-enter-from { opacity: 0; transform: translateX(20px);  }
+/* ── Horizontal: forward (old exits left, new enters from right) ─ */
+.tab-fwd-x-leave-to   { opacity: 0; transform: translateX(-52px); }
+.tab-fwd-x-enter-from { opacity: 0; transform: translateX(52px);  }
 
-/* Backward: old exits right, new enters from left */
-.tab-bwd-leave-to   { opacity: 0; transform: translateX(20px);  }
-.tab-bwd-enter-from { opacity: 0; transform: translateX(-20px); }
+/* ── Horizontal: backward (old exits right, new enters from left) ─ */
+.tab-bwd-x-leave-to   { opacity: 0; transform: translateX(52px);  }
+.tab-bwd-x-enter-from { opacity: 0; transform: translateX(-52px); }
+
+/* ── Vertical: forward (old exits up, new enters from below) ─────── */
+.tab-fwd-y-leave-to   { opacity: 0; transform: translateY(-52px); }
+.tab-fwd-y-enter-from { opacity: 0; transform: translateY(52px);  }
+
+/* ── Vertical: backward (old exits down, new enters from above) ──── */
+.tab-bwd-y-leave-to   { opacity: 0; transform: translateY(52px);  }
+.tab-bwd-y-enter-from { opacity: 0; transform: translateY(-52px); }
 
 /* ─── prefers-reduced-motion ──────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
@@ -555,10 +584,10 @@ useSwipe(
     animation: none;
   }
 
-  .tab-fwd-leave-active,
-  .tab-bwd-leave-active,
-  .tab-fwd-enter-active,
-  .tab-bwd-enter-active {
+  .tab-fwd-x-leave-active, .tab-bwd-x-leave-active,
+  .tab-fwd-y-leave-active, .tab-bwd-y-leave-active,
+  .tab-fwd-x-enter-active, .tab-bwd-x-enter-active,
+  .tab-fwd-y-enter-active, .tab-bwd-y-enter-active {
     transition: none;
   }
 }

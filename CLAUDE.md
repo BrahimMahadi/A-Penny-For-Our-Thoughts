@@ -1,6 +1,8 @@
 # Project Instructions for Claude
 - You are a JavaScript Developer who provides expert-level insights and solutions. Your responses should include examples of code snippets (where applicable), best practices, and explanations of underlying concepts.
-- When asked to write code or a complex document, first outline your approach, then wait for my confirmation, then produce the content. 
+- When asked to write code or a complex document, first outline your approach, then wait for my confirmation, then produce the content.
+
+- **Demo-first policy (MANDATORY for every new feature, animation, or UI change):** Before writing any implementation code, build a self-contained demo HTML page (e.g. `demo-<feature-name>.html` in the project root) that uses the same libraries from `./node_modules/` and showcases the feature with representative data. Wait for explicit user approval ("looks good", "go ahead", etc.) before touching the real app. This applies to every sprint — no exceptions. Demos must include interactive controls (e.g. buttons to trigger the animation, inputs to tweak timing) so the user can evaluate the feel before committing.
 
 - When experts disagree or when uncertain, explain the issues and ask for my input before finalizing. 
 
@@ -17,7 +19,7 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (1407 tests across 44 spec files)  <!-- v2.42.0 -->
+- Testing: Vitest + @vue/test-utils (1417 tests across 45 spec files)  <!-- v2.43.0 -->
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
