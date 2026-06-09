@@ -1741,7 +1741,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | GSAP-DRAGGABLE-REORDER | GSAP Draggable + Flip drag-to-reorder for income streams and subscriptions. Draggable handles the drag gesture; Flip.getState() + Flip.from() animate the list items flowing to their new positions in real time. Dragged row scales up with a drop shadow while in-flight; sibling rows stagger-animate around it. | `feat/gsap-draggable-reorder` | ✅ Complete | v2.41.0 |
 | GSAP-FLIP-LOG-PURCHASE | GSAP Flip "log purchase" form-to-list morph. On quick-add submission, Flip.getState() captures the target row's resting position, the item is added to the store, then Flip.from() animates the row morphing from the submit button position into the purchases list — a "receipt printing" effect. Reversed on delete: row Flips toward the trash icon before leaving. | `feat/gsap-flip-log-purchase` | ✅ Complete | v2.42.0 |
 | GSAP-OBSERVER-SWIPE | GSAP Observer swipe-to-navigate. Horizontal swipe on mobile switches tabs; desktop sidebar clicks use a vertical slide. Replaces raw useSwipe touch listeners with GSAP Observer (lockAxis, dragMinimum 40px, tolerance 12px). Tab transitions updated to 0.28s / 52px, dual-axis CSS transitions. | `feat/gsap-observer-swipe` | ✅ Complete | v2.43.0 |
-| GSAP-SCROLLTRIGGER-HISTORY | GSAP ScrollTrigger spending history timeline reveal. Each archived period card staggers in from the right (x: 40→0, autoAlpha) as it enters the viewport. Advanced option: pin the History section header while cards scroll up behind it, with velocity-based snap-to-period on release. | `feat/gsap-scrolltrigger-history` | 🔲 Planned | v2.44.0 |
+| GSAP-SCROLLTRIGGER-HISTORY | GSAP ScrollTrigger scroll reveal for Dashboard (Y-axis, bidirectional) and Spending tab (X-axis slide-in). New `useScrollReveal` composable with `revealImmediate`, `revealOnScrollY`, `revealOnScrollX`. Hero/KPI above-fold, below-fold sections use ScrollTrigger; `back.out` ease, 0.5s/24px/48px defaults. | `feat/gsap-scrolltrigger-history` | ✅ Complete | v2.44.0 |
 
 ---
 
@@ -4628,25 +4628,40 @@ The tab transition used a single horizontal slide for all navigation. On desktop
 
 ---
 
-## GSAP-SCROLLTRIGGER-HISTORY — Spending history timeline scroll reveal 🔲
+## GSAP-SCROLLTRIGGER-HISTORY — ScrollTrigger scroll reveal (Dashboard + Spending) ✅
 
 **Branch**: `feat/gsap-scrolltrigger-history`
-**Status**: 🔲 **PLANNED** — June 2026
+**Status**: ✅ **COMPLETE** — June 2026
 **Version**: v2.44.0 (MINOR — new user-facing animation)
 
 ### Motivation
 
-The spending history archive dumps all period cards on screen at once. ScrollTrigger lets each card reveal itself as the user scrolls into it — making the history feel like a timeline being uncovered rather than a static list. The pinned-header variant takes this further, giving the section a magazine-editorial quality that reinforces the premium financial dashboard positioning.
+The dashboard presented all section cards at once with a simple one-shot stagger. Adding ScrollTrigger makes the page feel alive while scrolling — sections reveal themselves progressively as they enter the viewport, and fade back out as they leave, creating a dynamic editorial feel throughout.
 
-### Planned scope
+### Delivered scope
 
-- **`src/composables/useHistoryReveal.ts`** (new) — iterates the `.history-period` cards and creates one `ScrollTrigger` per card: `start: "top 85%"`, `x: 40 → 0`, `autoAlpha: 0 → 1`, `stagger: 0.06s` within the card's inner items.
-- **Phase 1 (baseline)**: simple per-card entrance animation only.
-- **Phase 2 (stretch)**: pin the "Spending History" section `<h2>` header while the cards scroll up behind it (`pin: true`, `pinSpacing: false`). Velocity-based snap: `snap: { snapTo: 1 / (cards.length - 1), duration: 0.3, ease: 'power1.inOut' }` so the user lands cleanly on each period.
-- `prefers-reduced-motion`: `ScrollTrigger` still fires (cards reveal at their trigger point) but animation values set to duration 0 — no motion, just instant appearance.
-- Cleanup: all `ScrollTrigger` instances killed on component unmount and on tab change (avoid stale scroll contexts).
+- **`src/composables/useScrollReveal.ts`** (new) — reusable composable wrapping GSAP ScrollTrigger with three methods:
+  - `revealImmediate(targets, delay?, offsetYFactor?)` — above-fold stagger, no scroll dependency
+  - `revealOnScrollY(targets, triggerEl?)` — bidirectional Y-axis ScrollTrigger (Dashboard)
+  - `revealOnScrollX(target, triggerEl?)` — bidirectional X-axis ScrollTrigger (Spending/history feel)
+  - Auto-cleanup via `onBeforeUnmount`; full `prefersReducedMotion` guard
+- **`DashboardPage.vue`** updated:
+  - Hero KPI card: immediate reveal on mount, 0.6× offset (shorter travel)
+  - KPI stat tiles + Chequing Balance card: immediate stagger at delay 0.15s
+  - Charts row (2-col): ScrollTrigger Y — inner BaseCards stagger as group
+  - Widget row (3-col): ScrollTrigger Y — inner BaseCards stagger as group
+  - Full-width cards (Subscriptions, Credit Cards, Wishlist): each gets its own ScrollTrigger Y
+  - Bidirectional fade-out: top-exit goes upward (−Y×0.5), bottom-exit goes downward (+Y)
+- **`SpendingPage.vue`** updated:
+  - KPI tiles row: immediate stagger (above fold)
+  - Charts row (conditional on data): slide-in from right via ScrollTrigger X
+  - Purchases table card: slide-in from right via ScrollTrigger X
+- **`tests/setup.ts`**: added global `gsap/ScrollTrigger` mock so pages rendering in jsdom never crash
+- **`tests/composables/useScrollReveal.spec.ts`** (new) — 23 tests covering the full composable API
+- **Ease**: `back.out` (springy settle, user-approved from demo)
+- **Settings**: duration 0.5s, stagger 0.08s, offsetY 24px, offsetX 48px, outDuration 0.3s
 
 ### Tests
 
-- Assert `ScrollTrigger.create` called once per period card
-- Assert all ScrollTrigger instances killed on component unmount
+- 23 new tests in `useScrollReveal.spec.ts`
+- All 1440 tests pass; zero `vue-tsc` errors

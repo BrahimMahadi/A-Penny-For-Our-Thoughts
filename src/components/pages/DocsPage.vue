@@ -341,6 +341,23 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.44.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              GSAP ScrollTrigger scroll reveal — bidirectional fade-in animations for Dashboard and Spending tab
+            </p>
+            <ul class="docs-list">
+              <li><strong>Dashboard scroll reveal.</strong> Every section below the fold fades and rises from 24 px as it enters the viewport, using a springy <code>back.out</code> ease. The hero KPI card and stat tiles animate immediately on mount (no scroll required).</li>
+              <li><strong>Bidirectional fade-out.</strong> Sections also fade out as they leave the viewport — upward exit on top, downward exit on bottom — so the dashboard always feels alive while you scroll.</li>
+              <li><strong>Spending tab slide-in.</strong> Charts row and purchases card slide in from the right (48 px X offset), giving the history view a distinct horizontal feel separate from the vertical dashboard flow.</li>
+              <li><strong>Reduced-motion safe.</strong> All scroll animations are completely skipped when <code>prefers-reduced-motion: reduce</code> is active in the OS/browser accessibility settings.</li>
+              <li><strong>1440 tests across 46 spec files.</strong> New <code>useScrollReveal.spec.ts</code> adds 23 tests covering the composable API, config overrides, callbacks, and cleanup.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.43.0</span>
               <span class="release-date">June 2026</span>
             </div>

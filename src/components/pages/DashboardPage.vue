@@ -36,7 +36,10 @@ import { useBudgetStore } from '@/stores/budget';
 import { useAnalytics }  from '@/composables/useAnalytics';
 import { useToast }      from '@/composables/useToast';
 import { useGsap, prefersReducedMotion } from '@/composables/useGsap';
+import { useScrollReveal } from '@/composables/useScrollReveal';
 import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+gsap.registerPlugin(ScrollTrigger);
 import { useFlipIndicator }   from '@/composables/useFlipIndicator';
 import { useCountUp }         from '@/composables/useCountUp';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
@@ -67,6 +70,7 @@ const ui     = useUiStore();
 const budget = useBudgetStore();
 const toast  = useToast();
 const { from: gsapFrom } = useGsap();
+const { revealImmediate, revealOnScrollY } = useScrollReveal();
 const {
   totalMonthlyIncome,
   currentMonthBudgeted,
@@ -406,20 +410,42 @@ const dashboardRef = ref<HTMLElement | null>(null);
 const animHeroRemaining = useCountUp(computed(() => Math.abs(heroRemaining.value)));
 
 onMounted(() => {
-  // Stagger all section cards up from y:18 so the dashboard "builds" in
-  // rather than appearing all at once.
   nextTick(() => {
-    const cards = dashboardRef.value?.querySelectorAll<HTMLElement>('.base-card');
-    if (cards?.length) {
-      gsapFrom(Array.from(cards), {
-        y: 18,
-        opacity: 0,
-        duration: 0.38,
-        ease: 'power2.out',
-        stagger: 0.055,
-        clearProps: 'opacity,y,transform',
-      });
+    const root = dashboardRef.value;
+    if (!root) return;
+
+    // ── 1. Hero KPI card — immediate, shorter travel distance ──────────────
+    const hero = root.querySelector<HTMLElement>('.kpi-hero');
+    if (hero) revealImmediate([hero], 0.05, 0.6);
+
+    // ── 2. KPI cards + Chequing Balance card — immediate stagger ──────────
+    const kpiItems = Array.from(
+      root.querySelectorAll<HTMLElement>('.kpi-card, .kpi-row > .base-card'),
+    );
+    if (kpiItems.length) revealImmediate(kpiItems, 0.15);
+
+    // ── 3. Charts row — ScrollTrigger on the row, animate inner cards ──────
+    const chartsRow = root.querySelector<HTMLElement>('.dash-charts-row');
+    if (chartsRow) {
+      const chartsCards = Array.from(chartsRow.querySelectorAll<HTMLElement>('.base-card'));
+      revealOnScrollY(chartsCards.length ? chartsCards : [chartsRow], chartsRow);
     }
+
+    // ── 4. Widget row — ScrollTrigger on the row, animate inner cards ──────
+    const widgetRow = root.querySelector<HTMLElement>('.dash-widget-row');
+    if (widgetRow) {
+      const widgetCards = Array.from(widgetRow.querySelectorAll<HTMLElement>('.base-card'));
+      revealOnScrollY(widgetCards.length ? widgetCards : [widgetRow], widgetRow);
+    }
+
+    // ── 5. Full-width cards (Subscriptions, Credit Cards, Wishlist) ─────────
+    // Direct children of .page-dashboard that are .base-card
+    const fullWidthCards = Array.from(
+      root.querySelectorAll<HTMLElement>(':scope > .base-card'),
+    );
+    fullWidthCards.forEach(card => revealOnScrollY([card]));
+
+    ScrollTrigger.refresh();
   });
 });
 </script>
