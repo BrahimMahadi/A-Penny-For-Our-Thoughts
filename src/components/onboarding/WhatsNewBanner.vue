@@ -22,15 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.42.0';
+const APP_VERSION = '2.43.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '✨', text: 'New purchase animations — adding a purchase flows existing rows down while the new entry flies in from above; deleting fades and shrinks the row before the list closes the gap' },
-  { icon: '💡', text: 'Dashboard quick-add confirmation — the "Available to Spend" amount pulses when you log a purchase from the hero card' },
-  { icon: '↕️', text: 'Drag-to-reorder income streams — grab the ⠿ handle to reorder; order persists to the cloud (v2.41.0)' },
-  { icon: '💾', text: 'Windfall income persists to the cloud across sign-out (v2.39.0)' },
+  { icon: '↔️', text: 'Swipe to navigate on mobile — swipe left/right to switch tabs with a smooth horizontal slide; desktop sidebar clicks now use a vertical slide to match the sidebar layout' },
+  { icon: '✨', text: 'GSAP Observer replaces raw touch listeners for better swipe recognition — diagonal gestures and micro-movements no longer trigger accidental tab switches' },
+  { icon: '🎞️', text: 'Tab transitions updated to 0.28s / 52px — matches the smoothness tuned in the live demo (v2.42.0 purchase animations used the same timing)' },
+  { icon: '↕️', text: 'Drag-to-reorder income streams — grab the ⠿ handle; order persists to the cloud (v2.41.0)' },
 ];
 
 const budget = useBudgetStore();

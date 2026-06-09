@@ -341,6 +341,23 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.43.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              GSAP Observer swipe navigation — dual-axis tab transitions for desktop and mobile
+            </p>
+            <ul class="docs-list">
+              <li><strong>Swipe to navigate on mobile.</strong> Swipe left or right on the content area to move between tabs. GSAP Observer replaces the previous raw touch-event listener with built-in tolerance, axis-locking, and a 40 px drag minimum — diagonal gestures and micro-movements no longer trigger accidental switches.</li>
+              <li><strong>Vertical slide on desktop.</strong> Clicking a sidebar tab now animates vertically (up/down) to match the sidebar's layout axis. Clicking a tab below the current one brings the new page in from below; clicking above brings it in from the top.</li>
+              <li><strong>Horizontal slide on mobile.</strong> All mobile navigation — swipe gestures and BottomNav taps — uses the existing left/right slide so the motion matches the gesture direction.</li>
+              <li><strong>Timing tuned to 0.28 s / 52 px.</strong> Matches the values approved in the interactive demo before implementation.</li>
+              <li><strong>1417 tests across 45 spec files.</strong></li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.42.0</span>
               <span class="release-date">June 2026</span>
             </div>

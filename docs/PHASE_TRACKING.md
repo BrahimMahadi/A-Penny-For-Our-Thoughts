@@ -1740,7 +1740,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | GSAP-SPLITTEXT | GSAP SplitText animated tab/page headings on navigation. Each page heading splits into individual characters that cascade in with a per-char stagger (~30ms) and autoAlpha fade when switching tabs. KPI category labels ("Needs", "Wants", "Savings") get the same treatment on first load. | `feat/gsap-splittext-headings` | ⏸ Deferred | v2.40.0 |
 | GSAP-DRAGGABLE-REORDER | GSAP Draggable + Flip drag-to-reorder for income streams and subscriptions. Draggable handles the drag gesture; Flip.getState() + Flip.from() animate the list items flowing to their new positions in real time. Dragged row scales up with a drop shadow while in-flight; sibling rows stagger-animate around it. | `feat/gsap-draggable-reorder` | ✅ Complete | v2.41.0 |
 | GSAP-FLIP-LOG-PURCHASE | GSAP Flip "log purchase" form-to-list morph. On quick-add submission, Flip.getState() captures the target row's resting position, the item is added to the store, then Flip.from() animates the row morphing from the submit button position into the purchases list — a "receipt printing" effect. Reversed on delete: row Flips toward the trash icon before leaving. | `feat/gsap-flip-log-purchase` | ✅ Complete | v2.42.0 |
-| GSAP-OBSERVER-SWIPE | GSAP Observer swipe-to-navigate between tabs on mobile. Observer detects horizontal swipe velocity/direction across the full viewport; swipe left = next tab, right = previous tab. Simultaneously drives the existing Flip sidebar indicator via useFlipIndicator. Respects dragMinimum threshold to prevent accidental triggers on scroll. | `feat/gsap-observer-swipe` | 🔲 Planned | v2.43.0 |
+| GSAP-OBSERVER-SWIPE | GSAP Observer swipe-to-navigate. Horizontal swipe on mobile switches tabs; desktop sidebar clicks use a vertical slide. Replaces raw useSwipe touch listeners with GSAP Observer (lockAxis, dragMinimum 40px, tolerance 12px). Tab transitions updated to 0.28s / 52px, dual-axis CSS transitions. | `feat/gsap-observer-swipe` | ✅ Complete | v2.43.0 |
 | GSAP-SCROLLTRIGGER-HISTORY | GSAP ScrollTrigger spending history timeline reveal. Each archived period card staggers in from the right (x: 40→0, autoAlpha) as it enters the viewport. Advanced option: pin the History section header while cards scroll up behind it, with velocity-based snap-to-period on release. | `feat/gsap-scrolltrigger-history` | 🔲 Planned | v2.44.0 |
 
 ---
@@ -4583,27 +4583,48 @@ Purchase rows previously snapped in and out instantly. Adding a Flip animation f
 
 ---
 
-## GSAP-OBSERVER-SWIPE — Swipe-to-navigate between tabs (mobile) 🔲
+## GSAP-OBSERVER-SWIPE — Dual-axis tab transitions (mobile swipe + desktop vertical) ✅
 
 **Branch**: `feat/gsap-observer-swipe`
-**Status**: 🔲 **PLANNED** — June 2026
+**Status**: ✅ **COMPLETE** — June 2026
 **Version**: v2.43.0 (MINOR — new user-facing interaction)
 
 ### Motivation
 
-On mobile, the sidebar is hidden and tab switching requires tapping the hamburger/bottom nav. Horizontal swipe is the natural mobile navigation gesture and makes the app feel native rather than web-wrapped. Observer is the cleanest GSAP tool for this — it normalises mouse/touch/pointer events, provides velocity data, and doesn't interfere with vertical scroll.
+The tab transition used a single horizontal slide for all navigation. On desktop, the sidebar is vertical — a vertical page transition is more spatially coherent. On mobile, horizontal swipes are the natural gesture. This sprint delivers both, with GSAP Observer providing better touch recognition than the previous raw `touchstart`/`touchend` approach.
 
-### Planned scope
+### Delivered scope
 
-- **`src/composables/useSwipeNav.ts`** (new) — registers an `Observer` instance on the app root. `onLeft` / `onRight` callbacks fire only when `Math.abs(deltaX) > Math.abs(deltaY)` (horizontal intent) and `dragMinimum: 30px` is cleared. Emits a `navigate` event with direction; the caller advances or retreats the active tab in the `TabId` order.
-- **`App.vue`** — consumes `useSwipeNav`, updates `activeTab`, which already drives `useFlipIndicator` for the sidebar pill — the swipe and the indicator are automatically in sync.
-- Desktop: Observer still registered but `type: 'touch'` only — no mouse swipe on desktop to avoid conflicting with chart interactions.
-- `prefers-reduced-motion`: tab changes still trigger (navigation is functional), but the page transition animation duration is set to 0.
+- **`src/composables/useGsapObserver.ts`** (new) — wraps `Observer.create()` with `type: 'touch'`, `lockAxis: true`, `dragMinimum: 40`, `tolerance: 12`. Accepts `onSwipeLeft` / `onSwipeRight` callbacks. Watches a `Ref<HTMLElement | null>`, attaches on mount, kills on unmount via `onBeforeUnmount`.
+- **`App.vue`** — replaced `useSwipe` with `useGsapObserver` for the app-level swipe detection. Added `tabNavAxis = ref<'x' | 'y'>('y')`. The existing `watch` on `ui.activeTab` now auto-detects axis from `window.innerWidth` (≤768px → `'x'`, >768px → `'y'`). `tabTransitionName` computed incorporates the axis: `tab-{fwd|bwd}-{x|y}`.
+- **CSS transitions** — renamed from `tab-fwd`/`tab-bwd` to four named transitions: `tab-fwd-x`, `tab-bwd-x` (horizontal, 52px), `tab-fwd-y`, `tab-bwd-y` (vertical, 52px). Timing updated from 0.18s/20px to 0.28s/52px (approved from demo).
+- Desktop sidebar clicks → `'y'` (vertical). BottomNav taps → `'x'` (horizontal, auto-detected). Swipes → `'x'` (via Observer). Keyboard shortcuts → `'y'` on desktop, `'x'` on mobile.
+- `prefers-reduced-motion`: CSS `transition: none` on all four active/leave classes.
+
+### Decision log
+
+- **`useSwipe` retained** — not deleted; may be used by other consumers in the future. `useGsapObserver` is a new composable alongside it.
+- **`lockAxis: true` instead of `axis: 'x'`** — `axis` is not in `ObserverVars` TypeScript interface (it's a readonly instance property). `lockAxis: true` achieves the same effect (prevents diagonal swipes from triggering callbacks).
+- **Auto-detect axis in watch, not in Observer callback** — sidebar clicks and BottomNav taps call `ui.setActiveTab()` directly without going through our code; the watch fires for all navigation and reads `window.innerWidth` at that moment, so all three paths (swipe, tap, click) get the right axis automatically.
 
 ### Tests
 
-- Unit: `useSwipeNav` emits correct direction for horizontal swipe, ignores vertical swipe
-- Assert `Observer.create` called on mount, destroyed on unmount
+- `tests/composables/useGsapObserver.spec.ts` (new, 10 tests): Observer.create called with correct args, target element passed, `lockAxis: true`, default `dragMinimum`/`tolerance`, custom options, callback wiring (`onLeft`→`onSwipeLeft`, `onRight`→`onSwipeRight`), no-throw on omitted callbacks, `observer.kill()` on unmount, null-ref guard.
+- `tests/components/App.spec.ts` — added `vi.mock('@/composables/useGsapObserver')` to prevent jsdom crash from GSAP Observer internals.
+- **1417 tests across 45 spec files** — all green.
+
+### Files changed
+
+- `src/composables/useGsapObserver.ts` (new)
+- `src/App.vue`
+- `tests/composables/useGsapObserver.spec.ts` (new)
+- `tests/components/App.spec.ts`
+- `src/components/onboarding/WhatsNewBanner.vue`
+- `src/components/pages/DocsPage.vue`
+- `tests/components/onboarding.spec.ts`
+- `tests/components/pages/pages.spec.ts`
+- `docs/PHASE_TRACKING.md`
+- `CLAUDE.md`
 
 ---
 
