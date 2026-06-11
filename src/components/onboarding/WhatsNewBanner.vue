@@ -22,15 +22,14 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.44.1';
+const APP_VERSION = '2.44.2';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🐛', text: 'Fixed: the Dashboard "Purchases This Period" donut now includes your windfall income boost in its budget — it previously showed a smaller budget (and higher used %) than the Spending tab for the same period' },
-  { icon: '📈', text: 'Fixed: the pay-period forecast also includes the windfall boost, so it no longer projects "over budget" when a windfall has covered the extra spending' },
-  { icon: '🤝', text: 'Dashboard donut, hero card, forecast, and Spending tab now all agree on the same envelope budget' },
-  { icon: '🧪', text: '1445 tests across 46 spec files (5 new regression tests for the windfall budget math)' },
+  { icon: '🧹', text: 'Housekeeping: removed sprint demo HTML files from the project root — they were build-time scaffolding and have no purpose once a sprint ships' },
+  { icon: '📋', text: 'Release checklist updated: demo file cleanup is now a mandatory step in the deployment routine (item 8) so demo files never accumulate again' },
+  { icon: '🧪', text: '1445 tests across 46 spec files (unchanged)' },
 ];
 
 const budget = useBudgetStore();
