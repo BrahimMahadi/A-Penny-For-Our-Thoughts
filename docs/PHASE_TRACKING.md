@@ -1743,6 +1743,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | GSAP-OBSERVER-SWIPE | GSAP Observer swipe-to-navigate. Horizontal swipe on mobile switches tabs; desktop sidebar clicks use a vertical slide. Replaces raw useSwipe touch listeners with GSAP Observer (lockAxis, dragMinimum 40px, tolerance 12px). Tab transitions updated to 0.28s / 52px, dual-axis CSS transitions. | `feat/gsap-observer-swipe` | ✅ Complete | v2.43.0 |
 | GSAP-SCROLLTRIGGER-HISTORY | GSAP ScrollTrigger scroll reveal for Dashboard (Y-axis, bidirectional) and Spending tab (X-axis slide-in). New `useScrollReveal` composable with `revealImmediate`, `revealOnScrollY`, `revealOnScrollX`. Hero/KPI above-fold, below-fold sections use ScrollTrigger; `back.out` ease, 0.5s/24px/48px defaults. | `feat/gsap-scrolltrigger-history` | ✅ Complete | v2.44.0 |
 | BUG-033 | Dashboard "Purchases This Period" donut computed its bi-weekly wants/needs budgets without the windfall income boost (`currentPeriodExtraWants`/`Needs`), showing a smaller budget and higher used % than the Spending tab for the same period. Same gap fixed in `getEnvelopeForecast` (pay-period projection). 5 regression tests. | `fix/bug-033-donut-windfall-budget` | ✅ Complete | v2.44.1 |
+| CHORE-DEMO-CLEANUP | Removed accumulated sprint demo/prototype HTML files from project root. Added demo file deletion as item 8 in the mandatory release checklist in `CLAUDE.md` to prevent future accumulation. | `chore/cleanup-demo-files` | ✅ Complete | v2.44.2 |
 
 ---
 
@@ -4722,3 +4723,35 @@ When ONE-TIME-INCOME shipped (v2.37.0), the sweep added `+ currentPeriodExtraWan
 - `tests/components/pages/pages.spec.ts`
 - `docs/PHASE_TRACKING.md`
 - `CLAUDE.md`
+
+---
+
+## CHORE-DEMO-CLEANUP — Sprint demo file removal ✅
+**Branch**: `chore/cleanup-demo-files`  
+**Status**: ✅ **COMPLETE** — June 2026  
+**Version**: v2.44.2 (PATCH — housekeeping, no new user-facing behaviour)
+
+### Motivation
+
+Sprint demo HTML files (`demo-*.html`, comparison files, prototype files) were accumulating in the project root long after their sprints shipped. With no automation to remove them, they became permanent clutter. Four files from two separate sprints (RS-16 and GSAP-SCROLLTRIGGER-HISTORY) had never been deleted.
+
+### Delivered
+
+- Removed `demo-scrolltrigger-history.html` (v2.44.0 sprint demo)
+- Removed `day-detail-comparison.html` (RS-16 sprint comparison)
+- Removed `filter-ui-comparison.html` (RS-16 sprint comparison)
+- Removed `section-nav-prototype.html` (RS-16 sprint prototype)
+- Added item 8 to the mandatory release checklist in `CLAUDE.md`: *"Delete the `demo-<feature-name>.html` file(s) used during the sprint's demo-first gate"* — this makes demo cleanup automatic on every future merge.
+
+### Files changed
+
+- `day-detail-comparison.html` (deleted)
+- `demo-scrolltrigger-history.html` (deleted)
+- `filter-ui-comparison.html` (deleted)
+- `section-nav-prototype.html` (deleted)
+- `CLAUDE.md`
+- `src/components/onboarding/WhatsNewBanner.vue`
+- `src/components/pages/DocsPage.vue`
+- `tests/components/onboarding.spec.ts`
+- `tests/components/pages/pages.spec.ts`
+- `docs/PHASE_TRACKING.md`

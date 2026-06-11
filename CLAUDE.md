@@ -59,6 +59,7 @@ Every time a new version is merged to `main`, ALL of the following must be updat
 5. **`tests/components/pages/pages.spec.ts`** — Update the version sentinel test and regression-guard array to include the new version.
 6. **`tests/components/onboarding.spec.ts`** — Update the two version-pinned WhatsNewBanner tests to the new version string.
 7. **Any other version-bearing docs** (`docs/ARCHITECTURE.md`, `docs/README.md`, etc.) — Update version references as applicable.
+8. **Demo file cleanup** — Delete the `demo-<feature-name>.html` file(s) used during the sprint's demo-first gate. Demo files are disposable scaffolding; once the feature is shipped (or cancelled), they have no further purpose and clutter the project root.
 
 This checklist must be completed in the same commit/PR as the feature work. Never ship to main without completing all items.
 

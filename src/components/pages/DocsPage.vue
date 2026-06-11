@@ -341,6 +341,21 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.44.2</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              Chore — removed sprint demo files; demo cleanup added to mandatory release checklist
+            </p>
+            <ul class="docs-list">
+              <li><strong>Demo file cleanup.</strong> Sprint demo HTML files (<code>demo-scrolltrigger-history.html</code>, <code>day-detail-comparison.html</code>, <code>filter-ui-comparison.html</code>, <code>section-nav-prototype.html</code>) were accumulating in the project root after their sprints shipped. All removed.</li>
+              <li><strong>Release checklist updated.</strong> Deleting the sprint demo file is now item 8 in the mandatory deployment routine in <code>CLAUDE.md</code>, so demos are cleaned up automatically on every future merge.</li>
+              <li><strong>No app changes.</strong> Pure housekeeping — 1445 tests, no behaviour change.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.44.1</span>
               <span class="release-date">June 2026</span>
             </div>
