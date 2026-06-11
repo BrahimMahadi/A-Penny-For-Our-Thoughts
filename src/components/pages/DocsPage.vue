@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.44.1</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              Bug fix — Dashboard donut and pay-period forecast now include the windfall income boost
+            </p>
+            <ul class="docs-list">
+              <li><strong>Donut budget fixed (BUG-033).</strong> The Dashboard "Purchases This Period" donut computed its bi-weekly wants/needs budgets without the windfall (one-time income) boost, so it showed a smaller budget and a higher used-percentage than the Spending tab for the exact same period. Both tabs now use the identical formula.</li>
+              <li><strong>Forecast fixed.</strong> <code>getEnvelopeForecast</code> — the engine behind the pay-period projection — had the same gap and could project "over budget" even when a windfall fully covered the extra spending. It now includes the current period's windfall wants boost.</li>
+              <li><strong>Scope note.</strong> The Wishlist affordability hint and monthly-scope widgets (Recurring Spend, Subscriptions meter) intentionally keep the steady-state budget: a one-time windfall should not inflate future-period planning.</li>
+              <li><strong>1445 tests across 46 spec files.</strong> 5 new regression tests pin the windfall math on the donut (wants + needs) and the forecast (current-period boost counted, prior-period windfall ignored).</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.44.0</span>
               <span class="release-date">June 2026</span>
             </div>

@@ -22,16 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.44.0';
+const APP_VERSION = '2.44.1';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '✨', text: 'Scroll reveal animations — Dashboard sections fade and rise into view as you scroll, with a springy back.out ease; sections also fade out as they leave the viewport' },
-  { icon: '↔️', text: 'Spending tab slide-in — charts and purchases card slide in from the right on scroll, giving the history view a distinct feel from the vertical dashboard flow' },
-  { icon: '🎯', text: 'Above-fold fast start — hero KPI card and stat tiles animate immediately on mount (no scroll required); below-fold content waits until it enters the viewport' },
-  { icon: '♿', text: 'Respects prefers-reduced-motion — all scroll animations are skipped when the OS accessibility setting is active' },
-  { icon: '🧪', text: '1440 tests across 46 spec files (23 new tests for useScrollReveal)' },
+  { icon: '🐛', text: 'Fixed: the Dashboard "Purchases This Period" donut now includes your windfall income boost in its budget — it previously showed a smaller budget (and higher used %) than the Spending tab for the same period' },
+  { icon: '📈', text: 'Fixed: the pay-period forecast also includes the windfall boost, so it no longer projects "over budget" when a windfall has covered the extra spending' },
+  { icon: '🤝', text: 'Dashboard donut, hero card, forecast, and Spending tab now all agree on the same envelope budget' },
+  { icon: '🧪', text: '1445 tests across 46 spec files (5 new regression tests for the windfall budget math)' },
 ];
 
 const budget = useBudgetStore();

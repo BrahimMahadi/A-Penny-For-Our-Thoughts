@@ -1972,6 +1972,78 @@ describe('PurchasesThisPeriod', () => {
     vi.useRealTimers();
     w.unmount();
   });
+
+  // ── BUG-033 — donut budget must include the windfall income boost ──
+  // The Dashboard donut showed a smaller budget (and higher used %) than the
+  // Spending tab for the same period because PurchasesThisPeriod computed its
+  // bi-weekly budgets without currentPeriodExtraWants / currentPeriodExtraNeeds.
+
+  it('BUG-033: wants donut caption includes the windfall wants boost', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    budget.addIncomeStream({ name: 'Salary', amount: 2000, biweekly: false });
+    // Windfall $500 at default 50/30/20 → +$150 to wants
+    budget.addOneTimeIncome({
+      label: 'Bonus', amount: 500, date: '2026-05-20', type: 'bonus',
+      allocation: { needs: 50, wants: 30, savings: 20 },
+    });
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-05-20' });
+
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+
+    // Base wants budget: $2000 × 30% ÷ 2 = $300; with boost → $450.00
+    expect(w.find('.ptp__donut-caption').text()).toContain('$450.00');
+
+    vi.useRealTimers();
+    w.unmount();
+  });
+
+  it('BUG-033: needs donut caption includes the windfall needs boost', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    budget.addIncomeStream({ name: 'Salary', amount: 2000, biweekly: false });
+    // Windfall $500 at default 50/30/20 → +$250 to needs
+    budget.addOneTimeIncome({
+      label: 'Bonus', amount: 500, date: '2026-05-20', type: 'bonus',
+      allocation: { needs: 50, wants: 30, savings: 20 },
+    });
+    budget.addPurchase({ name: 'Groceries', amount: 60, category: 'Groceries', cardId: null, budgetType: 'needs', date: '2026-05-20' });
+
+    const w = mount(PurchasesThisPeriod, {
+      props: { typeFilter: 'needs' },
+      attachTo: document.body,
+    });
+    await nextTick();
+
+    // Base needs budget: $2000 × 50% ÷ 2 = $500; with boost → $750.00
+    expect(w.find('.ptp__donut-caption').text()).toContain('$750.00');
+
+    vi.useRealTimers();
+    w.unmount();
+  });
+
+  it('BUG-033: donut budget matches the Spending tab formula (no windfall → unchanged)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-25T12:00:00'));
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-05-19');
+    budget.addIncomeStream({ name: 'Salary', amount: 2000, biweekly: false });
+    budget.addPurchase({ name: 'Coffee', amount: 5, category: 'Food & Drink', cardId: null, budgetType: 'wants', date: '2026-05-20' });
+
+    const w = mountWith(PurchasesThisPeriod);
+    await nextTick();
+
+    // No windfall: $2000 × 30% ÷ 2 = $300.00 exactly
+    expect(w.find('.ptp__donut-caption').text()).toContain('$300.00');
+
+    vi.useRealTimers();
+    w.unmount();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────
