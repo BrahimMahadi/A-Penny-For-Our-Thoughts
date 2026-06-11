@@ -1742,6 +1742,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | GSAP-FLIP-LOG-PURCHASE | GSAP Flip "log purchase" form-to-list morph. On quick-add submission, Flip.getState() captures the target row's resting position, the item is added to the store, then Flip.from() animates the row morphing from the submit button position into the purchases list — a "receipt printing" effect. Reversed on delete: row Flips toward the trash icon before leaving. | `feat/gsap-flip-log-purchase` | ✅ Complete | v2.42.0 |
 | GSAP-OBSERVER-SWIPE | GSAP Observer swipe-to-navigate. Horizontal swipe on mobile switches tabs; desktop sidebar clicks use a vertical slide. Replaces raw useSwipe touch listeners with GSAP Observer (lockAxis, dragMinimum 40px, tolerance 12px). Tab transitions updated to 0.28s / 52px, dual-axis CSS transitions. | `feat/gsap-observer-swipe` | ✅ Complete | v2.43.0 |
 | GSAP-SCROLLTRIGGER-HISTORY | GSAP ScrollTrigger scroll reveal for Dashboard (Y-axis, bidirectional) and Spending tab (X-axis slide-in). New `useScrollReveal` composable with `revealImmediate`, `revealOnScrollY`, `revealOnScrollX`. Hero/KPI above-fold, below-fold sections use ScrollTrigger; `back.out` ease, 0.5s/24px/48px defaults. | `feat/gsap-scrolltrigger-history` | ✅ Complete | v2.44.0 |
+| BUG-033 | Dashboard "Purchases This Period" donut computed its bi-weekly wants/needs budgets without the windfall income boost (`currentPeriodExtraWants`/`Needs`), showing a smaller budget and higher used % than the Spending tab for the same period. Same gap fixed in `getEnvelopeForecast` (pay-period projection). 5 regression tests. | `fix/bug-033-donut-windfall-budget` | ✅ Complete | v2.44.1 |
 
 ---
 
@@ -4665,3 +4666,51 @@ The dashboard presented all section cards at once with a simple one-shot stagger
 
 - 23 new tests in `useScrollReveal.spec.ts`
 - All 1440 tests pass; zero `vue-tsc` errors
+
+---
+
+## BUG-033 — Dashboard donut & forecast missing the windfall income boost ✅
+
+**Branch**: `fix/bug-033-donut-windfall-budget`
+**Status**: ✅ **COMPLETE** — June 2026
+**Version**: v2.44.1 (PATCH — bug fix, no new user-facing behaviour)
+
+### Symptom
+
+The Dashboard "Purchases This Period" donut showed **108%** ($712.10 / $660.60) while the Spending tab showed **82%** ($712.10 / $868.40) for the exact same period. The ~$207.80 budget difference was the windfall wants boost.
+
+### Root cause
+
+When ONE-TIME-INCOME shipped (v2.37.0), the sweep added `+ currentPeriodExtraWants` / `+ currentPeriodExtraNeeds` to the Dashboard hero, the needs KPI, and the Spending tab — but missed two sites:
+
+1. **`PurchasesThisPeriod.vue`** — `biWeeklyWantsBudget` / `biWeeklyNeedsBudget` computed `income × alloc% ÷ 2` with no boost. Affected the donut used-%, the remaining slice, and the `$spent / $budget` caption.
+2. **`getEnvelopeForecast` (`calculations.ts`)** — the pay-period projection engine (consumed via `useAnalytics.payPeriodForecast`) had the same gap, despite its doc comment promising consistency with the hero KPI. It could project "over budget" even when a windfall fully covered the extra spend.
+
+### Fix
+
+- `PurchasesThisPeriod.vue`: both budget computeds now add the store getters. No `isCurrentPeriod` guard needed — the component is hard-wired to offset 0 where the windfall always applies.
+- `getEnvelopeForecast`: added `oneTimeIncomes` to the state `Pick`, computes `extraWants` from entries whose `periodStart` matches the current period, adds it to the budget. Reordered so `periodStartStr` is resolved before the budget.
+
+### Intentionally NOT changed (scope decision)
+
+- **`Wishlist.vue` affordability hint** — "fits within your bi-weekly wants budget" is a future-period planning estimate; a one-time windfall should not inflate it.
+- **Monthly-scope widgets** (`Subscriptions.vue` sub-budget meter, `RecurringSpend.vue`, `ExpenseCards.vue`, `SpendingAnalytics.vue`, `BudgetAllocation.vue` preview) — these compare against *monthly* budgets; the per-period windfall getters don't map cleanly onto calendar months and these are threshold meters / config previews, not period envelopes.
+
+### Verification
+
+- 5 new regression tests: donut caption includes boost (wants + needs + no-windfall control), forecast includes current-period boost, prior-period windfall ignored. The two windfall donut tests **fail** against the unfixed component (verified via stash).
+- Browser-verified with seeded data reproducing the exact screenshot scenario: Dashboard donut and Spending tab both show 82% / $712.10 of $868.40.
+- All 1445 tests pass; zero `vue-tsc` errors.
+
+### Files changed
+
+- `src/components/sections/PurchasesThisPeriod.vue`
+- `src/utils/calculations.ts`
+- `tests/components/sections/sections.spec.ts`
+- `tests/utils/calculations.spec.ts`
+- `src/components/onboarding/WhatsNewBanner.vue`
+- `src/components/pages/DocsPage.vue`
+- `tests/components/onboarding.spec.ts`
+- `tests/components/pages/pages.spec.ts`
+- `docs/PHASE_TRACKING.md`
+- `CLAUDE.md`

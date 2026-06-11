@@ -901,6 +901,47 @@ describe('getEnvelopeForecast', () => {
     // Only the $50 in-period purchase should count
     expect(result.dailyRate).toBeCloseTo(50 / 7, 4);
   });
+
+  // ── BUG-033 regression ──────────────────────────────────────────
+  it('BUG-033: budget includes the current-period windfall wants boost', () => {
+    // Base budget: 4000 × 30% ÷ 2 = $600. Windfall $500 at 30% wants → +$150 → $750.
+    // Spend $46.50/day → projected $651: "over" without the boost, on-track with it.
+    const today = new Date('2026-05-08T00:00:00');
+    const state = baseState('2026-05-01');
+    state.oneTimeIncomes = [{
+      id: 'w1', label: 'Bonus', amount: 500, date: '2026-05-02', type: 'bonus',
+      allocation: { needs: 50, wants: 30, savings: 20 },
+      periodStart: '2026-05-01', createdAt: '2026-05-02T00:00:00Z',
+    }];
+    state.purchases = [
+      { id: 'p1', name: 'Shopping', amount: 325.5, category: 'Other', cardId: null, budgetType: 'wants', date: '2026-05-04' },
+    ];
+
+    const result = getEnvelopeForecast(state, today);
+
+    expect(result.projectedTotal).toBeCloseTo(651, 1);
+    expect(result.status).toBe('on-track');           // 651 < 0.9 × 750
+    expect(result.projectedOverage).toBeCloseTo(651 - 750, 1);
+  });
+
+  it('BUG-033: windfall from a different period does not boost the forecast budget', () => {
+    // Same windfall but anchored to the PREVIOUS period — must not count.
+    // Projected $651 vs $600 base budget → "over".
+    const today = new Date('2026-05-08T00:00:00');
+    const state = baseState('2026-05-01');
+    state.oneTimeIncomes = [{
+      id: 'w1', label: 'Old Bonus', amount: 500, date: '2026-04-20', type: 'bonus',
+      allocation: { needs: 50, wants: 30, savings: 20 },
+      periodStart: '2026-04-17', createdAt: '2026-04-20T00:00:00Z',
+    }];
+    state.purchases = [
+      { id: 'p1', name: 'Shopping', amount: 325.5, category: 'Other', cardId: null, budgetType: 'wants', date: '2026-05-04' },
+    ];
+
+    const result = getEnvelopeForecast(state, today);
+
+    expect(result.status).toBe('over');               // 651 > 600
+  });
 });
 
 // ─── getSpendingTrend ─────────────────────────────────────────────

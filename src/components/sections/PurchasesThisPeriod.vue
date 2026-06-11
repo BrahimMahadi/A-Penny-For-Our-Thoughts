@@ -39,12 +39,17 @@ const { totalMonthlyIncome } = useAnalytics();
 const today = new Date();
 
 // ─── Bi-weekly budgets ────────────────────────────────────────────
+// BUG-033: must include the windfall (one-time income) boost, exactly like
+// the Dashboard hero and the Spending tab — this component always shows the
+// current period (offset 0), where the windfall always applies.
 const biWeeklyWantsBudget = computed(() =>
-  (totalMonthlyIncome.value * (budget.allocation.wants / 100)) / 2,
+  (totalMonthlyIncome.value * (budget.allocation.wants / 100)) / 2
+  + budget.currentPeriodExtraWants,
 );
 
 const biWeeklyNeedsBudget = computed(() =>
-  (totalMonthlyIncome.value * (budget.allocation.needs / 100)) / 2,
+  (totalMonthlyIncome.value * (budget.allocation.needs / 100)) / 2
+  + budget.currentPeriodExtraNeeds,
 );
 
 const biWeeklyBudget = computed(() =>

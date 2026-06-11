@@ -1550,16 +1550,24 @@ export interface EnvelopeForecast {
 export function getEnvelopeForecast(
   state: Pick<
     BudgetState,
-    'purchases' | 'payStart' | 'incomeStreams' | 'allocation' | 'subscriptions' | 'loans'
+    'purchases' | 'payStart' | 'incomeStreams' | 'allocation' | 'subscriptions' | 'loans' | 'oneTimeIncomes'
   >,
   today: Date = new Date(),
 ): EnvelopeForecast {
   // PERIOD_DAYS imported from @/constants/budget (TECH-DEBT-1)
   const income = getTotalMonthlyIncome(state);
   const wantsRatio = (state.allocation.wants || 0) / 100;
-  const budget = (income * wantsRatio) / 2;
 
   const periodStartStr = getCurrentPeriodStart(state, today);
+
+  // BUG-033: include the windfall (one-time income) wants boost, exactly like
+  // the Dashboard hero KPI and the donut — the forecast is for the current
+  // period, where any logged windfall always applies.
+  const extraWants = (state.oneTimeIncomes ?? [])
+    .filter(i => i.periodStart === periodStartStr)
+    .reduce((sum, i) => sum + i.amount * (i.allocation.wants / 100), 0);
+
+  const budget = (income * wantsRatio) / 2 + extraWants;
 
   if (!periodStartStr || budget <= 0) {
     return {
