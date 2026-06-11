@@ -1737,7 +1737,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | SUBSCRIPTION-FILTER-FIX | Bug fix: Subscriptions category filter left items permanently invisible after switching back to "All categories". Root cause: `extras.css` `animation: listItemIn … fill-mode:both` pre-applied `opacity:0` to `.sub-item` elements; GSAP's `from()` captured that as its "to" value and animated 0→0, leaving items invisible. Fix: `onItemEnter` now sets `el.style.animation = 'none'` before GSAP reads the natural opacity. Leave animation switched to height-collapse approach (avoids multi-item position bug). | `fix/subscription-filter-leave-animation` | ✅ Complete | v2.38.1 |
 | ONE-TIME-INCOME-DB | Bug fix + schema: windfall / one-time income entries were only saved to `localStorage` — they were lost on sign-out or in a new browser. Added `one_time_incomes` Supabase table, RLS policy, `handle_updated_at` trigger, CRUD helpers in `db.ts`, updated `fetch_user_data` RPC, wired `syncDb` in all three store actions (`addOneTimeIncome` / `updateOneTimeIncome` / `deleteOneTimeIncome`), added step 17 to `runMigration`, and `one_time_incomes` to `deleteAllUserData`. | `feat/one-time-income-db-persistence` | ✅ Complete | v2.39.0 |
 | DB-SYNC-POLICY | Chore: formalised the Database Sync Policy (6-item mandatory checklist in CLAUDE.md) + `tests/lib/db-coverage.spec.ts` (35 new tests) that fails if any store entity is missing from `db` or lacks CRUD methods. Prevents the class of oversight that caused the v2.38.x windfall income data-loss bug. | `chore/db-sync-policy-and-coverage-test` | ✅ Complete | v2.39.1 |
-| GSAP-SPLITTEXT | GSAP SplitText animated tab/page headings on navigation. Each page heading splits into individual characters that cascade in with a per-char stagger (~30ms) and autoAlpha fade when switching tabs. KPI category labels ("Needs", "Wants", "Savings") get the same treatment on first load. | `feat/gsap-splittext-headings` | ⏸ Deferred | v2.40.0 |
+| GSAP-SPLITTEXT | GSAP SplitText animated tab/page headings on navigation. Demo built and reviewed (`demo-splittext-headings.html`), then **cancelled** June 2026 — see the detailed entry's decision log. v2.40.0 was reserved for this sprint and never shipped; numbering skips from v2.39.1 to v2.41.0. | `feat/gsap-splittext-headings` (never created) | ❌ Cancelled | — |
 | GSAP-DRAGGABLE-REORDER | GSAP Draggable + Flip drag-to-reorder for income streams and subscriptions. Draggable handles the drag gesture; Flip.getState() + Flip.from() animate the list items flowing to their new positions in real time. Dragged row scales up with a drop shadow while in-flight; sibling rows stagger-animate around it. | `feat/gsap-draggable-reorder` | ✅ Complete | v2.41.0 |
 | GSAP-FLIP-LOG-PURCHASE | GSAP Flip "log purchase" form-to-list morph. On quick-add submission, Flip.getState() captures the target row's resting position, the item is added to the store, then Flip.from() animates the row morphing from the submit button position into the purchases list — a "receipt printing" effect. Reversed on delete: row Flips toward the trash icon before leaving. | `feat/gsap-flip-log-purchase` | ✅ Complete | v2.42.0 |
 | GSAP-OBSERVER-SWIPE | GSAP Observer swipe-to-navigate. Horizontal swipe on mobile switches tabs; desktop sidebar clicks use a vertical slide. Replaces raw useSwipe touch listeners with GSAP Observer (lockAxis, dragMinimum 40px, tolerance 12px). Tab transitions updated to 0.28s / 52px, dual-axis CSS transitions. | `feat/gsap-observer-swipe` | ✅ Complete | v2.43.0 |
@@ -4461,17 +4461,25 @@ Also documents non-standard shapes (`spendingHistory`, `netWorthHistory`), non-p
 
 ---
 
-## GSAP-SPLITTEXT — Animated tab/page headings with SplitText ⏸
+## GSAP-SPLITTEXT — Animated tab/page headings with SplitText ❌
 
-**Branch**: `feat/gsap-splittext-headings`
-**Status**: ⏸ **DEFERRED** — June 2026 (reviewed and skipped; may revisit)
-**Version**: v2.40.0 (MINOR — new user-facing animation)
+**Branch**: `feat/gsap-splittext-headings` (never created — cancelled at the demo gate)
+**Status**: ❌ **CANCELLED** — 2026-06-11 (decision final; demo built and reviewed, implementation declined)
+**Version**: v2.40.0 was reserved for this sprint and never shipped — version numbering skips from v2.39.1 to v2.41.0. Do not reuse v2.40.0.
 
-### Motivation
+### Decision log (why this was cancelled)
+
+- **2026-06-11** — Per the demo-first policy, `demo-splittext-headings.html` was built before any implementation: a 6-tab mock shell where each page heading splits into characters that cascade in on tab switch, with live controls for duration (0.45s), stagger (28ms), Y offset (12px), ease, chars/words split, direction, and overflow clip/visible.
+- After reviewing the demo, **Brahim decided the implementation is no longer necessary** and cancelled the sprint before any app code was written.
+- Context at the time of the decision: the motion system already covers page entrances end-to-end — dual-axis tab transitions slide the whole page on navigation (v2.43.0) and ScrollTrigger reveals animate every section including headers (v2.44.0). A per-character heading animation would layer a third entrance effect onto headings that are already animated twice.
+- **Outcome**: no `useSplitText` composable, no `AnimatedHeading` component, no SplitText plugin registration anywhere in `src/`. The demo file was the only artifact produced; it is not part of the app.
+- If animated headings are ever revisited, start from a fresh demo — the original planned scope below is kept for reference only.
+
+### Motivation (original — for reference)
 
 Tab navigation currently swaps page headings as a plain text swap. SplitText lets each heading's characters cascade in individually, adding editorial polish to what is otherwise an invisible transition. Pairs with the existing `useCountUp` (numbers) to give every tab change a cohesive animated entrance — label text and KPI figures both animate in together.
 
-### Planned scope
+### Planned scope (never implemented)
 
 - **`src/composables/useSplitText.ts`** (new) — thin wrapper around `SplitText.create()` that respects `prefers-reduced-motion` (skips split, jumps to final state), cleans up on unmount, and exposes `chars`, `words`, `lines` refs for use in templates.
 - **`src/components/ui/AnimatedHeading.vue`** (new) — drop-in `<AnimatedHeading>` component that accepts a `text` prop and a `trigger` ref. When `trigger` changes, re-splits and replays the stagger-in. Used on all page headings (Dashboard, Schedule, Spending, Settings, Docs).
