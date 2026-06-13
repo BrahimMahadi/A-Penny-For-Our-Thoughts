@@ -1744,6 +1744,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | GSAP-SCROLLTRIGGER-HISTORY | GSAP ScrollTrigger scroll reveal for Dashboard (Y-axis, bidirectional) and Spending tab (X-axis slide-in). New `useScrollReveal` composable with `revealImmediate`, `revealOnScrollY`, `revealOnScrollX`. Hero/KPI above-fold, below-fold sections use ScrollTrigger; `back.out` ease, 0.5s/24px/48px defaults. | `feat/gsap-scrolltrigger-history` | ✅ Complete | v2.44.0 |
 | BUG-033 | Dashboard "Purchases This Period" donut computed its bi-weekly wants/needs budgets without the windfall income boost (`currentPeriodExtraWants`/`Needs`), showing a smaller budget and higher used % than the Spending tab for the same period. Same gap fixed in `getEnvelopeForecast` (pay-period projection). 5 regression tests. | `fix/bug-033-donut-windfall-budget` | ✅ Complete | v2.44.1 |
 | CHORE-DEMO-CLEANUP | Removed accumulated sprint demo/prototype HTML files from project root. Added demo file deletion as item 8 in the mandatory release checklist in `CLAUDE.md` to prevent future accumulation. | `chore/cleanup-demo-files` | ✅ Complete | v2.44.2 |
+| BUG-034 | Scroll-reveal cards (Subscriptions, Credit Cards, Wishlist) could be stranded invisible after collapsing the widget row above them. Root cause: ScrollTrigger caches positions at measurement time and doesn't refresh on DOM height changes. Fix: ResizeObserver on `document.body` + 150 ms debounced `ScrollTrigger.refresh()` + `onRefresh` self-heal callback. 11 new tests (1456 total). | `fix/bug-034-scrolltrigger-stale-refresh` | ✅ Complete | v2.44.3 |
 
 ---
 
@@ -4750,6 +4751,91 @@ Sprint demo HTML files (`demo-*.html`, comparison files, prototype files) were a
 - `filter-ui-comparison.html` (deleted)
 - `section-nav-prototype.html` (deleted)
 - `CLAUDE.md`
+- `src/components/onboarding/WhatsNewBanner.vue`
+- `src/components/pages/DocsPage.vue`
+- `tests/components/onboarding.spec.ts`
+- `tests/components/pages/pages.spec.ts`
+- `docs/PHASE_TRACKING.md`
+
+---
+
+## BUG-034 — Scroll-reveal cards stranded invisible after widget row collapse ✅
+**Branch**: `fix/bug-034-scrolltrigger-stale-refresh`  
+**Status**: ✅ **COMPLETE** — June 2026  
+**Version**: v2.44.3 (PATCH — bug fix, no new user-facing behaviour)
+
+### Problem
+
+On the Dashboard, collapsing the Recurring Spend, Loan Payoff, or Savings Accounts cards (the "widget row") caused the Subscriptions, Credit Cards, and Wishlist cards below to become invisible — either failing to animate in at all, or only revealing partway through if the user scrolled far enough.
+
+### Root cause
+
+GSAP ScrollTrigger caches `start` and `end` scroll positions at creation time and only recalculates on `window.resize` — not on DOM height changes. Two failure modes:
+
+1. **Stale `start` fires too late.** After collapse the page shrinks, moving sections upward. The trigger still thinks Subscriptions starts at the old (lower) position, so the section enters the viewport without ever firing `onEnter`.
+2. **Stale `onLeave` fades the card out.** The stale `end` position can fall inside the viewport, causing `onLeave` while the card is still on-screen. Since `onEnterBack`'s stale trigger end is also unreachable, the card is stuck faded out.
+
+The same staleness occurred on initial page load: Chart.js renders canvases asynchronously after mount, so the `ScrollTrigger.refresh()` in `onMounted` fired before charts filled their space — leaving positions off by 2000+ px.
+
+### Fix — `src/composables/useScrollReveal.ts`
+
+**1. ResizeObserver + debounced refresh**
+
+```typescript
+let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleRefresh(): void {
+  if (refreshTimer !== null) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => {
+    ScrollTrigger.refresh();
+    refreshTimer = null;
+  }, 150);
+}
+
+const resizeObserver =
+  !prefersReducedMotion() && typeof ResizeObserver !== 'undefined'
+    ? new ResizeObserver(scheduleRefresh)
+    : null;
+
+resizeObserver?.observe(document.body);
+```
+
+Any height change on `document.body` (collapse, expand, async chart render) debounces to a single `ScrollTrigger.refresh()` after 150 ms of settling.
+
+**2. `onRefresh` self-heal callback**
+
+```typescript
+onRefresh(self) {
+  if (self.isActive) {
+    gsap.set(targets, { opacity: 1, y: 0 });
+  } else if ((self.progress as number) >= 1 && cfg.fadeOut) {
+    gsap.set(targets, { opacity: 0, y: -(cfg.offsetY * 0.5) });
+  }
+  // progress === 0: still below viewport → keep initial hidden state
+},
+```
+
+After every `refresh()`, each trigger snaps its element to the correct visual state based on true scroll position.
+
+**3. Cleanup in `killAll()`**
+
+```typescript
+resizeObserver?.disconnect();
+if (refreshTimer !== null) { clearTimeout(refreshTimer); refreshTimer = null; }
+```
+
+### Verification
+
+- **Browser:** Trigger position 0 px error on fresh page load (was 2681 px before fix).
+- **Unit tests:** 34 tests total (11 new) — ResizeObserver wiring, debounce (3 rapid events → 1 refresh), `onRefresh` in all 3 states, cleanup on unmount / `killAll`.
+- **jsdom stub** added in `tests/setup.ts` so no-op `ResizeObserver` doesn't throw in component tests.
+
+### Files changed
+
+- `src/composables/useScrollReveal.ts`
+- `tests/composables/useScrollReveal.spec.ts`
+- `tests/setup.ts`
+- `CLAUDE.md` (test count + Gotchas entry)
 - `src/components/onboarding/WhatsNewBanner.vue`
 - `src/components/pages/DocsPage.vue`
 - `tests/components/onboarding.spec.ts`

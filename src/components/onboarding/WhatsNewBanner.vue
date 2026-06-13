@@ -22,14 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.44.2';
+const APP_VERSION = '2.44.3';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🧹', text: 'Housekeeping: removed sprint demo HTML files from the project root — they were build-time scaffolding and have no purpose once a sprint ships' },
-  { icon: '📋', text: 'Release checklist updated: demo file cleanup is now a mandatory step in the deployment routine (item 8) so demo files never accumulate again' },
-  { icon: '🧪', text: '1445 tests across 46 spec files (unchanged)' },
+  { icon: '🐛', text: 'BUG-034 fixed: scroll-reveal cards (Subscriptions, Credit Cards, Wishlist) no longer get stranded invisible after collapsing the widget row above them' },
+  { icon: '⚡', text: 'useScrollReveal now watches document.body for height changes via ResizeObserver and debounces a ScrollTrigger.refresh() — catches card collapse, expand, and async Chart.js renders' },
+  { icon: '🔧', text: 'onRefresh self-heal: after positions recalculate, every trigger snaps elements to the correct visible/hidden state based on their true scroll position' },
+  { icon: '🧪', text: '1456 tests across 46 spec files — 11 new tests cover ResizeObserver wiring, debounce, onRefresh logic for all 3 scroll states' },
 ];
 
 const budget = useBudgetStore();

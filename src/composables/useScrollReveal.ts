@@ -2,6 +2,7 @@
  * Module:   composables/useScrollReveal.ts
  * Project:  A Penny For Our Thoughts
  * Created:  June 2026 (v2.44.0 — GSAP ScrollTrigger scroll animations)
+ * Updated:  June 2026 (v2.44.3 — BUG-034: stale trigger positions after layout shift)
  * Summary:  Wraps GSAP ScrollTrigger to deliver bidirectional scroll-reveal
  *           animations with a single consistent design language:
  *             - Y-axis: sections fade + rise from below (Dashboard)
@@ -20,6 +21,17 @@
  *                                      they leave the viewport in any direction)
  *             outEase  : power2.in    (sharper ease for the exit direction)
  *             outDur   : 0.3 s
+ *
+ *           BUG-034 self-healing:
+ *             ScrollTrigger caches trigger positions at measurement time and
+ *             only re-measures on window resize — NOT on DOM height changes
+ *             (card collapse/expand, async chart sizing, etc.). Two mechanisms
+ *             fix this:
+ *             1. ResizeObserver on document.body — debounced 150 ms, calls
+ *                ScrollTrigger.refresh() after any content-height change.
+ *             2. onRefresh callback on every trigger — after positions are
+ *                recalculated, snaps the element's visual state to match its
+ *                true scroll position so no card can be stranded invisible.
  *
  * Usage:
  *   const { revealImmediate, revealOnScrollY, revealOnScrollX, killAll } =
@@ -80,6 +92,31 @@ export function useScrollReveal(config: ScrollRevealConfig = {}) {
 
   /** All ScrollTrigger instances created by this composable instance. */
   const triggers: ScrollTrigger[] = [];
+
+  // ── BUG-034: ResizeObserver + debounced refresh ───────────────────────────
+  // ScrollTrigger caches scroll positions at measurement time. DOM height
+  // changes (card collapse, async charts) are not detected automatically —
+  // only window resize triggers a recalculation. We watch document.body and
+  // schedule a refresh whenever its height changes.
+
+  let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function scheduleRefresh(): void {
+    if (refreshTimer !== null) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      ScrollTrigger.refresh();
+      refreshTimer = null;
+    }, 150);
+  }
+
+  // Guard: skip observer in reduced-motion mode (no triggers will be created)
+  // and in environments without ResizeObserver (jsdom in tests).
+  const resizeObserver =
+    !prefersReducedMotion() && typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(scheduleRefresh)
+      : null;
+
+  resizeObserver?.observe(document.body);
 
   // ── Immediate (above-fold) reveal ─────────────────────────────────────────
 
@@ -182,6 +219,20 @@ export function useScrollReveal(config: ScrollRevealConfig = {}) {
           overwrite: 'auto',
         });
       },
+
+      // BUG-034: After ScrollTrigger recalculates positions, snap each element
+      // to the state matching its true scroll position. Prevents cards being
+      // stranded invisible when a layout shift (collapse, async chart) moved
+      // them relative to where the trigger was originally measured.
+      onRefresh(self) {
+        if (self.isActive) {
+          gsap.set(targets, { opacity: 1, y: 0 });
+        } else if ((self.progress as number) >= 1 && cfg.fadeOut) {
+          // Scrolled past — match the onLeave exit state
+          gsap.set(targets, { opacity: 0, y: -(cfg.offsetY * 0.5) });
+        }
+        // progress === 0: still below viewport → keep initial hidden state
+      },
     });
 
     triggers.push(st);
@@ -252,6 +303,16 @@ export function useScrollReveal(config: ScrollRevealConfig = {}) {
           overwrite: 'auto',
         });
       },
+
+      // BUG-034: self-heal after positions are recalculated (see Y-axis note above)
+      onRefresh(self) {
+        if (self.isActive) {
+          gsap.set(target, { opacity: 1, x: 0 });
+        } else if ((self.progress as number) >= 1 && cfg.fadeOut) {
+          gsap.set(target, { opacity: 0, x: -(cfg.offsetX * 0.4) });
+        }
+        // progress === 0: still below viewport → keep initial hidden state
+      },
     });
 
     triggers.push(st);
@@ -260,13 +321,19 @@ export function useScrollReveal(config: ScrollRevealConfig = {}) {
   // ── Cleanup ───────────────────────────────────────────────────────────────
 
   /**
-   * Kill all ScrollTrigger instances created by this composable.
-   * Called automatically on `onBeforeUnmount`; can also be called manually
-   * (e.g. when the page re-renders for a new period and triggers need reset).
+   * Kill all ScrollTrigger instances, disconnect the ResizeObserver, and
+   * cancel any pending debounced refresh. Called automatically on
+   * `onBeforeUnmount`; can also be called manually (e.g. when the page
+   * re-renders for a new period and triggers need reset).
    */
   function killAll(): void {
     triggers.forEach(t => t.kill());
     triggers.length = 0;
+    resizeObserver?.disconnect();
+    if (refreshTimer !== null) {
+      clearTimeout(refreshTimer);
+      refreshTimer = null;
+    }
   }
 
   onBeforeUnmount(killAll);

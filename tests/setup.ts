@@ -100,3 +100,16 @@ vi.mock('gsap/ScrollTrigger', () => ({
     kill:    vi.fn(),
   },
 }));
+
+// ─── ResizeObserver stub ──────────────────────────────────────────────────────
+// jsdom does not implement ResizeObserver. Provide a no-op global stub so
+// useScrollReveal's BUG-034 observer doesn't throw in any test that renders
+// components using the composable. useScrollReveal.spec.ts overrides this
+// with a detailed mock in its own beforeEach to test wiring behaviour.
+if (typeof global.ResizeObserver === 'undefined') {
+  global.ResizeObserver = vi.fn(() => ({
+    observe:    vi.fn(),
+    disconnect: vi.fn(),
+    unobserve:  vi.fn(),
+  })) as unknown as typeof ResizeObserver;
+}

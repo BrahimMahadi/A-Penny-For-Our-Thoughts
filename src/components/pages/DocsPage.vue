@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.44.3</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              Bug fix — scroll-reveal cards no longer get stranded invisible after collapsing the widget row (BUG-034)
+            </p>
+            <ul class="docs-list">
+              <li><strong>Root cause (BUG-034).</strong> GSAP ScrollTrigger caches trigger start/end positions at measurement time and only recalculates on <code>window.resize</code> — NOT on DOM height changes. Collapsing the Recurring Spend, Loan Payoff, or Savings Accounts cards above the Subscriptions row shrank the page, but the triggers kept the old positions. Cards could enter the viewport invisibly (stale <code>start</code> too far down), or exit instantly via a stale <code>onLeave</code> while still on-screen.</li>
+              <li><strong>ResizeObserver + debounced refresh.</strong> <code>useScrollReveal</code> now observes <code>document.body</code> for height changes. Any collapse, expand, or async chart render fires <code>ScrollTrigger.refresh()</code> after a 150 ms debounce, recalculating all trigger positions with the true DOM state.</li>
+              <li><strong>onRefresh self-heal.</strong> Every ScrollTrigger now has an <code>onRefresh</code> callback. After positions are recalculated, it snaps each element to the state matching its true scroll position: visible if currently in-viewport, faded-out if scrolled past, hidden if still below fold.</li>
+              <li><strong>1456 tests across 46 spec files.</strong> 11 new tests cover ResizeObserver wiring, debounce (3 rapid events → 1 refresh), <code>onRefresh</code> in all 3 states (active / scrolled-past / below fold), and cleanup on unmount.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.44.2</span>
               <span class="release-date">June 2026</span>
             </div>
