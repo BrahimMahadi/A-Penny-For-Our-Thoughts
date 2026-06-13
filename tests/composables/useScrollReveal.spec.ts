@@ -2,6 +2,7 @@
  * Module:   tests/composables/useScrollReveal.spec.ts
  * Project:  A Penny For Our Thoughts
  * Created:  June 2026 (v2.44.0 — GSAP ScrollTrigger scroll animations)
+ * Updated:  June 2026 (v2.44.3 — BUG-034: ResizeObserver + onRefresh self-heal)
  * Summary:  Tests for the useScrollReveal composable.
  *
  *           GSAP ScrollTrigger requires real layout APIs (scroll position,
@@ -12,9 +13,12 @@
  *             - gsap.set() is called with the correct hidden initial state
  *             - Callbacks (onEnter, onLeave, onEnterBack, onLeaveBack) fire
  *               the right gsap.to() calls with correct parameters
+ *             - onRefresh self-heals element state after positions recalculate
  *             - fadeOut:false skips the leave callbacks
  *             - prefersReducedMotion guard skips all animations
- *             - killAll() / onBeforeUnmount kill every trigger
+ *             - ResizeObserver watches document.body and debounces refresh calls
+ *             - killAll() / onBeforeUnmount kill every trigger and disconnect
+ *               the ResizeObserver
  *             - null / empty guard: no crash on missing elements
  */
 
@@ -105,6 +109,12 @@ describe('useScrollReveal', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let wrapper: any;
 
+  // ResizeObserver mock — freshly created each test so capturedROCallback
+  // is scoped to the test that sets up the composable.
+  let capturedROCallback: ResizeObserverCallback | null;
+  let mockROObserve: ReturnType<typeof vi.fn>;
+  let mockRODisconnect: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
     mockStCreate.mockClear();
     mockStKill.mockClear();
@@ -113,11 +123,23 @@ describe('useScrollReveal', () => {
     mockGsapTo.mockClear();
     mockGsapFromTo.mockClear();
     mockPrefersReducedMotion.mockReturnValue(false);
+
+    capturedROCallback = null;
+    mockROObserve    = vi.fn();
+    mockRODisconnect = vi.fn();
+
+    // Override the global stub from setup.ts with a spy that captures
+    // the ResizeObserver callback so individual tests can trigger it.
+    global.ResizeObserver = vi.fn((cb: ResizeObserverCallback) => {
+      capturedROCallback = cb;
+      return { observe: mockROObserve, disconnect: mockRODisconnect, unobserve: vi.fn() };
+    }) as unknown as typeof ResizeObserver;
   });
 
   afterEach(() => {
     wrapper?.unmount();
     document.body.innerHTML = '';
+    vi.useRealTimers();
   });
 
   // ── revealImmediate ─────────────────────────────────────────────
@@ -365,6 +387,75 @@ describe('useScrollReveal', () => {
     expect(mockGsapSet).not.toHaveBeenCalled();
   });
 
+  // ── revealOnScrollY onRefresh self-heal (BUG-034) ───────────────
+
+  it('revealOnScrollY onRefresh snaps targets to visible when trigger is active', () => {
+    const el = makeEl();
+    const Comp = defineComponent({
+      setup() {
+        const { revealOnScrollY } = useScrollReveal();
+        revealOnScrollY([el]);
+      },
+      template: '<div />',
+    });
+    wrapper = mount(Comp);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { onRefresh } = (mockStCreate.mock.calls as any)[0][0];
+    mockGsapSet.mockClear(); // clear the initial gsap.set from revealOnScrollY
+    onRefresh({ isActive: true, progress: 0.5 });
+
+    expect(mockGsapSet).toHaveBeenCalledOnce();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [targets, vars] = (mockGsapSet.mock.calls as any)[0];
+    expect(targets).toEqual([el]);
+    expect(vars.opacity).toBe(1);
+    expect(vars.y).toBe(0);
+  });
+
+  it('revealOnScrollY onRefresh snaps to faded-out when scrolled past (progress≥1, fadeOut:true)', () => {
+    const el = makeEl();
+    const Comp = defineComponent({
+      setup() {
+        const { revealOnScrollY } = useScrollReveal();
+        revealOnScrollY([el]);
+      },
+      template: '<div />',
+    });
+    wrapper = mount(Comp);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { onRefresh } = (mockStCreate.mock.calls as any)[0][0];
+    mockGsapSet.mockClear();
+    onRefresh({ isActive: false, progress: 1 });
+
+    expect(mockGsapSet).toHaveBeenCalledOnce();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [, vars] = (mockGsapSet.mock.calls as any)[0];
+    expect(vars.opacity).toBe(0);
+    expect(vars.y).toBeLessThan(0); // matches onLeave exit state (negative y)
+  });
+
+  it('revealOnScrollY onRefresh does nothing when below viewport (progress=0)', () => {
+    const el = makeEl();
+    const Comp = defineComponent({
+      setup() {
+        const { revealOnScrollY } = useScrollReveal();
+        revealOnScrollY([el]);
+      },
+      template: '<div />',
+    });
+    wrapper = mount(Comp);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { onRefresh } = (mockStCreate.mock.calls as any)[0][0];
+    mockGsapSet.mockClear();
+    onRefresh({ isActive: false, progress: 0 });
+
+    // No set call — element stays in its initial hidden state (opacity:0, y:offsetY)
+    expect(mockGsapSet).not.toHaveBeenCalled();
+  });
+
   // ── revealOnScrollX ─────────────────────────────────────────────
 
   it('revealOnScrollX calls gsap.set with opacity:0 and x:offsetX', () => {
@@ -464,6 +555,55 @@ describe('useScrollReveal', () => {
     expect(mockStCreate).not.toHaveBeenCalled();
   });
 
+  // ── revealOnScrollX onRefresh self-heal (BUG-034) ───────────────
+
+  it('revealOnScrollX onRefresh snaps target to visible when trigger is active', () => {
+    const el = makeEl();
+    const Comp = defineComponent({
+      setup() {
+        const { revealOnScrollX } = useScrollReveal();
+        revealOnScrollX(el);
+      },
+      template: '<div />',
+    });
+    wrapper = mount(Comp);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { onRefresh } = (mockStCreate.mock.calls as any)[0][0];
+    mockGsapSet.mockClear();
+    onRefresh({ isActive: true, progress: 0.5 });
+
+    expect(mockGsapSet).toHaveBeenCalledOnce();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [target, vars] = (mockGsapSet.mock.calls as any)[0];
+    expect(target).toBe(el);
+    expect(vars.opacity).toBe(1);
+    expect(vars.x).toBe(0);
+  });
+
+  it('revealOnScrollX onRefresh snaps to faded-out when scrolled past (progress≥1, fadeOut:true)', () => {
+    const el = makeEl();
+    const Comp = defineComponent({
+      setup() {
+        const { revealOnScrollX } = useScrollReveal();
+        revealOnScrollX(el);
+      },
+      template: '<div />',
+    });
+    wrapper = mount(Comp);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { onRefresh } = (mockStCreate.mock.calls as any)[0][0];
+    mockGsapSet.mockClear();
+    onRefresh({ isActive: false, progress: 1 });
+
+    expect(mockGsapSet).toHaveBeenCalledOnce();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [, vars] = (mockGsapSet.mock.calls as any)[0];
+    expect(vars.opacity).toBe(0);
+    expect(vars.x).toBeLessThan(0); // matches onLeave exit state (negative x)
+  });
+
   // ── Custom config ───────────────────────────────────────────────
 
   it('uses custom offsetY from config', () => {
@@ -501,6 +641,74 @@ describe('useScrollReveal', () => {
     expect(vars.ease).toBe('power3.out');
   });
 
+  // ── ResizeObserver wiring (BUG-034) ────────────────────────────
+
+  it('creates a ResizeObserver that observes document.body', () => {
+    const el = makeEl();
+    const Comp = defineComponent({
+      setup() {
+        useScrollReveal();
+      },
+      template: '<div />',
+    });
+    wrapper = mount(Comp);
+
+    expect(global.ResizeObserver).toHaveBeenCalledOnce();
+    expect(mockROObserve).toHaveBeenCalledWith(document.body);
+  });
+
+  it('skips ResizeObserver when prefersReducedMotion is true', () => {
+    mockPrefersReducedMotion.mockReturnValue(true);
+    const Comp = defineComponent({
+      setup() {
+        useScrollReveal();
+      },
+      template: '<div />',
+    });
+    wrapper = mount(Comp);
+
+    expect(global.ResizeObserver).not.toHaveBeenCalled();
+  });
+
+  it('debounces multiple resize events into a single ScrollTrigger.refresh()', () => {
+    vi.useFakeTimers();
+    const Comp = defineComponent({
+      setup() {
+        useScrollReveal();
+      },
+      template: '<div />',
+    });
+    wrapper = mount(Comp);
+
+    // Fire 3 resize events in rapid succession
+    capturedROCallback!([], {} as ResizeObserver);
+    capturedROCallback!([], {} as ResizeObserver);
+    capturedROCallback!([], {} as ResizeObserver);
+
+    // No refresh yet — debounce window hasn't elapsed
+    expect(mockStRefresh).not.toHaveBeenCalled();
+
+    // After debounce settles (150 ms)
+    vi.advanceTimersByTime(200);
+    expect(mockStRefresh).toHaveBeenCalledOnce();
+  });
+
+  it('calls ScrollTrigger.refresh once after a single resize event', () => {
+    vi.useFakeTimers();
+    const Comp = defineComponent({
+      setup() {
+        useScrollReveal();
+      },
+      template: '<div />',
+    });
+    wrapper = mount(Comp);
+
+    capturedROCallback!([], {} as ResizeObserver);
+    vi.advanceTimersByTime(200);
+
+    expect(mockStRefresh).toHaveBeenCalledOnce();
+  });
+
   // ── Cleanup ─────────────────────────────────────────────────────
 
   it('killAll kills every ScrollTrigger created', async () => {
@@ -513,6 +721,25 @@ describe('useScrollReveal', () => {
     wrapper = w;
 
     expect(mockStKill).toHaveBeenCalledTimes(2);
+  });
+
+  it('killAll disconnects the ResizeObserver and cancels pending timer', () => {
+    vi.useFakeTimers();
+    const Comp = defineComponent({
+      setup() {
+        const { killAll } = useScrollReveal();
+        // Queue a pending refresh, then kill before it fires
+        capturedROCallback?.([], {} as ResizeObserver);
+        killAll();
+      },
+      template: '<div />',
+    });
+    wrapper = mount(Comp);
+
+    expect(mockRODisconnect).toHaveBeenCalledOnce();
+    // Timer was cancelled — refresh should not fire even after debounce window
+    vi.advanceTimersByTime(300);
+    expect(mockStRefresh).not.toHaveBeenCalled();
   });
 
   it('kills all ScrollTriggers on unmount', async () => {
@@ -532,6 +759,23 @@ describe('useScrollReveal', () => {
     wrapper = null;
 
     expect(mockStKill).toHaveBeenCalledOnce();
+  });
+
+  it('disconnects the ResizeObserver on unmount', async () => {
+    const Comp = defineComponent({
+      setup() {
+        useScrollReveal();
+      },
+      template: '<div />',
+    });
+    wrapper = mount(Comp, { attachTo: document.body });
+    await nextTick();
+
+    expect(mockRODisconnect).not.toHaveBeenCalled();
+    wrapper.unmount();
+    wrapper = null;
+
+    expect(mockRODisconnect).toHaveBeenCalledOnce();
   });
 
   it('does not crash when revealOnScrollY is called with empty array', () => {

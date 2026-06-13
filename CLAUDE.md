@@ -19,7 +19,7 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (1445 tests across 46 spec files)  <!-- v2.44.1 -->
+- Testing: Vitest + @vue/test-utils (1456 tests across 46 spec files)  <!-- v2.44.3 -->
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
@@ -232,6 +232,8 @@ Run through this before opening any PR that touches UI:
 - **`Purchase.date` is optional (`date?: ISODate`).** Always guard with `?? ''` before passing to functions that expect `string`, and use `(a.date ?? '').localeCompare(b.date ?? '')` in sort comparators.
 
 - **`NetWorthData` uses `.netWorth`, not `.current`.** The property that holds the computed net worth scalar is `NetWorthData.netWorth` (same name as the interface). There is no `.current` alias.
+
+- **ScrollTrigger caches scroll positions at measurement time and does NOT auto-refresh on DOM height changes.** Anything that animates element height (card collapse/expand) or renders asynchronously (Chart.js canvases) must end with a `ScrollTrigger.refresh()` call. `useScrollReveal` owns this via a ResizeObserver on `document.body` with a 150 ms debounce — so never create raw ScrollTrigger instances outside that composable. If sections become invisible after collapse/expand, the ResizeObserver → `scheduleRefresh()` → `onRefresh` self-heal path is where to look first (BUG-034).
 
 
 
