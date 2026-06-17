@@ -73,4 +73,17 @@
   /* Fonts */
   --font-sans: var(--font-body);
   --font-mono: var(--font-mono);
+
+  /* Breakpoints (v2.45.3 — Mobile Optimization MOBILE-1) ────────────
+     The 3 canonical tiers for the whole app. These register Tailwind's
+     sm:/md:/lg: variants AND document the convention for hand-written
+     media queries (CSS custom properties can't be used in @media
+     conditions, so the raw `@media (max-width: 768px)` rules must use
+     these exact values — sm 480 / md 768 / lg 1024). The 17 legacy ad-hoc
+     breakpoints are migrated onto these tiers in MOBILE-2. No Tailwind
+     responsive variants are in use today, so overriding sm (640→480) is
+     safe. */
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
 }

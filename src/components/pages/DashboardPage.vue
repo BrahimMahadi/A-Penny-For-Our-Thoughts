@@ -1449,6 +1449,18 @@ onMounted(() => {
   margin: -0.65rem 0 0.75rem;
 }
 
+/* MOBILE-1: tactile press feedback on the type selector + category chips
+   (touch devices have no :hover). The hero toggle uses its Flip indicator
+   for feedback, so it's left out of the squeeze to avoid fighting the slide. */
+.quick-add__type-btn:active,
+.quick-add__cat-btn:active {
+  transform: scale(0.96);
+}
+@media (prefers-reduced-motion: reduce) {
+  .quick-add__type-btn:active,
+  .quick-add__cat-btn:active { transform: none; }
+}
+
 /* ─── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .dash-header {
@@ -1456,9 +1468,33 @@ onMounted(() => {
     align-items: flex-start;
   }
 
+  /* MOBILE-1: stack the primary actions full-width so they're easy thumb
+     targets instead of two cramped, narrow pills. */
   .dash-header__actions {
     width: 100%;
-    justify-content: flex-end;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .dash-header__actions .btn-primary,
+  .dash-header__actions .btn-secondary {
+    width: 100%;
+  }
+
+  /* MOBILE-1: enlarge the toggle + chip hit areas for thumbs.
+     inline-flex centring keeps the label vertically centred at the
+     taller min-height. */
+  .htt-btn {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .quick-add__cat-btn,
+  .quick-add__type-btn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 
