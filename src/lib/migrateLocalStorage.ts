@@ -87,6 +87,7 @@ export async function runMigration(userId: string, state: BudgetState): Promise<
     payStart:                state.payStart,
     fundsRemaining:          state.fundsRemaining ?? 0,
     fundsRemainingUpdated:   state.fundsRemainingUpdated ?? '',
+    displayName:             state.displayName ?? '',
     hasOnboarded:            state.hasOnboarded ?? false,
     dismissedVersion:        state.dismissedVersion ?? null,
   });

@@ -23,6 +23,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import BaseButton from '@/components/ui/BaseButton.vue';
+import ProfileSettings from '@/components/sections/ProfileSettings.vue';
 import BudgetAllocation from '@/components/sections/BudgetAllocation.vue';
 import PayStartDate from '@/components/sections/PayStartDate.vue';
 import RulesEngine from '@/components/sections/RulesEngine.vue';
@@ -138,8 +139,16 @@ function handleClearAll(): void {
     <!-- ── Main two-column grid ──────────────────────────────────── -->
     <div class="settings-main-grid">
 
-      <!-- Left column: Budget Rules + Pay Period -->
+      <!-- Left column: Profile + Budget Rules + Pay Period -->
       <div class="settings-col">
+
+        <div class="settings-panel">
+          <div class="settings-panel__header">
+            <h2 class="settings-panel__title">Your Name</h2>
+            <p class="settings-panel__subtitle">Personalizes your dashboard greeting</p>
+          </div>
+          <ProfileSettings />
+        </div>
 
         <div class="settings-panel">
           <div class="settings-panel__header">

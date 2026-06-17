@@ -190,6 +190,7 @@ describe('migrateIfNeeded', () => {
       dismissedVersion: '1.15.0',
       payStart: '2026-01-15',
       fundsRemaining: 850,
+      displayName: 'Brahim',
     });
     await migrateIfNeeded('uid');
 
@@ -199,6 +200,7 @@ describe('migrateIfNeeded', () => {
       dismissedVersion: '1.15.0',
       payStart: '2026-01-15',
       fundsRemaining: 850,
+      displayName: 'Brahim',
     });
   });
 });

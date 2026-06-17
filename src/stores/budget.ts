@@ -103,6 +103,7 @@ export function makeDefaultState(): BudgetState {
     budgetAlerts: [],
     fundsRemaining: 0,
     fundsRemainingUpdated: '',
+    displayName: '',
     hasOnboarded: false,
     dismissedVersion: null,
     spendingCategories: DEFAULT_SPENDING_CATEGORIES.map(c => ({ ...c })),
@@ -139,6 +140,7 @@ export function makeBlankState(): BudgetState {
     budgetAlerts: [],
     fundsRemaining: 0,
     fundsRemainingUpdated: '',
+    displayName: '',
     hasOnboarded: false,
     dismissedVersion: null,
     spendingCategories: DEFAULT_SPENDING_CATEGORIES.map(c => ({ ...c })),
@@ -262,6 +264,8 @@ export function migrateState(raw: unknown): BudgetState {
   if (!s.budgetAlerts) s.budgetAlerts = [];
   if (s.fundsRemaining === undefined) s.fundsRemaining = 0;
   if (s.fundsRemainingUpdated === undefined) s.fundsRemainingUpdated = '';
+  // Display name (added in v2.45.0 — default to empty string for legacy users)
+  if (typeof s.displayName !== 'string') s.displayName = '';
   if (s.hasOnboarded === undefined) s.hasOnboarded = false;
   if (s.dismissedVersion === undefined) s.dismissedVersion = null;
 
@@ -1683,6 +1687,16 @@ export const useBudgetStore = defineStore('budget', {
       this.fundsRemaining = amount;
       this.fundsRemainingUpdated = asOf;
       syncDb(() => upsertProfile(_userId, { fundsRemaining: amount, fundsRemainingUpdated: asOf }), 'setFundsRemaining');
+    },
+
+    /**
+     * Set the name shown in the dashboard greeting. Trimmed and capped at
+     * 40 chars; an empty/whitespace value clears it back to the bare
+     * "Welcome back" greeting. Persisted as a scalar profile field.
+     */
+    setDisplayName(name: string): void {
+      this.displayName = name.trim().slice(0, 40);
+      syncDb(() => upsertProfile(_userId, { displayName: this.displayName }), 'setDisplayName');
     },
 
     // ─── Onboarding & version ─────────────────────────────────

@@ -109,6 +109,51 @@ describe('budget store — completeOnboarding / dismissWhatsNew', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+//  Budget store — setDisplayName (v2.45.0)
+// ─────────────────────────────────────────────────────────────────
+describe('budget store — displayName', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+
+  it('makeDefaultState seeds displayName as empty string', () => {
+    expect(makeDefaultState().displayName).toBe('');
+  });
+
+  it('makeBlankState seeds displayName as empty string', () => {
+    expect(makeBlankState().displayName).toBe('');
+  });
+
+  it('migrateState back-fills displayName = "" for legacy state without it', () => {
+    const legacy = { ...makeDefaultState() } as Record<string, unknown>;
+    delete legacy.displayName;
+    expect(migrateState(legacy as never).displayName).toBe('');
+  });
+
+  it('migrateState preserves an existing displayName', () => {
+    const s = { ...makeDefaultState(), displayName: 'Brahim' };
+    expect(migrateState(s).displayName).toBe('Brahim');
+  });
+
+  it('setDisplayName stores a trimmed name', () => {
+    const store = useBudgetStore();
+    store.setDisplayName('  Brahim  ');
+    expect(store.displayName).toBe('Brahim');
+  });
+
+  it('setDisplayName caps the name at 40 characters', () => {
+    const store = useBudgetStore();
+    store.setDisplayName('x'.repeat(60));
+    expect(store.displayName).toHaveLength(40);
+  });
+
+  it('setDisplayName with whitespace-only clears the name', () => {
+    const store = useBudgetStore();
+    store.setDisplayName('Brahim');
+    store.setDisplayName('   ');
+    expect(store.displayName).toBe('');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 //  Budget store — isFirstRun getter
 // ─────────────────────────────────────────────────────────────────
 describe('budget store — isFirstRun getter', () => {
@@ -251,6 +296,53 @@ describe('OnboardingModal', () => {
     expect(finishBtn).toBeTruthy();
     expect(finishBtn.disabled).toBe(true);
   });
+
+  // ── v2.45.0: display-name capture on the Welcome step ──
+  it('renders the display-name field on Step 1', async () => {
+    wrapper = mount(OnboardingModal, { attachTo: document.body });
+    await nextTick();
+    expect(document.body.querySelector('#ob-display-name')).not.toBeNull();
+  });
+
+  it('persists the name to the store when leaving the Welcome step', async () => {
+    const store = useBudgetStore();
+    wrapper = mount(OnboardingModal, { attachTo: document.body });
+    await nextTick();
+
+    const nameInput = document.body.querySelector<HTMLInputElement>('#ob-display-name');
+    nameInput!.value = '  Brahim  ';
+    nameInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    await clickBodyButton('Get started →');
+    expect(store.displayName).toBe('Brahim');
+  });
+
+  it('keeps the name even when the user skips the remaining steps', async () => {
+    const store = useBudgetStore();
+    wrapper = mount(OnboardingModal, { attachTo: document.body });
+    await nextTick();
+
+    const nameInput = document.body.querySelector<HTMLInputElement>('#ob-display-name');
+    nameInput!.value = 'Sam';
+    nameInput!.dispatchEvent(new Event('input'));
+    await nextTick();
+
+    await clickBodyButton('Get started →'); // → step 2, name already persisted
+    await clickBodyButton('Skip setup');
+
+    expect(store.displayName).toBe('Sam');
+    expect(wrapper.emitted('done')).toBeTruthy();
+  });
+
+  it('leaves displayName empty when the field is left blank', async () => {
+    const store = useBudgetStore();
+    wrapper = mount(OnboardingModal, { attachTo: document.body });
+    await nextTick();
+
+    await clickBodyButton('Get started →'); // no name entered
+    expect(store.displayName).toBe('');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -280,7 +372,7 @@ describe('WhatsNewBanner', () => {
 
   it('is hidden when dismissedVersion matches APP_VERSION', async () => {
     const store = useBudgetStore();
-    store.dismissWhatsNew('2.44.3');
+    store.dismissWhatsNew('2.45.0');
     wrapper = mount(WhatsNewBanner, { attachTo: document.body });
     await nextTick();
     expect(wrapper.find('.wnb').exists()).toBe(false);
@@ -294,7 +386,7 @@ describe('WhatsNewBanner', () => {
     await wrapper.find('.wnb__close').trigger('click');
     await nextTick();
 
-    expect(store.dismissedVersion).toBe('2.44.3');
+    expect(store.dismissedVersion).toBe('2.45.0');
   });
 
   it('renders all release notes', async () => {

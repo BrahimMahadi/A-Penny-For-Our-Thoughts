@@ -22,15 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.44.3';
+const APP_VERSION = '2.45.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🐛', text: 'BUG-034 fixed: scroll-reveal cards (Subscriptions, Credit Cards, Wishlist) no longer get stranded invisible after collapsing the widget row above them' },
-  { icon: '⚡', text: 'useScrollReveal now watches document.body for height changes via ResizeObserver and debounces a ScrollTrigger.refresh() — catches card collapse, expand, and async Chart.js renders' },
-  { icon: '🔧', text: 'onRefresh self-heal: after positions recalculate, every trigger snaps elements to the correct visible/hidden state based on their true scroll position' },
-  { icon: '🧪', text: '1456 tests across 46 spec files — 11 new tests cover ResizeObserver wiring, debounce, onRefresh logic for all 3 scroll states' },
+  { icon: '👋', text: 'Your dashboard greeting is now personal — set your name during onboarding or in Settings and it shows up as "Welcome back, {name}"' },
+  { icon: '⚙️', text: 'New "Your Name" field in Settings → change or clear your name anytime. Leave it blank for a simple "Welcome back"' },
+  { icon: '☁️', text: 'Your name syncs to the cloud with the rest of your data, so it follows you across devices and sign-ins' },
+  { icon: '🧪', text: '1479 tests across 46 spec files — 23 new tests cover the name field end-to-end (store, DB sync, onboarding, settings, greeting)' },
 ];
 
 const budget = useBudgetStore();

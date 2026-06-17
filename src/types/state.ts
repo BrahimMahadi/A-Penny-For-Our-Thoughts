@@ -110,6 +110,12 @@ export interface BudgetState {
   fundsRemainingUpdated: ISODate | '';
 
   // Onboarding & version flags
+  /**
+   * The name shown in the dashboard greeting ("Welcome back, {displayName}").
+   * Captured on the onboarding Welcome step and editable in Settings.
+   * Empty string when unset — the greeting falls back to a bare "Welcome back".
+   */
+  displayName: string;
   /** True once the user completes or dismisses the first-run onboarding stepper. */
   hasOnboarded: boolean;
   /**

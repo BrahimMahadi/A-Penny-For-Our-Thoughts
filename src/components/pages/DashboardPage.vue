@@ -82,6 +82,15 @@ const {
 // ─── Page header ───────────────────────────────────────────────────
 const today = new Date();
 
+// ─── Dashboard greeting ───────────────────────────────────────────
+// Personalised from budget.displayName (set in onboarding / Settings).
+// Falls back to a bare "Welcome back" when no name is set, so the
+// greeting never shows a hardcoded or stale name.
+const greeting = computed(() => {
+  const name = budget.displayName.trim();
+  return name ? `Welcome back, ${name}` : 'Welcome back';
+});
+
 // ─── Current pay-period window (offset 0 = in-progress period) ────
 // BUG-024: the Dashboard must date-filter purchases to the current
 // period window, exactly as SpendingPage does. Without this, any
@@ -460,7 +469,7 @@ onMounted(() => {
     <header class="dash-header">
       <div class="dash-header__text">
         <h1 class="dash-header__title">
-          Welcome back, Brahim
+          {{ greeting }}
         </h1>
       </div>
 

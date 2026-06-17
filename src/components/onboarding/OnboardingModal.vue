@@ -39,10 +39,29 @@ function skip(): void {
 
 function finish(): void {
   // Persist all collected data then close
+  applyDisplayName();
   applyIncome();
   applyPayDate();
   applyAllocation();
   emit('done');
+}
+
+// ─── Step 1: Display name ─────────────────────────────────────────
+const displayName = ref('');
+
+function applyDisplayName(): void {
+  // Trimming/capping is handled inside the store action.
+  budget.setDisplayName(displayName.value);
+}
+
+/**
+ * Leaving the Welcome step. Persist the name immediately so it survives
+ * even if the user clicks "Skip setup" on a later step (the name field
+ * only exists on step 1, so this is its single capture point).
+ */
+function nextFromWelcome(): void {
+  applyDisplayName();
+  next();
 }
 
 // ─── Step 2: Income stream ────────────────────────────────────────
@@ -145,6 +164,23 @@ function applyAllocation(): void {
             Your personal 50/30/20 budget dashboard. It takes about 2 minutes
             to get set up — let's start with the basics.
           </p>
+
+          <div class="ob-field">
+            <label
+              class="ob-label"
+              for="ob-display-name"
+            >What should we call you?</label>
+            <input
+              id="ob-display-name"
+              v-model="displayName"
+              class="ob-input"
+              type="text"
+              placeholder="e.g. Brahim (optional)"
+              maxlength="40"
+              @keyup.enter="nextFromWelcome"
+            >
+          </div>
+
           <ul class="ob-checklist">
             <li>📊 Track income &amp; spending across every category</li>
             <li>🎯 Set savings goals and watch your progress</li>
@@ -154,7 +190,7 @@ function applyAllocation(): void {
             <BaseButton
               size="lg"
               block
-              @click="next"
+              @click="nextFromWelcome"
             >
               Get started →
             </BaseButton>

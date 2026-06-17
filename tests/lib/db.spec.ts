@@ -127,6 +127,7 @@ const PROFILE_DEFAULTS = {
   last_archived_period_start: null,
   funds_remaining: 0,
   funds_remaining_updated: '',
+  display_name: '',
   has_onboarded: false,
   dismissed_version: null,
   created_at: '',
@@ -172,6 +173,7 @@ describe('fetchAllUserData', () => {
         funds_remaining_updated: '2026-05-01',
         has_onboarded: true,
         dismissed_version: '1.15.0',
+        display_name: 'Brahim',
       },
     }));
 
@@ -182,6 +184,16 @@ describe('fetchAllUserData', () => {
     expect(result!.fundsRemaining).toBe(1200);
     expect(result!.hasOnboarded).toBe(true);
     expect(result!.dismissedVersion).toBe('1.15.0');
+    expect(result!.displayName).toBe('Brahim');
+  });
+
+  it('maps a missing display_name to an empty string', async () => {
+    const profile = { ...PROFILE_DEFAULTS } as Record<string, unknown>;
+    delete profile.display_name;
+    mockRpcReturns(buildPayload({ profile: profile as never }));
+
+    const result = await fetchAllUserData('uid');
+    expect(result!.displayName).toBe('');
   });
 
   it('maps purchase rows to camelCase Purchase objects', async () => {
@@ -489,6 +501,38 @@ describe('upsertProfile', () => {
     mockFrom.mockReturnValue({ upsert: upsertMock });
 
     await expect(upsertProfile('uid', { hasOnboarded: true })).rejects.toThrow('RLS violation');
+  });
+
+  // ── v2.45.0: display name round-trip ─────────────────────────
+  it('maps displayName → display_name (camelCase must not leak)', async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockReturnValue({ upsert: upsertMock });
+
+    await upsertProfile('uid', { displayName: 'Brahim' });
+
+    const payload = upsertMock.mock.calls[0][0];
+    expect(payload.display_name).toBe('Brahim');
+    expect(payload.displayName).toBeUndefined();
+  });
+
+  it('omits display_name when not provided', async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockReturnValue({ upsert: upsertMock });
+
+    await upsertProfile('uid', { hasOnboarded: true });
+
+    const payload = upsertMock.mock.calls[0][0];
+    expect('display_name' in payload).toBe(false);
+  });
+
+  it('can clear display_name with an empty string', async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockReturnValue({ upsert: upsertMock });
+
+    await upsertProfile('uid', { displayName: '' });
+
+    const payload = upsertMock.mock.calls[0][0];
+    expect(payload.display_name).toBe('');
   });
 
   // ── RS-29: lastArchivedPeriodStart round-trip ─────────────────
