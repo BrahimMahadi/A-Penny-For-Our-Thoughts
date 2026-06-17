@@ -7,6 +7,12 @@
              Redesign Sprint 2 — sidebar nav now primary.
 =================================================== */
 
+/* MOBILE-1 (v2.45.3): kill the grey tap-highlight flash on touch devices —
+   we provide our own :active press feedback instead. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ═══════════════════════════════════════════════════
    LEGACY SHELL — kept for backward compat (non-Vue
    markup in DocsPage static HTML, etc.)

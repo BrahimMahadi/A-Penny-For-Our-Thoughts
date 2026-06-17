@@ -1748,6 +1748,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | USER-DISPLAY-NAME | Personalised dashboard greeting. New `displayName` profile scalar captured on the onboarding Welcome step and editable in a new Settings "Your Name" panel; greeting reads "Welcome back, {name}" with a clean fallback. Full DB sync (migration 009, types, db.ts, migrateLocalStorage). 23 new tests (1479 total). | `feat/user-display-name` | ✅ Complete | v2.45.0 |
 | BUG-035 / BUG-036 | Pay-period rollover fixes. **BUG-035:** windfall list + hero "Available to spend" stayed stranded on the previous period when the app was left open across a boundary — root cause was a non-reactive `new Date()` in date-scoped computeds/getters. Fixed with a single reactive day-clock (`lib/clock.ts` + `useToday()`). **BUG-036:** monthly Wants/Needs card folded a whole archived `period.total` into wants (cross-bucket bleed); now split per-bucket via `archivedPeriodSpend`. Added "this month" label. 15 new tests incl. a boundary-crossing regression guard (1494 total). | `fix/period-rollover-reactivity` | ✅ Complete | v2.45.1 |
 | HERO-PERIOD-DELTA | Replaced the redundant monthly "Wants/Needs spent" KPI card with a pace-adjusted period-over-period delta on the hero "Available to spend" card. New `getPreviousPeriodPaceSpend` helper compares spend-so-far against last period's spend *through the same elapsed day* (apportioned to the active bucket by the archived `spent` ratio, since archived items carry no `budgetType`). KPI row → 3 cards. 10 new tests (1504 total). | `refactor/hero-period-delta` | ✅ Complete | v2.45.2 |
+| MOBILE-1 — Touch targets & button feel | First sprint of the Mobile Optimization initiative. 44px min-height buttons, full-width primary actions below `md`, `:active` press states, tap-highlight removal, ≥44px hit areas on pill chips / hero toggle. Establishes the 3-tier breakpoint tokens (`sm` 480 / `md` 768 / `lg` 1024) as the foundation. Verified live at 375px (buttons 37→44px, full-width stacked, transparent tap-highlight); CSS-only, no jsdom-measurable surface (1504 tests hold). | `refactor/mobile-touch-targets` | ✅ Complete | v2.45.3 |
 
 ---
 
@@ -4992,3 +4993,24 @@ After v2.45.1, the dashboard had two bi-weekly cards following the same wants/ne
 - `tests/components/pages/pages.spec.ts`
 - `tests/components/onboarding.spec.ts`
 - `docs/PHASE_TRACKING.md`
+
+---
+
+## Mobile Optimization Initiative 📱
+**Status**: 🟡 **IN PROGRESS** — June 2026
+**Goal**: Make the phone experience first-class. Grounded in a 375px audit: 37–39px buttons (under the 44px target), 5/5 inputs <16px (iOS auto-zoom), ~250 hardcoded px font-sizes, 17 ad-hoc breakpoints, the What's New banner eating 50% of the first screen, a truncating greeting, and a cramped 7-tab bottom nav.
+
+### Agreed plan
+
+- **MOBILE-1 — Touch targets & button feel** ✅ COMPLETE (`refactor/mobile-touch-targets`, v2.45.3)
+  - 44px `min-height` on `.btn-primary`/`.btn-secondary`; full-width primary actions below `md`.
+  - `:active` press states (scale/opacity) — touch has no `:hover`; remove the `-webkit-tap-highlight-color` flash.
+  - ≥44px hit areas on pill chips and the wants/needs hero toggle.
+  - **Breakpoint foundation:** establish 3 canonical tiers — `sm` 480px · `md` 768px · `lg` 1024px (Tailwind `--breakpoint-*` + a documented convention for hand-written CSS). New mobile rules use `md`.
+
+### Backlog (sequenced after MOBILE-1, not yet scheduled)
+
+- **MOBILE-2 — Breakpoint migration:** move the remaining 17 ad-hoc `max-width` values onto the `sm/md/lg` tiers, component-by-component with visual verification.
+- **MOBILE-3 — Typography scale:** rem-based type tokens, 14px body / 12px caption floors, 16px inputs (kills iOS zoom).
+- **MOBILE-4 — Layout:** collapse What's New to one line on mobile, fix the truncating greeting, rework the 7-tab bottom nav (≤5 + More / scrollable), tighten vertical rhythm.
+- **MOBILE-5 — PWA & polish:** manifest + theme-color + apple-touch-icon (installable), overscroll-behavior, safe-area verification on FAB/nav, tactile animation feedback.

@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.45.3</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              Mobile — bigger, friendlier touch targets (first of the mobile-optimization sprints)
+            </p>
+            <ul class="docs-list">
+              <li><strong>44px buttons.</strong> Primary and secondary buttons now meet the 44px touch-target minimum (they were ~37px), and on phones the Dashboard’s “Log income / Add purchase” actions stack full-width for easy thumb reach.</li>
+              <li><strong>Tactile feedback.</strong> Buttons, the type selector, and category chips give a subtle press animation when tapped (touch devices have no hover state), and the default grey tap-flash is suppressed. Respects “reduce motion”.</li>
+              <li><strong>Bigger hit areas.</strong> The wants/needs toggle and category chips get larger tap zones on small screens.</li>
+              <li><strong>Breakpoint foundation.</strong> Introduced a consistent 3-tier breakpoint system (sm 480 / md 768 / lg 1024) that future responsive work builds on. CSS-only sprint — verified live at 375px; no jsdom-measurable surface, so the suite holds at 1504 tests.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.45.2</span>
               <span class="release-date">June 2026</span>
             </div>

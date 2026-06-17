@@ -22,15 +22,14 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.45.2';
+const APP_VERSION = '2.45.3';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📊', text: 'The hero "Available to spend" card now shows how this pay period compares to the last one — a pace-adjusted ↑/↓ vs last period\'s spend through the same day' },
-  { icon: '🧹', text: 'Removed the separate monthly Wants/Needs spent card — it duplicated the hero. The period-over-period signal now lives on the hero itself' },
-  { icon: '🎯', text: 'Pace-adjusted, so it\'s honest mid-period: it compares against last period\'s spend through the same elapsed day, not its full total' },
-  { icon: '🧪', text: '1504 tests across 47 spec files — 10 new tests for the pace math (elapsed-day tracking, bucket apportioning, legacy archives) and the hero delta chip' },
+  { icon: '👆', text: 'Mobile polish: buttons are now full 44px touch targets, and the dashboard\'s primary actions go full-width on phones — much easier to tap' },
+  { icon: '✨', text: 'Every button, chip, and toggle now gives a subtle press animation when tapped, and the grey tap-flash is gone' },
+  { icon: '📐', text: 'Groundwork: a consistent 3-tier breakpoint system (sm / md / lg) now underpins responsive styles — the first of several mobile improvements' },
 ];
 
 const budget = useBudgetStore();
