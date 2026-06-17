@@ -442,3 +442,68 @@ describe('income stream ordering', () => {
     expect(budget.incomeStreamOrder).toEqual(['b', 'c']);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────
+//  BUG-035 — windfall list resets when the pay period rolls over
+// ─────────────────────────────────────────────────────────────────
+// This is the regression test that would have caught the reported bug:
+// `currentPeriodIncomes` must recompute when the calendar crosses a period
+// boundary. Before the reactive-clock fix it read a bare `new Date()` inside a
+// cached getter and stayed stranded on the previous period's windfalls until
+// some unrelated store mutation happened to invalidate the cache.
+describe('BUG-035 — currentPeriodIncomes self-heals across a period boundary', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('drops a previous-period windfall once the clock advances to the next period', () => {
+    // Period A starts 2026-06-02; today is inside it.
+    vi.setSystemTime(new Date('2026-06-06T10:00:00')); // patched in setup.ts → ticks the clock
+    const budget = setupStore();
+
+    const entry = budget.addOneTimeIncome({
+      label: 'Quebec Stimmy', amount: 100, type: 'other',
+      date: '2026-06-10',
+      allocation: { needs: 0, wants: 100, savings: 0 },
+    });
+    expect(entry.periodStart).toBe('2026-06-02');
+    expect(budget.currentPeriodIncomes).toHaveLength(1);
+    expect(budget.currentPeriodWindfallTotal).toBe(100);
+
+    // Advance the wall clock into Period B (starts 2026-06-16). No store mutation.
+    vi.setSystemTime(new Date('2026-06-17T10:00:00'));
+
+    // The getter must now reflect the NEW period — the Period-A windfall is gone.
+    expect(budget.currentPeriodIncomes).toHaveLength(0);
+    expect(budget.currentPeriodWindfallTotal).toBe(0);
+    expect(budget.currentPeriodExtraWants).toBe(0);
+
+    // The entry still exists in state — it's filtered out, not deleted.
+    expect(budget.oneTimeIncomes).toHaveLength(1);
+  });
+
+  it('a windfall logged in the new period shows after the boundary', () => {
+    vi.setSystemTime(new Date('2026-06-06T10:00:00'));
+    const budget = setupStore();
+    budget.addOneTimeIncome({
+      label: 'Period A gift', amount: 50, type: 'gift',
+      date: '2026-06-07', allocation: { needs: 0, wants: 100, savings: 0 },
+    });
+
+    // Cross into Period B and log a fresh windfall there.
+    vi.setSystemTime(new Date('2026-06-17T10:00:00'));
+    const refund = budget.addOneTimeIncome({
+      label: 'Refund', amount: 30, type: 'refund',
+      date: '2026-06-18', allocation: { needs: 0, wants: 100, savings: 0 },
+    });
+    expect(refund.periodStart).toBe('2026-06-16');
+
+    const ids = budget.currentPeriodIncomes.map(i => i.label);
+    expect(ids).toEqual(['Refund']);          // only the Period B entry
+    expect(budget.currentPeriodWindfallTotal).toBe(30);
+  });
+});

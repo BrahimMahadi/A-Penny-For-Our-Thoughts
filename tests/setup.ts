@@ -10,6 +10,21 @@
  */
 
 import { vi } from 'vitest';
+import { tickClock } from '@/lib/clock';
+
+// ─── Reactive day-clock sync (BUG-035) ────────────────────────────────────────
+// lib/clock.ts holds a reactive `currentDay` that date-scoped getters/computeds
+// read so they self-heal across a pay-period / month boundary. In production it
+// ticks on visibilitychange / focus / interval. Tests fake the date with
+// `vi.setSystemTime(...)`, so we patch that call to also tick the app clock —
+// every test that sets a system time then transparently has the app clock
+// observe it, exactly as the browser would. No per-test wiring needed.
+const _setSystemTime = vi.setSystemTime.bind(vi);
+vi.setSystemTime = ((time?: number | Date | string) => {
+  const result = _setSystemTime(time as Date);
+  tickClock();
+  return result;
+}) as typeof vi.setSystemTime;
 
 // ─── window.matchMedia stub ───────────────────────────────────────────────────
 // jsdom does not implement matchMedia. Provide a global stub that always returns
