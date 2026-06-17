@@ -360,6 +360,7 @@ export type Database = {
           budget_display_mode: Json
           created_at: string
           dismissed_version: string | null
+          display_name: string
           funds_remaining: number
           funds_remaining_updated: string
           has_onboarded: boolean
@@ -374,6 +375,7 @@ export type Database = {
           budget_display_mode?: Json
           created_at?: string
           dismissed_version?: string | null
+          display_name?: string
           funds_remaining?: number
           funds_remaining_updated?: string
           has_onboarded?: boolean
@@ -388,6 +390,7 @@ export type Database = {
           budget_display_mode?: Json
           created_at?: string
           dismissed_version?: string | null
+          display_name?: string
           funds_remaining?: number
           funds_remaining_updated?: string
           has_onboarded?: boolean

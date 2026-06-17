@@ -1745,6 +1745,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-033 | Dashboard "Purchases This Period" donut computed its bi-weekly wants/needs budgets without the windfall income boost (`currentPeriodExtraWants`/`Needs`), showing a smaller budget and higher used % than the Spending tab for the same period. Same gap fixed in `getEnvelopeForecast` (pay-period projection). 5 regression tests. | `fix/bug-033-donut-windfall-budget` | ✅ Complete | v2.44.1 |
 | CHORE-DEMO-CLEANUP | Removed accumulated sprint demo/prototype HTML files from project root. Added demo file deletion as item 8 in the mandatory release checklist in `CLAUDE.md` to prevent future accumulation. | `chore/cleanup-demo-files` | ✅ Complete | v2.44.2 |
 | BUG-034 | Scroll-reveal cards (Subscriptions, Credit Cards, Wishlist) could be stranded invisible after collapsing the widget row above them. Root cause: ScrollTrigger caches positions at measurement time and doesn't refresh on DOM height changes. Fix: ResizeObserver on `document.body` + 150 ms debounced `ScrollTrigger.refresh()` + `onRefresh` self-heal callback. 11 new tests (1456 total). | `fix/bug-034-scrolltrigger-stale-refresh` | ✅ Complete | v2.44.3 |
+| USER-DISPLAY-NAME | Personalised dashboard greeting. New `displayName` profile scalar captured on the onboarding Welcome step and editable in a new Settings "Your Name" panel; greeting reads "Welcome back, {name}" with a clean fallback. Full DB sync (migration 009, types, db.ts, migrateLocalStorage). 23 new tests (1479 total). | `feat/user-display-name` | ✅ Complete | v2.45.0 |
 
 ---
 
@@ -4839,5 +4840,58 @@ if (refreshTimer !== null) { clearTimeout(refreshTimer); refreshTimer = null; }
 - `src/components/onboarding/WhatsNewBanner.vue`
 - `src/components/pages/DocsPage.vue`
 - `tests/components/onboarding.spec.ts`
+- `tests/components/pages/pages.spec.ts`
+- `docs/PHASE_TRACKING.md`
+
+---
+
+## USER-DISPLAY-NAME — Personalised dashboard greeting ✅
+**Branch**: `feat/user-display-name`  
+**Status**: ✅ **COMPLETE** — June 2026  
+**Version**: v2.45.0 (MINOR — new user-facing feature)
+
+### Motivation
+
+The Dashboard greeting was the hardcoded string `Welcome back, Brahim` in `DashboardPage.vue`. Any new user signing in saw someone else's name. The fix: capture the user's own name during onboarding, let anyone edit it in Settings, and drive the greeting from that value with a clean fallback.
+
+### Delivered
+
+- **`displayName` profile scalar.** Added to `BudgetState` (defaults to `''`), with `setDisplayName(name)` store action (trims + caps at 40 chars; whitespace-only clears it). Follows the existing scalar-profile pattern (`hasOnboarded` / `payStart` / `dismissedVersion`) — no full entity treatment.
+- **Dashboard greeting.** `DashboardPage` now renders a `greeting` computed: `Welcome back, {name}` when set, bare `Welcome back` when empty — so it can never show a stale/hardcoded name again.
+- **Onboarding.** A "What should we call you?" field added to the Welcome step (still 4 steps). The name is persisted the moment the user leaves the Welcome step (`nextFromWelcome`), so it survives even if they "Skip setup" on a later step.
+- **Settings.** New `ProfileSettings.vue` section component + "Your Name" panel at the top of the Settings left column. Existing users (who never saw onboarding) can set/change/clear their name anytime. Uses the canonical design tokens (`var(--bg)` input, 10px radius, mono uppercase label).
+
+### Database sync (scalar-profile path)
+
+- **Migration `009_profile_display_name.sql`** — adds `display_name text not null default ''` to `profiles`. The `fetch_user_data` RPC serialises the profile via `to_jsonb(p)`, so the new column flows through automatically (same as migration 008) — no RPC recreation needed.
+- **`database.ts`** — `display_name` added to profiles Row/Insert/Update.
+- **`db.ts`** — `toBudgetState` maps `display_name → displayName` (with `?? ''` legacy guard); `upsertProfile` accepts `displayName` and writes `display_name`.
+- **`migrateLocalStorage.ts`** — `displayName` included in the profile upsert that back-fills existing localStorage data on first cloud sign-in.
+
+### Verification
+
+- **Browser (real app, end-to-end):** onboarding Welcome field captures the name → persists on "Get started" → survives "Skip setup" → greeting shows "Welcome back, Brahim". Settings field saves (Save disabled until dirty), clears to fallback, and survives a full page reload (localStorage → `migrateState`).
+- **Unit tests:** 23 new (1479 total) — store action (trim/cap/clear), `migrateState` back-fill, `upsertProfile` + `toBudgetState` round-trip, `migrateLocalStorage` passthrough, onboarding capture incl. skip path, `ProfileSettings` save/clear/dirty, greeting render + reactive update + fallback.
+
+### Files changed
+
+- `src/types/state.ts`
+- `src/stores/budget.ts`
+- `src/lib/db.ts`
+- `src/lib/migrateLocalStorage.ts`
+- `src/types/database.ts`
+- `supabase/migrations/009_profile_display_name.sql` (new)
+- `src/components/pages/DashboardPage.vue`
+- `src/components/onboarding/OnboardingModal.vue`
+- `src/components/sections/ProfileSettings.vue` (new)
+- `src/components/pages/SettingsPage.vue`
+- `tests/components/onboarding.spec.ts`
+- `tests/lib/db.spec.ts`
+- `tests/lib/migrateLocalStorage.spec.ts`
+- `tests/components/sections/sections.spec.ts`
+- `tests/utils/jsonBackup.spec.ts`
+- `CLAUDE.md` (test count)
+- `src/components/onboarding/WhatsNewBanner.vue`
+- `src/components/pages/DocsPage.vue`
 - `tests/components/pages/pages.spec.ts`
 - `docs/PHASE_TRACKING.md`

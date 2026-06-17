@@ -2176,6 +2176,34 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
     w.unmount();
   });
 
+  // ── v2.45.0: personalised greeting ──
+  it('greeting falls back to bare "Welcome back" when no name is set', async () => {
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('.dash-header__title').text()).toBe('Welcome back');
+    w.unmount();
+  });
+
+  it('greeting includes the display name when set', async () => {
+    const budget = useBudgetStore();
+    budget.setDisplayName('Brahim');
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('.dash-header__title').text()).toBe('Welcome back, Brahim');
+    w.unmount();
+  });
+
+  it('greeting updates reactively when the name changes', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('.dash-header__title').text()).toBe('Welcome back');
+    budget.setDisplayName('Sam');
+    await nextTick();
+    expect(w.find('.dash-header__title').text()).toBe('Welcome back, Sam');
+    w.unmount();
+  });
+
   it('renders the KPI hero row with 4 cards', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
@@ -5235,6 +5263,68 @@ describe('BUG-024 — PurchasesThisPeriod only counts current-period purchases',
     await nextTick();
 
     expect(w.find('.ptp__empty').exists()).toBe(true);
+    w.unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  ProfileSettings — display name (v2.45.0)
+// ─────────────────────────────────────────────────────────────────
+import ProfileSettings from '@/components/sections/ProfileSettings.vue';
+
+describe('ProfileSettings — display name', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('seeds the input from the stored display name', async () => {
+    const budget = useBudgetStore();
+    budget.setDisplayName('Brahim');
+    const w = mountWith(ProfileSettings);
+    await nextTick();
+    expect(w.find<HTMLInputElement>('#profile-display-name').element.value).toBe('Brahim');
+    w.unmount();
+  });
+
+  it('Save is disabled when the draft matches the stored value', async () => {
+    const w = mountWith(ProfileSettings);
+    await nextTick();
+    const saveBtn = w.find('[data-testid="profile-name-save"]');
+    expect(saveBtn.attributes('disabled')).toBeDefined();
+    w.unmount();
+  });
+
+  it('typing a name and saving updates the store', async () => {
+    const budget = useBudgetStore();
+    const w = mountWith(ProfileSettings);
+    await nextTick();
+
+    const input = w.find<HTMLInputElement>('#profile-display-name');
+    await input.setValue('  Brahim  ');
+    await w.find('[data-testid="profile-name-save"]').trigger('click');
+
+    expect(budget.displayName).toBe('Brahim');
+    w.unmount();
+  });
+
+  it('clearing the field and saving resets the store name', async () => {
+    const budget = useBudgetStore();
+    budget.setDisplayName('Brahim');
+    const w = mountWith(ProfileSettings);
+    await nextTick();
+
+    const input = w.find<HTMLInputElement>('#profile-display-name');
+    await input.setValue('');
+    await w.find('[data-testid="profile-name-save"]').trigger('click');
+
+    expect(budget.displayName).toBe('');
+    w.unmount();
+  });
+
+  it('Save enables once the draft diverges from the stored value', async () => {
+    const w = mountWith(ProfileSettings);
+    await nextTick();
+    await w.find<HTMLInputElement>('#profile-display-name').setValue('Sam');
+    expect(w.find('[data-testid="profile-name-save"]').attributes('disabled')).toBeUndefined();
     w.unmount();
   });
 });

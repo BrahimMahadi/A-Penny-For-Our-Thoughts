@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.45.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              New — personalised dashboard greeting with your own name
+            </p>
+            <ul class="docs-list">
+              <li><strong>Your name, your dashboard.</strong> The greeting at the top of the Dashboard now reads “Welcome back, {your name}” instead of a fixed name. New users are asked “What should we call you?” on the first onboarding step.</li>
+              <li><strong>Editable in Settings.</strong> A new “Your Name” panel (top of the Settings page) lets anyone — including existing users who never saw onboarding — set, change, or clear their name at any time. Leave it blank for a simple “Welcome back”.</li>
+              <li><strong>Syncs everywhere.</strong> The name is stored as a profile field and synced to the cloud alongside the rest of your data (migration <code>009</code>), so it persists across sign-out and follows you between devices.</li>
+              <li><strong>1479 tests across 46 spec files.</strong> 23 new tests cover the store action (trim/cap/clear), DB round-trip, localStorage back-fill, onboarding capture (including the skip path), the Settings field, and the greeting fallback.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.44.3</span>
               <span class="release-date">June 2026</span>
             </div>

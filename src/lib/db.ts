@@ -314,6 +314,7 @@ export async function fetchAllUserData(userId: string): Promise<Partial<BudgetSt
     lastArchivedPeriodStart: profile.last_archived_period_start ?? null,
     fundsRemaining:      profile.funds_remaining,
     fundsRemainingUpdated: profile.funds_remaining_updated as string,
+    displayName:         profile.display_name ?? '',
     hasOnboarded:        profile.has_onboarded,
     dismissedVersion:    profile.dismissed_version,
     incomeStreamOrder:   (profile.income_stream_order as string[]) ?? [],
@@ -347,6 +348,8 @@ export async function upsertProfile(userId: string, data: {
   lastArchivedPeriodStart?: string | null;
   fundsRemaining?: number;
   fundsRemainingUpdated?: string;
+  /** Dashboard greeting name (v2.45.0). Empty string = unset. */
+  displayName?: string;
   hasOnboarded?: boolean;
   dismissedVersion?: string | null;
   /** Drag-to-reorder preference for income streams (v2.41.0). */
@@ -360,6 +363,7 @@ export async function upsertProfile(userId: string, data: {
     ...(data.lastArchivedPeriodStart !== undefined && { last_archived_period_start: data.lastArchivedPeriodStart }),
     ...(data.fundsRemaining !== undefined    && { funds_remaining: data.fundsRemaining }),
     ...(data.fundsRemainingUpdated !== undefined && { funds_remaining_updated: data.fundsRemainingUpdated }),
+    ...(data.displayName !== undefined       && { display_name: data.displayName }),
     ...(data.hasOnboarded !== undefined      && { has_onboarded: data.hasOnboarded }),
     ...(data.dismissedVersion !== undefined  && { dismissed_version: data.dismissedVersion }),
     ...(data.incomeStreamOrder !== undefined && { income_stream_order: data.incomeStreamOrder }),
