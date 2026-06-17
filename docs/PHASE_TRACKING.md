@@ -1746,6 +1746,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | CHORE-DEMO-CLEANUP | Removed accumulated sprint demo/prototype HTML files from project root. Added demo file deletion as item 8 in the mandatory release checklist in `CLAUDE.md` to prevent future accumulation. | `chore/cleanup-demo-files` | ✅ Complete | v2.44.2 |
 | BUG-034 | Scroll-reveal cards (Subscriptions, Credit Cards, Wishlist) could be stranded invisible after collapsing the widget row above them. Root cause: ScrollTrigger caches positions at measurement time and doesn't refresh on DOM height changes. Fix: ResizeObserver on `document.body` + 150 ms debounced `ScrollTrigger.refresh()` + `onRefresh` self-heal callback. 11 new tests (1456 total). | `fix/bug-034-scrolltrigger-stale-refresh` | ✅ Complete | v2.44.3 |
 | USER-DISPLAY-NAME | Personalised dashboard greeting. New `displayName` profile scalar captured on the onboarding Welcome step and editable in a new Settings "Your Name" panel; greeting reads "Welcome back, {name}" with a clean fallback. Full DB sync (migration 009, types, db.ts, migrateLocalStorage). 23 new tests (1479 total). | `feat/user-display-name` | ✅ Complete | v2.45.0 |
+| BUG-035 / BUG-036 | Pay-period rollover fixes. **BUG-035:** windfall list + hero "Available to spend" stayed stranded on the previous period when the app was left open across a boundary — root cause was a non-reactive `new Date()` in date-scoped computeds/getters. Fixed with a single reactive day-clock (`lib/clock.ts` + `useToday()`). **BUG-036:** monthly Wants/Needs card folded a whole archived `period.total` into wants (cross-bucket bleed); now split per-bucket via `archivedPeriodSpend`. Added "this month" label. 15 new tests incl. a boundary-crossing regression guard (1494 total). | `fix/period-rollover-reactivity` | ✅ Complete | v2.45.1 |
 
 ---
 
@@ -4894,4 +4895,61 @@ The Dashboard greeting was the hardcoded string `Welcome back, Brahim` in `Dashb
 - `src/components/onboarding/WhatsNewBanner.vue`
 - `src/components/pages/DocsPage.vue`
 - `tests/components/pages/pages.spec.ts`
+- `docs/PHASE_TRACKING.md`
+
+---
+
+## BUG-035 / BUG-036 — Pay-period rollover: stale windfall/hero + miscounted wants/needs ✅
+**Branch**: `fix/period-rollover-reactivity`
+**Status**: ✅ **COMPLETE** — June 2026
+**Version**: v2.45.1 (PATCH — bug fixes, no new user-facing behaviour)
+
+### Reported problem
+
+When the bi-weekly pay period changed, two Dashboard widgets failed to reset:
+1. **Windfall income** — the "Additional Income This Period" list and the hero "Available to spend" windfall boost kept showing the previous period's entries.
+2. **Wants/Needs spent card** — showed a wildly inflated total (e.g. $3,463 against a $1,254 budget) that didn't reflect the new period.
+
+Two independent root causes that happen to surface at the same moment (rollover).
+
+### BUG-035 — non-reactive "today"
+
+`new Date()` is invisible to Vue's reactivity system. Date-scoped computeds/getters that called it (`const today = new Date()` in `DashboardPage`, the `new Date()` inside the cached `currentPeriodIncomes` getter, `useAnalytics.currentMonthActuals`, etc.) never recomputed when the calendar simply crossed a boundary — their tracked deps (store slices) hadn't changed, so the cached value persisted with yesterday's date. A reload fixed it, which is the tell-tale signature; long-lived open tabs stayed stale.
+
+**Fix — a single reactive day-clock:**
+- `src/lib/clock.ts` — module-singleton `currentDay` ref + `tickClock()` (writes only on a real day change) + `startClock()`/`stopClock()`. Ticks on `visibilitychange`, `focus`, and a 30 s interval.
+- `src/composables/useToday.ts` — component wrapper returning a `ComputedRef<Date>`; starts the clock idempotently.
+- `DashboardPage`, `useAnalytics`, and the `currentPeriodIncomes` store getter now read the reactive day instead of `new Date()`, so every period/month value self-heals across a boundary.
+- `App.vue` starts the clock at the root.
+
+### BUG-036 — whole-period total folded into one bucket
+
+`calculateActualWants` added the entire archived `period.total` (wants **and** needs) into the wants actual, while `calculateActualNeeds` folded in no archived history at all. After a mid-month rollover, the closed period's needs inflated wants and were dropped from needs.
+
+**Fix:** new `archivedPeriodSpend(period, bucket, state)` helper — uses the per-bucket `period.spent` snapshot (RS-24+); legacy archives without one are apportioned by the period's own `budgets` snapshot, else the current allocation ratio (agreed fallback). Both `calculateActualWants` and `calculateActualNeeds` now fold in only their own bucket's share. Added a "this month" scope chip to the card so it's not confused with the bi-weekly hero.
+
+### Tests & verification
+
+- 15 new tests (1494 total): `tests/lib/clock.spec.ts` (8), a BUG-035 period-boundary regression guard in `tests/stores/income.spec.ts` (crosses a rollover, asserts the windfall list empties and total → 0), and a BUG-036 per-bucket accounting block in `tests/utils/calculations.spec.ts` (no cross-bucket bleed, legacy split by allocation + by budgets snapshot, sum-preservation).
+- `tests/setup.ts` patches `vi.setSystemTime` to call `tickClock()`, so every date-faking test transparently syncs the app clock — no per-test wiring.
+- Live app: dashboard renders with no console errors, the "this month" chip shows, and the live `currentDay` singleton initialises to today and updates when ticked (confirmed via the running Vite bundle).
+
+### Files changed
+
+- `src/lib/clock.ts` (new)
+- `src/composables/useToday.ts` (new)
+- `src/composables/useAnalytics.ts`
+- `src/components/pages/DashboardPage.vue`
+- `src/stores/budget.ts`
+- `src/App.vue`
+- `src/utils/calculations.ts`
+- `tests/lib/clock.spec.ts` (new)
+- `tests/stores/income.spec.ts`
+- `tests/utils/calculations.spec.ts`
+- `tests/setup.ts`
+- `CLAUDE.md` (test count + 2 Gotchas entries)
+- `src/components/onboarding/WhatsNewBanner.vue`
+- `src/components/pages/DocsPage.vue`
+- `tests/components/pages/pages.spec.ts`
+- `tests/components/onboarding.spec.ts`
 - `docs/PHASE_TRACKING.md`

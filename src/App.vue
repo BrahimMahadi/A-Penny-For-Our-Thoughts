@@ -38,6 +38,7 @@ import { useToast } from '@/composables/useToast';
 import { useKeyboard } from '@/composables/useKeyboard';
 import { useGsapObserver } from '@/composables/useGsapObserver';
 import { usePeriodRollover } from '@/composables/usePeriodRollover';
+import { useToday } from '@/composables/useToday';
 import type { TabId } from '@/types/state';
 
 import DashboardPage from '@/components/pages/DashboardPage.vue';
@@ -72,6 +73,11 @@ const toast  = useToast();
 // resets the Schedule nav offset, and shows a toast. No-op until payStart
 // is configured by the user in Settings.
 usePeriodRollover();
+
+// BUG-035: start the reactive day-ticker at the app root so every date-scoped
+// computed (hero window, windfall list, month actuals) self-heals when the
+// calendar crosses a pay-period / month boundary while the tab stays open.
+useToday();
 
 const supabaseEnabled = isSupabaseConfigured();
 

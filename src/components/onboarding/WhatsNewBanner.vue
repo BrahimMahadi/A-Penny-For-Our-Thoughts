@@ -22,15 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.45.0';
+const APP_VERSION = '2.45.1';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '👋', text: 'Your dashboard greeting is now personal — set your name during onboarding or in Settings and it shows up as "Welcome back, {name}"' },
-  { icon: '⚙️', text: 'New "Your Name" field in Settings → change or clear your name anytime. Leave it blank for a simple "Welcome back"' },
-  { icon: '☁️', text: 'Your name syncs to the cloud with the rest of your data, so it follows you across devices and sign-ins' },
-  { icon: '🧪', text: '1479 tests across 46 spec files — 23 new tests cover the name field end-to-end (store, DB sync, onboarding, settings, greeting)' },
+  { icon: '🔄', text: 'Pay-period rollover fix: when a new period starts, the windfall list and the hero "Available to spend" card now reset on their own — no more reload needed (BUG-035)' },
+  { icon: '🧮', text: 'Wants/Needs "this month" card now splits archived periods correctly — a closed period\'s needs no longer inflate your wants total (BUG-036)' },
+  { icon: '🏷️', text: 'The monthly Wants/Needs card is now labelled "this month" so it\'s never confused with the bi-weekly hero card' },
+  { icon: '🧪', text: '1494 tests across 47 spec files — 15 new tests including a period-boundary regression guard that crosses the rollover and the per-bucket accounting split' },
 ];
 
 const budget = useBudgetStore();

@@ -11,6 +11,7 @@
 import { computed, type ComputedRef } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useUiStore } from '@/stores/ui';
+import { currentDay } from '@/lib/clock';
 import {
   getTotalMonthlyIncome,
   getAlloc,
@@ -59,6 +60,11 @@ export function useAnalytics() {
   const budget = useBudgetStore();
   const ui = useUiStore();
 
+  // BUG-035: reactive "today" so every month/period-scoped computed below
+  // recomputes when the calendar day rolls over (no reload needed). Reading
+  // `currentDay.value` inside a computed registers the reactive dependency.
+  const todayDate = computed(() => new Date(currentDay.value + 'T00:00:00'));
+
   // ─── Income & allocation ─────────────────────────────────────
   const totalMonthlyIncome: ComputedRef<number> = computed(() => getTotalMonthlyIncome(budget.$state));
   const allocationRatios = computed(() => getAlloc(budget.$state));
@@ -66,7 +72,7 @@ export function useAnalytics() {
 
   // ─── Budget vs. actual (for current calendar month) ──────────
   const currentMonthActuals = computed(() => {
-    const today = new Date();
+    const today = todayDate.value;
     return getMonthActuals(budget.$state, today.getFullYear(), today.getMonth() + 1, today);
   });
 
@@ -112,14 +118,14 @@ export function useAnalytics() {
   );
 
   // ─── Per-category wants actuals (for BvA drilldown) ─────────
-  const wantsCategoryActuals = computed(() => getWantsCategoryActuals(budget.$state));
+  const wantsCategoryActuals = computed(() => getWantsCategoryActuals(budget.$state, todayDate.value));
 
   // ─── MoM stat deltas ─────────────────────────────────────────
-  const prevMonthActuals = computed(() => getPrevMonthActuals(budget.$state));
+  const prevMonthActuals = computed(() => getPrevMonthActuals(budget.$state, todayDate.value));
 
   // ─── Envelope forecast ───────────────────────────────────────
   const envelopeForecast: ComputedRef<EnvelopeForecast> = computed(() =>
-    getEnvelopeForecast(budget.$state),
+    getEnvelopeForecast(budget.$state, todayDate.value),
   );
 
   // ─── 6-month spending trend ──────────────────────────────────
@@ -134,7 +140,7 @@ export function useAnalytics() {
 
   // ─── Pay-period forecast ─────────────────────────────────────
   const payPeriodForecast: ComputedRef<PayPeriodForecast | null> = computed(() =>
-    getPayPeriodForecast(budget.$state, ui.schedulePayPeriodOffset),
+    getPayPeriodForecast(budget.$state, ui.schedulePayPeriodOffset, todayDate.value),
   );
 
   const payPeriodDayMap: ComputedRef<Map<ISODate, PayPeriodForecastItem[]>> = computed(() =>

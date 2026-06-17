@@ -43,6 +43,7 @@ gsap.registerPlugin(ScrollTrigger);
 import { useFlipIndicator }   from '@/composables/useFlipIndicator';
 import { useCountUp }         from '@/composables/useCountUp';
 import { useFormValidation, rules } from '@/composables/useFormValidation';
+import { useToday } from '@/composables/useToday';
 import { fmt }           from '@/utils/format';
 import {
   getSubsDeductedThisPeriod,
@@ -79,8 +80,13 @@ const {
   payPeriodForecast,
 } = useAnalytics();
 
-// ─── Page header ───────────────────────────────────────────────────
-const today = new Date();
+// ─── Reactive "today" ─────────────────────────────────────────────
+// BUG-035: a frozen `const today = new Date()` never advanced across a
+// pay-period boundary while the tab stayed open, stranding the hero window
+// and windfall boost on the previous period. `useToday()` returns a reactive
+// Date that updates when the calendar day rolls over, so every computed below
+// that reads `today.value` self-heals.
+const { today } = useToday();
 
 // ─── Dashboard greeting ───────────────────────────────────────────
 // Personalised from budget.displayName (set in onboarding / Settings).
@@ -99,7 +105,7 @@ const greeting = computed(() => {
 // Even after BUG-023 is fixed this remains the correct behaviour —
 // undated purchases and any edge-case DB drift are filtered out rather
 // than silently counted.
-const currentPeriod = computed(() => getPayPeriodForecast(budget.$state, 0, today));
+const currentPeriod = computed(() => getPayPeriodForecast(budget.$state, 0, today.value));
 
 /**
  * Purchases that fall within the current bi-weekly period window.
@@ -128,8 +134,8 @@ const biWeeklySpent = computed(() =>
 
 /** Subscription + loan amounts deducted from this bi-weekly envelope. */
 const biWeeklyDeductions = computed(() => {
-  const subsDeducted  = getSubsDeductedThisPeriod(budget.$state, today);
-  const loansDeducted = getLoansDeductedThisPeriod(budget.$state, today);
+  const subsDeducted  = getSubsDeductedThisPeriod(budget.$state, today.value);
+  const loansDeducted = getLoansDeductedThisPeriod(budget.$state, today.value);
   const subTotal  = subsDeducted.reduce((s, sub) => s + (+sub.amount || 0) * sub.renewalDates.length, 0);
   const loanTotal = loansDeducted.reduce((s, loan) => s + (+loan.paymentAmount || 0) * loan.renewalDates.length, 0);
   return subTotal + loanTotal;
@@ -152,14 +158,17 @@ const periodEndLabel = computed(() => {
 });
 
 // ─── Due in 7 days ────────────────────────────────────────────────
-const todayStr     = today.toISOString().split('T')[0];
-const sevenDaysOut = new Date(today);
-sevenDaysOut.setDate(today.getDate() + 7);
-const sevenDaysStr = sevenDaysOut.toISOString().split('T')[0];
+// Computeds (not consts) so they track the reactive `today` across a rollover.
+const todayStr = computed(() => today.value.toISOString().split('T')[0]);
+const sevenDaysStr = computed(() => {
+  const out = new Date(today.value);
+  out.setDate(today.value.getDate() + 7);
+  return out.toISOString().split('T')[0];
+});
 
 const dueInSevenDays = computed(() =>
   (payPeriodForecast.value?.dated ?? []).filter(
-    item => item.periodDate >= todayStr && item.periodDate <= sevenDaysStr,
+    item => item.periodDate >= todayStr.value && item.periodDate <= sevenDaysStr.value,
   ),
 );
 
@@ -392,7 +401,7 @@ function submitQuickAdd(): void {
     category:   quickAddCategory.value,
     cardId:     quickAddCardId.value,
     budgetType: quickAddBudgetType.value,
-    date:       today.toISOString().split('T')[0] as Purchase['date'],
+    date:       today.value.toISOString().split('T')[0] as Purchase['date'],
   };
   budget.addPurchase(purchase);
   const typeLabel = quickAddBudgetType.value === 'needs' ? 'needs' : 'wants';
@@ -630,6 +639,9 @@ onMounted(() => {
       <div class="kpi-card">
         <div class="kpi-card__header">
           <span class="kpi-card__label">{{ kpiLabel }}</span>
+          <!-- Scope chip: this card is calendar-month scoped (vs the hero's
+               bi-weekly window) — labelled so the two are never confused. -->
+          <span class="kpi-card__scope">this month</span>
         </div>
         <div
           class="kpi-card__value"
@@ -1142,6 +1154,19 @@ onMounted(() => {
   font-size: 0.78rem;
   font-weight: 500;
   color: var(--muted);
+}
+
+.kpi-card__scope {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  flex-shrink: 0;
 }
 
 .kpi-badge {

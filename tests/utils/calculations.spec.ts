@@ -385,11 +385,75 @@ describe('calculateActualNeeds / Wants / Savings', () => {
     expect(getMonthActuals(state, 2026, 5, today)).toEqual({ needs: 1500, wants: 5, savings: 3495 });
   });
 
-  it('past month uses spendingHistory for wants', () => {
+  it('past month uses spendingHistory for wants (per-bucket spent snapshot)', () => {
+    // BUG-036: archived wants come from the per-bucket `spent` snapshot, not the
+    // whole period.total (which would also include the period's needs spend).
     const past = buildState({
-      spendingHistory: [{ id: 'H1', date: '2026-04-30', total: 200, items: [] }],
+      spendingHistory: [
+        { id: 'H1', date: '2026-04-30', total: 260, items: [], spent: { wants: 200, needs: 60 } },
+      ],
     });
     expect(calculateActualWants(past, 2026, 4, today)).toBe(200);
+  });
+});
+
+describe('BUG-036 — per-bucket archived spend (no cross-bucket bleed)', () => {
+  // "today" in May 2026; archived period sits in the PAST month (April) so only
+  // the history fold-in is exercised (no current-month live purchases/deductions).
+  const today = new Date(2026, 4, 15);
+
+  it('wants does not absorb the archived needs portion', () => {
+    const state = buildState({
+      spendingHistory: [
+        { id: 'H1', date: '2026-04-12', total: 180, items: [], spent: { wants: 100, needs: 80 } },
+      ],
+    });
+    // Old bug folded the whole 180 total into wants; the fix takes only spent.wants.
+    expect(calculateActualWants(state, 2026, 4, today)).toBe(100);
+  });
+
+  it('needs now receives its archived portion (was previously dropped)', () => {
+    const state = buildState({
+      spendingHistory: [
+        { id: 'H1', date: '2026-04-12', total: 180, items: [], spent: { wants: 100, needs: 80 } },
+      ],
+    });
+    // Before BUG-036, calculateActualNeeds folded in NO archived history at all.
+    expect(calculateActualNeeds(state, 2026, 4, today)).toBe(80);
+  });
+
+  it('legacy period (no spent snapshot) splits total by the current allocation ratio', () => {
+    // Default allocation 50/30/20 → wants share = 30/(30+50), needs share = 50/(30+50).
+    const state = buildState({
+      allocation: { needs: 50, wants: 30, savings: 20 },
+      spendingHistory: [
+        { id: 'H1', date: '2026-04-12', total: 200, items: [] }, // no spent, no budgets
+      ],
+    });
+    expect(calculateActualWants(state, 2026, 4, today)).toBeCloseTo(75, 5);  // 200 * 30/80
+    expect(calculateActualNeeds(state, 2026, 4, today)).toBeCloseTo(125, 5); // 200 * 50/80
+  });
+
+  it('legacy period prefers its own budgets snapshot over current allocation', () => {
+    const state = buildState({
+      allocation: { needs: 50, wants: 30, savings: 20 }, // should be ignored — budgets present
+      spendingHistory: [
+        { id: 'H1', date: '2026-04-12', total: 200, items: [], budgets: { needs: 100, wants: 300, savings: 50 } },
+      ],
+    });
+    expect(calculateActualWants(state, 2026, 4, today)).toBeCloseTo(150, 5); // 200 * 300/400
+    expect(calculateActualNeeds(state, 2026, 4, today)).toBeCloseTo(50, 5);  // 200 * 100/400
+  });
+
+  it('wants + needs of a per-bucket archive always sum back to the period total', () => {
+    const state = buildState({
+      spendingHistory: [
+        { id: 'H1', date: '2026-04-12', total: 137.5, items: [], spent: { wants: 90.25, needs: 47.25 } },
+      ],
+    });
+    const w = calculateActualWants(state, 2026, 4, today);
+    const n = calculateActualNeeds(state, 2026, 4, today);
+    expect(w + n).toBeCloseTo(137.5, 5);
   });
 });
 
@@ -756,9 +820,9 @@ describe('getPrevMonthActuals', () => {
     const today = new Date('2026-03-15T00:00:00');
     const state = buildState({
       spendingHistory: [
-        { id: 'H1', date: '2026-02-01', total: 200, items: [] },
-        { id: 'H2', date: '2026-02-14', total: 150, items: [] },
-        { id: 'H3', date: '2026-03-01', total: 999, items: [] }, // current month — excluded
+        { id: 'H1', date: '2026-02-01', total: 200, items: [], spent: { wants: 200, needs: 0 } },
+        { id: 'H2', date: '2026-02-14', total: 150, items: [], spent: { wants: 150, needs: 0 } },
+        { id: 'H3', date: '2026-03-01', total: 999, items: [], spent: { wants: 999, needs: 0 } }, // current month — excluded
       ],
     });
     const result = getPrevMonthActuals(state, today);
@@ -973,7 +1037,7 @@ describe('getSpendingTrend', () => {
     const today = new Date('2026-03-15T00:00:00');
     const state = buildState({
       spendingHistory: [
-        { id: 'H1', date: '2026-02-10', total: 300, items: [] },
+        { id: 'H1', date: '2026-02-10', total: 300, items: [], spent: { wants: 300, needs: 0 } },
       ],
     });
     // count=2 → rows for Feb + Mar

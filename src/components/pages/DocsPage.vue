@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.45.1</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              Bug fix — windfall &amp; wants/needs cards now reset correctly when the pay period rolls over
+            </p>
+            <ul class="docs-list">
+              <li><strong>Windfall &amp; hero reset on rollover (BUG-035).</strong> When a new bi-weekly period started while the app was left open, the “Additional Income This Period” list and the hero “Available to spend” card kept showing the previous period’s data until a reload. They now self-heal the moment the calendar crosses the boundary, via a single reactive day-clock that every date-scoped value reads.</li>
+              <li><strong>Correct wants/needs split (BUG-036).</strong> The monthly “Wants/Needs spent” card folded an entire closed period’s spend into <em>wants</em> — so a rolled-over period’s needs inflated your wants total (and needs were under-counted). Archived periods are now split by their per-bucket snapshot; older archives without one are apportioned by their saved budget ratio.</li>
+              <li><strong>Clearer label.</strong> The Wants/Needs spent card is now tagged “this month”, so it’s never confused with the bi-weekly hero card above it.</li>
+              <li><strong>1494 tests across 47 spec files.</strong> 15 new tests, including a period-boundary regression guard that crosses a rollover and asserts the windfall list empties, plus per-bucket accounting coverage (no cross-bucket bleed, legacy-archive split).</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.45.0</span>
               <span class="release-date">June 2026</span>
             </div>

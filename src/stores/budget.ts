@@ -16,6 +16,7 @@ import { exportStateToCSV, parseCSVToState, triggerCSVDownload } from '@/utils/c
 import { exportStateToJSON, parseJSONToState, triggerJSONDownload } from '@/utils/jsonBackup';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { db, fetchAllUserData, upsertProfile, deleteAllUserData } from '@/lib/db';
+import { currentDay } from '@/lib/clock';
 import { getCurrentPeriodStart, getPeriodStartsBetween, getTotalMonthlyIncome } from '@/utils/calculations';
 import { PERIOD_DAYS, DEFAULT_ALLOCATION } from '@/constants/budget';
 import { useToast } from '@/composables/useToast';
@@ -723,7 +724,11 @@ export const useBudgetStore = defineStore('budget', {
      */
     currentPeriodIncomes(state): OneTimeIncome[] {
       if (!state.payStart) return [];
-      const periodStart = getCurrentPeriodStart(state);
+      // BUG-035: read the reactive `currentDay` so this getter recomputes when
+      // the calendar crosses a pay-period boundary. A bare `new Date()` here is
+      // invisible to reactivity — the cached value would keep returning the
+      // previous period's windfalls until something else mutated the store.
+      const periodStart = getCurrentPeriodStart(state, new Date(currentDay.value + 'T00:00:00'));
       if (!periodStart) return [];
       return state.oneTimeIncomes.filter(i => i.periodStart === periodStart);
     },

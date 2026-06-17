@@ -373,16 +373,62 @@ export function getLoansInWindow(
 
 // ─── Budget vs. actual ───────────────────────────────────────────
 
-/** Sum actual needs for the month — fixed expenses + needs subs/loans + needs purchases. */
+/**
+ * BUG-036 — the per-bucket spend of an archived period.
+ *
+ * An archived `SpendingHistoryPeriod.total` is the WHOLE-period spend
+ * (wants + needs combined). Folding `period.total` into a single bucket — as
+ * `calculateActualWants` used to — dumped a period's needs into the wants
+ * actual (and left needs under-counted). This helper returns just the
+ * requested bucket's share:
+ *
+ *   • RS-24+ archives carry an authoritative per-bucket `spent` snapshot —
+ *     use it directly.
+ *   • Legacy (pre-RS-24) archives have no `spent` split, and their `items`
+ *     don't record `budgetType`, so the split can't be reconstructed. We
+ *     apportion `period.total` by the period's own `budgets` snapshot when
+ *     present, else by the current allocation ratio (the agreed fallback).
+ */
+function archivedPeriodSpend(
+  period: SpendingHistoryPeriod,
+  bucket: 'wants' | 'needs',
+  state: Pick<BudgetState, 'allocation'>,
+): number {
+  if (period.spent && typeof period.spent[bucket] === 'number') {
+    return period.spent[bucket];
+  }
+  const wantsWeight = period.budgets ? period.budgets.wants : state.allocation.wants;
+  const needsWeight = period.budgets ? period.budgets.needs : state.allocation.needs;
+  const denom = wantsWeight + needsWeight;
+  // Degenerate split (no wants/needs weight) — attribute to wants so no money
+  // is silently lost, matching the pre-fix behaviour for that edge case.
+  if (denom <= 0) return bucket === 'wants' ? period.total : 0;
+  const weight = bucket === 'wants' ? wantsWeight : needsWeight;
+  return period.total * (weight / denom);
+}
+
+/** Sum actual needs for the month — fixed expenses + needs subs/loans + needs purchases + archived needs. */
 export function calculateActualNeeds(
   state: BudgetState,
   year: number,
   month: number,
   today: Date = new Date(),
 ): number {
+  const monthStr = `${year}-${String(month).padStart(2, '0')}`;
   const expenseTotal = state.expenseCards.reduce((sum, card) => {
     return sum + card.items.reduce((s, i) => s + monthlyAmount(i), 0);
   }, 0);
+
+  // BUG-036: fold in the NEEDS portion of any archived period in this month.
+  // Previously archived needs were dropped entirely (only wants folded in
+  // archived history), under-counting needs after a mid-month rollover.
+  let historyNeeds = 0;
+  state.spendingHistory.forEach((period) => {
+    if (period.date && period.date.substring(0, 7) === monthStr) {
+      historyNeeds += archivedPeriodSpend(period, 'needs', state);
+    }
+  });
+
   if (year === today.getFullYear() && month === today.getMonth() + 1) {
     const needsSubTotal = getSubsDeductedThisMonth(state, today).reduce(
       (sum, sub) => sum + sub.amount * sub.renewalDates.length,
@@ -394,16 +440,15 @@ export function calculateActualNeeds(
     );
     // BUG-026: filter to the current calendar month so stale cross-period
     // rows from a previous month don't inflate this month's actual.
-    const currentMonthStr = `${year}-${String(month).padStart(2, '0')}`;
     const needsPurchaseTotal = state.purchases
-      .filter((p) => p.budgetType === 'needs' && p.date?.startsWith(currentMonthStr))
+      .filter((p) => p.budgetType === 'needs' && p.date?.startsWith(monthStr))
       .reduce((sum, p) => sum + p.amount, 0);
-    return expenseTotal + needsSubTotal + needsLoanTotal + needsPurchaseTotal;
+    return expenseTotal + needsSubTotal + needsLoanTotal + needsPurchaseTotal + historyNeeds;
   }
-  return expenseTotal;
+  return expenseTotal + historyNeeds;
 }
 
-/** Sum actual wants — purchases + wants subs/loans this period + closed periods this month. */
+/** Sum actual wants — purchases + wants subs/loans this period + archived wants this month. */
 export function calculateActualWants(
   state: BudgetState,
   year: number,
@@ -431,9 +476,11 @@ export function calculateActualWants(
     );
   }
 
+  // BUG-036: fold in only the WANTS portion of archived periods — not the
+  // whole period.total (which also included that period's needs spend).
   state.spendingHistory.forEach((period) => {
     if (period.date && period.date.substring(0, 7) === monthStr) {
-      total += period.total;
+      total += archivedPeriodSpend(period, 'wants', state);
     }
   });
 

@@ -19,7 +19,7 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (1479 tests across 46 spec files)  <!-- v2.45.0 -->
+- Testing: Vitest + @vue/test-utils (1494 tests across 47 spec files)  <!-- v2.45.1 -->
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
@@ -234,6 +234,10 @@ Run through this before opening any PR that touches UI:
 - **`NetWorthData` uses `.netWorth`, not `.current`.** The property that holds the computed net worth scalar is `NetWorthData.netWorth` (same name as the interface). There is no `.current` alias.
 
 - **ScrollTrigger caches scroll positions at measurement time and does NOT auto-refresh on DOM height changes.** Anything that animates element height (card collapse/expand) or renders asynchronously (Chart.js canvases) must end with a `ScrollTrigger.refresh()` call. `useScrollReveal` owns this via a ResizeObserver on `document.body` with a 150 ms debounce — so never create raw ScrollTrigger instances outside that composable. If sections become invisible after collapse/expand, the ResizeObserver → `scheduleRefresh()` → `onRefresh` self-heal path is where to look first (BUG-034).
+
+- **Never call `new Date()` directly for period/month scoping in a component or store getter — read the reactive day instead.** `new Date()` is invisible to Vue reactivity, so a date-scoped computed/getter that calls it won't recompute when the calendar crosses a pay-period or month boundary while the app stays open — it stays stranded on the previous window until some unrelated state mutation invalidates its cache (BUG-035: stale windfall list + un-advanced hero). The single source of truth is the reactive `currentDay` ref in `src/lib/clock.ts`: in components use `useToday()` (returns a `ComputedRef<Date>`), in store getters / pure helpers read `currentDay.value` and build `new Date(currentDay.value + 'T00:00:00')`. The clock ticks on `visibilitychange` / `focus` / a 30 s interval and only writes when the day actually changes. Tests sync it automatically — `tests/setup.ts` patches `vi.setSystemTime` to call `tickClock()`.
+
+- **An archived `SpendingHistoryPeriod.total` is the WHOLE-period spend (wants + needs).** Never fold `period.total` into a single bucket — that's BUG-036 (a closed period's needs inflated the monthly *wants* actual, and needs were under-counted). Use the per-bucket `period.spent` snapshot (RS-24+) via the `archivedPeriodSpend(period, bucket, state)` helper in `calculations.ts`; legacy archives with no `spent` are split by the period's own `budgets` snapshot, else the current allocation ratio.
 
 
 
