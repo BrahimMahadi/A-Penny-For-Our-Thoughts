@@ -515,6 +515,66 @@ export function getMonthActuals(
 }
 
 /**
+ * Pace-adjusted previous-period spend for one bucket (v2.45.2).
+ *
+ * Returns how much was spent in the IMMEDIATELY-PRECEDING archived pay period
+ * *through the same elapsed day* the current period has reached — so the hero's
+ * period-over-period delta compares like-for-like instead of pitting an
+ * in-progress period against a completed one (which would look flattering early
+ * and alarming late).
+ *
+ * Returns `null` when there is no prior archived period to compare against
+ * (first period ever, or `payStart` unset) — the caller hides the delta.
+ *
+ * Bucket attribution caveat: archived purchase items carry no `budgetType`, so
+ * we can't read last-period wants/needs directly from the dated items. We sum
+ * the period's spend *through the cutoff day* (all buckets) from the dated
+ * items, then apportion it to the requested bucket by that period's overall
+ * wants/needs ratio (from its per-bucket `spent` snapshot, or the legacy split
+ * via `archivedPeriodSpend`). Undated items can't be placed in time and are
+ * excluded from the through-day total.
+ */
+export function getPreviousPeriodPaceSpend(
+  state: BudgetState,
+  bucket: 'wants' | 'needs',
+  today: Date = new Date(),
+): number | null {
+  const currentStart = getCurrentPeriodStart(state, today);
+  if (!currentStart) return null;
+
+  // Most recent archived period strictly before the current one.
+  const prev = state.spendingHistory
+    .filter((p) => p.date && p.date < currentStart)
+    .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))[0];
+  if (!prev || !prev.date) return null;
+
+  // Elapsed days into the current period (0 on its first day).
+  const startD = new Date(currentStart + 'T00:00:00');
+  const cmp = new Date(today);
+  cmp.setHours(0, 0, 0, 0);
+  const elapsedDays = Math.max(0, Math.floor((cmp.getTime() - startD.getTime()) / 86_400_000));
+
+  // Same elapsed offset inside the previous period → the cutoff date.
+  const cutoff = new Date(prev.date + 'T00:00:00');
+  cutoff.setDate(cutoff.getDate() + elapsedDays);
+  const cutoffStr = cutoff.toISOString().split('T')[0];
+
+  // Spend through the cutoff (all buckets — items lack budgetType; undated excluded).
+  const throughCutoff = prev.items.reduce(
+    (sum, it) => sum + (it.date && it.date <= cutoffStr ? it.amount : 0),
+    0,
+  );
+
+  // Apportion to the requested bucket by the period's overall wants/needs ratio.
+  const wantsFull = archivedPeriodSpend(prev, 'wants', state);
+  const needsFull = archivedPeriodSpend(prev, 'needs', state);
+  const denom = wantsFull + needsFull;
+  if (denom <= 0) return 0; // previous period had no spend → pace is 0
+  const ratio = (bucket === 'wants' ? wantsFull : needsFull) / denom;
+  return throughCutoff * ratio;
+}
+
+/**
  * Per-category actual wants spending for the current calendar month.
  * Aggregates purchases from the live list and from archived history periods.
  * Returns a map of { category → total }.

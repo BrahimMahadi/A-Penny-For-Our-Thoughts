@@ -19,7 +19,7 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (1494 tests across 47 spec files)  <!-- v2.45.1 -->
+- Testing: Vitest + @vue/test-utils (1504 tests across 47 spec files)  <!-- v2.45.2 -->
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
@@ -238,6 +238,8 @@ Run through this before opening any PR that touches UI:
 - **Never call `new Date()` directly for period/month scoping in a component or store getter — read the reactive day instead.** `new Date()` is invisible to Vue reactivity, so a date-scoped computed/getter that calls it won't recompute when the calendar crosses a pay-period or month boundary while the app stays open — it stays stranded on the previous window until some unrelated state mutation invalidates its cache (BUG-035: stale windfall list + un-advanced hero). The single source of truth is the reactive `currentDay` ref in `src/lib/clock.ts`: in components use `useToday()` (returns a `ComputedRef<Date>`), in store getters / pure helpers read `currentDay.value` and build `new Date(currentDay.value + 'T00:00:00')`. The clock ticks on `visibilitychange` / `focus` / a 30 s interval and only writes when the day actually changes. Tests sync it automatically — `tests/setup.ts` patches `vi.setSystemTime` to call `tickClock()`.
 
 - **An archived `SpendingHistoryPeriod.total` is the WHOLE-period spend (wants + needs).** Never fold `period.total` into a single bucket — that's BUG-036 (a closed period's needs inflated the monthly *wants* actual, and needs were under-counted). Use the per-bucket `period.spent` snapshot (RS-24+) via the `archivedPeriodSpend(period, bucket, state)` helper in `calculations.ts`; legacy archives with no `spent` are split by the period's own `budgets` snapshot, else the current allocation ratio.
+
+- **Archived `SpendingHistoryPeriod.items` do NOT record `budgetType`** (only `{name, amount, category, date?}`). So you cannot reconstruct a *dated* wants-vs-needs breakdown of a past period — the per-bucket split only exists as the period-level `spent` snapshot. The hero's pace-adjusted period-over-period delta (`getPreviousPeriodPaceSpend`, v2.45.2) works around this by summing last period's spend *through the same elapsed day* from the dated items (all buckets), then apportioning to the active bucket by that period's overall `spent` ratio. If you ever need true per-bucket-per-day history, the items schema must gain `budgetType` first.
 
 
 

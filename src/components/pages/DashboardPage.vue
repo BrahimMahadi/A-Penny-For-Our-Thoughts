@@ -49,6 +49,7 @@ import {
   getSubsDeductedThisPeriod,
   getLoansDeductedThisPeriod,
   getPayPeriodForecast,
+  getPreviousPeriodPaceSpend,
   applyRulesToName,
 } from '@/utils/calculations';
 import { FALLBACK_CATEGORY_NAME } from '@/data/categories';
@@ -74,9 +75,6 @@ const { from: gsapFrom } = useGsap();
 const { revealImmediate, revealOnScrollY } = useScrollReveal();
 const {
   totalMonthlyIncome,
-  currentMonthBudgeted,
-  currentMonthActuals,
-  prevMonthActuals,
   payPeriodForecast,
 } = useAnalytics();
 
@@ -176,72 +174,27 @@ const dueInSevenTotal = computed(() =>
   dueInSevenDays.value.reduce((s, item) => s + item.amount, 0),
 );
 
-// ─── Needs spent KPI ──────────────────────────────────────────────
-const needsDelta = computed(() =>
-  prevMonthActuals.value.needs > 0
-    ? currentMonthActuals.value.needs - prevMonthActuals.value.needs
-    : null,
+// ─── Hero period-over-period delta (v2.45.2) ──────────────────────
+// Pace-adjusted: spend-so-far this period vs last period's spend through the
+// SAME elapsed day, for the active wants/needs bucket (`heroSpent`). Returns
+// null when no prior period is archived → the chip is hidden. Reactive via the
+// clock-backed `today` and the spending-history slice.
+const periodPaceLast = computed(() =>
+  getPreviousPeriodPaceSpend(budget.$state, dashboardTypeFilter.value, today.value),
 );
 
-const needsUsedPct = computed(() => {
-  if (currentMonthBudgeted.value.needs <= 0) return 0;
-  return Math.min(100, (currentMonthActuals.value.needs / currentMonthBudgeted.value.needs) * 100);
+/** Δ vs last period's pace; null when there's no prior period to compare. */
+const periodDelta = computed<number | null>(() =>
+  periodPaceLast.value === null ? null : heroSpent.value - periodPaceLast.value,
+);
+
+/** Direction for styling/arrow. `up` = spending faster than last period (cautionary). */
+const periodDeltaDir = computed<'up' | 'down' | 'flat' | null>(() => {
+  if (periodDelta.value === null) return null;
+  if (periodDelta.value > 0.005) return 'up';
+  if (periodDelta.value < -0.005) return 'down';
+  return 'flat';
 });
-
-const needsIsOver = computed(() =>
-  currentMonthActuals.value.needs > currentMonthBudgeted.value.needs,
-);
-
-// ─── Wants spent KPI (mirrors needsDelta/needsUsedPct/needsIsOver) ─
-const wantsDelta = computed(() =>
-  prevMonthActuals.value.wants > 0
-    ? currentMonthActuals.value.wants - prevMonthActuals.value.wants
-    : null,
-);
-
-const wantsUsedPct = computed(() => {
-  if (currentMonthBudgeted.value.wants <= 0) return 0;
-  return Math.min(100, (currentMonthActuals.value.wants / currentMonthBudgeted.value.wants) * 100);
-});
-
-const wantsIsOver = computed(() =>
-  currentMonthActuals.value.wants > currentMonthBudgeted.value.wants,
-);
-
-// ─── Switchable KPI card — follows the hero toggle ────────────────
-/** Label shown on the 3rd KPI card. */
-const kpiLabel = computed(() =>
-  dashboardTypeFilter.value === 'needs' ? 'Needs spent' : 'Wants spent',
-);
-
-/** Monthly spent amount for the active type. */
-const kpiSpent = computed(() =>
-  dashboardTypeFilter.value === 'needs'
-    ? currentMonthActuals.value.needs
-    : currentMonthActuals.value.wants,
-);
-
-/** Monthly budget for the active type. */
-const kpiBudgeted = computed(() =>
-  dashboardTypeFilter.value === 'needs'
-    ? currentMonthBudgeted.value.needs
-    : currentMonthBudgeted.value.wants,
-);
-
-/** Month-over-month delta for the active type (null if no prior month). */
-const kpiDelta = computed(() =>
-  dashboardTypeFilter.value === 'needs' ? needsDelta.value : wantsDelta.value,
-);
-
-/** % of monthly budget used for the active type. */
-const kpiUsedPct = computed(() =>
-  dashboardTypeFilter.value === 'needs' ? needsUsedPct.value : wantsUsedPct.value,
-);
-
-/** Whether the active type is over its monthly budget. */
-const kpiIsOver = computed(() =>
-  dashboardTypeFilter.value === 'needs' ? needsIsOver.value : wantsIsOver.value,
-);
 
 // ─── Dashboard shared type toggle (RS-16) ────────────────────────
 /** Drives the hero card + Purchases This Period. Persists per session only. */
@@ -577,6 +530,17 @@ onMounted(() => {
             <span class="kpi-hero__windfall-icon" aria-hidden="true">💰</span>
             +{{ fmt(budget.currentPeriodWindfallTotal) }} windfall this period
           </p>
+
+          <!-- Period-over-period delta (pace-adjusted vs last period). Hidden
+               when there's no prior period archived to compare against. -->
+          <p
+            v-if="periodDelta !== null"
+            class="kpi-hero__delta"
+            :class="`kpi-hero__delta--${periodDeltaDir}`"
+          >
+            <span aria-hidden="true">{{ periodDeltaDir === 'up' ? '↑' : periodDeltaDir === 'down' ? '↓' : '→' }}</span>
+            {{ fmt(Math.abs(periodDelta)) }} vs last period’s pace
+          </p>
           <div
             class="kpi-hero__track"
             role="progressbar"
@@ -633,39 +597,6 @@ onMounted(() => {
         >
           +{{ dueInSevenDays.length - 3 }} more — see Schedule tab
         </p>
-      </div>
-
-      <!-- ── Wants / Needs spent (follows hero toggle) ── -->
-      <div class="kpi-card">
-        <div class="kpi-card__header">
-          <span class="kpi-card__label">{{ kpiLabel }}</span>
-          <!-- Scope chip: this card is calendar-month scoped (vs the hero's
-               bi-weekly window) — labelled so the two are never confused. -->
-          <span class="kpi-card__scope">this month</span>
-        </div>
-        <div
-          class="kpi-card__value"
-          :class="{ 'kpi-card__value--danger': kpiIsOver }"
-        >
-          {{ fmt(kpiSpent) }}
-        </div>
-        <div class="kpi-card__delta-row">
-          <span
-            v-if="kpiDelta !== null"
-            class="kpi-delta"
-            :class="kpiDelta > 0 ? 'kpi-delta--bad' : 'kpi-delta--good'"
-          >
-            {{ kpiDelta > 0 ? '↑' : '↓' }} {{ fmt(Math.abs(kpiDelta)) }}
-          </span>
-          <span class="kpi-card__budget-hint">of {{ fmt(kpiBudgeted) }}</span>
-        </div>
-        <ProgressBar
-          class="kpi-card__bar"
-          :percent="kpiUsedPct"
-          :status="kpiIsOver ? 'over' : 'on-track'"
-          size="sm"
-          :aria-label="`${kpiLabel} budget used`"
-        />
       </div>
 
       <!-- ── Chequing Balance ── -->
@@ -950,7 +881,7 @@ onMounted(() => {
 /* ─── KPI row ──────────────────────────────────────────────────── */
 .kpi-row {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  grid-template-columns: 1.4fr 1fr 1fr;
   gap: 0.875rem;
   align-items: stretch;
 }
@@ -1131,6 +1062,25 @@ onMounted(() => {
   font-size: 0.8rem;
 }
 
+/* Period-over-period delta chip (pace-adjusted vs last period). On the
+   accent hero background, so colours are tuned for contrast on purple. */
+.kpi-hero__delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0 0 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  border-radius: 99px;
+  padding: 0.15rem 0.55rem;
+  letter-spacing: 0.01em;
+  background: rgba(255, 255, 255, 0.16);
+}
+.kpi-hero__delta--up   { color: #ffd0d0; } /* spending faster than last period — cautionary */
+.kpi-hero__delta--down { color: #c8f24a; } /* spending slower — good */
+.kpi-hero__delta--flat { color: rgba(255, 255, 255, 0.9); }
+
 /* ─── Standard KPI cards ───────────────────────────────────────── */
 .kpi-card {
   background: var(--surface);
@@ -1156,19 +1106,6 @@ onMounted(() => {
   color: var(--muted);
 }
 
-.kpi-card__scope {
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.1rem 0.5rem;
-  flex-shrink: 0;
-}
-
 .kpi-badge {
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
@@ -1190,30 +1127,10 @@ onMounted(() => {
   margin-bottom: 0.2rem;
 }
 
-.kpi-card__value--danger {
-  color: var(--danger);
-}
-
-.kpi-card__delta-row {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-.kpi-card__budget-hint {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
 .kpi-card__sub-hint {
   margin: 0.35rem 0 0;
   font-size: 0.72rem;
   color: var(--muted);
-}
-
-.kpi-card__bar {
-  margin-top: 0.6rem;
 }
 
 .kpi-card__empty {
@@ -1236,11 +1153,6 @@ onMounted(() => {
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 700;
-}
-
-.kpi-delta--good {
-  background: color-mix(in srgb, var(--success) 15%, transparent);
-  color: var(--success);
 }
 
 .kpi-delta--bad {

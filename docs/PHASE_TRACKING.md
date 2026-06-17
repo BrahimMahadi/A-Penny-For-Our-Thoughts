@@ -1747,6 +1747,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-034 | Scroll-reveal cards (Subscriptions, Credit Cards, Wishlist) could be stranded invisible after collapsing the widget row above them. Root cause: ScrollTrigger caches positions at measurement time and doesn't refresh on DOM height changes. Fix: ResizeObserver on `document.body` + 150 ms debounced `ScrollTrigger.refresh()` + `onRefresh` self-heal callback. 11 new tests (1456 total). | `fix/bug-034-scrolltrigger-stale-refresh` | ✅ Complete | v2.44.3 |
 | USER-DISPLAY-NAME | Personalised dashboard greeting. New `displayName` profile scalar captured on the onboarding Welcome step and editable in a new Settings "Your Name" panel; greeting reads "Welcome back, {name}" with a clean fallback. Full DB sync (migration 009, types, db.ts, migrateLocalStorage). 23 new tests (1479 total). | `feat/user-display-name` | ✅ Complete | v2.45.0 |
 | BUG-035 / BUG-036 | Pay-period rollover fixes. **BUG-035:** windfall list + hero "Available to spend" stayed stranded on the previous period when the app was left open across a boundary — root cause was a non-reactive `new Date()` in date-scoped computeds/getters. Fixed with a single reactive day-clock (`lib/clock.ts` + `useToday()`). **BUG-036:** monthly Wants/Needs card folded a whole archived `period.total` into wants (cross-bucket bleed); now split per-bucket via `archivedPeriodSpend`. Added "this month" label. 15 new tests incl. a boundary-crossing regression guard (1494 total). | `fix/period-rollover-reactivity` | ✅ Complete | v2.45.1 |
+| HERO-PERIOD-DELTA | Replaced the redundant monthly "Wants/Needs spent" KPI card with a pace-adjusted period-over-period delta on the hero "Available to spend" card. New `getPreviousPeriodPaceSpend` helper compares spend-so-far against last period's spend *through the same elapsed day* (apportioned to the active bucket by the archived `spent` ratio, since archived items carry no `budgetType`). KPI row → 3 cards. 10 new tests (1504 total). | `refactor/hero-period-delta` | ✅ Complete | v2.45.2 |
 
 ---
 
@@ -4948,6 +4949,44 @@ Two independent root causes that happen to surface at the same moment (rollover)
 - `tests/utils/calculations.spec.ts`
 - `tests/setup.ts`
 - `CLAUDE.md` (test count + 2 Gotchas entries)
+- `src/components/onboarding/WhatsNewBanner.vue`
+- `src/components/pages/DocsPage.vue`
+- `tests/components/pages/pages.spec.ts`
+- `tests/components/onboarding.spec.ts`
+- `docs/PHASE_TRACKING.md`
+
+---
+
+## HERO-PERIOD-DELTA — period-over-period spending on the hero; spent card removed ✅
+**Branch**: `refactor/hero-period-delta`
+**Status**: ✅ **COMPLETE** — June 2026
+**Version**: v2.45.2 (PATCH — UI refinement, no new schema/capability)
+
+### Motivation
+
+After v2.45.1, the dashboard had two bi-weekly cards following the same wants/needs toggle: the hero "Available to spend" and the (newly period-scoped candidate) "Wants/Needs spent" card. They showed the same spent and budget numbers — the spent card added almost nothing. Rather than keep a near-duplicate, we moved the one genuinely-new signal (how this period compares to the last) onto the hero and **removed the standalone card**.
+
+### What changed
+
+- **New helper `getPreviousPeriodPaceSpend(state, bucket, today)`** in `calculations.ts` — returns the immediately-preceding archived period's spend **through the same elapsed day** the current period has reached, apportioned to the active bucket. Returns `null` when no prior period is archived (→ chip hidden).
+- **Pace-adjusted by design.** Comparing an in-progress period to a *completed* one (full total) is misleading — flattering early, alarming late. The helper instead compares like-for-like: spend through day N this period vs spend through day N last period.
+- **Bucket apportioning caveat.** Archived `items` carry no `budgetType`, so per-bucket dated history can't be reconstructed. The helper sums last period's through-day-N spend (all buckets) from dated items, then apportions to the bucket by that period's overall wants/needs ratio (from its `spent` snapshot, or the legacy `budgets`/allocation split via `archivedPeriodSpend`). Undated items are excluded from the through-N total. Documented in CLAUDE.md Gotchas.
+- **Hero gains a `↑/↓ vs last period’s pace` chip** (`periodDelta`/`periodDeltaDir`), styled for the accent background (↑ light-red cautionary, ↓ chartreuse good).
+- **Removed** the "Wants/Needs spent" KPI card and its now-dead computeds (`kpiLabel`/`kpiSpent`/`kpiBudgeted`/`kpiDelta`/`kpiUsedPct`/`kpiIsOver`, `wants*`/`needs*` MoM helpers) plus the monthly `currentMonthActuals`/`prevMonthActuals`/`currentMonthBudgeted` imports in DashboardPage (they remain in `useAnalytics` for Insights). KPI grid `1.4fr 1fr 1fr 1fr` → `1.4fr 1fr 1fr`; orphaned CSS removed.
+
+### Tests & verification
+
+- 10 new tests (1504 total): `getPreviousPeriodPaceSpend` unit coverage (null when no prior/payStart, elapsed-day tracking, wants/needs apportioning, legacy `budgets` fallback, empty prior period → 0) and 3 hero-delta render tests (hidden with no prior period; ↑ up / ↓ down directions). Updated the KPI-row card-count test (4 → 3).
+- `npx vue-tsc --noEmit` clean; `npx vitest run` 1504/1504.
+- Live app: dashboard renders, KPI row has hero + due-7 + chequing, the removed card's "this month" chip is gone, delta correctly hidden when no prior period, no console errors. (Driving the visible delta live needs seeded archive data, which would write to the connected Supabase, so it's left to the unit/component tests.)
+
+### Files changed
+
+- `src/utils/calculations.ts` (new `getPreviousPeriodPaceSpend`)
+- `src/components/pages/DashboardPage.vue` (hero delta chip; card + dead computeds removed; grid + CSS)
+- `tests/utils/calculations.spec.ts`
+- `tests/components/sections/sections.spec.ts`
+- `CLAUDE.md` (test count + Gotchas)
 - `src/components/onboarding/WhatsNewBanner.vue`
 - `src/components/pages/DocsPage.vue`
 - `tests/components/pages/pages.spec.ts`

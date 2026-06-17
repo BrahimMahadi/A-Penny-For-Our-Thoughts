@@ -22,15 +22,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.45.1';
+const APP_VERSION = '2.45.2';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🔄', text: 'Pay-period rollover fix: when a new period starts, the windfall list and the hero "Available to spend" card now reset on their own — no more reload needed (BUG-035)' },
-  { icon: '🧮', text: 'Wants/Needs "this month" card now splits archived periods correctly — a closed period\'s needs no longer inflate your wants total (BUG-036)' },
-  { icon: '🏷️', text: 'The monthly Wants/Needs card is now labelled "this month" so it\'s never confused with the bi-weekly hero card' },
-  { icon: '🧪', text: '1494 tests across 47 spec files — 15 new tests including a period-boundary regression guard that crosses the rollover and the per-bucket accounting split' },
+  { icon: '📊', text: 'The hero "Available to spend" card now shows how this pay period compares to the last one — a pace-adjusted ↑/↓ vs last period\'s spend through the same day' },
+  { icon: '🧹', text: 'Removed the separate monthly Wants/Needs spent card — it duplicated the hero. The period-over-period signal now lives on the hero itself' },
+  { icon: '🎯', text: 'Pace-adjusted, so it\'s honest mid-period: it compares against last period\'s spend through the same elapsed day, not its full total' },
+  { icon: '🧪', text: '1504 tests across 47 spec files — 10 new tests for the pace math (elapsed-day tracking, bucket apportioning, legacy archives) and the hero delta chip' },
 ];
 
 const budget = useBudgetStore();
