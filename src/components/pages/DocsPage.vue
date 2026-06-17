@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.45.2</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              Dashboard — the hero card now shows how this pay period compares to the last
+            </p>
+            <ul class="docs-list">
+              <li><strong>Period-over-period on the hero.</strong> The “Available to spend” card gained a small ↑/↓ chip comparing your spend so far to the previous pay period — for whichever bucket (wants/needs) the toggle is on.</li>
+              <li><strong>Pace-adjusted, so it’s honest mid-period.</strong> It compares against last period’s spend <em>through the same elapsed day</em>, not its full total — so early in a period it doesn’t look falsely great (and late, falsely alarming).</li>
+              <li><strong>Removed the separate “Wants/Needs spent” card.</strong> Once the comparison lives on the hero, that card just duplicated the hero’s bi-weekly figures, so it’s gone — leaving a cleaner 3-card KPI row.</li>
+              <li><strong>1504 tests across 47 spec files.</strong> 10 new tests cover the pace math (elapsed-day tracking, bucket apportioning from the archived snapshot, legacy archives, empty/absent prior period) and the hero delta chip’s direction.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.45.1</span>
               <span class="release-date">June 2026</span>
             </div>

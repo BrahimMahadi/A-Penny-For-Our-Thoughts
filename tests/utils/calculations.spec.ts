@@ -39,6 +39,7 @@ import {
   getWantsCategoryActuals,
   getPayPeriodForecast,
   getPayPeriodDayMap,
+  getPreviousPeriodPaceSpend,
 } from '@/utils/calculations';
 import { makeBlankState } from '@/stores/budget';
 import type { BudgetState } from '@/types/state';
@@ -1987,5 +1988,88 @@ describe('getRenewalDatesBetween — biyearly (every 6 months)', () => {
     const item = { date: '2027-01-01', frequency: 'biyearly' };
     const dates = getRenewalDatesBetween(item, new Date(2026, 0, 1), new Date(2026, 11, 31));
     expect(dates).toEqual([]);
+  });
+});
+
+// ─── Hero period-over-period delta (v2.45.2) ─────────────────────
+describe('getPreviousPeriodPaceSpend', () => {
+  // payStart anchors bi-weekly periods on 2026-06-02. The period containing
+  // 2026-06-20 starts 2026-06-16 (Jun 2 + 14). The PREVIOUS period started
+  // Jun 2 and is archived below with dated items + a per-bucket spent snapshot.
+  const PAY_START = '2026-06-02';
+
+  function withPrev(overrides: Partial<BudgetState> = {}): BudgetState {
+    return buildState({
+      payStart: PAY_START,
+      spendingHistory: [
+        {
+          id: 'H1',
+          date: '2026-06-02',
+          total: 400,
+          items: [
+            { name: 'A', amount: 120, category: 'x', date: '2026-06-03' }, // ≤ cutoff
+            { name: 'B', amount: 80,  category: 'x', date: '2026-06-05' }, // ≤ cutoff
+            { name: 'C', amount: 150, category: 'x', date: '2026-06-10' }, // after cutoff
+            { name: 'D', amount: 50,  category: 'x' },                     // undated → excluded
+          ],
+          spent: { wants: 300, needs: 100 }, // ratio 0.75 / 0.25
+        },
+      ],
+      ...overrides,
+    });
+  }
+
+  it('returns null when there is no prior archived period', () => {
+    const state = buildState({ payStart: PAY_START });
+    expect(getPreviousPeriodPaceSpend(state, 'wants', new Date('2026-06-20T12:00:00'))).toBeNull();
+  });
+
+  it('returns null when payStart is unset', () => {
+    const state = buildState({ spendingHistory: [{ id: 'H', date: '2026-06-02', total: 10, items: [] }] });
+    expect(getPreviousPeriodPaceSpend(state, 'wants', new Date('2026-06-20T12:00:00'))).toBeNull();
+  });
+
+  it('pace-adjusts: counts last period spend THROUGH the same elapsed day, apportioned to wants', () => {
+    // Day 4 of the current period (Jun 16 → Jun 20). Cutoff in prev period = Jun 6.
+    // Through-cutoff spend = 120 + 80 = 200 (Jun 10 after cutoff, undated excluded).
+    // wants share = 200 × (300/400) = 150.
+    const v = getPreviousPeriodPaceSpend(withPrev(), 'wants', new Date('2026-06-20T12:00:00'));
+    expect(v).toBeCloseTo(150, 5);
+  });
+
+  it('apportions to needs by the period ratio', () => {
+    // needs share = 200 × (100/400) = 50.
+    const v = getPreviousPeriodPaceSpend(withPrev(), 'needs', new Date('2026-06-20T12:00:00'));
+    expect(v).toBeCloseTo(50, 5);
+  });
+
+  it('tracks the elapsed day — earlier in the period compares to a smaller slice', () => {
+    // Day 1 (Jun 17). Cutoff = Jun 3 → only the Jun 3 item ($120) counts.
+    // wants share = 120 × 0.75 = 90.
+    const v = getPreviousPeriodPaceSpend(withPrev(), 'wants', new Date('2026-06-17T12:00:00'));
+    expect(v).toBeCloseTo(90, 5);
+  });
+
+  it('falls back to the budgets ratio when there is no spent snapshot (legacy archive)', () => {
+    const legacy = withPrev({
+      spendingHistory: [
+        {
+          id: 'H1', date: '2026-06-02', total: 400,
+          items: [
+            { name: 'A', amount: 120, category: 'x', date: '2026-06-03' },
+            { name: 'B', amount: 80,  category: 'x', date: '2026-06-05' },
+          ],
+          budgets: { needs: 100, wants: 300, savings: 50 }, // ratio 0.75 / 0.25 (savings ignored)
+        },
+      ],
+    });
+    expect(getPreviousPeriodPaceSpend(legacy, 'wants', new Date('2026-06-20T12:00:00'))).toBeCloseTo(150, 5);
+  });
+
+  it('returns 0 when the previous period had no spend', () => {
+    const empty = withPrev({
+      spendingHistory: [{ id: 'H1', date: '2026-06-02', total: 0, items: [], spent: { wants: 0, needs: 0 } }],
+    });
+    expect(getPreviousPeriodPaceSpend(empty, 'wants', new Date('2026-06-20T12:00:00'))).toBe(0);
   });
 });

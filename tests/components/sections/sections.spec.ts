@@ -2204,13 +2204,15 @@ describe('DashboardPage — RS-11 fixed grid layout', () => {
     w.unmount();
   });
 
-  it('renders the KPI hero row with 4 cards', async () => {
+  it('renders the KPI hero row with 3 cards', async () => {
     const w = mountWith(DashboardPage);
     await nextTick();
     expect(w.find('.kpi-row').exists()).toBe(true);
     expect(w.find('.kpi-hero').exists()).toBe(true);
-    // 2 plain .kpi-card divs (due-in-7, needs-spent) + chequing-balance as BaseCard in the same row
-    expect(w.findAll('.kpi-card')).toHaveLength(2);
+    // v2.45.2: the standalone Wants/Needs "spent" card was removed (its
+    // period-over-period signal moved onto the hero). The row is now hero +
+    // 1 plain .kpi-card (due-in-7) + chequing-balance as a BaseCard.
+    expect(w.findAll('.kpi-card')).toHaveLength(1);
     expect(w.find('.kpi-row #section-chequing-balance').exists()).toBe(true);
     w.unmount();
   });
@@ -5216,6 +5218,76 @@ describe('BUG-024 — DashboardPage hero KPI only counts current-period purchase
     // Undated purchase ($77) must not inflate the total
     expect(heroText).not.toContain('77');
     expect(heroText).not.toContain('87');
+    w.unmount();
+  });
+});
+
+describe('v2.45.2 — hero period-over-period delta chip', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    document.body.innerHTML = '';
+    // Today 2026-06-20; payStart 2026-06-02 → current period starts Jun 16.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-20T12:00:00'));
+  });
+  afterEach(() => {
+    document.body.innerHTML = '';
+    vi.useRealTimers();
+  });
+
+  it('is hidden when there is no prior archived period to compare', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-06-02');
+    budget.addPurchase({ name: 'X', amount: 40, category: 'Food', cardId: null, budgetType: 'wants', date: '2026-06-18' });
+
+    const w = mountWith(DashboardPage);
+    await nextTick();
+    expect(w.find('.kpi-hero__delta').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('shows an ↑ (cautionary) delta when spending faster than last period’s pace', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-06-02');
+    // Prior period (starts Jun 2): by day 4 (Jun 6) only $20 of wants had been spent.
+    budget.spendingHistory = [{
+      id: 'H1', date: '2026-06-02', total: 20,
+      items: [{ name: 'sliver', amount: 20, category: 'Food', date: '2026-06-04' }],
+      spent: { wants: 20, needs: 0 },
+    }];
+    // This period (day 4 = Jun 20): $90 of wants already → ahead of last period's $20 pace.
+    budget.addPurchase({ name: 'now', amount: 90, category: 'Food', cardId: null, budgetType: 'wants', date: '2026-06-18' });
+
+    const w = mountWith(DashboardPage);
+    await nextTick();
+
+    const delta = w.find('.kpi-hero__delta');
+    expect(delta.exists()).toBe(true);
+    expect(delta.classes()).toContain('kpi-hero__delta--up');
+    expect(delta.text()).toContain('↑');
+    w.unmount();
+  });
+
+  it('shows a ↓ (good) delta when spending slower than last period’s pace', async () => {
+    const budget = useBudgetStore();
+    budget.setPayStart('2026-06-02');
+    // Prior period: by day 4, $300 of wants already spent (heavy start).
+    budget.spendingHistory = [{
+      id: 'H1', date: '2026-06-02', total: 300,
+      items: [{ name: 'splurge', amount: 300, category: 'Food', date: '2026-06-04' }],
+      spent: { wants: 300, needs: 0 },
+    }];
+    // This period: only $25 so far → behind last period's pace = good.
+    budget.addPurchase({ name: 'now', amount: 25, category: 'Food', cardId: null, budgetType: 'wants', date: '2026-06-18' });
+
+    const w = mountWith(DashboardPage);
+    await nextTick();
+
+    const delta = w.find('.kpi-hero__delta');
+    expect(delta.exists()).toBe(true);
+    expect(delta.classes()).toContain('kpi-hero__delta--down');
+    expect(delta.text()).toContain('↓');
     w.unmount();
   });
 });
