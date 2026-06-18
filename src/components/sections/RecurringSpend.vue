@@ -429,4 +429,8 @@ function isExpanded(id: string): boolean {
   border-top: 1px solid var(--border);
   padding-top: 0.5rem;
 }
+
+@media (max-width: 480px) {
+  .rs__summary-label { font-size: 0.72rem; }
+}
 </style>

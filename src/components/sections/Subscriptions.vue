@@ -1428,4 +1428,9 @@ function remove(id: string): void {
   color: var(--muted);
   margin: 0.25rem 0 0;
 }
+
+@media (max-width: 480px) {
+  .filter-toolbar__badge        { font-size: 0.72rem; width: 17px; height: 17px; }
+  .filter-toolbar__filter-label { font-size: 0.72rem; }
+}
 </style>

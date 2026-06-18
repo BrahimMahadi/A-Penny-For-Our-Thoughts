@@ -687,4 +687,8 @@ function close(): void {
   transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 .btn-secondary:hover { background: var(--surface2); }
+
+@media (max-width: 480px) {
+  .oti-form__eyebrow { font-size: 0.72rem; }
+}
 </style>

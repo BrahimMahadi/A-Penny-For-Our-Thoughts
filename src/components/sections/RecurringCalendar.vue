@@ -1273,4 +1273,10 @@ watch(
 .day-popover .bill-badge--expense { background: rgba(248, 113, 113, 0.15); color: var(--danger, #f87171); }
 .day-popover .bill-badge--sub     { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
 .day-popover .bill-badge--loan    { background: rgba(251, 191, 36,  0.15); color: #f59e0b; }
+
+@media (max-width: 480px) {
+  .cal-pay-marker  { font-size: 0.72rem; }
+  .cal-event-name  { font-size: 0.72rem; }
+  .cal-event-more  { font-size: 0.72rem; }
+}
 </style>

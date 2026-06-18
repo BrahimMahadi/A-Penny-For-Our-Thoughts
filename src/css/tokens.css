@@ -34,6 +34,15 @@
   --font-body: 'Inter', 'Helvetica Neue', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Courier New', monospace;
 
+  /* ── Type scale ───────────────────────────────── */
+  --text-2xs:  0.65rem;    /* ~10.4px — desktop-only tiny labels  */
+  --text-xs:   0.72rem;    /* ~11.5px — eyebrow / badge           */
+  --text-sm:   0.8rem;     /* ~12.8px — secondary / muted         */
+  --text-base: 0.875rem;   /*  ~14px  — body                      */
+  --text-md:   1rem;       /*   16px  — input floor / medium      */
+  --text-lg:   1.125rem;   /* ~18px   — subheading                */
+  --text-xl:   1.25rem;    /*  ~20px  — heading                   */
+
   /* ── Brand ────────────────────────────────────── */
   --accent:        #5b3df5;
   --accent2:       #c8f24a;

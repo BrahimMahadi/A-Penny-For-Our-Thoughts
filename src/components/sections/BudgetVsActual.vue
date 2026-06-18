@@ -422,5 +422,6 @@ function statusLabel(status: string): string {
     grid-template-columns: 1fr auto auto;
   }
   .bva-drilldown__bar-wrap { display: none; }
+  .bva-card__status-chip   { font-size: 0.72rem; }
 }
 </style>

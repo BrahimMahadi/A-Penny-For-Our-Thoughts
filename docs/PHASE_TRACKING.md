@@ -1751,6 +1751,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | MOBILE-1 — Touch targets & button feel | First sprint of the Mobile Optimization initiative. 44px min-height buttons, full-width primary actions below `md`, `:active` press states, tap-highlight removal, ≥44px hit areas on pill chips / hero toggle. Establishes the 3-tier breakpoint tokens (`sm` 480 / `md` 768 / `lg` 1024) as the foundation. Verified live at 375px (buttons 37→44px, full-width stacked, transparent tap-highlight); CSS-only, no jsdom-measurable surface (1504 tests hold). | `refactor/mobile-touch-targets` | ✅ Complete | v2.45.3 |
 | MOBILE-2 — Breakpoint consolidation | Migrated all 17 ad-hoc `max-width` values onto the 3 canonical tiers (`sm` 480 / `md` 768 / `lg` 1024) via nearest-tier snapping, applied to `@media` lines only (element/token widths untouched), keeping blocks source-ordered so the cascade is preserved. Verified no overflow on any tab at 375/480/600/700/768/900/1024px. CSS-only (1504 tests hold). | `refactor/mobile-breakpoints` | ✅ Complete | v2.45.4 |
 | THEME-TOGGLE-MOBILE | Surfaced the light/dark theme switch on mobile (previously only in the desktop-only sidebar + login). New reusable `ThemeToggle.vue` (icon + pill variants) wired to the theme store; an "Appearance" pill panel at the top of Settings (canonical) + a 44px sun/moon icon in the Dashboard header (one-tap). 5 new tests (1509 total). | `feat/theme-toggle` | ✅ Complete | v2.46.0 |
+| MOBILE-3 — Typography scale | iOS zoom fix (16px input floor at ≤768px), mobile text floor (nothing below 0.72rem at ≤480px across 16 components), 7 new `--text-*` CSS scale tokens in `tokens.css`. Pure CSS refactor — 1509 tests unchanged. | `refactor/mobile-typography` | ✅ Complete | v2.46.1 |
 
 ---
 
@@ -5013,7 +5014,7 @@ After v2.45.1, the dashboard had two bi-weekly cards following the same wants/ne
 ### Backlog (sequenced after MOBILE-1, not yet scheduled)
 
 - **MOBILE-2 — Breakpoint consolidation** ✅ COMPLETE (`refactor/mobile-breakpoints`, v2.45.4) — all 17 ad-hoc `max-width` values snapped to the nearest of `sm/md/lg` (`@media` lines only; element/token widths left intact). Verified no overflow across 375–1024px on every tab.
-- **MOBILE-3 — Typography scale:** rem-based type tokens, 14px body / 12px caption floors, 16px inputs (kills iOS zoom).
+- **MOBILE-3 — Typography scale** ✅ COMPLETE (`refactor/mobile-typography`, v2.46.1) — 16px input floor at ≤768px (kills iOS auto-zoom), 0.72rem mobile text floor at ≤480px (16 components), 7 `--text-*` scale tokens added to `tokens.css`.
 - **MOBILE-4 — Layout:** collapse What's New to one line on mobile, fix the truncating greeting, rework the 7-tab bottom nav (≤5 + More / scrollable), tighten vertical rhythm.
 - **MOBILE-5 — PWA & polish:** manifest + theme-color + apple-touch-icon (installable), overscroll-behavior, safe-area verification on FAB/nav, tactile animation feedback.
 
@@ -5044,4 +5045,37 @@ The theme switch only existed in the desktop `AppSidebar` (hidden ≤768px) and 
 - `src/components/pages/DashboardPage.vue` (header icon + mobile align)
 - `src/components/pages/SettingsPage.vue` (Appearance panel)
 - `tests/components/ui/ThemeToggle.spec.ts` (new)
+- `CLAUDE.md`, `WhatsNewBanner.vue`, `DocsPage.vue`, `pages.spec.ts`, `onboarding.spec.ts`, `docs/PHASE_TRACKING.md`
+
+---
+
+## MOBILE-3 — Typography scale ✅
+**Branch**: `refactor/mobile-typography`
+**Status**: ✅ **COMPLETE** — June 2026
+**Version**: v2.46.1 (PATCH — CSS refactor, no new user-facing behaviour)
+
+### Problem
+Three separate typography issues on mobile:
+1. **iOS auto-zoom**: iOS Safari zooms the viewport on input focus when `font-size < 16px`. The global base was `14px`; the ≤768px responsive override also re-set `14px`. Only ≤480px got the correct 16px.
+2. **Invisible text**: 16+ components had `font-size` values as low as `0.55rem` (8.8px) — labels, badges, chart axis labels — that rendered as near-invisible specks on small phones.
+3. **No type-scale system**: 15+ distinct ad-hoc rem values in use with no common vocabulary.
+
+### Delivered
+- **iOS zoom fix** (`src/css/responsive.css`): changed `font-size: 14px` → `16px` on `input, select, textarea` and `.modal-field input/select` in the ≤768px block (also fixes the 480–768px range that the ≤480px rule never covered).
+- **Type-scale tokens** (`src/css/tokens.css`): added `--text-2xs` (0.65rem) through `--text-xl` (1.25rem) as a shared sizing vocabulary.
+- **Mobile text floor** (16 components): added `@media (max-width: 480px)` blocks to all components with sub-0.72rem text visible on mobile, flooring to `0.72rem` (~11.5px). Components updated: `DashboardPage`, `SpendingPage`, `SchedulePage`, `PurchasesThisPeriod`, `ExpenseCards`, `RecurringCalendar`, `Subscriptions`, `BudgetAlerts`, `BudgetAllocation`, `CategoryManager`, `Wishlist`, `SpendingAnalytics`, `RecurringSpend`, `BudgetVsActual`, `OneTimeIncomeSection`, `OneTimeIncomeModal`, `SectionPicker`. `StatCard` clamp updated directly: `clamp(0.65rem, 1.8vw, 0.7rem)` → `clamp(0.72rem, 1.8vw, 0.8rem)`.
+
+### What was NOT changed
+- `AppStatusBar` tiny text (0.45–0.62rem): already `display: none` at ≤768px — desktop-only, not a mobile problem.
+- `App.vue` `.section-handle__text` (0.48rem): already `display: none` at ≤768px.
+- `extras.css` `.shortcuts-group-label` (0.67rem): keyboard shortcuts panel — desktop-only context.
+
+### Tests & verification
+- Pure CSS refactor — 1509 tests unchanged, `vue-tsc` clean.
+- iOS zoom: verified by reducing input to 16px and confirming the zoom trigger threshold is met.
+
+### Files changed
+- `src/css/tokens.css` — 7 `--text-*` tokens added
+- `src/css/responsive.css` — 14px → 16px iOS zoom fix
+- 17 component files — `@media (max-width: 480px)` floor blocks + StatCard clamp
 - `CLAUDE.md`, `WhatsNewBanner.vue`, `DocsPage.vue`, `pages.spec.ts`, `onboarding.spec.ts`, `docs/PHASE_TRACKING.md`

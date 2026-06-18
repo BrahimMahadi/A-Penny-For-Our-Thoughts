@@ -1508,4 +1508,8 @@ onMounted(() => {
   }
 }
 
+@media (max-width: 480px) {
+  .quick-add__preview-label { font-size: 0.72rem; }
+}
+
 </style>

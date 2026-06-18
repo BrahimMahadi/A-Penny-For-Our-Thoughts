@@ -341,4 +341,8 @@ function onKeydown(event: KeyboardEvent): void {
     transform: translateY(100%);
   }
 }
+
+@media (max-width: 480px) {
+  .section-picker-hint { font-size: 0.72rem; }
+}
 </style>

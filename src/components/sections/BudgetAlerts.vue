@@ -360,4 +360,8 @@ function isFiring(alertId: string): boolean {
   gap: 0.5rem;
   padding-top: 0.25rem;
 }
+
+@media (max-width: 480px) {
+  .budget-alerts__firing-dot { font-size: 0.72rem; }
+}
 </style>

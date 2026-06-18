@@ -95,8 +95,8 @@ const deltaInfo = computed(() => {
 }
 
 .base-stat-card__label {
-  /* 9E: fluid type — stays readable from 320px to desktop */
-  font-size: clamp(0.65rem, 1.8vw, 0.7rem);
+  /* 9E: fluid type — floor bumped to 0.72rem for mobile readability */
+  font-size: clamp(0.72rem, 1.8vw, 0.8rem);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted, #8b8b95);

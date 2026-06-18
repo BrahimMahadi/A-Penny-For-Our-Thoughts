@@ -800,4 +800,10 @@ const payScheduleLabel = computed(() => {
   color: var(--success);
   font-weight: 700;
 }
+
+@media (max-width: 480px) {
+  .day-panel__eyebrow  { font-size: 0.72rem; }
+  .timeline-dot-label  { font-size: 0.72rem; }
+  .timeline-dot-sub    { font-size: 0.72rem; }
+}
 </style>

@@ -821,4 +821,10 @@ function removeItem(cardId: string, itemId: string): void {
   color: var(--danger);
   margin: 0;
 }
+
+@media (max-width: 480px) {
+  .expense-item__badge      { font-size: 0.72rem; }
+  .linked-freq-badge        { font-size: 0.72rem; }
+  .expense-card__footer-label { font-size: 0.72rem; }
+}
 </style>
