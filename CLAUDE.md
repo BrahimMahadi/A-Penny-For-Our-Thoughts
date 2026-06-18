@@ -19,7 +19,7 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (1504 tests across 47 spec files)  <!-- v2.45.4 -->
+- Testing: Vitest + @vue/test-utils (1509 tests across 48 spec files)  <!-- v2.46.0 -->
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA

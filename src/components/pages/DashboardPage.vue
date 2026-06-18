@@ -66,6 +66,7 @@ import Savings             from '@/components/sections/Savings.vue';
 import Wishlist            from '@/components/sections/Wishlist.vue';
 import ChequingBalance     from '@/components/sections/ChequingBalance.vue';
 import OneTimeIncomeModal  from '@/components/modals/OneTimeIncomeModal.vue';
+import ThemeToggle         from '@/components/ui/ThemeToggle.vue';
 
 // ─── Stores & composables ──────────────────────────────────────────
 const ui     = useUiStore();
@@ -436,6 +437,10 @@ onMounted(() => {
       </div>
 
       <div class="dash-header__actions">
+        <ThemeToggle
+          variant="icon"
+          class="dash-header__theme"
+        />
         <button
           class="btn-secondary"
           @click="openQuickIncome"
@@ -1478,6 +1483,11 @@ onMounted(() => {
   .dash-header__actions .btn-primary,
   .dash-header__actions .btn-secondary {
     width: 100%;
+  }
+  /* Keep the theme icon compact + right-aligned above the stacked CTAs
+     (the column is align-items:stretch, which would otherwise stretch it). */
+  .dash-header__theme {
+    align-self: flex-end;
   }
 
   /* MOBILE-1: enlarge the toggle + chip hit areas for thumbs.
