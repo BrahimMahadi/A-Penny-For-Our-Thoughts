@@ -361,4 +361,8 @@ function remove(id: string): void {
   font-size: 0.8rem;
   color: var(--text);
 }
+
+@media (max-width: 480px) {
+  .cat-badge { font-size: 0.72rem; }
+}
 </style>

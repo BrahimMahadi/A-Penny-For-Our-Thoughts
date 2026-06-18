@@ -22,14 +22,14 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.46.0';
+const APP_VERSION = '2.46.1';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🌗', text: 'Light/dark theme toggle now reachable on mobile! A new "Appearance" panel in Settings lets you switch themes from any device' },
-  { icon: '☀️', text: 'Plus a one-tap sun/moon button in the Dashboard header for quick switching — both stay in sync with the desktop sidebar and the T shortcut' },
-  { icon: '🧪', text: '1509 tests across 48 spec files — 5 new tests cover the toggle in both its icon and pill forms' },
+  { icon: '📐', text: 'iOS auto-zoom fix: inputs now use a 16px font floor on tablets and phones — iOS Safari no longer hijacks the viewport when you tap a field' },
+  { icon: '🔤', text: 'Mobile text floor: nothing renders below 0.72rem at ≤480px (was as small as 0.55rem in chart labels and calendar cells)' },
+  { icon: '🎨', text: 'New type-scale tokens: 7 CSS custom properties (--text-2xs through --text-xl) give every component a consistent sizing reference' },
 ];
 
 const budget = useBudgetStore();

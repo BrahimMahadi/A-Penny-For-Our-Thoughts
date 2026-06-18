@@ -1302,4 +1302,10 @@ defineExpose({ openAdd });
     grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
   }
 }
+
+@media (max-width: 480px) {
+  .wish-card__target-badge { font-size: 0.72rem; }
+  .wish-card__status-chip  { font-size: 0.72rem; }
+  .wish-chip               { font-size: 0.72rem; }
+}
 </style>

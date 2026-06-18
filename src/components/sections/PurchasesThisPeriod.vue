@@ -381,4 +381,8 @@ const captionLabel = computed(() =>
   border-top: 1px solid var(--border);
   padding-top: 0.6rem;
 }
+
+@media (max-width: 480px) {
+  .ptp__donut-type-hint { font-size: 0.72rem; }
+}
 </style>

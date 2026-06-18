@@ -461,4 +461,8 @@ const suffix = computed(() => (displayMode.value === 'biweekly' ? '/pay' : '/mo'
 .alloc-hint--danger {
   color: var(--danger);
 }
+
+@media (max-width: 480px) {
+  .alloc-slider-auto { font-size: 0.72rem; }
+}
 </style>

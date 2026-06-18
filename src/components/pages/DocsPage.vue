@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.46.1</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              Mobile — iOS zoom fix, readable text floors, and a type-scale token system (MOBILE-3)
+            </p>
+            <ul class="docs-list">
+              <li><strong>iOS auto-zoom eliminated.</strong> iOS Safari zooms the viewport whenever a focused input is smaller than 16px. All inputs, selects, and textareas now use a 16px minimum at ≤768px (previously 14px), so the page stays put when you tap any field.</li>
+              <li><strong>Mobile text floor.</strong> Nothing on a phone-sized screen (≤480px) renders below 0.72rem (~11.5px) any more. The previous low was 0.55rem (8.8px — invisible) in chart axis labels. All 16 affected components received targeted media-query overrides.</li>
+              <li><strong>Type-scale tokens.</strong> Seven new CSS custom properties — <code>--text-2xs</code> (0.65rem) through <code>--text-xl</code> (1.25rem) — are now available in <code>tokens.css</code> as a shared sizing vocabulary for future components.</li>
+              <li><strong>1509 tests across 48 spec files.</strong> Pure CSS refactor — no store or template changes; the full suite passes unchanged.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.46.0</span>
               <span class="release-date">June 2026</span>
             </div>

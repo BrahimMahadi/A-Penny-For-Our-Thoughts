@@ -1058,4 +1058,14 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
 .period-purchase-cat-select:focus {
   border-color: var(--accent);
 }
+
+@media (max-width: 480px) {
+  .filter-label             { font-size: 0.72rem; }
+  .analytics-stat-label     { font-size: 0.72rem; }
+  .filter-indicator         { font-size: 0.72rem; }
+  .period-rollup-label      { font-size: 0.72rem; }
+  .period-item__cat-chip    { font-size: 0.72rem; }
+  .period-purchase-cat      { font-size: 0.72rem; }
+  .period-tag-edit-btn      { font-size: 0.72rem; }
+}
 </style>

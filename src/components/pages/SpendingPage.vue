@@ -2397,4 +2397,16 @@ onMounted(() => {
   white-space: nowrap;
   flex-shrink: 0;
 }
+
+@media (max-width: 480px) {
+  .spend-donut-hint           { font-size: 0.72rem; }
+  .spend-bars-max             { font-size: 0.72rem; }
+  .spend-bar-amt              { font-size: 0.72rem; }
+  .spend-bar-label            { font-size: 0.72rem; }
+  .purchases-table thead th   { font-size: 0.72rem; }
+  .type-badge                 { font-size: 0.72rem; }
+  .undated-divider-row td     { font-size: 0.72rem; }
+  .spend-stat-typed__label    { font-size: 0.72rem; }
+  .mf-preview-label           { font-size: 0.72rem; }
+}
 </style>
