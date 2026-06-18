@@ -13,8 +13,8 @@
             this surfaces the same control where mobile users can reach it.
 
   Usage:
-    <ThemeToggle variant="icon" />   <!-- dashboard header -->
-    <ThemeToggle variant="pill" />   <!-- settings panel -->
+    <ThemeToggle variant="icon" />   (dashboard header)
+    <ThemeToggle variant="pill" />   (settings panel)
 -->
 
 <script setup lang="ts">
