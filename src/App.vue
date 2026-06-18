@@ -483,7 +483,7 @@ useGsapObserver(appMainRef, {
   }
 }
 
-@media (max-width: 540px) {
+@media (max-width: 480px) {
   .app-main {
     padding-right: 1rem;
     padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 1rem);

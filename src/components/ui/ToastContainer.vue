@@ -127,7 +127,7 @@ watch(
   border-left-color: #f59e0b;
 }
 
-@media (max-width: 540px) {
+@media (max-width: 480px) {
   .base-toast-container {
     left: 0.75rem;
     right: 0.75rem;

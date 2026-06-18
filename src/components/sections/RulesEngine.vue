@@ -502,7 +502,7 @@ const testResult = computed(() => {
   padding-top: 0.25rem;
 }
 
-@media (max-width: 540px) {
+@media (max-width: 480px) {
   .rules-engine__match-type { display: none; }
   .rules-engine__category { width: auto; }
 }

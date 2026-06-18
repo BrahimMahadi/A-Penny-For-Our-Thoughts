@@ -1198,7 +1198,7 @@ defineExpose({ openAdd });
   gap: 0.75rem;
 }
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .form-row-2 { grid-template-columns: 1fr; }
 }
 
@@ -1296,7 +1296,7 @@ defineExpose({ openAdd });
 }
 
 /* ─── Responsive ────────────────────────────────────────────────── */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .wish-grid {
     /* Tighter minimum on mobile — cards still grow/shrink with auto-fit */
     grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));

@@ -665,7 +665,7 @@ const iconMap: Record<string, string> = { good: '✅', warn: '⚠️', info: '�
   gap: 0.5rem;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 480px) {
   .analytics-stats { grid-template-columns: 1fr 1fr; }
 }
 

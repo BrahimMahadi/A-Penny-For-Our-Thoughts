@@ -321,7 +321,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 /* ─── Mobile: full-width bottom sheet ───────────────────────────── */
-@media (max-width: 540px) {
+@media (max-width: 480px) {
   .section-picker-backdrop {
     align-items: flex-end;
     justify-content: center;

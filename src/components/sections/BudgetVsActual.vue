@@ -224,7 +224,7 @@ function statusLabel(status: string): string {
   gap: 0.5rem;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 480px) {
   .bva-cards { grid-template-columns: 1fr; }
 }
 

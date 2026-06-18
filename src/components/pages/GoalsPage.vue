@@ -312,7 +312,7 @@ const wishlistHint = computed(() => {
   gap: 0.75rem;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 768px) {
   .goals-kpi-row {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -339,7 +339,7 @@ const wishlistHint = computed(() => {
   width: 100%;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 768px) {
   .analytics-2col {
     grid-template-columns: 1fr;
   }
@@ -397,7 +397,7 @@ const wishlistHint = computed(() => {
 }
 
 /* ── Responsive ──────────────────────────────────────────────── */
-@media (max-width: 540px) {
+@media (max-width: 480px) {
   .goals-header {
     flex-direction: column;
   }

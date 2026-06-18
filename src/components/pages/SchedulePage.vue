@@ -576,7 +576,7 @@ const payScheduleLabel = computed(() => {
   gap: 0.75rem;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 480px) {
   .kpi-row { grid-template-columns: 1fr 1fr; }
 }
 
@@ -593,7 +593,7 @@ const payScheduleLabel = computed(() => {
   grid-template-columns: 1fr;
 }
 
-@media (max-width: 820px) {
+@media (max-width: 768px) {
   .sched-body:not(.sched-body--list) {
     grid-template-columns: 1fr;
   }

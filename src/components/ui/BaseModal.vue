@@ -322,7 +322,7 @@ function onModalLeave(el: Element, done: () => void): void {
 }
 
 /* ─── 9C: Bottom-sheet layout on phones ─────────────────────── */
-@media (max-width: 540px) {
+@media (max-width: 480px) {
   .base-modal-overlay {
     align-items: flex-end;
     padding: 0;

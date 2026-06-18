@@ -890,7 +890,7 @@ onMounted(() => {
   .kpi-row { grid-template-columns: 1fr 1fr; }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 480px) {
   .kpi-row { grid-template-columns: 1fr; }
 }
 
@@ -1228,7 +1228,7 @@ onMounted(() => {
   align-items: start;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .dash-charts-row {
     grid-template-columns: 1fr;
   }
@@ -1242,13 +1242,13 @@ onMounted(() => {
   align-items: start;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1024px) {
   .dash-widget-row {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 680px) {
+@media (max-width: 768px) {
   .dash-widget-row {
     grid-template-columns: 1fr;
   }
@@ -1262,7 +1262,7 @@ onMounted(() => {
   align-items: start;
 }
 
-@media (max-width: 680px) {
+@media (max-width: 768px) {
   .dash-2col-row {
     grid-template-columns: 1fr;
   }

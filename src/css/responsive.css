@@ -7,7 +7,7 @@
 /* ═══════════════════════════════════════════════════
    RESPONSIVE — 1024px (large tablets)
 ═══════════════════════════════════════════════════ */
-@media (max-width: 1280px) {
+@media (max-width: 1024px) {
   /* Income stat cards: 4-col requires ~268px per card to fit the 44px income
      value and the budget value+button rows. That needs viewport ≥ ~1260px.
      Below 1280px collapse to 2 rows of 2 so each card has ~550px. */
@@ -79,7 +79,7 @@
 /* ═══════════════════════════════════════════════════
    RESPONSIVE — 640px (small laptops / large phones)
 ═══════════════════════════════════════════════════ */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   /* Expense card columns are too content-heavy for 2-col below 640px
      (the add-expense input row can't fit; collapse to single column) */
   .grid-cols-3 { grid-template-columns: 1fr; }
@@ -98,7 +98,7 @@
 /* ═══════════════════════════════════════════════════
    RESPONSIVE — 540px (phones)
 ═══════════════════════════════════════════════════ */
-@media (max-width: 540px) {
+@media (max-width: 480px) {
   .page { padding: 16px 14px 80px; }
 
   /* All grids collapse to 1 column */
@@ -192,7 +192,7 @@
 /* ═══════════════════════════════════════════════════
    RESPONSIVE — 380px (small phones)
 ═══════════════════════════════════════════════════ */
-@media (max-width: 380px) {
+@media (max-width: 480px) {
   .page { padding: 14px 12px 80px; }
 
   header {

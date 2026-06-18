@@ -417,7 +417,7 @@ function handleClearAll(): void {
   align-items: start;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 768px) {
   .settings-main-grid {
     grid-template-columns: 1fr;
   }
@@ -443,7 +443,7 @@ function handleClearAll(): void {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .settings-lower-grid {
     grid-template-columns: 1fr;
   }

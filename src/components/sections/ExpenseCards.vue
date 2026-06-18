@@ -750,7 +750,7 @@ function removeItem(cardId: string, itemId: string): void {
   gap: 0.75rem;
 }
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .form-row-2 { grid-template-columns: 1fr; }
 }
 
