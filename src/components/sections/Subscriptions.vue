@@ -1339,7 +1339,7 @@ function remove(id: string): void {
   gap: 0.75rem;
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .form-row-2 { grid-template-columns: 1fr; }
 }
 

@@ -1662,7 +1662,7 @@ onMounted(() => {
   gap: 0.75rem;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 768px) {
   .spend-kpi-row { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -1674,7 +1674,7 @@ onMounted(() => {
   align-items: start;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 768px) {
   .spend-charts-row { grid-template-columns: 1fr; }
 }
 

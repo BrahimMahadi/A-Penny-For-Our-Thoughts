@@ -178,7 +178,7 @@ function onRelease(): void {
 }
 
 /* ─── 9D: Touch target minimum at ≤540px (WCAG 2.5.5 — 44×44px) ── */
-@media (max-width: 540px) {
+@media (max-width: 480px) {
   .base-btn--xs,
   .base-btn--sm {
     min-height: 44px;

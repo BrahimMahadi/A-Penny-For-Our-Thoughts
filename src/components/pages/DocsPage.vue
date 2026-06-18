@@ -341,6 +341,21 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.45.4</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              Mobile — consolidated every responsive breakpoint onto one 3-tier system (MOBILE-2)
+            </p>
+            <ul class="docs-list">
+              <li><strong>17 breakpoints → 3.</strong> The app had accumulated 17 different responsive breakpoint values (380, 420, 540, 600, 640, 700, 820, 860, 900, 1100, 1280…). Every one now snaps to the canonical <code>sm 480 / md 768 / lg 1024</code> tiers, so layouts reflow predictably at the same widths everywhere.</li>
+              <li><strong>Internal cleanup.</strong> No intended change to how the app looks at any given screen width — this is groundwork that makes future mobile work faster and more consistent.</li>
+              <li><strong>Verified across widths.</strong> No layout overflow on any tab at 375 / 480 / 600 / 700 / 768 / 900 / 1024 px; 1504 tests still green. (CSS-only — breakpoint behaviour isn’t measurable in jsdom, so verification was live.)</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.45.3</span>
               <span class="release-date">June 2026</span>
             </div>

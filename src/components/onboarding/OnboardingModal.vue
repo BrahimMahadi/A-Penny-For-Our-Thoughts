@@ -677,7 +677,7 @@ function applyAllocation(): void {
 }
 
 /* ─── Bottom-sheet on phones ────────────────────────────────────── */
-@media (max-width: 540px) {
+@media (max-width: 480px) {
   .ob-overlay {
     align-items: flex-end;
     padding: 0;

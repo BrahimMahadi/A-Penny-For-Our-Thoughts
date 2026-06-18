@@ -1749,6 +1749,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | BUG-035 / BUG-036 | Pay-period rollover fixes. **BUG-035:** windfall list + hero "Available to spend" stayed stranded on the previous period when the app was left open across a boundary — root cause was a non-reactive `new Date()` in date-scoped computeds/getters. Fixed with a single reactive day-clock (`lib/clock.ts` + `useToday()`). **BUG-036:** monthly Wants/Needs card folded a whole archived `period.total` into wants (cross-bucket bleed); now split per-bucket via `archivedPeriodSpend`. Added "this month" label. 15 new tests incl. a boundary-crossing regression guard (1494 total). | `fix/period-rollover-reactivity` | ✅ Complete | v2.45.1 |
 | HERO-PERIOD-DELTA | Replaced the redundant monthly "Wants/Needs spent" KPI card with a pace-adjusted period-over-period delta on the hero "Available to spend" card. New `getPreviousPeriodPaceSpend` helper compares spend-so-far against last period's spend *through the same elapsed day* (apportioned to the active bucket by the archived `spent` ratio, since archived items carry no `budgetType`). KPI row → 3 cards. 10 new tests (1504 total). | `refactor/hero-period-delta` | ✅ Complete | v2.45.2 |
 | MOBILE-1 — Touch targets & button feel | First sprint of the Mobile Optimization initiative. 44px min-height buttons, full-width primary actions below `md`, `:active` press states, tap-highlight removal, ≥44px hit areas on pill chips / hero toggle. Establishes the 3-tier breakpoint tokens (`sm` 480 / `md` 768 / `lg` 1024) as the foundation. Verified live at 375px (buttons 37→44px, full-width stacked, transparent tap-highlight); CSS-only, no jsdom-measurable surface (1504 tests hold). | `refactor/mobile-touch-targets` | ✅ Complete | v2.45.3 |
+| MOBILE-2 — Breakpoint consolidation | Migrated all 17 ad-hoc `max-width` values onto the 3 canonical tiers (`sm` 480 / `md` 768 / `lg` 1024) via nearest-tier snapping, applied to `@media` lines only (element/token widths untouched), keeping blocks source-ordered so the cascade is preserved. Verified no overflow on any tab at 375/480/600/700/768/900/1024px. CSS-only (1504 tests hold). | `refactor/mobile-breakpoints` | ✅ Complete | v2.45.4 |
 
 ---
 
@@ -5010,7 +5011,7 @@ After v2.45.1, the dashboard had two bi-weekly cards following the same wants/ne
 
 ### Backlog (sequenced after MOBILE-1, not yet scheduled)
 
-- **MOBILE-2 — Breakpoint migration:** move the remaining 17 ad-hoc `max-width` values onto the `sm/md/lg` tiers, component-by-component with visual verification.
+- **MOBILE-2 — Breakpoint consolidation** ✅ COMPLETE (`refactor/mobile-breakpoints`, v2.45.4) — all 17 ad-hoc `max-width` values snapped to the nearest of `sm/md/lg` (`@media` lines only; element/token widths left intact). Verified no overflow across 375–1024px on every tab.
 - **MOBILE-3 — Typography scale:** rem-based type tokens, 14px body / 12px caption floors, 16px inputs (kills iOS zoom).
 - **MOBILE-4 — Layout:** collapse What's New to one line on mobile, fix the truncating greeting, rework the 7-tab bottom nav (≤5 + More / scrollable), tighten vertical rhythm.
 - **MOBILE-5 — PWA & polish:** manifest + theme-color + apple-touch-icon (installable), overscroll-behavior, safe-area verification on FAB/nav, tactile animation feedback.

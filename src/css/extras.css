@@ -277,7 +277,7 @@ textarea.is-invalid {
 /* ── 3. Add-form spacing on phones (≤540px) ────────────────────
    Slightly larger gaps and taller submit button for fat-finger
    friendliness on the inline add forms.                          */
-@media (max-width: 540px) {
+@media (max-width: 480px) {
   .add-form-stacked { gap: 14px; }
   .add-form-submit  { height: 48px; font-size: 14px; }
 

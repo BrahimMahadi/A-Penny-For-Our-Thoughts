@@ -424,11 +424,11 @@ function catMeta(key: string) {
   gap: 0.5rem;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 768px) {
   .nw-stat-tiles { grid-template-columns: 1fr 1fr; }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .nw-stat-tiles { grid-template-columns: 1fr; }
 }
 
@@ -568,7 +568,7 @@ function catMeta(key: string) {
   gap: 0.75rem;
 }
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .form-row-2 { grid-template-columns: 1fr; }
 }
 

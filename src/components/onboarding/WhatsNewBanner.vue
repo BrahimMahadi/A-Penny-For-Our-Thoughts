@@ -22,14 +22,13 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.45.3';
+const APP_VERSION = '2.45.4';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '👆', text: 'Mobile polish: buttons are now full 44px touch targets, and the dashboard\'s primary actions go full-width on phones — much easier to tap' },
-  { icon: '✨', text: 'Every button, chip, and toggle now gives a subtle press animation when tapped, and the grey tap-flash is gone' },
-  { icon: '📐', text: 'Groundwork: a consistent 3-tier breakpoint system (sm / md / lg) now underpins responsive styles — the first of several mobile improvements' },
+  { icon: '📐', text: 'Under-the-hood mobile cleanup: every responsive breakpoint across the app now snaps to one consistent 3-tier system (sm / md / lg) — layouts reflow predictably at the same widths everywhere' },
+  { icon: '🧩', text: 'Migrated 17 ad-hoc breakpoints down to 3, so future mobile work is simpler and more consistent. No change to how the app looks at your screen size' },
 ];
 
 const budget = useBudgetStore();
