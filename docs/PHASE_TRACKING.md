@@ -1750,6 +1750,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | HERO-PERIOD-DELTA | Replaced the redundant monthly "Wants/Needs spent" KPI card with a pace-adjusted period-over-period delta on the hero "Available to spend" card. New `getPreviousPeriodPaceSpend` helper compares spend-so-far against last period's spend *through the same elapsed day* (apportioned to the active bucket by the archived `spent` ratio, since archived items carry no `budgetType`). KPI row → 3 cards. 10 new tests (1504 total). | `refactor/hero-period-delta` | ✅ Complete | v2.45.2 |
 | MOBILE-1 — Touch targets & button feel | First sprint of the Mobile Optimization initiative. 44px min-height buttons, full-width primary actions below `md`, `:active` press states, tap-highlight removal, ≥44px hit areas on pill chips / hero toggle. Establishes the 3-tier breakpoint tokens (`sm` 480 / `md` 768 / `lg` 1024) as the foundation. Verified live at 375px (buttons 37→44px, full-width stacked, transparent tap-highlight); CSS-only, no jsdom-measurable surface (1504 tests hold). | `refactor/mobile-touch-targets` | ✅ Complete | v2.45.3 |
 | MOBILE-2 — Breakpoint consolidation | Migrated all 17 ad-hoc `max-width` values onto the 3 canonical tiers (`sm` 480 / `md` 768 / `lg` 1024) via nearest-tier snapping, applied to `@media` lines only (element/token widths untouched), keeping blocks source-ordered so the cascade is preserved. Verified no overflow on any tab at 375/480/600/700/768/900/1024px. CSS-only (1504 tests hold). | `refactor/mobile-breakpoints` | ✅ Complete | v2.45.4 |
+| THEME-TOGGLE-MOBILE | Surfaced the light/dark theme switch on mobile (previously only in the desktop-only sidebar + login). New reusable `ThemeToggle.vue` (icon + pill variants) wired to the theme store; an "Appearance" pill panel at the top of Settings (canonical) + a 44px sun/moon icon in the Dashboard header (one-tap). 5 new tests (1509 total). | `feat/theme-toggle` | ✅ Complete | v2.46.0 |
 
 ---
 
@@ -5015,3 +5016,32 @@ After v2.45.1, the dashboard had two bi-weekly cards following the same wants/ne
 - **MOBILE-3 — Typography scale:** rem-based type tokens, 14px body / 12px caption floors, 16px inputs (kills iOS zoom).
 - **MOBILE-4 — Layout:** collapse What's New to one line on mobile, fix the truncating greeting, rework the 7-tab bottom nav (≤5 + More / scrollable), tighten vertical rhythm.
 - **MOBILE-5 — PWA & polish:** manifest + theme-color + apple-touch-icon (installable), overscroll-behavior, safe-area verification on FAB/nav, tactile animation feedback.
+
+---
+
+## THEME-TOGGLE-MOBILE — Light/dark switch reachable on mobile ✅
+**Branch**: `feat/theme-toggle`
+**Status**: ✅ **COMPLETE** — June 2026
+**Version**: v2.46.0 (MINOR — new user-facing control)
+
+### Problem
+The theme switch only existed in the desktop `AppSidebar` (hidden ≤768px) and on the `LoginPage`, and there was no Appearance setting in Settings — so an authenticated mobile user had no way to change theme (the `T` shortcut isn't reachable without a keyboard).
+
+### Delivered
+- **`src/components/ui/ThemeToggle.vue`** — reusable, two variants wired to the theme store (`setTheme` / `toggle` / `isDark` / `isLight`):
+  - `icon` — a single 44px sun/moon button that toggles (shows the icon for the theme you'd switch *to*).
+  - `pill` — a segmented Light | Dark control with explicit set + active state.
+- **Settings → "Appearance" panel** (top of the left column) hosts the `pill` — the canonical, discoverable home.
+- **Dashboard header** hosts the `icon` for one-tap access; on mobile it's pinned top-right (`align-self: flex-end`) above the stacked CTAs so it doesn't stretch.
+- Reduced-motion guard on the press-scale. No schema change — the theme store already persists to `localStorage` (`penny_theme`).
+
+### Tests & verification
+- 5 new tests (`tests/components/ui/ThemeToggle.spec.ts`): icon toggles, default variant, accessible label reflects next action, pill renders 2 segments with correct active state, pill sets explicitly (idempotent). 1509 total.
+- `vue-tsc` clean. Live @375px: header icon 44px flips dark↔light and persists; Settings Appearance pill sets the theme and marks the active segment; both stay in sync; no console errors.
+
+### Files changed
+- `src/components/ui/ThemeToggle.vue` (new)
+- `src/components/pages/DashboardPage.vue` (header icon + mobile align)
+- `src/components/pages/SettingsPage.vue` (Appearance panel)
+- `tests/components/ui/ThemeToggle.spec.ts` (new)
+- `CLAUDE.md`, `WhatsNewBanner.vue`, `DocsPage.vue`, `pages.spec.ts`, `onboarding.spec.ts`, `docs/PHASE_TRACKING.md`

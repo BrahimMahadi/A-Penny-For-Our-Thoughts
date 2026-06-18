@@ -22,13 +22,14 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.45.4';
+const APP_VERSION = '2.46.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📐', text: 'Under-the-hood mobile cleanup: every responsive breakpoint across the app now snaps to one consistent 3-tier system (sm / md / lg) — layouts reflow predictably at the same widths everywhere' },
-  { icon: '🧩', text: 'Migrated 17 ad-hoc breakpoints down to 3, so future mobile work is simpler and more consistent. No change to how the app looks at your screen size' },
+  { icon: '🌗', text: 'Light/dark theme toggle now reachable on mobile! A new "Appearance" panel in Settings lets you switch themes from any device' },
+  { icon: '☀️', text: 'Plus a one-tap sun/moon button in the Dashboard header for quick switching — both stay in sync with the desktop sidebar and the T shortcut' },
+  { icon: '🧪', text: '1509 tests across 48 spec files — 5 new tests cover the toggle in both its icon and pill forms' },
 ];
 
 const budget = useBudgetStore();

@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.46.0</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              New — switch light/dark theme from mobile (Settings + a header shortcut)
+            </p>
+            <ul class="docs-list">
+              <li><strong>Appearance panel in Settings.</strong> A new “Appearance” card (top of Settings) with a Light / Dark pill — the canonical, discoverable home for the theme switch, reachable on any device. Previously the only toggles lived in the desktop sidebar and on the login screen, leaving no way to switch themes on a phone.</li>
+              <li><strong>One-tap header button.</strong> A sun/moon icon in the Dashboard header flips the theme instantly (it shows the icon for the theme you’d switch <em>to</em>). On phones it sits top-right; the primary actions stack below it.</li>
+              <li><strong>All in sync.</strong> The header icon, the Settings pill, the desktop sidebar pill, and the <code>T</code> keyboard shortcut all drive the same setting, which persists across reloads as before.</li>
+              <li><strong>1509 tests across 48 spec files.</strong> 5 new tests cover the shared <code>ThemeToggle</code> in both its icon (toggle) and pill (explicit Light/Dark) forms.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.45.4</span>
               <span class="release-date">June 2026</span>
             </div>
