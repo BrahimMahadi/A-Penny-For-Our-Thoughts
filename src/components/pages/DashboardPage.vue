@@ -1510,6 +1510,16 @@ onMounted(() => {
 
 @media (max-width: 480px) {
   .quick-add__preview-label { font-size: 0.72rem; }
+
+  /* Cancel the global responsive.css `header h1 { max-width: 140px }` rule —
+     that rule targets the tiny app-shell header only; the Dashboard's
+     page-level <header class="dash-header"> must never clip the greeting. */
+  .dash-header__title {
+    max-width: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
 }
 
 </style>

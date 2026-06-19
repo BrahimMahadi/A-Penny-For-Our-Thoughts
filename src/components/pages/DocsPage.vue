@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.46.2</span>
+              <span class="release-date">June 2026</span>
+            </div>
+            <p class="release-tagline">
+              Mobile — 5+More bottom nav, collapsible What's New banner, greeting truncation fix (MOBILE-4)
+            </p>
+            <ul class="docs-list">
+              <li><strong>5+More bottom nav.</strong> The 7-tab bottom bar was too cramped on a 375px phone (~53px per tab, labels clipping). The nav now shows 5 primary tabs — Dashboard, Schedule, Spending, Goals, Insights — plus a "More ···" button that slides up a sheet with Docs and Settings. The More button adopts the accent colour and an indicator dot when an overflow tab is active.</li>
+              <li><strong>Collapsible What's New banner.</strong> On mobile the release banner now collapses to a compact single-line bar (badge + chevron + dismiss button) on first render, saving ~80px of vertical space. Tap the bar to expand the release notes; tap ✕ to dismiss. On desktop the banner is always fully expanded as before.</li>
+              <li><strong>Greeting truncation fix.</strong> The global <code>responsive.css</code> rule that applied <code>max-width: 140px; text-overflow: ellipsis</code> at ≤480px was targeting all <code>&lt;header&gt;</code> elements, silently clipping the Dashboard's "Welcome back, [Name]" greeting. A scoped override in DashboardPage now cancels that rule for <code>.dash-header__title</code>.</li>
+              <li><strong>1509 tests across 48 spec files.</strong> Pure CSS and template refactor — no store or schema changes.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.46.1</span>
               <span class="release-date">June 2026</span>
             </div>

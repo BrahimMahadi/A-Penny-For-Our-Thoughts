@@ -6,6 +6,10 @@
             dashboard whenever the stored dismissedVersion differs from
             the current APP_VERSION constant.
 
+            On mobile (≤768px) the banner starts collapsed to a single
+            compact bar — tap it to expand the release notes. On desktop
+            it is always fully expanded (no collapse behaviour).
+
             Driven by a hardcoded version manifest — no remote fetching.
             Dismissed state is stored in BudgetState so it survives
             page reloads.
@@ -15,21 +19,21 @@
 -->
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useBudgetStore } from '@/stores/budget';
 import { useGsap } from '@/composables/useGsap';
 
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.46.1';
+const APP_VERSION = '2.46.2';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📐', text: 'iOS auto-zoom fix: inputs now use a 16px font floor on tablets and phones — iOS Safari no longer hijacks the viewport when you tap a field' },
-  { icon: '🔤', text: 'Mobile text floor: nothing renders below 0.72rem at ≤480px (was as small as 0.55rem in chart labels and calendar cells)' },
-  { icon: '🎨', text: 'New type-scale tokens: 7 CSS custom properties (--text-2xs through --text-xl) give every component a consistent sizing reference' },
+  { icon: '📱', text: '5+More bottom nav: the 7-tab bar now shows 5 primary tabs plus a "More ···" button — tap it to reach Docs and Settings from a slide-up sheet' },
+  { icon: '✨', text: 'Collapsible What\'s New: on mobile the release banner collapses to a compact single-line bar — tap it to expand the notes, tap ✕ to dismiss' },
+  { icon: '👋', text: 'Greeting fix: "Welcome back, [Name]" now wraps naturally on small screens instead of being clipped at 140px with an ellipsis' },
 ];
 
 const budget = useBudgetStore();
@@ -37,6 +41,15 @@ const budget = useBudgetStore();
 const visible = computed(
   () => budget.dismissedVersion !== APP_VERSION,
 );
+
+/** Collapsed by default on mobile; the desktop always-expanded state
+ *  is enforced by CSS (`.wnb__body--collapsed` is overridden at >768px). */
+const isCollapsed = ref(true);
+
+function toggleCollapsed(): void {
+  if (window.innerWidth > 768) return;
+  isCollapsed.value = !isCollapsed.value;
+}
 
 function dismiss(): void {
   budget.dismissWhatsNew(APP_VERSION);
@@ -66,19 +79,40 @@ function onWnbLeave(el: Element, done: () => void): void {
       v-if="visible"
       class="wnb"
       role="status"
-      aria-label="What's new in version {{ APP_VERSION }}"
+      :aria-label="`What's new in version ${APP_VERSION}`"
     >
-      <div class="wnb__inner">
-        <div class="wnb__header">
-          <span class="wnb__badge">✨ What's new in v{{ APP_VERSION }}</span>
-          <button
-            class="wnb__close"
-            aria-label="Dismiss what's new"
-            @click="dismiss"
-          >
-            ✕
-          </button>
-        </div>
+      <!-- Bar row — acts as expand/collapse toggle on mobile -->
+      <div
+        class="wnb__bar"
+        role="button"
+        tabindex="0"
+        :aria-expanded="!isCollapsed"
+        aria-controls="wnb-body"
+        @click="toggleCollapsed"
+        @keydown.enter="toggleCollapsed"
+        @keydown.space.prevent="toggleCollapsed"
+      >
+        <span class="wnb__badge">✨ What's new in v{{ APP_VERSION }}</span>
+        <span
+          class="wnb__chevron"
+          :class="{ 'wnb__chevron--open': !isCollapsed }"
+          aria-hidden="true"
+        >▾</span>
+        <button
+          class="wnb__close"
+          aria-label="Dismiss what's new"
+          @click.stop="dismiss"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- Release notes body — collapsed on mobile until tapped -->
+      <div
+        id="wnb-body"
+        class="wnb__body"
+        :class="{ 'wnb__body--collapsed': isCollapsed }"
+      >
         <ul class="wnb__list">
           <li
             v-for="note in RELEASE_NOTES"
@@ -110,24 +144,35 @@ function onWnbLeave(el: Element, done: () => void): void {
   overflow: hidden;
 }
 
-.wnb__inner {
-  padding: 0.85rem 1rem;
-}
-
-.wnb__header {
+/* ── Bar row (always visible) ── */
+.wnb__bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
-  margin-bottom: 0.6rem;
+  padding: 0.85rem 1rem 0.6rem;
 }
 
 .wnb__badge {
+  flex: 1;
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--accent, #5b3df5);
+}
+
+/* Chevron — hidden on desktop, shown on mobile */
+.wnb__chevron {
+  display: none;
+  font-size: 0.8rem;
+  color: var(--muted, #8b8b95);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.wnb__chevron--open {
+  transform: rotate(180deg);
 }
 
 .wnb__close {
@@ -142,7 +187,7 @@ function onWnbLeave(el: Element, done: () => void): void {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--transition-fast), color var(--transition-fast);
   flex-shrink: 0;
 }
 
@@ -154,6 +199,11 @@ function onWnbLeave(el: Element, done: () => void): void {
 .wnb__close:focus-visible {
   outline: 2px solid var(--accent, #5b3df5);
   outline-offset: 2px;
+}
+
+/* ── Body (release notes) ── */
+.wnb__body {
+  padding: 0 1rem 0.85rem;
 }
 
 .wnb__list {
@@ -177,6 +227,37 @@ function onWnbLeave(el: Element, done: () => void): void {
 .wnb__icon {
   flex-shrink: 0;
   font-size: 0.9rem;
+}
+
+/* ── Mobile collapse behaviour (≤768px) ── */
+@media (max-width: 768px) {
+  .wnb__bar {
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .wnb__chevron {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .wnb__body {
+    overflow: hidden;
+    max-height: 400px;
+    opacity: 1;
+    padding: 0.5rem 1rem 0.85rem;
+    border-top: 1px solid color-mix(in srgb, var(--accent, #5b3df5) 15%, var(--border, #23232f));
+    transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.2s ease, border-top-color 0.2s ease;
+  }
+
+  .wnb__body--collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-color: transparent;
+  }
 }
 
 /* prefers-reduced-motion is handled by useGsap — no CSS overrides needed */
