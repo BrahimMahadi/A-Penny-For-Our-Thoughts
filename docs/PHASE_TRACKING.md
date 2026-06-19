@@ -1752,6 +1752,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | MOBILE-2 — Breakpoint consolidation | Migrated all 17 ad-hoc `max-width` values onto the 3 canonical tiers (`sm` 480 / `md` 768 / `lg` 1024) via nearest-tier snapping, applied to `@media` lines only (element/token widths untouched), keeping blocks source-ordered so the cascade is preserved. Verified no overflow on any tab at 375/480/600/700/768/900/1024px. CSS-only (1504 tests hold). | `refactor/mobile-breakpoints` | ✅ Complete | v2.45.4 |
 | THEME-TOGGLE-MOBILE | Surfaced the light/dark theme switch on mobile (previously only in the desktop-only sidebar + login). New reusable `ThemeToggle.vue` (icon + pill variants) wired to the theme store; an "Appearance" pill panel at the top of Settings (canonical) + a 44px sun/moon icon in the Dashboard header (one-tap). 5 new tests (1509 total). | `feat/theme-toggle` | ✅ Complete | v2.46.0 |
 | MOBILE-3 — Typography scale | iOS zoom fix (16px input floor at ≤768px), mobile text floor (nothing below 0.72rem at ≤480px across 16 components), 7 new `--text-*` CSS scale tokens in `tokens.css`. Pure CSS refactor — 1509 tests unchanged. | `refactor/mobile-typography` | ✅ Complete | v2.46.1 |
+| MOBILE-4 — Layout | 5+More bottom nav (5 primary + overflow sheet for Docs/Settings, active-in-overflow dot indicator), collapsible What's New banner on mobile (compact bar + tap-to-expand), greeting truncation fix (scoped the errant 140px `header h1` cap away from `.dash-header__title`). 1509 tests unchanged. | `refactor/mobile-layout` | ✅ Complete | v2.46.2 |
 
 ---
 
@@ -5015,7 +5016,7 @@ After v2.45.1, the dashboard had two bi-weekly cards following the same wants/ne
 
 - **MOBILE-2 — Breakpoint consolidation** ✅ COMPLETE (`refactor/mobile-breakpoints`, v2.45.4) — all 17 ad-hoc `max-width` values snapped to the nearest of `sm/md/lg` (`@media` lines only; element/token widths left intact). Verified no overflow across 375–1024px on every tab.
 - **MOBILE-3 — Typography scale** ✅ COMPLETE (`refactor/mobile-typography`, v2.46.1) — 16px input floor at ≤768px (kills iOS auto-zoom), 0.72rem mobile text floor at ≤480px (16 components), 7 `--text-*` scale tokens added to `tokens.css`.
-- **MOBILE-4 — Layout:** collapse What's New to one line on mobile, fix the truncating greeting, rework the 7-tab bottom nav (≤5 + More / scrollable), tighten vertical rhythm.
+- **MOBILE-4 — Layout** ✅ COMPLETE (`refactor/mobile-layout`, v2.46.2) — 5+More bottom nav, collapsible WNB on mobile, greeting truncation fix.
 - **MOBILE-5 — PWA & polish:** manifest + theme-color + apple-touch-icon (installable), overscroll-behavior, safe-area verification on FAB/nav, tactile animation feedback.
 
 ---
@@ -5079,3 +5080,32 @@ Three separate typography issues on mobile:
 - `src/css/responsive.css` — 14px → 16px iOS zoom fix
 - 17 component files — `@media (max-width: 480px)` floor blocks + StatCard clamp
 - `CLAUDE.md`, `WhatsNewBanner.vue`, `DocsPage.vue`, `pages.spec.ts`, `onboarding.spec.ts`, `docs/PHASE_TRACKING.md`
+
+---
+
+## MOBILE-4 — Layout ✅
+**Branch**: `refactor/mobile-layout`
+**Status**: ✅ **COMPLETE** — June 2026
+**Version**: v2.46.2 (PATCH — CSS/template refactor, no new user-facing behaviour beyond mobile UX improvements)
+
+### Problem
+Three layout issues on mobile:
+1. **7-tab bottom nav cramped**: at 375px each of the 7 tabs gets ~53px, labels clip and thumbs often miss. No way to tighten it without dropping tabs.
+2. **What's New banner takes too much vertical space**: the banner always renders fully expanded with 3 bullet items, consuming ~130px before the user sees any content.
+3. **Greeting truncated**: `responsive.css` applied a global `header h1 { max-width: 140px; white-space: nowrap; text-overflow: ellipsis }` at ≤480px intended for the tiny app-shell header, but the Dashboard uses a `<header class="dash-header">` element — so "Welcome back, Brahim" silently became "Welcome bac…".
+
+### Delivered
+- **5+More bottom nav** (`src/components/ui/BottomNav.vue`): the 7-tab `v-for` replaced with 5 fixed primary slots (Dashboard, Schedule, Spending, Goals, Insights) + a "More ···" 6th button. Tapping More opens a slide-up sheet (teleported to `<body>` for clean z-index stacking) showing Docs and Settings as large tappable tiles. When an overflow tab is active, the More button shows the accent colour + an indicator pill at the top and an inline dot. Closing: tap overlay or select a tab. CSS visibility + opacity transition (no Vue `<Transition>` needed).
+- **Collapsible What's New** (`src/components/onboarding/WhatsNewBanner.vue`): added `isCollapsed` ref (starts `true`) and a `toggleCollapsed()` guard (`window.innerWidth > 768` → no-op on desktop). Template restructured into `wnb__bar` (always-visible clickable row with badge + chevron + close) and `wnb__body` (release notes, hidden via `max-height: 0` transition when `--collapsed`). Chevron rotates 180° on expand. Desktop: chevron hidden via CSS, body always visible, no interactive change.
+- **Greeting truncation fix** (`src/components/pages/DashboardPage.vue`): added `@media (max-width: 480px) { .dash-header__title { max-width: none; white-space: normal; overflow: visible; text-overflow: clip } }` to the component's `<style scoped>` block — higher specificity than the global rule, locally scoped.
+
+### Tests & verification
+- 1509 tests unchanged, `vue-tsc` clean.
+- Verified at 375px: 5+More nav, More sheet slides up with Docs/Settings, selecting overflow tab closes sheet + highlights More button, WNB collapses on load, expands on tap, greeting "Welcome back, Brahim Mahadi" wraps across two lines without clipping.
+- Desktop verified: WNB always expanded, bottom nav hidden, greeting on one line.
+
+### Files changed
+- `src/components/ui/BottomNav.vue` — 5+More nav + overflow sheet
+- `src/components/onboarding/WhatsNewBanner.vue` — collapsible bar + v2.46.2 release notes
+- `src/components/pages/DashboardPage.vue` — greeting truncation fix
+- `CLAUDE.md`, `DocsPage.vue`, `pages.spec.ts`, `onboarding.spec.ts`, `docs/PHASE_TRACKING.md`
