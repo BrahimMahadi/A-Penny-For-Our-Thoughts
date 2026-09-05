@@ -26,10 +26,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Node version comes from .nvmrc so the deploy toolchain matches CI and
+      # local development. Node 20 was previously hard-coded here and reached
+      # end-of-life on 2026-04-30 — an unpatched runtime building the shipped
+      # bundle. Do NOT hard-code a version; change .nvmrc and all three follow.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies

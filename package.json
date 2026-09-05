@@ -1,6 +1,9 @@
 {
   "name": "a-penny-for-our-thoughts",
   "version": "0.1.0",
+  "engines": {
+    "node": "^24.0.0"
+  },
   "description": "Personal financial dashboard based on the 50/30/20 budget rule",
   "author": "Brahim <bkoul.003@gmail.com>",
   "license": "MIT",

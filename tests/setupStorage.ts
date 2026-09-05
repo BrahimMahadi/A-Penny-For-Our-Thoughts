@@ -4,14 +4,21 @@
  * Created:  September 2026 (BUG-037 — Node 26 shadows jsdom's localStorage)
  * Summary:  Publishes working Web Storage globals for the jsdom test env.
  *
- *           Node 22+ ships an experimental global `localStorage` /
- *           `sessionStorage` accessor pair. Without the `--localstorage-file`
- *           flag those getters resolve to `undefined` — but the properties
- *           still EXIST on `globalThis`. Vitest 1.x's jsdom environment only
- *           copies a window key onto the global when the global does not
- *           already define one, so from Node 22 onward jsdom's Storage objects
- *           are never published and every `localStorage.*` call in a spec
- *           throws `Cannot read properties of undefined`.
+ *           Recent Node ships an experimental global `localStorage`
+ *           accessor. Without the `--localstorage-file` flag its getter
+ *           resolves to `undefined` — but the property still EXISTS on
+ *           `globalThis`. Vitest 1.x's jsdom environment only copies a window
+ *           key onto the global when the global does not already define one,
+ *           so jsdom's Storage objects are never published and every
+ *           `localStorage.*` call in a spec throws
+ *           `Cannot read properties of undefined`.
+ *
+ *           Measured boundary (`Object.getOwnPropertyDescriptor(globalThis,
+ *           'localStorage')`): absent on v20.18.0, v22.23.2 and v24.20.0;
+ *           present on v26.5.1. So this bites somewhere in v25/v26, NOT at
+ *           v22 as the accessor's introduction might suggest. The shim is
+ *           guarded on the descriptor rather than on a version number, so it
+ *           stays correct wherever the true boundary sits.
  *
  *           Under `globals: true`, `window`, `document.defaultView` and
  *           `globalThis` are all the SAME populated object, so the real jsdom
@@ -40,11 +47,11 @@ import { JSDOM } from 'jsdom';
 
 const STORAGE_KEYS = ['localStorage', 'sessionStorage'] as const;
 
-// Node only shadows SOME of these (v26: `localStorage` only), so a per-key
-// decision would leave the realm split — one store from jsdom's environment,
-// the other from ours, with only one matching the `Storage` global. Decide
-// once for the whole group instead: if any key is missing, republish all of
-// them, plus the constructor, from a single realm.
+// Node shadows only SOME of these (v26.5.1: `localStorage` but not
+// `sessionStorage`), so a per-key decision would leave the realm split — one
+// store from jsdom's environment, the other from ours, with only one matching
+// the `Storage` global. Decide once for the whole group instead: if any key is
+// missing, republish all of them, plus the constructor, from a single realm.
 const needsShim = STORAGE_KEYS.some((key) => !globalThis[key]);
 
 if (needsShim) {

@@ -31,11 +31,16 @@ No application code had changed — the previous commit had shipped with all 150
 
 **Root cause** — a toolchain interaction, not a code defect:
 
-1. **Node 22+ defines a global `localStorage` accessor.** It is experimental and, without the
+1. **Recent Node defines a global `localStorage` accessor.** It is experimental and, without the
    `--localstorage-file` flag, its getter returns `undefined` while emitting
    `ExperimentalWarning: localStorage is not available`. Critically, the *property still exists*
    on `globalThis` — `Object.getOwnPropertyDescriptor(globalThis, 'localStorage')` returns a
    `{ get, set }` pair.
+
+   **Measured boundary** (descriptor present?): `v20.18.0` absent · `v22.23.2` absent ·
+   `v24.20.0` absent · `v26.5.1` **present**. The problem therefore starts in v25/v26 — *not* at
+   v22, where the accessor was first introduced behind the flag. The shim keys off the descriptor,
+   not a version number, so it stays correct regardless of where the exact boundary falls.
 2. **Vitest 1.x's jsdom environment skips globals that already exist.** When populating the test
    context it copies jsdom window keys onto the Node global only where nothing of that name is
    already defined — a deliberate guard against clobbering host globals. Node's inert accessor
@@ -59,6 +64,15 @@ missing, so a Node version without the shadowing problem is left untouched. `@ty
 as a devDependency to keep `vue-tsc` clean.
 
 **Prevention** —
+- **The Node version is now pinned.** CI and deploy both hard-coded Node 20 while local ran Node 26.
+  That six-major drift is the reason CI stayed green while local had 254 failures — and Node 20 had
+  been end-of-life since 2026-04-30 while still building the production bundle. `.nvmrc` (Node 24
+  Active LTS) is now the single source of truth for both workflows, and `tests/toolchain.spec.ts`
+  fails if `.nvmrc`, `package.json` `engines`, or either workflow drift apart.
+- **A pinned LTS is not sufficient on its own.** The shadowing global is absent on v20/v22/v24 and
+  present on v26, so CI pinned to 24 would still not reproduce this. `ci.yml` therefore runs a
+  `forward-compat` job on Node Current. If that job fails while `validate` passes, suspect a new
+  host global shadowing a jsdom one before suspecting application code.
 - `tests/setupStorage.spec.ts` (6 tests) asserts the globals exist, round-trip, stay separate,
   share a prototype with the `Storage` global, and remain interceptable by prototype spies. A future
   Node or Vitest bump that reintroduces the problem now produces one clearly-named failure at the

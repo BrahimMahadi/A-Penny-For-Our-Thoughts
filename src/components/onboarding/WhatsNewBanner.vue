@@ -33,6 +33,7 @@ interface ReleaseNote { icon: string; text: string }
 const RELEASE_NOTES: ReleaseNote[] = [
   { icon: '🧪', text: 'Test suite restored: a Node 26 change had silently disabled localStorage inside the test environment, failing 254 tests across 8 files — all 1515 now pass again' },
   { icon: '🛡️', text: 'Regression guard: a dedicated spec now checks the storage shim directly, so a future Node or Vitest upgrade reports one clear failure instead of hundreds of misleading ones' },
+  { icon: '📌', text: 'Build toolchain pinned: CI and deploy were running an end-of-life Node 20 while development had moved on — both now track a single pinned version, with a second CI job on the newest Node' },
   { icon: '🔧', text: 'Internal only — no change to the app, your data, or how anything looks or behaves' },
 ];
 
