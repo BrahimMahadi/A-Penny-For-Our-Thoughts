@@ -65,6 +65,7 @@ function selectOverflow(id: TabId): void {
     <button
       v-for="item in primaryItems"
       :key="item.id"
+      v-press
       class="bottom-nav__btn"
       :class="{ 'bottom-nav__btn--active': ui.activeTab === item.id }"
       :aria-label="item.label"
@@ -85,6 +86,7 @@ function selectOverflow(id: TabId): void {
 
     <!-- More button — 6th slot, opens overflow sheet -->
     <button
+      v-press
       class="bottom-nav__btn bottom-nav__more"
       :class="{ 'bottom-nav__btn--active': isOverflow }"
       aria-label="More sections"
@@ -134,6 +136,7 @@ function selectOverflow(id: TabId): void {
           <button
             v-for="item in overflowItems"
             :key="item.id"
+            v-press
             class="bnav-more-sheet__item"
             :class="{ 'bnav-more-sheet__item--active': ui.activeTab === item.id }"
             :aria-label="item.label"
@@ -271,6 +274,9 @@ function selectOverflow(id: TabId): void {
   border-top: 1px solid var(--border);
   border-radius: 20px 20px 0 0;
   padding: 0.85rem 1rem calc(60px + env(safe-area-inset-bottom, 0px) + 0.5rem);
+  /* MOBILE-5: keep an overscroll at the sheet's edge from scrolling the
+     dashboard behind it (or triggering pull-to-refresh). */
+  overscroll-behavior: contain;
   /* Sheet slides up when the wrapper opens */
   transform: translateY(40px);
   transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);

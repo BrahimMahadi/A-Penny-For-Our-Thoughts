@@ -1754,7 +1754,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | MOBILE-3 — Typography scale | iOS zoom fix (16px input floor at ≤768px), mobile text floor (nothing below 0.72rem at ≤480px across 16 components), 7 new `--text-*` CSS scale tokens in `tokens.css`. Pure CSS refactor — 1509 tests unchanged. | `refactor/mobile-typography` | ✅ Complete | v2.46.1 |
 | MOBILE-4 — Layout | 5+More bottom nav (5 primary + overflow sheet for Docs/Settings, active-in-overflow dot indicator), collapsible What's New banner on mobile (compact bar + tap-to-expand), greeting truncation fix (scoped the errant 140px `header h1` cap away from `.dash-header__title`). 1509 tests unchanged. | `refactor/mobile-layout` | ✅ Complete | v2.46.2 |
 | BUG-037 — Web Storage test shim | Node 26 defines an inert global `localStorage` accessor; Vitest 1.x's jsdom env skips globals that already exist, so jsdom's Storage was never published and 254 tests across 8 files failed on unchanged code. Fixed with `tests/setupStorage.ts` (first in `setupFiles`), which republishes `localStorage`, `sessionStorage` and the `Storage` constructor **as a group from one jsdom realm** — a per-key fix splits realms and silently defeats `vi.spyOn(Storage.prototype, …)`. 6 guard tests. **Also pinned the Node toolchain**: CI + deploy hard-coded Node 20 (EOL 2026-04-30) while local ran Node 26 — the drift that kept CI green through this bug. Both now read `.nvmrc` (Node 24 Active LTS), plus a `forward-compat` CI job on Node Current so host-global regressions surface in CI. 11 new tests (1520 total), green on Node 20/22/24/26. | `fix/vitest-localstorage-shim` | ✅ Complete | v2.46.3 |
-| MOBILE-5 — PWA & polish | Manifest + theme-color + apple-touch-icon (installable), `overscroll-behavior`, safe-area verification on FAB/nav, tactile animation feedback. Final sprint of the Mobile Optimization initiative. | `feat/mobile-pwa` | 🔲 PLANNED | — |
+| MOBILE-5 — PWA & polish | Installable PWA: manifest + apple-touch-icon + per-scheme theme-color, and a minimal pass-through service worker (Chrome will not offer installation without one) that deliberately does not cache. New cent-sign monogram icon set (192/512/180/48 + maskable 512). `v-press` directive brings tactile press to the bottom nav, More sheet and FAB. `overscroll-behavior: contain` on page, modals and sheet. **BUG-038**: modal scroll lock rewritten to the position-fixed technique after testing showed the page still scrolled behind a modal on mobile (`overflow: hidden` is ignored by iOS Safari for touch). Safe-area audited. 32 new tests (1552 total). **Completes the Mobile Optimization initiative.** | `feat/mobile-pwa` | ✅ Complete | v2.47.0 |
 | TEST-INFRA-1 — Vitest 3 upgrade | Upgrade Vitest 1.6 → 3.x (+ `@vitest/*`, jsdom), migrate config/API surface, and remove the BUG-037 storage shim once the runner publishes jsdom globals unconditionally. Pin Node via `.nvmrc` so CI and local agree. | `chore/vitest-3-upgrade` | 🔲 PLANNED | — |
 
 ---
@@ -5004,7 +5004,7 @@ After v2.45.1, the dashboard had two bi-weekly cards following the same wants/ne
 ---
 
 ## Mobile Optimization Initiative 📱
-**Status**: 🟡 **IN PROGRESS** — June 2026
+**Status**: ✅ **COMPLETE** — September 2026 (MOBILE-1 → MOBILE-5)
 **Goal**: Make the phone experience first-class. Grounded in a 375px audit: 37–39px buttons (under the 44px target), 5/5 inputs <16px (iOS auto-zoom), ~250 hardcoded px font-sizes, 17 ad-hoc breakpoints, the What's New banner eating 50% of the first screen, a truncating greeting, and a cramped 7-tab bottom nav.
 
 ### Agreed plan
@@ -5020,7 +5020,7 @@ After v2.45.1, the dashboard had two bi-weekly cards following the same wants/ne
 - **MOBILE-2 — Breakpoint consolidation** ✅ COMPLETE (`refactor/mobile-breakpoints`, v2.45.4) — all 17 ad-hoc `max-width` values snapped to the nearest of `sm/md/lg` (`@media` lines only; element/token widths left intact). Verified no overflow across 375–1024px on every tab.
 - **MOBILE-3 — Typography scale** ✅ COMPLETE (`refactor/mobile-typography`, v2.46.1) — 16px input floor at ≤768px (kills iOS auto-zoom), 0.72rem mobile text floor at ≤480px (16 components), 7 `--text-*` scale tokens added to `tokens.css`.
 - **MOBILE-4 — Layout** ✅ COMPLETE (`refactor/mobile-layout`, v2.46.2) — 5+More bottom nav, collapsible WNB on mobile, greeting truncation fix.
-- **MOBILE-5 — PWA & polish:** manifest + theme-color + apple-touch-icon (installable), overscroll-behavior, safe-area verification on FAB/nav, tactile animation feedback.
+- **MOBILE-5 — PWA & polish** ✅ COMPLETE (`feat/mobile-pwa`, v2.47.0) — installable PWA (manifest, apple-touch-icon, per-scheme theme-color, minimal non-caching service worker), cent-sign monogram icon set, `v-press` tactile feedback on nav/sheet/FAB, `overscroll-behavior: contain`, safe-area audited.
 
 ---
 
@@ -5238,4 +5238,109 @@ table: Vitest 3 ships a faster default pool, better diffs, and `expect.soft`.
   is affected at once.
 - 49 spec files is a wide blast radius for a tooling change — worth doing as its own sprint with
   nothing else in the branch, exactly as scoped here.
+
+---
+
+## MOBILE-5 — PWA & polish ✅
+**Branch**: `feat/mobile-pwa`
+**Status**: ✅ **COMPLETE** — September 2026
+**Version**: v2.47.0 (MINOR — installability is new user-facing capability)
+
+### Agreed scope (decisions taken 2026-09-05)
+1. **Installable PWA, not offline.** `manifest.webmanifest` + theme-color + apple-touch metas, plus a
+   **minimal hand-written service worker** with a pass-through `fetch` handler — Chrome/Android only
+   fires the install prompt when one exists; iOS Add-to-Home-Screen does not need it. No caching
+   strategy: Chart.js and Google Fonts stay on their CDNs and the app remains online-only. Genuine
+   offline support stays as ROADMAP item F.
+2. **Custom monogram icon.** Not the 💸 emoji favicon. Four candidates built from existing brand
+   tokens are presented in the demo for selection.
+3. **Visual-only tactile feedback.** No Vibration API — iOS Safari does not support `navigator.vibrate`,
+   so haptics would be inert for half the users. Extends MOBILE-1's `:active` press to nav tabs, FAB,
+   cards and list rows, cancelled under `prefers-reduced-motion`.
+4. **`overscroll-behavior`** to stop scroll chaining out of modals and scroll panes.
+5. **Safe-area verification** — an audit, not new work: `viewport-fit=cover` is already set and
+   `env(safe-area-inset-*)` is already used in 11 places.
+
+### Findings from the pre-sprint audit
+- **No `public/` directory exists.** It must be created; Vite copies it to the dist root on build.
+- **The GitHub Pages base is `/A-Penny-For-Our-Thoughts/`.** `start_url`, `scope` and every icon path
+  must carry it — a manifest with root-relative paths silently fails to install in production.
+- **`vite.config.ts`'s base comment is wrong.** It claims "Only affects `vite build` output — `vite dev`
+  always uses '/'", but the dev server also serves under the base: `/demo-mobile-5-pwa.html` 404s while
+  `/A-Penny-For-Our-Thoughts/demo-mobile-5-pwa.html` resolves. Correct the comment during the sprint.
+- **Maskable safe zone caught a real defect.** The Android maskable spec permits cropping outside a
+  centred circle of 80% diameter (radius 204.8 in a 512 grid). Measured furthest painted extent per
+  candidate: coin 161 (margin 43.8), split 174 (30.8), thought 193.4 (11.4 — **failed at 239 before the
+  bubble dots were pulled in**), cent 197.8 (7.0 — tightest; the ¢ glyph runs close, so rasterisation
+  must be checked visually or the glyph converted to a path).
+
+### Demo
+`demo-mobile-5-pwa.html` — five labs: icon candidates (platform mask, background, safe-zone overlay,
+home-screen mock), tactile press lab (current CSS vs proposed GSAP, with scale/duration/ease controls
+and a reduced-motion simulation), `overscroll-behavior` scroll-chaining comparison, a safe-area rig with
+adjustable insets, and a live manifest preview. GSAP loaded from `./node_modules/` per the demo-first
+policy. **Must be deleted before merge** (release checklist item 8).
+
+### Delivered
+- **`public/`** created (the project had none). `manifest.webmanifest`, `sw.js`, and `icons/` with
+  `icon-192`, `icon-512`, `icon-maskable-512`, `apple-touch-icon-180`, `favicon-48`.
+- **Icon** — cent-sign monogram, JetBrains Mono 700 on the violet gradient (`#7c5cff` → `#4a2fd4`),
+  rasterised from SVG via headless Chrome so the glyph is baked and carries no runtime font
+  dependency. The maskable variant scales the artwork to 92%, giving ~22px of margin inside
+  Android's safe circle (the glyph fits at 100%, but with only 7px to spare).
+- **`src/lib/registerSW.ts`** — builds both the worker path and its scope from
+  `import.meta.env.BASE_URL`, and is a **no-op in dev** (a worker against the Vite dev server
+  intercepts HMR and produces confusing stale-module failures).
+- **`src/directives/vPress.ts`** — `v-press`, registered globally in `main.ts`. A directive rather
+  than a composable because most targets live in `v-for`. Applied to bottom-nav tabs, the More
+  button, overflow-sheet items and the FAB. **Not** applied to the hero Wants/Needs toggle (MOBILE-1
+  excluded it so a squeeze cannot fight its Flip indicator), to click-less summary rows (a press on
+  an inert row is a false affordance), or to the ~20 section components' action buttons (they already
+  inherit the `.btn-*` CSS press).
+- **`overscroll-behavior`** — `contain` on `html, body` (`contain`, not `none`, so the platform's
+  rubber-band easing survives; `none` feels dead on iOS), on `BaseModal`'s scroll container, and on
+  the bottom-nav overflow sheet.
+- **BUG-038 — modal scroll lock (found in testing, fixed in this branch).** With a modal open on a
+  phone, the page still scrolled behind it. `useModal` was locking with
+  `body { overflow: hidden }`, which desktop Chrome honours (measured: real wheel input moved the
+  page 0 → 343px unlocked, 0 → 0 locked) but iOS Safari ignores for touch scrolling. Rewritten to the
+  position-fixed technique, with the scroll offset captured and restored on close. Verified live:
+  while locked `documentElement.scrollHeight === clientHeight === 812` — no scrollable overflow
+  exists at all — and closing restored the exact prior offset (300px).
+  **`overscroll-behavior` does not cover this case**: it prevents scroll *chaining* out of an inner
+  scroller, not the page scrolling underneath. Both fixes were needed.
+  Also repaired a latent refcount bug: the `immediate` watcher meant a *closed* modal mounting
+  called the shared `unlock()`, so a modal mounting while another was open released that modal's
+  lock. Each instance now only releases a lock it actually took.
+  `tests/composables/useModal.spec.ts` (9 tests) adds the composable's first-ever coverage.
+
+### Verification
+- **Production build, served under the real base path:** manifest 200, all three manifest icons 200,
+  apple-touch-icon 200, and the **service worker registered, activated and controlling the page** at
+  scope `/A-Penny-For-Our-Thoughts/`. Console clean.
+- `overscroll-behavior-y: contain` confirmed computed on both `html` and `body`; 7 authored
+  safe-area rules and 3 overscroll rules reachable in the loaded stylesheets.
+- Bottom nav flush to the viewport bottom, FAB clearing it by 16px, no horizontal overflow at 375px.
+- 1543 tests across 52 spec files; `vue-tsc` clean; `npm run lint` exits 0.
+
+### Known limitation
+True notched-device safe-area verification was **not** possible on this machine — the iOS Simulator
+integration needs a full Xcode install (`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`).
+A resized desktop viewport reports `env(safe-area-inset-*)` as 0, so what is verified is that the
+rules exist, are reachable, and produce correct geometry at inset 0 — not their behaviour on a real
+notch. The demo's Lab 4 rig existed to simulate this and showed the layout responding correctly to
+injected inset values.
+
+### Files changed
+- `public/manifest.webmanifest`, `public/sw.js`, `public/icons/*` (all new)
+- `index.html` — manifest link, apple-touch-icon, per-scheme theme-color, apple metas, PNG favicon
+- `src/lib/registerSW.ts` (new), `src/directives/vPress.ts` (new), `src/main.ts` — wiring
+- `src/components/ui/BottomNav.vue` — `v-press` ×3 + sheet overscroll
+- `src/components/ui/BaseModal.vue`, `src/css/tokens.css` — `overscroll-behavior`
+- `src/App.vue` — `v-press` on the section handle
+- `vite.config.ts` — corrected the base comment (dev serves under the base too)
+- `tests/directives/vPress.spec.ts` (new, 8), `tests/lib/pwa.spec.ts` (new, 15)
+- `CLAUDE.md`, `WhatsNewBanner.vue`, `DocsPage.vue`, `pages.spec.ts`, `onboarding.spec.ts`,
+  `docs/PHASE_TRACKING.md`
+- `demo-mobile-5-pwa.html` — **deleted** (release checklist item 8)
 

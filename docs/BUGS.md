@@ -11,6 +11,54 @@ for recurring patterns and a post-mortem trail for regressions.
 
 ---
 
+## BUG-038 — Page scrolls behind an open modal on mobile (v2.47.0)
+
+**Date:** September 2026
+**Branch:** `feat/mobile-pwa` (reported during MOBILE-5 testing)
+
+**Symptom** — with a modal open on a phone (reported against the "Add Purchase" sheet), scrolling
+dragged the dashboard behind it instead of staying inside the modal.
+
+**Root cause** — `useModal` locked the page with `document.body.style.overflow = 'hidden'`.
+That is honoured by desktop Chrome — measured with real wheel input, the page moved 0 → 343px
+unlocked and 0 → 0 locked — but **iOS Safari ignores `overflow: hidden` on the body for touch
+scrolling**. So the lock worked everywhere except the one place a bottom-sheet modal is actually
+used, and no test covered the composable at all.
+
+Note the fix that does *not* work here: `overscroll-behavior: contain` (added on `BaseModal` earlier
+in MOBILE-5) only prevents scroll **chaining** — an inner scroller reaching its boundary and passing
+the remainder to its parent. It does nothing when the page itself is free to scroll underneath.
+Those are two different problems and both needed fixing.
+
+**Fix** — the position-fixed technique. On lock, record `window.scrollY` and pin the body:
+`position: fixed; top: -<scrollY>px; left: 0; right: 0; width: 100%`, keeping `overflow: hidden`
+as belt-and-braces. There is then no scrollable overflow anywhere — verified live: while locked,
+`documentElement.scrollHeight === clientHeight === 812`, and even a programmatic `scrollBy` could
+not move the page. On unlock, restore the captured inline styles verbatim and re-apply the offset
+with `window.scrollTo(0, savedScrollY)` — without that the page jumps to the top on close, which is
+worse than the original bug. Desktop scrollbar-width is compensated with `padding-right` so the
+layout does not shift sideways as the modal opens.
+
+`position: fixed` on the body does **not** trap the teleported modal: only `transform`, `filter`,
+`perspective` and `will-change` create a containing block for fixed-position descendants.
+
+**Also fixed in passing** — the `watch(..., { immediate: true })` meant a *closed* modal fired its
+handler on mount and called the shared `unlock()`, decrementing a refcount it never incremented. A
+modal component mounting while another was already open would therefore release that modal's lock.
+Each instance now tracks whether it actually holds a lock and only releases its own.
+
+**Prevention** —
+- `tests/composables/useModal.spec.ts` (9 tests) — the composable previously had **zero** coverage,
+  which is how this shipped. Covers pinning, offset capture, scroll restoration, verbatim style
+  restoration, stacked-modal refcounting, the closed-modal-mounting regression, unmount cleanup and
+  ESC handling.
+- **Pattern to watch:** a scroll lock that only sets `overflow` is a desktop-only lock. Any future
+  overlay (drawer, command palette) must reuse `useModal` rather than re-implement it.
+- Those specs load a fresh module per test via `vi.resetModules()` — the lock's refcount and saved
+  styles are module-level singletons, so state would otherwise leak between tests and mask failures.
+
+---
+
 ## BUG-037 — Node 26 shadows jsdom's `localStorage`; 254 tests fail on unchanged code (v2.46.3)
 
 **Date:** September 2026

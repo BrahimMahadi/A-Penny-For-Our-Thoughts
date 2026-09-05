@@ -161,6 +161,12 @@
 
 html, body { overflow-x: clip; }
 
+/* MOBILE-5: `contain` on the page stops a vertical overscroll from escaping
+   to the browser chrome — no accidental pull-to-refresh while flicking
+   through a long list. `contain` rather than `none` so the platform's own
+   rubber-band easing is preserved; `none` kills it and feels dead on iOS. */
+html, body { overscroll-behavior-y: contain; }
+
 /* Apply smooth transitions globally for theme switching */
 body,
 .card,

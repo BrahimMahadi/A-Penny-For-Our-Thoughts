@@ -19,7 +19,7 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (1520 tests across 50 spec files)  <!-- v2.46.3 -->
+- Testing: Vitest + @vue/test-utils (1552 tests across 53 spec files)  <!-- v2.47.0 -->
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
@@ -226,6 +226,8 @@ Run through this before opening any PR that touches UI:
 - [Forbidden action] -->
 
 ## Gotchas
+
+- **A body scroll lock that only sets `overflow: hidden` is a desktop-only lock.** iOS Safari ignores it for touch scrolling, so the page keeps scrolling behind an open modal on exactly the devices where bottom-sheet modals are used (BUG-038). `useModal` uses the position-fixed technique instead — pin the body at `top: -<scrollY>px` and restore both the styles and the scroll offset on unlock. Any new overlay (drawer, command palette) must reuse `useModal` rather than re-implement the lock. Note that `overscroll-behavior: contain` does **not** solve this: it prevents scroll *chaining* out of an inner scroller, not the page scrolling underneath.
 
 - **`.nvmrc` is the single source of truth for the Node version — never hard-code one in a workflow.** CI (`ci.yml` validate job) and deploy (`deploy.yml`) both read `node-version-file: '.nvmrc'`. Before the v2.46.3 pin, both hard-coded Node 20 while local development had moved to Node 26 — six majors of drift, on a runtime that had been end-of-life since 2026-04-30. That gap is exactly what let BUG-037 reach a developer's machine with CI green. `tests/toolchain.spec.ts` fails if `.nvmrc`, `package.json` `engines`, or either workflow drift apart. To change the Node version, edit `.nvmrc` and the `engines` field together; everything else follows.
 

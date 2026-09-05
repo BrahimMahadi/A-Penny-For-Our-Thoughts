@@ -39,12 +39,19 @@ import { useThemeStore } from './stores/theme';
 // here in main.ts before the Vue app mounts. Toasts queued before mount
 // are rendered as soon as <ToastContainer /> initialises.
 import { useToast } from './composables/useToast';
+// MOBILE-5: registers the minimal service worker that makes the app
+// installable on Android. No-op in dev and on browsers without SW support.
+import { registerServiceWorker } from './lib/registerSW';
+// MOBILE-5: `v-press` tactile feedback, registered globally so any template
+// can mark a touch target pressable without a local import.
+import { vPress } from './directives/vPress';
 
 // ─── App bootstrap ───────────────────────────────────────────────
 const app = createApp(App);
 const pinia = createPinia();
 
 app.use(pinia);
+app.directive('press', vPress);
 
 // Stores must be created AFTER pinia is mounted, but BEFORE mount() so
 // initial render sees hydrated state.
@@ -75,3 +82,5 @@ budgetStore.$subscribe((_mutation, state) => {
 });
 
 app.mount('#app');
+
+registerServiceWorker();
