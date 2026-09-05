@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.46.3</span>
+              <span class="release-date">September 2026</span>
+            </div>
+            <p class="release-tagline">
+              Test environment — Web Storage shim for Node 26 (BUG-037)
+            </p>
+            <ul class="docs-list">
+              <li><strong>254 failing tests restored.</strong> Node 22+ defines a global <code>localStorage</code> accessor that resolves to <code>undefined</code> unless the <code>--localstorage-file</code> flag is passed, but the property still exists on <code>globalThis</code>. Vitest 1.x only copies a jsdom window key onto the global when no global of that name is already defined, so jsdom&rsquo;s real Storage was never published and every <code>localStorage</code> call in a spec threw. 8 spec files and 254 tests failed on a codebase that had not changed.</li>
+              <li><strong>Single-realm storage shim.</strong> <code>tests/setupStorage.ts</code> now runs first in <code>setupFiles</code> and republishes <code>localStorage</code>, <code>sessionStorage</code> and the <code>Storage</code> constructor together from one jsdom realm. Publishing them as a group matters: Node shadows only <code>localStorage</code>, so a per-key fix would leave the two stores in different realms and quietly break <code>vi.spyOn(Storage.prototype, …)</code> in the quota-handling specs.</li>
+              <li><strong>Regression guard.</strong> <code>tests/setupStorage.spec.ts</code> asserts the globals exist, round-trip, stay separate, share a prototype with the <code>Storage</code> global, and remain interceptable by prototype spies &mdash; so a future Node or Vitest bump surfaces one diagnostic failure rather than hundreds of misleading app failures.</li>
+              <li><strong>1515 tests across 49 spec files.</strong> Test-infrastructure only &mdash; no application, store, or schema changes.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.46.2</span>
               <span class="release-date">June 2026</span>
             </div>

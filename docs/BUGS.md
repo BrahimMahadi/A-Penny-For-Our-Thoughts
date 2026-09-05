@@ -11,6 +11,66 @@ for recurring patterns and a post-mortem trail for regressions.
 
 ---
 
+## BUG-037 — Node 26 shadows jsdom's `localStorage`; 254 tests fail on unchanged code (v2.46.3)
+
+**Date:** September 2026
+**Branch:** `fix/vitest-localstorage-shim`
+
+**Symptom** — `npx vitest run` on a clean `main` reported **254 failed tests across 8 spec files**
+(`stores/budget`, `stores/theme`, `stores/ui`, `components/sections/sections`,
+`components/sections/settings`, `components/ui/ThemeToggle`, `composables/usePeriodRollover`,
+`lib/migrateLocalStorage`). Every failure was the identical error on the first line of a
+`beforeEach`:
+
+```
+TypeError: Cannot read properties of undefined (reading 'clear')
+  ❯ localStorage.clear();
+```
+
+No application code had changed — the previous commit had shipped with all 1509 passing.
+
+**Root cause** — a toolchain interaction, not a code defect:
+
+1. **Node 22+ defines a global `localStorage` accessor.** It is experimental and, without the
+   `--localstorage-file` flag, its getter returns `undefined` while emitting
+   `ExperimentalWarning: localStorage is not available`. Critically, the *property still exists*
+   on `globalThis` — `Object.getOwnPropertyDescriptor(globalThis, 'localStorage')` returns a
+   `{ get, set }` pair.
+2. **Vitest 1.x's jsdom environment skips globals that already exist.** When populating the test
+   context it copies jsdom window keys onto the Node global only where nothing of that name is
+   already defined — a deliberate guard against clobbering host globals. Node's inert accessor
+   satisfies that check, so jsdom's real `Storage` object was never published.
+3. The developer machine had moved to **Node v26.5.1**, tripping the interaction. jsdom itself was
+   healthy throughout: `new JSDOM('', { url: 'http://localhost' }).window.localStorage` worked.
+
+Two details made this harder than it looked. Under `globals: true`, `window`,
+`document.defaultView` and `globalThis` are all the **same** populated object, so the environment's
+own jsdom Storage is unreachable from the test context — it cannot simply be re-copied. And Node
+shadows **only `localStorage`**, not `sessionStorage`, so the naive per-key fix leaves the two
+stores in different jsdom realms with only one matching the `Storage` global; that split silently
+defeats `vi.spyOn(Storage.prototype, 'setItem')` and made the two quota-handling specs in
+`stores/budget.spec.ts` pass vacuously.
+
+**Fix** — `tests/setupStorage.ts`, registered as the **first** entry in `test.setupFiles` (ahead of
+`tests/setup.ts`) so it lands before any module that reads storage at import time. It stands up a
+throwaway JSDOM instance and, **as a group**, republishes `localStorage`, `sessionStorage` and the
+`Storage` constructor from that single realm — but only when at least one of the storage globals is
+missing, so a Node version without the shadowing problem is left untouched. `@types/jsdom` was added
+as a devDependency to keep `vue-tsc` clean.
+
+**Prevention** —
+- `tests/setupStorage.spec.ts` (6 tests) asserts the globals exist, round-trip, stay separate,
+  share a prototype with the `Storage` global, and remain interceptable by prototype spies. A future
+  Node or Vitest bump that reintroduces the problem now produces one clearly-named failure at the
+  source instead of hundreds of misleading application failures.
+- **Pattern to watch:** when a large, uniform block of tests fails on unchanged code, suspect the
+  environment before the code. `node -p "typeof globalThis.<global>"` outside the test runner is a
+  fast discriminator.
+- The shim is scaffolding for Vitest 1.x. Vitest 3 publishes the jsdom globals unconditionally; the
+  planned **TEST-INFRA-1** sprint removes this file as part of that upgrade.
+
+---
+
 ## BUG-016 — `vue-tsc` CI failures on AppStatusBar + GoalsPage (v2.0.0)
 
 **Date:** May 2026  

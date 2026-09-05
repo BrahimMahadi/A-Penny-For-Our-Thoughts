@@ -26,14 +26,14 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.46.2';
+const APP_VERSION = '2.46.3';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📱', text: '5+More bottom nav: the 7-tab bar now shows 5 primary tabs plus a "More ···" button — tap it to reach Docs and Settings from a slide-up sheet' },
-  { icon: '✨', text: 'Collapsible What\'s New: on mobile the release banner collapses to a compact single-line bar — tap it to expand the notes, tap ✕ to dismiss' },
-  { icon: '👋', text: 'Greeting fix: "Welcome back, [Name]" now wraps naturally on small screens instead of being clipped at 140px with an ellipsis' },
+  { icon: '🧪', text: 'Test suite restored: a Node 26 change had silently disabled localStorage inside the test environment, failing 254 tests across 8 files — all 1515 now pass again' },
+  { icon: '🛡️', text: 'Regression guard: a dedicated spec now checks the storage shim directly, so a future Node or Vitest upgrade reports one clear failure instead of hundreds of misleading ones' },
+  { icon: '🔧', text: 'Internal only — no change to the app, your data, or how anything looks or behaves' },
 ];
 
 const budget = useBudgetStore();
