@@ -1,0 +1,33 @@
+{
+  "name": "A Penny For Our Thoughts",
+  "short_name": "Penny",
+  "description": "Personal financial dashboard based on the 50/30/20 budget rule",
+  "id": "/A-Penny-For-Our-Thoughts/",
+  "start_url": "/A-Penny-For-Our-Thoughts/",
+  "scope": "/A-Penny-For-Our-Thoughts/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d0d12",
+  "theme_color": "#0d0d12",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    {
+      "src": "/A-Penny-For-Our-Thoughts/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/A-Penny-For-Our-Thoughts/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/A-Penny-For-Our-Thoughts/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

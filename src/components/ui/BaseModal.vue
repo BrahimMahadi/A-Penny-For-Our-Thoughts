@@ -252,6 +252,11 @@ function onModalLeave(el: Element, done: () => void): void {
   max-height: calc(100vh - 2rem);
   max-height: calc(100dvh - 2rem);
   overflow-y: auto;
+  /* MOBILE-5: a scroll that reaches the modal's edge must not chain to the
+     page behind it. Without this, scrolling a long form drags the dashboard
+     underneath and an upward pull can fire the browser's pull-to-refresh
+     mid-edit. */
+  overscroll-behavior: contain;
   color: var(--text, #e3e6ee);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
 }

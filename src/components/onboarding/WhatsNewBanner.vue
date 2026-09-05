@@ -26,16 +26,16 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.46.3';
+const APP_VERSION = '2.47.0';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🧪', text: 'Test suite restored: a Node 26 change had silently disabled localStorage inside the test environment, failing 254 tests across 8 files — all 1515 now pass again' },
-  { icon: '🛡️', text: 'Regression guard: a dedicated spec now checks the storage shim directly, so a future Node or Vitest upgrade reports one clear failure instead of hundreds of misleading ones' },
-  { icon: '📌', text: 'Build toolchain pinned: CI and deploy were running an end-of-life Node 20 while development had moved on — both now track a single pinned version, with a second CI job on the newest Node' },
-  { icon: '🔧', text: 'Internal only — no change to the app, your data, or how anything looks or behaves' },
-];
+  { icon: '📲', text: 'Install Penny to your home screen — on iPhone use Share → Add to Home Screen, on Android tap the install prompt. It opens full-screen with no browser chrome' },
+  { icon: '¢', text: 'New app icon: a cent-sign monogram on the brand violet, replacing the emoji favicon' },
+  { icon: '👆', text: 'Tactile feedback: the bottom nav, More sheet and floating button now respond to your touch with a subtle press and spring-back' },
+  { icon: '🧷', text: 'Scrolling a modal or the More sheet to its edge no longer drags the page behind it, or triggers an accidental pull-to-refresh' },
+]
 
 const budget = useBudgetStore();
 

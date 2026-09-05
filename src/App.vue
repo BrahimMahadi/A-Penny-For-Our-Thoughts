@@ -274,6 +274,7 @@ useGsapObserver(appMainRef, {
 
     <!-- ── Option B: Floating section handle ───────────────── -->
     <button
+      v-press
       class="section-handle"
       :class="{ 'section-handle--open': ui.sectionPickerOpen }"
       aria-label="Open section picker (G)"

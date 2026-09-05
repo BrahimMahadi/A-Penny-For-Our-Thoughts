@@ -341,6 +341,23 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.47.0</span>
+              <span class="release-date">September 2026</span>
+            </div>
+            <p class="release-tagline">
+              Mobile — installable PWA, monogram app icon, tactile feedback, contained overscroll (MOBILE-5)
+            </p>
+            <ul class="docs-list">
+              <li><strong>Installable to the home screen.</strong> A web app manifest, an <code>apple-touch-icon</code> and theme-colour metas (one per colour scheme) make Penny installable. On iPhone use Share &rarr; Add to Home Screen; on Android an install prompt appears. It launches full-screen with no browser chrome. A minimal service worker ships alongside &mdash; Chrome will not offer installation without one &mdash; but it <em>deliberately does not cache</em>: the app remains online-only. Genuine offline support is tracked separately.</li>
+              <li><strong>New app icon.</strong> A cent-sign monogram in JetBrains Mono on the brand violet gradient, replacing the 💸 emoji favicon. Shipped at 192/512/180/48px plus a maskable 512 variant, so Android crops it to its own shape without clipping the mark.</li>
+              <li><strong>Tactile feedback.</strong> A new <code>v-press</code> directive gives the bottom nav tabs, the More button, overflow-sheet items and the floating section handle a quick scale-down on touch with a spring release &mdash; surfaces that previously had no press state at all, since touch has no <code>:hover</code>. Cancelled entirely under <code>prefers-reduced-motion</code>.</li>
+              <li><strong>Contained overscroll.</strong> Scrolling a modal, the More sheet, or the page to its edge no longer chains to whatever is behind it, so a long form no longer drags the dashboard underneath and an upward pull no longer fires the browser&rsquo;s pull-to-refresh mid-edit.</li>
+              <li><strong>1543 tests across 52 spec files.</strong> Includes a PWA spec that guards every install path against the GitHub Pages base prefix &mdash; the failure mode there is silent: a root-relative path 404s in production and the install prompt simply never appears.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.46.3</span>
               <span class="release-date">September 2026</span>
             </div>
