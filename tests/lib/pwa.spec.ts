@@ -32,6 +32,7 @@ const manifest = JSON.parse(read('public/manifest.webmanifest')) as {
   icons: { src: string; sizes: string; type: string; purpose?: string }[];
 };
 const indexHtml = read('index.html');
+const appVue = read('src/App.vue');
 const sw = read('public/sw.js');
 
 describe('PWA manifest', () => {
@@ -127,5 +128,26 @@ describe('service worker', () => {
   it('claims clients so an installed user is not pinned to an old worker', () => {
     expect(sw).toContain('skipWaiting');
     expect(sw).toContain('clients.claim');
+  });
+});
+
+describe('safe-area insets (BUG-040)', () => {
+  it('reserves top inset on .app-main for the translucent status bar', () => {
+    // index.html sets viewport-fit=cover AND
+    // apple-mobile-web-app-status-bar-style: black-translucent, so an installed
+    // PWA draws under the status bar. Without a top inset the first child — the
+    // What's New banner — sits behind the clock and notch. The app had no
+    // safe-area-inset-top rule at all before this.
+    expect(appVue).toContain('env(safe-area-inset-top');
+  });
+
+  it('keeps the translucent status bar style the inset compensates for', () => {
+    // If this is ever changed to `default`, the top inset becomes unnecessary
+    // padding — the two settings must move together.
+    expect(indexHtml).toContain('content="black-translucent"');
+  });
+
+  it('still reserves bottom inset for the home indicator', () => {
+    expect(appVue).toContain('env(safe-area-inset-bottom');
   });
 });

@@ -11,6 +11,83 @@ for recurring patterns and a post-mortem trail for regressions.
 
 ---
 
+## BUG-040 — Content sits under the status bar on an installed PWA (v2.47.1)
+
+**Date:** September 2026
+**Branch:** `fix/mobile-safe-area-and-swipe`
+
+**Symptom** — the What's New banner (and everything below it) sat too high on mobile, overlapping the
+status bar and notch.
+
+**Root cause** — a regression from v2.47.0. MOBILE-5 added
+`apple-mobile-web-app-status-bar-style: black-translucent`, which makes an installed PWA render its
+web view *underneath* the status bar rather than below it. `viewport-fit=cover` was already set
+(pre-MOBILE-5), and the codebase had **no `env(safe-area-inset-top)` rule anywhere** — all eleven
+existing safe-area rules were `-bottom`, for the home indicator. `.app-main` used a flat `1.25rem`
+top padding, so its first child landed behind the clock.
+
+It looked fine in mobile Safari because the browser's own chrome occupies the top of the screen. The
+bug only appears once installed — which is exactly the mode MOBILE-5 introduced.
+
+**Fix** — `.app-main` at ≤768px now uses
+`padding-top: calc(1.25rem + env(safe-area-inset-top, 0px))`, mirroring the bottom inset it already
+reserved. `black-translucent` is kept: switching to `default` would give an opaque light status bar
+that clashes with the dark theme.
+
+**Prevention** — `tests/lib/pwa.spec.ts` asserts both the top inset and the translucent status-bar
+style. They are two halves of one decision: if the status-bar style is ever changed to `default`,
+the inset becomes dead padding, so the test pins them together. A CLAUDE.md gotcha records the pair.
+
+---
+
+## BUG-039 — Swipe navigation reached tabs with no nav button, and stole gestures from tables (v2.47.1)
+
+**Date:** September 2026
+**Branch:** `fix/mobile-safe-area-and-swipe`
+
+**Symptom** — swiping between tabs on mobile "scrolled too far and/or was not consistent".
+
+**Root cause** — two independent defects, plus one hypothesis that testing *refuted*:
+
+1. **Two declarations of tab order that drifted.** `App.vue` held a 7-entry `TAB_ORDER` driving
+   swipe navigation. `BottomNav.vue` (MOBILE-4) separately split the same tabs into 5 primary slots
+   plus a Docs/Settings overflow sheet. Nothing tied them together, so swiping from Insights landed
+   on **Docs** — a tab with no button in the visible nav, leaving the bar with no active item.
+   Confirmed by instrumented touch drag: `Insights → swipe left → Docs`.
+
+2. **The gesture out-competed horizontal scrollers.** The Observer is attached to `.app-main`, an
+   ancestor of six `overflow-x: auto` regions. Measured on the Spending page at 375px,
+   `.purchases-table-wrap` is **480px wide inside a 296px viewport**; a swipe inside it to read the
+   right-hand columns changed the tab (**Spending → Goals**) instead of scrolling the table.
+
+3. **REFUTED: Observer multi-fire.** The initial hypothesis was that `onLeft`/`onRight` fired
+   repeatedly within one gesture, skipping tabs. Measured: a single continuous 290px drag advances
+   **exactly one** tab. No guard was needed for this, and none was added for it. Recorded here
+   because the plausible-but-wrong diagnosis is worth not repeating.
+
+**Fix** —
+- **`src/lib/tabs.ts`** is now the single source of truth. `App.vue` and `BottomNav.vue` both import
+  it. Swipe cycles `PRIMARY_TAB_ORDER` (the five with nav slots), and `swipeTarget()` returns `null`
+  at either end rather than clamping — so a swipe past Insights does nothing rather than moving
+  somewhere unreachable. An overflow tab also returns `null`: there is no sensible neighbour.
+- **`shouldIgnoreGesture`** in `useGsapObserver` walks from the touch target up to the observed root
+  and defers to any horizontally-scrollable ancestor **with room left to travel in that direction**.
+  A table already scrolled to its end still falls through to a tab change, which is what a user
+  expects once the content cannot move further.
+- **350ms cooldown** after a successful swipe, so a second flick landing mid-transition cannot skip
+  a tab. This is for gesture *timing*, not duplicate callbacks (see the refuted item above).
+
+**Verification** — the same instrumented harness that reproduced the bugs, re-run after the fix:
+swipe from Insights stays on Insights; a normal swipe still advances one tab; a rapid double flick
+advances one; a swipe inside the scrollable table leaves the tab alone; the same swipe with the
+table scrolled to its end changes tab.
+
+**Prevention** — `tests/lib/tabs.spec.ts` (11 tests) fails if either file redeclares its own tab
+list, and asserts no swipe from any starting point can yield an overflow tab.
+`tests/composables/useGsapObserver.spec.ts` gains 7 tests for the gesture gate.
+
+---
+
 ## BUG-038 — Page scrolls behind an open modal on mobile (v2.47.0)
 
 **Date:** September 2026

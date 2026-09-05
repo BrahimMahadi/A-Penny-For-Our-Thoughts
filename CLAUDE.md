@@ -19,7 +19,7 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (1552 tests across 53 spec files)  <!-- v2.47.0 -->
+- Testing: Vitest + @vue/test-utils (1573 tests across 54 spec files)  <!-- v2.47.1 -->
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
@@ -226,6 +226,12 @@ Run through this before opening any PR that touches UI:
 - [Forbidden action] -->
 
 ## Gotchas
+
+- **Tab order lives in `src/lib/tabs.ts` — never redeclare it.** `App.vue` (swipe navigation) and `BottomNav.vue` (the 5+More bar) each held their own copy and drifted, so swiping past Insights reached Docs, a tab with no nav button (BUG-039). Swipe cycles `PRIMARY_TAB_ORDER`, not `TAB_ORDER`, and `swipeTarget()` returns `null` at the ends rather than clamping. `tests/lib/tabs.spec.ts` fails if either file declares its own list again.
+
+- **`.app-main` needs BOTH safe-area insets.** `index.html` sets `viewport-fit=cover` and `apple-mobile-web-app-status-bar-style: black-translucent`, so an installed PWA draws under the status bar; without `env(safe-area-inset-top)` the first child sits behind the clock and notch (BUG-040). The top inset and the translucent status-bar style must move together — `tests/lib/pwa.spec.ts` asserts both.
+
+- **A swipe gesture layered over scrollable content must defer to the scroller.** `useGsapObserver` is attached to `.app-main`, an ancestor of six `overflow-x: auto` regions; `shouldIgnoreGesture` walks up from the touch target and lets a scroller with remaining travel consume the swipe (BUG-039).
 
 - **A body scroll lock that only sets `overflow: hidden` is a desktop-only lock.** iOS Safari ignores it for touch scrolling, so the page keeps scrolling behind an open modal on exactly the devices where bottom-sheet modals are used (BUG-038). `useModal` uses the position-fixed technique instead — pin the body at `top: -<scrollY>px` and restore both the styles and the scroll offset on unlock. Any new overlay (drawer, command palette) must reuse `useModal` rather than re-implement the lock. Note that `overscroll-behavior: contain` does **not** solve this: it prevents scroll *chaining* out of an inner scroller, not the page scrolling underneath.
 

@@ -26,16 +26,15 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.47.0';
+const APP_VERSION = '2.47.1';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📲', text: 'Install Penny to your home screen — on iPhone use Share → Add to Home Screen, on Android tap the install prompt. It opens full-screen with no browser chrome' },
-  { icon: '¢', text: 'New app icon: a cent-sign monogram on the brand violet, replacing the emoji favicon' },
-  { icon: '👆', text: 'Tactile feedback: the bottom nav, More sheet and floating button now respond to your touch with a subtle press and spring-back' },
-  { icon: '🧷', text: 'Modal scrolling fixed: opening a form no longer lets the page scroll behind it on your phone, and closing it returns you exactly where you were' },
-]
+  { icon: '📐', text: 'Fixed the banner and page content sitting under the status bar and notch when Penny is installed to your home screen' },
+  { icon: '👉', text: 'Swiping between tabs now stops at Insights instead of sliding into Docs and Settings, which have no button in the nav bar' },
+  { icon: '📊', text: 'Swiping a wide table sideways — like the purchases list — now scrolls the table instead of jumping you to another tab' },
+];
 
 const budget = useBudgetStore();
 
