@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<!--
+  Module:   demo-mobile-5-pwa.html
+  Project:  A Penny For Our Thoughts
+  Created:  September 2026 — MOBILE-5 demo-first gate
+  Summary:  Standalone evaluation harness for the MOBILE-5 sprint.
+            Nothing here touches src/. Delete once the sprint ships
+            (release checklist item 8).
+
+            Five labs:
+              1. Icon monogram candidates  — pick the home-screen mark
+              2. Tactile feedback          — feel the press states
+              3. overscroll-behavior       — scroll chaining
+              4. Safe-area insets          — notch / home indicator
+              5. Manifest preview          — what would actually ship
+
+            GSAP is loaded from ./node_modules/ per the demo-first policy.
+-->
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>MOBILE-5 — PWA &amp; Polish Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+/* ── Tokens lifted verbatim from src/css/tokens.css ───────────────────────── */
+:root {
+  --font-body: 'Inter', 'Helvetica Neue', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --text-xs: 0.72rem; --text-sm: 0.8rem; --text-base: 0.875rem;
+  --text-md: 1rem; --text-lg: 1.125rem; --text-xl: 1.25rem;
+  --accent: #5b3df5; --accent2: #c8f24a; --accent-soft: rgba(91,61,245,0.07);
+  --success: #16a34a; --danger: #dc2626; --warn: #d97706;
+  --bg: #f3f4f7; --surface: #ffffff; --surface2: #f9fafc; --surface3: #f3f4f7;
+  --text: #16171f; --muted: #6c7280; --subtle: #a0a4ad;
+  --border: #ebecef; --track: #eef0f3;
+  --radius: 8px; --radius-card: 18px;
+  --card-shadow: 0 1px 2px rgba(22,23,31,.04), 0 4px 16px rgba(22,23,31,.04);
+  --transition-fast: .15s;
+}
+[data-theme="dark"] {
+  --accent: #5b3df5; --accent2: #c8f24a; --accent-soft: rgba(91,61,245,0.14);
+  --success: #4ade80; --danger: #ff6b6b; --warn: #fbbf24;
+  --bg: #0d0d12; --surface: #16161e; --surface2: #1a1a24; --surface3: #1f1f2a;
+  --text: #f0f0f5; --muted: #8b8b95; --subtle: #5a5a65;
+  --border: #23232f; --track: #1f1f2a;
+  --card-shadow: 0 4px 16px rgba(0,0,0,.35);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-body); background: var(--bg); color: var(--text);
+  font-size: 14px; line-height: 1.5; padding: 0 0 4rem;
+  transition: background .2s, color .2s;
+}
+/* ── Shell ────────────────────────────────────────────────────────────────── */
+.demo-header {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  padding: 1rem 1.5rem; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.demo-header__title { font-size: var(--text-lg); font-weight: 800; letter-spacing: -0.01em; }
+.demo-header__tag {
+  font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--accent);
+  background: var(--accent-soft); padding: .25rem .5rem; border-radius: 999px;
+}
+.demo-header__spacer { margin-left: auto; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 1.5rem; }
+.lab {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-card); box-shadow: var(--card-shadow);
+  padding: 1.5rem; margin-top: 1.5rem;
+}
+.lab__eyebrow {
+  font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: .3rem;
+}
+.lab__title { font-size: var(--text-xl); font-weight: 800; letter-spacing: -0.01em; margin-bottom: .4rem; }
+.lab__note { color: var(--muted); font-size: var(--text-base); max-width: 74ch; margin-bottom: 1.25rem; }
+.lab__note code, .inline-code {
+  font-family: var(--font-mono); font-size: .85em;
+  background: var(--surface3); border: 1px solid var(--border);
+  padding: .1rem .35rem; border-radius: 5px;
+}
+/* ── Controls ─────────────────────────────────────────────────────────────── */
+.controls {
+  display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-end;
+  padding: 1rem; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 10px; margin-bottom: 1.5rem;
+}
+.ctrl { display: flex; flex-direction: column; gap: .3rem; }
+.ctrl__label {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--muted); font-family: var(--font-mono);
+}
+.ctrl input[type="range"] { width: 160px; accent-color: var(--accent); }
+.ctrl__value { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text); }
+select, input[type="text"] {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--text); font-family: var(--font-body); font-size: var(--text-base);
+  padding: .5rem .6rem; min-height: 40px;
+}
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip {
+  border: 1px solid var(--border); background: transparent; color: var(--muted);
+  border-radius: 999px; padding: .45rem .8rem; cursor: pointer;
+  font-family: var(--font-body); font-size: var(--text-sm); font-weight: 600;
+  min-height: 40px;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+.chip:hover:not(.chip--on) { border-color: var(--text); color: var(--text); }
+.chip--on { background: color-mix(in srgb, var(--accent) 20%, transparent); border-color: var(--accent); color: var(--accent); }
+.switch { display: flex; align-items: center; gap: .5rem; cursor: pointer; user-select: none; min-height: 40px; }
+.switch input { width: 18px; height: 18px; accent-color: var(--accent); }
+.btn-primary {
+  background: var(--accent); color: #fff; border: none; border-radius: var(--radius);
+  padding: .7rem 1.1rem; font-weight: 700; font-size: var(--text-base); cursor: pointer;
+  min-height: 44px; font-family: var(--font-body);
+  transition: transform var(--transition-fast), filter var(--transition-fast);
+}
+.btn-secondary {
+  background: transparent; color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: .7rem 1.1rem; font-weight: 700;
+  font-size: var(--text-base); cursor: pointer; min-height: 44px; font-family: var(--font-body);
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+/* ═══ LAB 1 — ICONS ═══════════════════════════════════════════════════════ */
+.icon-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1.25rem;
+}
+.icon-card {
+  border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem;
+  background: var(--surface2); text-align: center; cursor: pointer;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+}
+.icon-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.icon-card--on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.icon-card__name { font-weight: 700; font-size: var(--text-base); margin-bottom: .15rem; }
+.icon-card__desc { color: var(--muted); font-size: var(--text-sm); min-height: 2.6em; }
+.icon-card__stage { display: flex; justify-content: center; gap: 1rem; align-items: flex-end; margin-bottom: .9rem; }
+.tile { position: relative; overflow: hidden; flex: none; }
+.tile--ios { border-radius: 22.5%; }             /* iOS squircle approximation */
+.tile--android { border-radius: 50%; }            /* Android maskable circle   */
+.tile--square { border-radius: 0; }
+.tile svg { display: block; width: 100%; height: 100%; }
+.tile__safe {
+  position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  border: 1.5px dashed rgba(255,255,255,.85);
+  /* Maskable safe zone: centred circle of 80% diameter (per W3C spec). */
+  transform: scale(.8);
+}
+.size-row { display: flex; align-items: flex-end; gap: 1.25rem; flex-wrap: wrap; margin-top: 1.25rem; }
+.size-item { text-align: center; }
+.size-item__cap {
+  font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted);
+  margin-top: .4rem; display: block;
+}
+.homescreen {
+  background-size: cover; background-position: center;
+  border-radius: 26px; padding: 1.5rem 1rem 1rem; border: 1px solid var(--border);
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.1rem .6rem;
+}
+.hs-app { text-align: center; }
+.hs-app__label {
+  font-size: 10px; color: #fff; margin-top: .3rem; display: block;
+  text-shadow: 0 1px 3px rgba(0,0,0,.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hs-app__tile { width: 54px; height: 54px; margin: 0 auto; border-radius: 24%; overflow: hidden; }
+
+/* ═══ LAB 2 — TACTILE ═════════════════════════════════════════════════════ */
+.tactile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; }
+.tactile-col__head {
+  font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: .75rem;
+  padding-bottom: .4rem; border-bottom: 1px solid var(--border);
+}
+.press-stack { display: flex; flex-direction: column; gap: .8rem; }
+.t-fab {
+  width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
+  background: var(--accent); color: #fff; font-size: 24px; line-height: 1;
+  box-shadow: 0 6px 20px rgba(91,61,245,.4);
+}
+.t-tab {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  border: 1px solid var(--border); background: var(--surface2); border-radius: 10px;
+  padding: .5rem; cursor: pointer; color: var(--muted); min-height: 48px; font-family: inherit;
+}
+.t-tab__icon { font-size: 18px; }
+.t-tab__label { font-size: 10px; font-weight: 700; }
+.t-card {
+  border: 1px solid var(--border); border-radius: 12px; padding: .9rem;
+  background: var(--surface2); cursor: pointer;
+}
+.t-card__title { font-weight: 700; font-size: var(--text-base); }
+.t-card__sub { color: var(--muted); font-size: var(--text-sm); }
+.t-row {
+  display: flex; justify-content: space-between; align-items: center;
+  border: 1px solid var(--border); border-radius: 10px; padding: .7rem .9rem;
+  background: var(--surface2); cursor: pointer;
+}
+.t-row__amt { font-family: var(--font-mono); font-weight: 700; }
+
+/* ═══ LAB 3 — OVERSCROLL ══════════════════════════════════════════════════ */
+.scroll-demo { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
+.scroll-outer {
+  height: 260px; overflow-y: auto; border: 1px solid var(--border);
+  border-radius: 12px; padding: .9rem; background: var(--surface2);
+}
+.scroll-inner {
+  height: 120px; overflow-y: auto; border: 1px solid var(--accent);
+  border-radius: 10px; padding: .7rem; background: var(--surface);
+  margin: .8rem 0;
+}
+.scroll-inner--contain { overscroll-behavior: contain; }
+.scroll-filler { color: var(--muted); font-size: var(--text-sm); }
+.scroll-label {
+  font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 700;
+  color: var(--accent); margin-bottom: .35rem;
+}
+
+/* ═══ LAB 4 — SAFE AREA ═══════════════════════════════════════════════════ */
+.phone {
+  width: 300px; height: 600px; border-radius: 40px; border: 10px solid #2a2a35;
+  background: var(--bg); position: relative; overflow: hidden; flex: none;
+  box-shadow: 0 20px 50px rgba(0,0,0,.3);
+}
+.phone__notch {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  background: #2a2a35; border-radius: 0 0 16px 16px; z-index: 5;
+}
+.phone__inset {
+  position: absolute; left: 0; right: 0; background: rgba(220,38,38,.16);
+  border-block: 1px dashed var(--danger); z-index: 4; pointer-events: none;
+  font-family: var(--font-mono); font-size: 9px; color: var(--danger);
+  display: flex; align-items: center; justify-content: center;
+}
+.phone__content { position: absolute; inset: 0; padding: 1rem; overflow: hidden; }
+.phone__nav {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 60px;
+  background: var(--surface); border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-around; z-index: 3;
+}
+.phone__nav-item { font-size: 16px; color: var(--muted); }
+.phone__fab {
+  position: absolute; right: 14px; width: 48px; height: 48px; border-radius: 50%;
+  background: var(--accent); color: #fff; display: grid; place-items: center;
+  font-size: 22px; z-index: 3; box-shadow: 0 6px 20px rgba(91,61,245,.4);
+}
+.safe-wrap { display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; }
+
+/* ═══ LAB 5 — MANIFEST ════════════════════════════════════════════════════ */
+pre.code {
+  background: var(--surface3); border: 1px solid var(--border); border-radius: 12px;
+  padding: 1rem; overflow-x: auto; font-family: var(--font-mono);
+  font-size: var(--text-sm); line-height: 1.65; color: var(--text);
+}
+pre.code .k { color: var(--accent); }
+pre.code .s { color: var(--success); }
+pre.code .c { color: var(--muted); font-style: italic; }
+.swatch-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.swatch { display: flex; align-items: center; gap: .5rem; font-family: var(--font-mono); font-size: var(--text-sm); }
+.swatch__dot { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); }
+.callout {
+  border-left: 3px solid var(--warn); background: color-mix(in srgb, var(--warn) 8%, transparent);
+  padding: .8rem 1rem; border-radius: 0 10px 10px 0; margin-top: 1rem;
+  font-size: var(--text-base); color: var(--text);
+}
+.callout strong { color: var(--warn); }
+@media (max-width: 768px) {
+  .wrap { padding: 0 1rem; }
+  .lab { padding: 1.1rem; }
+  .controls { gap: .9rem; }
+}
+</style>
+</head>
+<body>
+
+<header class="demo-header">
+  <span class="demo-header__title">MOBILE-5 — PWA &amp; Polish</span>
+  <span class="demo-header__tag">demo · not shipped</span>
+  <div class="demo-header__spacer"></div>
+  <button class="btn-secondary" id="themeBtn">☾ Toggle theme</button>
+</header>
+
+<div class="wrap">
+
+  <!-- ══════════════ LAB 1 — ICON CANDIDATES ══════════════ -->
+  <section class="lab">
+    <div class="lab__eyebrow">Lab 1 · decision needed</div>
+    <h2 class="lab__title">Home-screen icon — monogram candidates</h2>
+    <p class="lab__note">
+      Four marks, all built from the existing brand tokens (violet <span class="inline-code">#5b3df5</span>,
+      chartreuse <span class="inline-code">#c8f24a</span>, JetBrains Mono). Judge them small — the
+      home-screen row at the bottom is the real test. The dashed circle is the
+      <strong>maskable safe zone</strong>: Android can crop anything outside it, so nothing meaningful
+      may cross that line.
+    </p>
+
+    <div class="controls">
+      <div class="ctrl">
+        <span class="ctrl__label">Platform mask</span>
+        <div class="chips" id="maskChips">
+          <button class="chip chip--on" data-mask="ios">iOS squircle</button>
+          <button class="chip" data-mask="android">Android circle</button>
+          <button class="chip" data-mask="square">Raw square</button>
+        </div>
+      </div>
+      <div class="ctrl">
+        <span class="ctrl__label">Background</span>
+        <div class="chips" id="bgChips">
+          <button class="chip chip--on" data-bg="solid">Accent solid</button>
+          <button class="chip" data-bg="gradient">Violet gradient</button>
+          <button class="chip" data-bg="ink">Near-black</button>
+          <button class="chip" data-bg="light">Off-white</button>
+        </div>
+      </div>
+      <label class="switch"><input type="checkbox" id="safeToggle" checked /> <span class="ctrl__label">Show safe zone</span></label>
+    </div>
+
+    <div class="icon-grid" id="iconGrid"></div>
+
+    <div class="size-row" id="sizeRow"></div>
+
+    <h3 style="margin:1.75rem 0 .75rem;font-size:var(--text-lg);font-weight:800;">On a home screen</h3>
+    <div class="homescreen" id="homescreen"
+         style="background-image:linear-gradient(160deg,#3b2f6b,#1b1b2e 60%,#0d0d12);"></div>
+  </section>
+
+  <!-- ══════════════ LAB 2 — TACTILE ══════════════ -->
+  <section class="lab">
+    <div class="lab__eyebrow">Lab 2 · feel it</div>
+    <h2 class="lab__title">Tactile feedback — press states</h2>
+    <p class="lab__note">
+      Left column is what ships today (MOBILE-1: a flat <span class="inline-code">scale(0.96)</span> on
+      <span class="inline-code">:active</span>, buttons only). Right column is the proposal: GSAP-driven
+      press with a spring release, extended to nav tabs, the FAB, cards and list rows.
+      <strong>Press and hold</strong> to feel the difference — a real tap is ~80&nbsp;ms, so the release
+      curve is most of what you perceive.
+    </p>
+
+    <div class="controls">
+      <div class="ctrl">
+        <span class="ctrl__label">Press scale</span>
+        <input type="range" id="scaleRange" min="0.88" max="0.995" step="0.005" value="0.96" />
+        <span class="ctrl__value" id="scaleVal">0.960</span>
+      </div>
+      <div class="ctrl">
+        <span class="ctrl__label">Press duration</span>
+        <input type="range" id="downRange" min="0.02" max="0.25" step="0.01" value="0.08" />
+        <span class="ctrl__value" id="downVal">0.08s</span>
+      </div>
+      <div class="ctrl">
+        <span class="ctrl__label">Release ease</span>
+        <select id="easeSel">
+          <option value="elastic.out(1, 0.5)">elastic.out — springy</option>
+          <option value="back.out(2.2)" selected>back.out — subtle overshoot</option>
+          <option value="power2.out">power2.out — flat, no bounce</option>
+        </select>
+      </div>
+      <div class="ctrl">
+        <span class="ctrl__label">Release duration</span>
+        <input type="range" id="upRange" min="0.1" max="0.9" step="0.05" value="0.4" />
+        <span class="ctrl__value" id="upVal">0.40s</span>
+      </div>
+      <label class="switch"><input type="checkbox" id="rmToggle" /> <span class="ctrl__label">Simulate reduced motion</span></label>
+    </div>
+
+    <div class="tactile-grid">
+      <div>
+        <div class="tactile-col__head">Current — MOBILE-1 (CSS only)</div>
+        <div class="press-stack">
+          <button class="btn-primary css-press">Log a purchase</button>
+          <button class="btn-secondary css-press">Cancel</button>
+          <button class="t-tab css-press"><span class="t-tab__icon">◎</span><span class="t-tab__label">Dashboard</span></button>
+          <button class="t-fab css-press">+</button>
+          <div class="t-card"><div class="t-card__title">Groceries</div><div class="t-card__sub">no press state today</div></div>
+          <div class="t-row"><span>Coffee</span><span class="t-row__amt">$4.50</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="tactile-col__head">Proposed — GSAP press + spring release</div>
+        <div class="press-stack">
+          <button class="btn-primary js-press">Log a purchase</button>
+          <button class="btn-secondary js-press">Cancel</button>
+          <button class="t-tab js-press"><span class="t-tab__icon">◎</span><span class="t-tab__label">Dashboard</span></button>
+          <button class="t-fab js-press">+</button>
+          <div class="t-card js-press"><div class="t-card__title">Groceries</div><div class="t-card__sub">cards respond too</div></div>
+          <div class="t-row js-press"><span>Coffee</span><span class="t-row__amt">$4.50</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="callout">
+      <strong>Note:</strong> every proposed press is cancelled by <span class="inline-code">prefers-reduced-motion</span>
+      — toggle the switch above to confirm the fallback is a plain, instant state change with no transform.
+    </div>
+  </section>
+
+  <!-- ══════════════ LAB 3 — OVERSCROLL ══════════════ -->
+  <section class="lab">
+    <div class="lab__eyebrow">Lab 3 · scroll chaining</div>
+    <h2 class="lab__title"><span class="inline-code">overscroll-behavior</span></h2>
+    <p class="lab__note">
+      Scroll the violet inner box to its bottom, then keep scrolling. On the left the scroll
+      <em>chains</em> to the page behind it — that is what makes a modal drag the whole dashboard
+      underneath it, and what lets a downward pull trigger the browser's pull-to-refresh mid-form.
+      On the right, <span class="inline-code">overscroll-behavior: contain</span> stops at the boundary.
+    </p>
+    <div class="scroll-demo">
+      <div>
+        <div class="scroll-label">default — chains to parent</div>
+        <div class="scroll-outer">
+          <p class="scroll-filler">Outer panel. Scroll the inner box past its end and watch this move.</p>
+          <div class="scroll-inner">
+            <p class="scroll-filler">Inner scroller.<br>Keep scrolling down…<br>…and down…<br>…and down…<br>…at the end this panel takes over and the outer one starts moving.</p>
+          </div>
+          <p class="scroll-filler">More outer content, so there is somewhere to chain to. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.</p>
+        </div>
+      </div>
+      <div>
+        <div class="scroll-label">overscroll-behavior: contain</div>
+        <div class="scroll-outer">
+          <p class="scroll-filler">Outer panel. The inner box now absorbs its own overscroll.</p>
+          <div class="scroll-inner scroll-inner--contain">
+            <p class="scroll-filler">Inner scroller.<br>Keep scrolling down…<br>…and down…<br>…and down…<br>…at the end nothing chains. The outer panel stays put.</p>
+          </div>
+          <p class="scroll-filler">More outer content, so there is somewhere to chain to. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ LAB 4 — SAFE AREA ══════════════ -->
+  <section class="lab">
+    <div class="lab__eyebrow">Lab 4 · audit</div>
+    <h2 class="lab__title">Safe-area insets — FAB &amp; bottom nav</h2>
+    <p class="lab__note">
+      The app already uses <span class="inline-code">env(safe-area-inset-bottom)</span> in 11 places and
+      sets <span class="inline-code">viewport-fit=cover</span>, so this lab is a verification rig rather
+      than new work. Drag the inset sliders to simulate a notched device and confirm the nav and FAB stay
+      clear of the home indicator. Turn the insets <em>off</em> to see what the layout would do without them.
+    </p>
+    <div class="controls">
+      <div class="ctrl">
+        <span class="ctrl__label">Top inset (notch)</span>
+        <input type="range" id="topInset" min="0" max="60" step="1" value="47" />
+        <span class="ctrl__value" id="topVal">47px</span>
+      </div>
+      <div class="ctrl">
+        <span class="ctrl__label">Bottom inset (home bar)</span>
+        <input type="range" id="botInset" min="0" max="50" step="1" value="34" />
+        <span class="ctrl__value" id="botVal">34px</span>
+      </div>
+      <label class="switch"><input type="checkbox" id="applySafe" checked /> <span class="ctrl__label">Apply insets in layout</span></label>
+      <label class="switch"><input type="checkbox" id="showInset" checked /> <span class="ctrl__label">Highlight inset zones</span></label>
+    </div>
+    <div class="safe-wrap">
+      <div class="phone" id="phone">
+        <div class="phone__notch" id="notch"></div>
+        <div class="phone__inset" id="insetTop" style="top:0;">safe-area-inset-top</div>
+        <div class="phone__inset" id="insetBot" style="bottom:0;">safe-area-inset-bottom</div>
+        <div class="phone__content" id="phoneContent">
+          <div style="font-weight:800;font-size:1.05rem;margin-bottom:.2rem;">Welcome back, Brahim</div>
+          <div style="color:var(--muted);font-size:.8rem;margin-bottom:.9rem;">Available to spend</div>
+          <div style="font-family:var(--font-mono);font-size:2rem;font-weight:700;">$412.80</div>
+        </div>
+        <div class="phone__fab" id="phoneFab">+</div>
+        <div class="phone__nav" id="phoneNav">
+          <span class="phone__nav-item">◎</span><span class="phone__nav-item">▤</span>
+          <span class="phone__nav-item">◇</span><span class="phone__nav-item">◈</span>
+          <span class="phone__nav-item">···</span>
+        </div>
+      </div>
+      <div style="flex:1;min-width:260px;">
+        <div class="lab__eyebrow">What to check</div>
+        <ul style="color:var(--muted);font-size:var(--text-base);line-height:1.9;padding-left:1.1rem;">
+          <li>Nav icons never sit under the home indicator</li>
+          <li>FAB clears the nav <em>and</em> the inset, at every inset value</li>
+          <li>Turning insets off should visibly break it — proving the rules are load-bearing</li>
+          <li>Content top never hides behind the notch</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ LAB 5 — MANIFEST ══════════════ -->
+  <section class="lab">
+    <div class="lab__eyebrow">Lab 5 · what would ship</div>
+    <h2 class="lab__title">Manifest &amp; meta tags</h2>
+    <p class="lab__note">
+      Live preview — it updates with the icon you pick above. Note every path carries the
+      <span class="inline-code">/A-Penny-For-Our-Thoughts/</span> base: GitHub Pages serves from a
+      subdirectory, and a manifest with root-relative paths silently fails to install in production.
+    </p>
+    <div class="swatch-row">
+      <div class="swatch"><span class="swatch__dot" style="background:#0d0d12"></span> theme-color · dark <span style="color:var(--muted)">#0d0d12</span></div>
+      <div class="swatch"><span class="swatch__dot" style="background:#f3f4f7"></span> theme-color · light <span style="color:var(--muted)">#f3f4f7</span></div>
+      <div class="swatch"><span class="swatch__dot" style="background:#5b3df5"></span> accent <span style="color:var(--muted)">#5b3df5</span></div>
+    </div>
+    <pre class="code" id="manifestOut"></pre>
+    <div class="callout">
+      <strong>Scope note:</strong> a minimal service worker with a pass-through <span class="inline-code">fetch</span>
+      handler ships alongside this — that is what makes Android fire the install prompt. It does
+      <em>not</em> cache anything, so the app stays online-only. Chart.js and Google Fonts still come from
+      their CDNs. Genuine offline support remains ROADMAP item F (PWA / Offline Support).
+    </div>
+  </section>
+</div>
+
+<script src="./node_modules/gsap/dist/gsap.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAB 1 — icon candidates
+   Each mark is a function returning inline SVG sized to a 512 viewBox, so the
+   same source renders at every preview size and can be rasterised later.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const BG = {
+  solid:    { fill: '#5b3df5', ink: '#ffffff', name: 'Accent solid' },
+  gradient: { fill: 'url(#grad)', ink: '#ffffff', name: 'Violet gradient' },
+  ink:      { fill: '#0d0d12', ink: '#c8f24a', name: 'Near-black' },
+  light:    { fill: '#f3f4f7', ink: '#5b3df5', name: 'Off-white' },
+};
+
+const DEFS = `<defs>
+  <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#7c5cff"/><stop offset="100%" stop-color="#4a2fd4"/>
+  </linearGradient>
+</defs>`;
+
+/* Every mark keeps its artwork inside the central 80% circle so Android's
+   maskable crop cannot clip anything meaningful. */
+const MARKS = {
+  cent: {
+    name: 'Cent sign',
+    desc: 'The literal penny. Mono ¢ — unmistakable at 48px.',
+    art: (ink) => `
+      <text x="256" y="258" text-anchor="middle" dominant-baseline="central"
+            font-family="JetBrains Mono, monospace" font-weight="700"
+            font-size="270" fill="${ink}">¢</text>`,
+  },
+  coin: {
+    name: 'Coin ring',
+    desc: 'A struck coin: ring plus centred P. Reads as currency, not a letter.',
+    art: (ink) => `
+      <circle cx="256" cy="256" r="150" fill="none" stroke="${ink}" stroke-width="22"/>
+      <text x="256" y="262" text-anchor="middle" dominant-baseline="central"
+            font-family="JetBrains Mono, monospace" font-weight="700"
+            font-size="160" fill="${ink}">P</text>`,
+  },
+  split: {
+    name: '50/30/20 bars',
+    desc: 'The budget rule itself — three bars in exact 50/30/20 proportion.',
+    art: (ink) => `
+      <rect x="118" y="150" width="276" height="54" rx="27" fill="${ink}"/>
+      <rect x="118" y="229" width="166" height="54" rx="27" fill="${ink}" opacity=".62"/>
+      <rect x="118" y="308" width="110" height="54" rx="27" fill="#c8f24a"/>`,
+  },
+  thought: {
+    name: 'Penny for thoughts',
+    desc: 'A coin as a thought bubble — the app name, drawn. Most distinctive.',
+    art: (ink) => `
+      <circle cx="264" cy="232" r="132" fill="none" stroke="${ink}" stroke-width="22"/>
+      <text x="264" y="238" text-anchor="middle" dominant-baseline="central"
+            font-family="JetBrains Mono, monospace" font-weight="700"
+            font-size="132" fill="${ink}">¢</text>
+      <circle cx="170" cy="360" r="28" fill="${ink}"/>
+      <circle cx="136" cy="388" r="15" fill="${ink}" opacity=".6"/>`,
+  },
+};
+
+const state = { mark: 'thought', bg: 'solid', mask: 'ios', safe: true };
+
+function svgFor(markKey, bgKey, size) {
+  const bg = BG[bgKey], mark = MARKS[markKey];
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}">
+    ${DEFS}<rect width="512" height="512" fill="${bg.fill}"/>${mark.art(bg.ink)}</svg>`;
+}
+
+function tile(markKey, size, withSafe) {
+  const cls = state.mask === 'ios' ? 'tile--ios' : state.mask === 'android' ? 'tile--android' : 'tile--square';
+  return `<div class="tile ${cls}" style="width:${size}px;height:${size}px;">
+    ${svgFor(markKey, state.bg, size)}
+    ${withSafe && state.safe ? '<span class="tile__safe"></span>' : ''}
+  </div>`;
+}
+
+function renderIcons() {
+  document.getElementById('iconGrid').innerHTML = Object.entries(MARKS).map(([key, m]) => `
+    <div class="icon-card ${state.mark === key ? 'icon-card--on' : ''}" data-mark="${key}">
+      <div class="icon-card__stage">${tile(key, 104, true)}${tile(key, 48, false)}</div>
+      <div class="icon-card__name">${m.name}</div>
+      <div class="icon-card__desc">${m.desc}</div>
+    </div>`).join('');
+
+  document.getElementById('sizeRow').innerHTML =
+    [[192, '192×192 · Android'], [180, '180×180 · apple-touch'], [512, '512×512 · splash'], [48, '48×48 · tab']]
+      .map(([px, cap]) => `<div class="size-item">
+        ${tile(state.mark, Math.min(px, 128), false)}
+        <span class="size-item__cap">${cap}</span></div>`).join('');
+
+  const names = ['Penny', 'Mail', 'Photos', 'Maps', 'Notes', 'Music', 'Camera', 'Clock'];
+  document.getElementById('homescreen').innerHTML = names.map((n, i) => `
+    <div class="hs-app">
+      <div class="hs-app__tile">${i === 0
+        ? svgFor(state.mark, state.bg, 54)
+        : `<div style="width:100%;height:100%;background:rgba(255,255,255,.13)"></div>`}</div>
+      <span class="hs-app__label">${n}</span>
+    </div>`).join('');
+
+  renderManifest();
+}
+
+/* ── Lab 1 wiring ── */
+document.getElementById('iconGrid').addEventListener('click', (e) => {
+  const card = e.target.closest('[data-mark]');
+  if (card) { state.mark = card.dataset.mark; renderIcons(); }
+});
+function chipGroup(id, key) {
+  document.getElementById(id).addEventListener('click', (e) => {
+    const btn = e.target.closest('.chip'); if (!btn) return;
+    document.querySelectorAll(`#${id} .chip`).forEach((c) => c.classList.remove('chip--on'));
+    btn.classList.add('chip--on');
+    state[key] = btn.dataset[key];
+    renderIcons();
+  });
+}
+chipGroup('maskChips', 'mask');
+chipGroup('bgChips', 'bg');
+document.getElementById('safeToggle').addEventListener('change', (e) => {
+  state.safe = e.target.checked; renderIcons();
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAB 2 — tactile press
+   ═══════════════════════════════════════════════════════════════════════════ */
+const press = { scale: 0.96, down: 0.08, up: 0.4, ease: 'back.out(2.2)', reduced: false };
+
+function bindPress(el) {
+  const down = () => {
+    if (press.reduced) { el.style.opacity = '.7'; return; }
+    gsap.to(el, { scale: press.scale, duration: press.down, ease: 'power2.out', overwrite: true });
+  };
+  const up = () => {
+    if (press.reduced) { el.style.opacity = ''; return; }
+    gsap.to(el, { scale: 1, duration: press.up, ease: press.ease, overwrite: true });
+  };
+  el.addEventListener('pointerdown', down);
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointerleave', up);
+  el.addEventListener('pointercancel', up);
+}
+document.querySelectorAll('.js-press').forEach(bindPress);
+
+/* The "current" column is pure CSS so it matches ui.css exactly. */
+const cssPressStyle = document.createElement('style');
+cssPressStyle.textContent = `.css-press:active { transform: scale(0.96); }`;
+document.head.appendChild(cssPressStyle);
+
+function wireRange(id, valId, fmt, apply) {
+  const input = document.getElementById(id), out = document.getElementById(valId);
+  const sync = () => { out.textContent = fmt(input.value); apply(parseFloat(input.value)); };
+  input.addEventListener('input', sync); sync();
+}
+wireRange('scaleRange', 'scaleVal', (v) => Number(v).toFixed(3), (v) => press.scale = v);
+wireRange('downRange', 'downVal', (v) => `${Number(v).toFixed(2)}s`, (v) => press.down = v);
+wireRange('upRange', 'upVal', (v) => `${Number(v).toFixed(2)}s`, (v) => press.up = v);
+document.getElementById('easeSel').addEventListener('change', (e) => press.ease = e.target.value);
+document.getElementById('rmToggle').addEventListener('change', (e) => {
+  press.reduced = e.target.checked;
+  cssPressStyle.textContent = press.reduced
+    ? `.css-press:active { transform: none; opacity: .7; }`
+    : `.css-press:active { transform: scale(0.96); }`;
+  if (press.reduced) gsap.set('.js-press', { clearProps: 'transform' });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAB 4 — safe-area rig
+   ═══════════════════════════════════════════════════════════════════════════ */
+const safe = { top: 47, bottom: 34, apply: true, show: true };
+function renderSafe() {
+  const t = safe.apply ? safe.top : 0, b = safe.apply ? safe.bottom : 0;
+  document.getElementById('notch').style.width = safe.top > 8 ? '150px' : '0';
+  document.getElementById('notch').style.height = `${Math.max(safe.top - 14, 0)}px`;
+
+  const it = document.getElementById('insetTop'), ib = document.getElementById('insetBot');
+  it.style.height = `${safe.top}px`;  it.style.display = safe.show && safe.top ? 'flex' : 'none';
+  ib.style.height = `${safe.bottom}px`; ib.style.display = safe.show && safe.bottom ? 'flex' : 'none';
+
+  // These three lines mirror the real rules in App.vue / BottomNav.vue.
+  document.getElementById('phoneContent').style.paddingTop = `${t + 16}px`;
+  document.getElementById('phoneNav').style.height = `${60 + b}px`;
+  document.getElementById('phoneNav').style.paddingBottom = `${b}px`;
+  document.getElementById('phoneFab').style.bottom = `${60 + b + 12}px`;
+}
+[['topInset', 'topVal', 'top'], ['botInset', 'botVal', 'bottom']].forEach(([id, valId, key]) => {
+  const el = document.getElementById(id), out = document.getElementById(valId);
+  const sync = () => { safe[key] = +el.value; out.textContent = `${el.value}px`; renderSafe(); };
+  el.addEventListener('input', sync); sync();
+});
+document.getElementById('applySafe').addEventListener('change', (e) => { safe.apply = e.target.checked; renderSafe(); });
+document.getElementById('showInset').addEventListener('change', (e) => { safe.show = e.target.checked; renderSafe(); });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAB 5 — manifest preview
+   ═══════════════════════════════════════════════════════════════════════════ */
+function renderManifest() {
+  const base = '/A-Penny-For-Our-Thoughts/';
+  const json = {
+    name: 'A Penny For Our Thoughts',
+    short_name: 'Penny',
+    description: 'Personal financial dashboard based on the 50/30/20 budget rule',
+    start_url: base,
+    scope: base,
+    display: 'standalone',
+    orientation: 'portrait',
+    background_color: '#0d0d12',
+    theme_color: '#0d0d12',
+    icons: [
+      { src: `${base}icons/icon-192.png`, sizes: '192x192', type: 'image/png' },
+      { src: `${base}icons/icon-512.png`, sizes: '512x512', type: 'image/png' },
+      { src: `${base}icons/icon-maskable-512.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    ],
+  };
+  const body = JSON.stringify(json, null, 2)
+    .replace(/"([^"]+)":/g, '"<span class="k">$1</span>":')
+    .replace(/: "([^"]*)"/g, ': "<span class="s">$1</span>"');
+
+  document.getElementById('manifestOut').innerHTML =
+`<span class="c">// public/manifest.webmanifest  —  mark: ${MARKS[state.mark].name} · ${BG[state.bg].name}</span>
+${body}
+
+<span class="c">&lt;!-- added to index.html &lt;head&gt; --&gt;</span>
+&lt;link rel="<span class="k">manifest</span>" href="<span class="s">${base}manifest.webmanifest</span>" /&gt;
+&lt;link rel="<span class="k">apple-touch-icon</span>" href="<span class="s">${base}icons/apple-touch-icon-180.png</span>" /&gt;
+&lt;meta name="<span class="k">theme-color</span>" content="<span class="s">#f3f4f7</span>" media="(prefers-color-scheme: light)" /&gt;
+&lt;meta name="<span class="k">theme-color</span>" content="<span class="s">#0d0d12</span>" media="(prefers-color-scheme: dark)" /&gt;
+&lt;meta name="<span class="k">apple-mobile-web-app-capable</span>" content="<span class="s">yes</span>" /&gt;
+&lt;meta name="<span class="k">apple-mobile-web-app-status-bar-style</span>" content="<span class="s">black-translucent</span>" /&gt;
+&lt;meta name="<span class="k">apple-mobile-web-app-title</span>" content="<span class="s">Penny</span>" /&gt;`;
+}
+
+/* ── Theme toggle ── */
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const root = document.documentElement;
+  const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme', next);
+  document.getElementById('themeBtn').textContent = next === 'dark' ? '☾ Toggle theme' : '☀ Toggle theme';
+});
+
+renderIcons();
+</script>
+</body>
+</html>

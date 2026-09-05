@@ -1754,7 +1754,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | MOBILE-3 — Typography scale | iOS zoom fix (16px input floor at ≤768px), mobile text floor (nothing below 0.72rem at ≤480px across 16 components), 7 new `--text-*` CSS scale tokens in `tokens.css`. Pure CSS refactor — 1509 tests unchanged. | `refactor/mobile-typography` | ✅ Complete | v2.46.1 |
 | MOBILE-4 — Layout | 5+More bottom nav (5 primary + overflow sheet for Docs/Settings, active-in-overflow dot indicator), collapsible What's New banner on mobile (compact bar + tap-to-expand), greeting truncation fix (scoped the errant 140px `header h1` cap away from `.dash-header__title`). 1509 tests unchanged. | `refactor/mobile-layout` | ✅ Complete | v2.46.2 |
 | BUG-037 — Web Storage test shim | Node 26 defines an inert global `localStorage` accessor; Vitest 1.x's jsdom env skips globals that already exist, so jsdom's Storage was never published and 254 tests across 8 files failed on unchanged code. Fixed with `tests/setupStorage.ts` (first in `setupFiles`), which republishes `localStorage`, `sessionStorage` and the `Storage` constructor **as a group from one jsdom realm** — a per-key fix splits realms and silently defeats `vi.spyOn(Storage.prototype, …)`. 6 guard tests. **Also pinned the Node toolchain**: CI + deploy hard-coded Node 20 (EOL 2026-04-30) while local ran Node 26 — the drift that kept CI green through this bug. Both now read `.nvmrc` (Node 24 Active LTS), plus a `forward-compat` CI job on Node Current so host-global regressions surface in CI. 11 new tests (1520 total), green on Node 20/22/24/26. | `fix/vitest-localstorage-shim` | ✅ Complete | v2.46.3 |
-| MOBILE-5 — PWA & polish | Manifest + theme-color + apple-touch-icon (installable), `overscroll-behavior`, safe-area verification on FAB/nav, tactile animation feedback. Final sprint of the Mobile Optimization initiative. | `feat/mobile-pwa` | 🔲 PLANNED | — |
+| MOBILE-5 — PWA & polish | Manifest + theme-color + apple-touch-icon (installable) with a minimal pass-through service worker so Android fires the install prompt, custom monogram icon set, `overscroll-behavior`, safe-area verification on FAB/nav, visual-only tactile feedback. Final sprint of the Mobile Optimization initiative. | `feat/mobile-pwa` | 🟡 IN PROGRESS | — |
 | TEST-INFRA-1 — Vitest 3 upgrade | Upgrade Vitest 1.6 → 3.x (+ `@vitest/*`, jsdom), migrate config/API surface, and remove the BUG-037 storage shim once the runner publishes jsdom globals unconditionally. Pin Node via `.nvmrc` so CI and local agree. | `chore/vitest-3-upgrade` | 🔲 PLANNED | — |
 
 ---
@@ -5238,4 +5238,46 @@ table: Vitest 3 ships a faster default pool, better diffs, and `expect.soft`.
   is affected at once.
 - 49 spec files is a wide blast radius for a tooling change — worth doing as its own sprint with
   nothing else in the branch, exactly as scoped here.
+
+---
+
+## MOBILE-5 — PWA & polish 🟡
+**Branch**: `feat/mobile-pwa`
+**Status**: 🟡 **IN PROGRESS** — September 2026 (demo-first gate: awaiting approval)
+**Version**: v2.47.0 (MINOR — installability is new user-facing capability)
+
+### Agreed scope (decisions taken 2026-09-05)
+1. **Installable PWA, not offline.** `manifest.webmanifest` + theme-color + apple-touch metas, plus a
+   **minimal hand-written service worker** with a pass-through `fetch` handler — Chrome/Android only
+   fires the install prompt when one exists; iOS Add-to-Home-Screen does not need it. No caching
+   strategy: Chart.js and Google Fonts stay on their CDNs and the app remains online-only. Genuine
+   offline support stays as ROADMAP item F.
+2. **Custom monogram icon.** Not the 💸 emoji favicon. Four candidates built from existing brand
+   tokens are presented in the demo for selection.
+3. **Visual-only tactile feedback.** No Vibration API — iOS Safari does not support `navigator.vibrate`,
+   so haptics would be inert for half the users. Extends MOBILE-1's `:active` press to nav tabs, FAB,
+   cards and list rows, cancelled under `prefers-reduced-motion`.
+4. **`overscroll-behavior`** to stop scroll chaining out of modals and scroll panes.
+5. **Safe-area verification** — an audit, not new work: `viewport-fit=cover` is already set and
+   `env(safe-area-inset-*)` is already used in 11 places.
+
+### Findings from the pre-sprint audit
+- **No `public/` directory exists.** It must be created; Vite copies it to the dist root on build.
+- **The GitHub Pages base is `/A-Penny-For-Our-Thoughts/`.** `start_url`, `scope` and every icon path
+  must carry it — a manifest with root-relative paths silently fails to install in production.
+- **`vite.config.ts`'s base comment is wrong.** It claims "Only affects `vite build` output — `vite dev`
+  always uses '/'", but the dev server also serves under the base: `/demo-mobile-5-pwa.html` 404s while
+  `/A-Penny-For-Our-Thoughts/demo-mobile-5-pwa.html` resolves. Correct the comment during the sprint.
+- **Maskable safe zone caught a real defect.** The Android maskable spec permits cropping outside a
+  centred circle of 80% diameter (radius 204.8 in a 512 grid). Measured furthest painted extent per
+  candidate: coin 161 (margin 43.8), split 174 (30.8), thought 193.4 (11.4 — **failed at 239 before the
+  bubble dots were pulled in**), cent 197.8 (7.0 — tightest; the ¢ glyph runs close, so rasterisation
+  must be checked visually or the glyph converted to a path).
+
+### Demo
+`demo-mobile-5-pwa.html` — five labs: icon candidates (platform mask, background, safe-zone overlay,
+home-screen mock), tactile press lab (current CSS vs proposed GSAP, with scale/duration/ease controls
+and a reduced-motion simulation), `overscroll-behavior` scroll-chaining comparison, a safe-area rig with
+adjustable insets, and a live manifest preview. GSAP loaded from `./node_modules/` per the demo-first
+policy. **Must be deleted before merge** (release checklist item 8).
 
