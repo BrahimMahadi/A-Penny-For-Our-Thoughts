@@ -13,7 +13,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ─── Primary gate: runs on the pinned toolchain ────────────────────────────
+  # Node version comes from .nvmrc so CI and local development cannot drift.
+  # Do NOT hard-code a version here — change .nvmrc and both follow.
   validate:
+    name: Validate (pinned Node)
     runs-on: ubuntu-latest
 
     steps:
@@ -23,8 +27,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
+
+      - name: Report toolchain
+        run: node -v && npm -v
 
       - name: Install dependencies
         run: npm ci
@@ -40,3 +47,39 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # ─── Forward-compatibility gate (BUG-037) ──────────────────────────────────
+  # The pinned LTS is NOT sufficient on its own to catch the class of bug that
+  # BUG-037 belonged to. That bug came from Node's experimental global
+  # `localStorage` accessor shadowing jsdom's, and the shadowing property is
+  # absent on v20/v22/v24 but present on v26 — so a CI pinned to 24 alone would
+  # have stayed green while local development on 26 had 254 failing tests.
+  #
+  # This job runs the suite on Node Current so that host-global regressions
+  # surface here rather than on a developer's machine. If it fails while
+  # `validate` passes, suspect the environment (a new Node global shadowing a
+  # jsdom one) before suspecting application code.
+  forward-compat:
+    name: Test on Node Current (forward-compat)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: 'npm'
+
+      - name: Report toolchain
+        run: node -v && npm -v
+
+      - name: Install dependencies
+        # `npm ci` honours the `engines` field only under engine-strict; the
+        # pin is advisory here by design, since running off-pin is the point.
+        run: npm ci
+
+      - name: Test
+        run: npm run test

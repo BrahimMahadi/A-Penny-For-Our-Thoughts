@@ -1753,6 +1753,9 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | THEME-TOGGLE-MOBILE | Surfaced the light/dark theme switch on mobile (previously only in the desktop-only sidebar + login). New reusable `ThemeToggle.vue` (icon + pill variants) wired to the theme store; an "Appearance" pill panel at the top of Settings (canonical) + a 44px sun/moon icon in the Dashboard header (one-tap). 5 new tests (1509 total). | `feat/theme-toggle` | ✅ Complete | v2.46.0 |
 | MOBILE-3 — Typography scale | iOS zoom fix (16px input floor at ≤768px), mobile text floor (nothing below 0.72rem at ≤480px across 16 components), 7 new `--text-*` CSS scale tokens in `tokens.css`. Pure CSS refactor — 1509 tests unchanged. | `refactor/mobile-typography` | ✅ Complete | v2.46.1 |
 | MOBILE-4 — Layout | 5+More bottom nav (5 primary + overflow sheet for Docs/Settings, active-in-overflow dot indicator), collapsible What's New banner on mobile (compact bar + tap-to-expand), greeting truncation fix (scoped the errant 140px `header h1` cap away from `.dash-header__title`). 1509 tests unchanged. | `refactor/mobile-layout` | ✅ Complete | v2.46.2 |
+| BUG-037 — Web Storage test shim | Node 26 defines an inert global `localStorage` accessor; Vitest 1.x's jsdom env skips globals that already exist, so jsdom's Storage was never published and 254 tests across 8 files failed on unchanged code. Fixed with `tests/setupStorage.ts` (first in `setupFiles`), which republishes `localStorage`, `sessionStorage` and the `Storage` constructor **as a group from one jsdom realm** — a per-key fix splits realms and silently defeats `vi.spyOn(Storage.prototype, …)`. 6 guard tests. **Also pinned the Node toolchain**: CI + deploy hard-coded Node 20 (EOL 2026-04-30) while local ran Node 26 — the drift that kept CI green through this bug. Both now read `.nvmrc` (Node 24 Active LTS), plus a `forward-compat` CI job on Node Current so host-global regressions surface in CI. 11 new tests (1520 total), green on Node 20/22/24/26. | `fix/vitest-localstorage-shim` | ✅ Complete | v2.46.3 |
+| MOBILE-5 — PWA & polish | Manifest + theme-color + apple-touch-icon (installable), `overscroll-behavior`, safe-area verification on FAB/nav, tactile animation feedback. Final sprint of the Mobile Optimization initiative. | `feat/mobile-pwa` | 🔲 PLANNED | — |
+| TEST-INFRA-1 — Vitest 3 upgrade | Upgrade Vitest 1.6 → 3.x (+ `@vitest/*`, jsdom), migrate config/API surface, and remove the BUG-037 storage shim once the runner publishes jsdom globals unconditionally. Pin Node via `.nvmrc` so CI and local agree. | `chore/vitest-3-upgrade` | 🔲 PLANNED | — |
 
 ---
 
@@ -5109,3 +5112,130 @@ Three layout issues on mobile:
 - `src/components/onboarding/WhatsNewBanner.vue` — collapsible bar + v2.46.2 release notes
 - `src/components/pages/DashboardPage.vue` — greeting truncation fix
 - `CLAUDE.md`, `DocsPage.vue`, `pages.spec.ts`, `onboarding.spec.ts`, `docs/PHASE_TRACKING.md`
+
+---
+
+## BUG-037 — Web Storage test shim (Node 26) ✅
+**Branch**: `fix/vitest-localstorage-shim`
+**Status**: ✅ **COMPLETE** — September 2026
+**Version**: v2.46.3 (PATCH — test infrastructure only, no user-facing behaviour)
+
+### Problem
+`npx vitest run` on a clean `main` failed **254 tests across 8 spec files** with one identical
+error — `TypeError: Cannot read properties of undefined (reading 'clear')` on `localStorage.clear()`.
+No application code had changed since v2.46.2 shipped green with 1509 passing.
+
+Root cause was a three-way toolchain interaction:
+1. **Recent Node** defines a global `localStorage` accessor whose getter returns `undefined`
+   without the `--localstorage-file` flag — but the property still *exists* on `globalThis`.
+   Measured: absent on v20.18.0 / v22.23.2 / v24.20.0, present on v26.5.1 — the boundary is
+   v25/v26, not v22.
+2. **Vitest 1.x's jsdom environment** only copies a jsdom window key onto the Node global when
+   nothing of that name is already defined. Node's inert accessor satisfied that guard, so jsdom's
+   real Storage was never published.
+3. The dev machine had moved to **Node v26.5.1**.
+
+### Why the obvious fixes don't work
+- **Re-copy from `window`** — under `globals: true`, `window`, `document.defaultView` and
+  `globalThis` are the *same* populated object. The environment's own jsdom Storage is unreachable
+  from the test context. (Verified by probe.)
+- **Shim each key independently** — Node shadows only `localStorage`, not `sessionStorage`. A
+  per-key fix leaves the two stores in *different jsdom realms*, only one of which matches the
+  `Storage` global. That split silently defeats `vi.spyOn(Storage.prototype, 'setItem')` and made
+  the two quota-handling specs in `stores/budget.spec.ts` pass vacuously. This was caught mid-sprint
+  by the realm-identity assertion, not by the suite.
+
+### Delivered
+- **`tests/setupStorage.ts`** — stands up a throwaway JSDOM instance and republishes
+  `localStorage`, `sessionStorage` **and** the `Storage` constructor together from that single
+  realm, guarded on `needsShim` so a Node version without the shadowing problem is untouched.
+  Registered as the **first** entry in `test.setupFiles` (ahead of `tests/setup.ts`) so it lands
+  before any module that reads storage at import time.
+- **`tests/setupStorage.spec.ts`** — 6 guard tests: globals exist, round-trip, stay separate,
+  share a prototype with the `Storage` global, remain interceptable by prototype spies, clear
+  between tests.
+- **`@types/jsdom`** added as a devDependency to keep `vue-tsc` clean.
+
+### Node toolchain pin (same sprint)
+Investigating the fix surfaced the reason CI never caught this: **CI and deploy both hard-coded
+Node 20 while local development had moved to Node 26** — six majors of drift. Worse, Node 20 reached
+**end-of-life on 2026-04-30** and was still building the shipped production bundle.
+
+- **`.nvmrc` → `24`** (Active LTS, supported to 2028-04-30) is now the single source of truth.
+  `ci.yml` (validate) and `deploy.yml` both read `node-version-file: '.nvmrc'`; neither hard-codes a
+  version. `package.json` gains `engines.node: ^24.0.0`.
+- **`forward-compat` CI job on Node Current (26).** Pinning to an LTS alone would *not* have caught
+  BUG-037: the shadowing global is absent on v20/v22/v24 and present on v26, so CI would have stayed
+  green while local was 254 tests red. This job runs the suite on Node Current so host-global
+  regressions surface in CI first.
+- **`tests/toolchain.spec.ts`** (5 tests) fails if `.nvmrc`, `engines`, or either workflow drift
+  apart, and asserts the forward-compat job still runs a Node newer than the pin.
+
+**Note for local development:** the shell resolves `node` from Homebrew (v26.5.1), so `.nvmrc` is
+not applied automatically — run `nvm use` in the project root, or enable nvm's auto-switching, to
+develop on the pinned version.
+
+### Measured Node behaviour
+`Object.getOwnPropertyDescriptor(globalThis, 'localStorage')`:
+
+| Node | Descriptor | Suite |
+|---|---|---|
+| v20.18.0 | absent | ✅ 1520 |
+| v22.23.2 | absent | ✅ 1520 |
+| v24.20.0 | absent (**pinned**) | ✅ 1520 |
+| v26.5.1 | **present** — the trigger | ✅ 1520 |
+
+### Tests & verification
+- 254 failing → **1520 passing across 50 spec files**, verified on all four Node majors above.
+- `vue-tsc --noEmit` exits 0; `eslint` reports 0 errors.
+- Full detail incl. the diagnostic trail in `docs/BUGS.md` → BUG-037.
+
+### Files changed
+- `tests/setupStorage.ts` (new), `tests/setupStorage.spec.ts` (new), `tests/toolchain.spec.ts` (new)
+- `vite.config.ts` — `setupFiles` ordering
+- `.nvmrc` (new), `package.json` — `engines` + `@types/jsdom`, `package-lock.json`
+- `.github/workflows/ci.yml` — `.nvmrc` pin + `forward-compat` job
+- `.github/workflows/deploy.yml` — `.nvmrc` pin (off EOL Node 20)
+- `CLAUDE.md`, `WhatsNewBanner.vue`, `DocsPage.vue`, `pages.spec.ts`, `onboarding.spec.ts`,
+  `docs/BUGS.md`, `docs/PHASE_TRACKING.md`
+
+---
+
+## TEST-INFRA-1 — Vitest 3 upgrade 🔲
+**Branch**: `chore/vitest-3-upgrade` (not yet created)
+**Status**: 🔲 **PLANNED**
+**Version**: PATCH (tooling only, no user-facing behaviour)
+
+### Why
+BUG-037 is scaffolding. Vitest 1.6.1 (released mid-2024) publishes jsdom globals conditionally,
+which is what let Node 26's inert `localStorage` accessor win. Vitest 3 publishes them
+unconditionally, so the shim becomes dead code. The suite is also leaving performance and DX on the
+table: Vitest 3 ships a faster default pool, better diffs, and `expect.soft`.
+
+### Scope
+1. **Upgrade** `vitest` 1.6.1 → 3.x, `jsdom` 24 → current, and align `@vue/test-utils`.
+2. **Config migration** — Vitest 3 prefers a dedicated `vitest.config.ts` over `test:` inside
+   `vite.config.ts`; check `environment`, `setupFiles`, `globals`, and the `@` alias survive.
+3. **API surface sweep** — breaking changes to audit across 49 spec files: `vi.spyOn` on getters,
+   `mockReset` semantics, `toHaveBeenCalledWith` on proxies, and the `describe`/`it` return-value
+   deprecation. `tests/setup.ts`'s `vi.setSystemTime` monkey-patch (BUG-035 clock sync) is the
+   highest-risk spot — it wraps a Vitest internal.
+4. **Remove the shim** — delete `tests/setupStorage.ts`, revert the `setupFiles` array to a single
+   entry, drop `@types/jsdom` if nothing else needs it. **Keep `tests/setupStorage.spec.ts`** —
+   its assertions are runner-agnostic and become the proof the upgrade actually fixed the cause.
+5. **Pin Node** — add `.nvmrc` (and an `engines` field) so CI and local agree, and confirm the
+   GitHub Actions `build-and-deploy` workflow honours it.
+
+### Exit criteria
+- 1515+ tests pass on Vitest 3 with `tests/setupStorage.ts` deleted.
+- `tests/setupStorage.spec.ts` passes unmodified.
+- `vue-tsc --noEmit` clean; CI green on the pinned Node version.
+- `docs/BUGS.md` BUG-037 annotated as resolved-at-source.
+
+### Risks
+- The `vi.setSystemTime` patch in `tests/setup.ts` is the most likely breakage; if Vitest 3 changes
+  the fake-timers surface, the reactive-clock sync (BUG-035) needs rework and every date-scoped spec
+  is affected at once.
+- 49 spec files is a wide blast radius for a tooling change — worth doing as its own sprint with
+  nothing else in the branch, exactly as scoped here.
+
