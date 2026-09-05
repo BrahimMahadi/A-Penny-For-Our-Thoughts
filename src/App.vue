@@ -36,10 +36,7 @@ import { useUiStore } from '@/stores/ui';
 import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useKeyboard } from '@/composables/useKeyboard';
-import { useGsapObserver } from '@/composables/useGsapObserver';
-// BUG-039: TAB_ORDER used to be declared here and drifted from BottomNav's
-// 5-primary/2-overflow split, so swiping reached tabs with no nav button.
-import { TAB_ORDER, swipeTarget } from '@/lib/tabs';
+import { TAB_ORDER } from '@/lib/tabs';
 import { usePeriodRollover } from '@/composables/usePeriodRollover';
 import { useToday } from '@/composables/useToday';
 import type { TabId } from '@/types/state';
@@ -186,25 +183,18 @@ const tabTransitionName = computed<string>(() => {
   return `tab-${dir}-${tabNavAxis.value}`;
 });
 
-// ─── Swipe to change tab on mobile (GSAP Observer) ────────────────────────
-// Replaces raw useSwipe touch listeners. GSAP Observer provides built-in
-// tolerance, drag-minimum, and axis-locking so diagonal gestures don't
-// accidentally trigger tab switches.
-const appMainRef = ref<HTMLElement | null>(null);
-
-// Swipe cycles the FIVE primary tabs only — never Docs/Settings, which live in
-// the More sheet and have no nav slot to swipe "towards" (BUG-039). Landing on
-// one of them made the gesture feel broken: the nav showed no active tab.
-useGsapObserver(appMainRef, {
-  onSwipeLeft: () => {
-    const next = swipeTarget(ui.activeTab as TabId, 'next');
-    if (next) ui.setActiveTab(next);
-  },
-  onSwipeRight: () => {
-    const prev = swipeTarget(ui.activeTab as TabId, 'prev');
-    if (prev) ui.setActiveTab(prev);
-  },
-});
+// ─── Swipe-to-change-tab: REMOVED in v2.47.2 ──────────────────────────────
+// The gesture was attached to `.app-main`, an ancestor of every
+// `overflow-x: auto` region in the app, so it competed with horizontal
+// scrolling for the same input. BUG-039 added a guard that deferred to any
+// scroller with travel remaining, but the conflict is structural rather than
+// a bug: on the Spending tab the purchases table still fought the gesture,
+// because "am I scrolling this table or leaving this page?" has no reliable
+// answer from a horizontal drag alone.
+//
+// Removed rather than tuned further. The 5+More bottom nav (MOBILE-4) is the
+// navigation affordance, and it is unambiguous. `useGsapObserver` existed only
+// for this and was deleted with it.
 </script>
 
 <template>
@@ -241,7 +231,6 @@ useGsapObserver(appMainRef, {
       <!-- Page content -->
       <main
         :id="`page-${ui.activeTab}`"
-        ref="appMainRef"
         class="app-main"
         role="tabpanel"
       >

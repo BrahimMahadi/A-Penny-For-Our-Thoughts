@@ -19,7 +19,7 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (1573 tests across 54 spec files)  <!-- v2.47.1 -->
+- Testing: Vitest + @vue/test-utils (1559 tests across 54 spec files)  <!-- v2.47.2 -->
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
@@ -227,11 +227,14 @@ Run through this before opening any PR that touches UI:
 
 ## Gotchas
 
-- **Tab order lives in `src/lib/tabs.ts` — never redeclare it.** `App.vue` (swipe navigation) and `BottomNav.vue` (the 5+More bar) each held their own copy and drifted, so swiping past Insights reached Docs, a tab with no nav button (BUG-039). Swipe cycles `PRIMARY_TAB_ORDER`, not `TAB_ORDER`, and `swipeTarget()` returns `null` at the ends rather than clamping. `tests/lib/tabs.spec.ts` fails if either file declares its own list again.
+- **Never let a form control fall below `font-size: 16px` on mobile.** iOS Safari zooms the viewport when a control under 16px is focused and does **not** zoom back out on blur, stranding the user zoomed in after submitting a form (BUG-041). Every control is styled by a scoped class (`.mf-input`, `.form-input`, `.oti-form__input`, …) which compiles to `.cls[data-v-hash]` (0,2,0) and beats a bare `input` selector (0,0,1) — so MOBILE-3's floor silently lost. The safety net at the bottom of `responsive.css` uses `!important` deliberately: it encodes a platform constraint the app cannot undo, not a style preference. `tests/css/mobileForms.spec.ts` guards it.
+
+- **Tab order lives in `src/lib/tabs.ts` — never redeclare it.** `App.vue` (page-transition direction) and `BottomNav.vue` (the 5+More bar) each held their own copy and drifted, so the two disagreed about what the tabs were (BUG-039). `tests/lib/tabs.spec.ts` fails if either file declares its own list again.
+
+- **Swipe-to-change-tab was removed in v2.47.2 — do not reintroduce it without solving the scroller conflict.** The gesture was attached to `.app-main`, an ancestor of six `overflow-x: auto` regions, so "scroll this table" and "leave this page" were the same input. A guard that deferred to scrollers with travel remaining (BUG-039) reduced but did not eliminate the conflict.
 
 - **`.app-main` needs BOTH safe-area insets.** `index.html` sets `viewport-fit=cover` and `apple-mobile-web-app-status-bar-style: black-translucent`, so an installed PWA draws under the status bar; without `env(safe-area-inset-top)` the first child sits behind the clock and notch (BUG-040). The top inset and the translucent status-bar style must move together — `tests/lib/pwa.spec.ts` asserts both.
 
-- **A swipe gesture layered over scrollable content must defer to the scroller.** `useGsapObserver` is attached to `.app-main`, an ancestor of six `overflow-x: auto` regions; `shouldIgnoreGesture` walks up from the touch target and lets a scroller with remaining travel consume the swipe (BUG-039).
 
 - **A body scroll lock that only sets `overflow: hidden` is a desktop-only lock.** iOS Safari ignores it for touch scrolling, so the page keeps scrolling behind an open modal on exactly the devices where bottom-sheet modals are used (BUG-038). `useModal` uses the position-fixed technique instead — pin the body at `top: -<scrollY>px` and restore both the styles and the scroll offset on unlock. Any new overlay (drawer, command palette) must reuse `useModal` rather than re-implement the lock. Note that `overscroll-behavior: contain` does **not** solve this: it prevents scroll *chaining* out of an inner scroller, not the page scrolling underneath.
 

@@ -4,10 +4,11 @@
  * Created:  September 2026 (BUG-039)
  * Summary:  Guards the single source of truth for tab order.
  *
- *           BUG-039: App.vue's swipe TAB_ORDER (7 tabs) and BottomNav's
- *           5-primary/2-overflow split were declared independently and drifted.
- *           Swiping from Insights landed on Docs — a tab with no nav button —
- *           so the nav showed no active tab and the gesture felt broken.
+ *           BUG-039: App.vue and BottomNav each declared the tab list and
+ *           drifted after MOBILE-4's 5+More split. Swipe navigation has since
+ *           been removed (v2.47.2), but the drift risk has not gone with it:
+ *           App.vue still reads TAB_ORDER for the page-transition direction and
+ *           BottomNav still reads the primary/overflow split for its slots.
  *           These assertions fail if the two ever diverge again.
  */
 
@@ -19,7 +20,6 @@ import {
   PRIMARY_TAB_ORDER,
   OVERFLOW_TAB_IDS,
   isOverflowTab,
-  swipeTarget,
 } from '@/lib/tabs';
 
 const root = resolve(__dirname, '../..');
@@ -44,38 +44,9 @@ describe('tab order (BUG-039)', () => {
     expect(isOverflowTab('docs')).toBe(true);
     expect(isOverflowTab('dashboard')).toBe(false);
   });
-});
 
-describe('swipeTarget', () => {
-  it('moves forward and backward through the primary tabs', () => {
-    expect(swipeTarget('dashboard', 'next')).toBe('schedule');
-    expect(swipeTarget('spending', 'next')).toBe('goals');
-    expect(swipeTarget('goals', 'prev')).toBe('spending');
-  });
-
-  // The actual reported bug: this used to return 'docs'.
-  it('returns null at the end of the primary list instead of reaching Docs', () => {
-    expect(swipeTarget('insights', 'next')).toBeNull();
-  });
-
-  it('returns null before the first tab', () => {
-    expect(swipeTarget('dashboard', 'prev')).toBeNull();
-  });
-
-  it('returns null from an overflow tab, which has no swipe neighbour', () => {
-    // Reached via the More sheet; silently jumping into the primary list would
-    // be surprising, so the gesture does nothing.
-    expect(swipeTarget('docs', 'next')).toBeNull();
-    expect(swipeTarget('settings', 'prev')).toBeNull();
-  });
-
-  it('never yields a tab without a nav slot, from any starting point', () => {
-    for (const from of TAB_ORDER) {
-      for (const dir of ['next', 'prev'] as const) {
-        const to = swipeTarget(from, dir);
-        if (to !== null) expect(OVERFLOW_TAB_IDS).not.toContain(to);
-      }
-    }
+  it('never lists an overflow tab among the primary ones', () => {
+    for (const id of PRIMARY_TAB_ORDER) expect(isOverflowTab(id)).toBe(false);
   });
 });
 

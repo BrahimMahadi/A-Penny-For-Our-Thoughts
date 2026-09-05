@@ -11,6 +11,79 @@ for recurring patterns and a post-mortem trail for regressions.
 
 ---
 
+## BUG-041 — App stays zoomed in after using a form on iOS (v2.47.2)
+
+**Date:** September 2026
+**Branch:** `fix/ios-zoom-and-remove-swipe`
+
+**Symptom** — after adding a purchase or logging income on mobile, the app was left zoomed in and the
+user had to pinch out manually.
+
+**Root cause** — iOS Safari zooms the viewport when a form control with `font-size < 16px` receives
+focus, and **does not zoom back out on blur**. The zoom therefore outlives the modal.
+
+MOBILE-3 (v2.46.1) already "fixed" this — it added `input, select, textarea { font-size: 16px }`
+inside the mobile blocks of `responsive.css`. But that is a bare element selector (specificity
+0,0,1), while every form control in the app is styled by a **scoped component class** — `.mf-input`
+(SpendingPage), `.oti-form__input` / `.oti-form__alloc-input` (windfall modal), `.form-input` (a
+dozen section components), `.chq-input`, `.filter-input`, `.wish-inline-input` — which Vue compiles
+to `.cls[data-v-hash]` (0,2,0). The class wins, and MOBILE-3's floor never applied to any real field.
+
+Measured in-browser at 375px before the fix:
+
+| Modal | Fields | Computed size |
+|---|---|---|
+| Add Purchase | text, number, date, 2× select | **14.4px** |
+| Log windfall income | text, number, date | **14.4px** |
+| Log windfall income | 3× allocation inputs | **13.6px** |
+
+**Fix** — a safety-net block at the end of `responsive.css`:
+
+```css
+@media (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"])
+       :not([type="button"]):not([type="submit"]):not([type="reset"]),
+  select, textarea { font-size: 16px !important; }
+}
+```
+
+`!important` is deliberate here and is the point of the fix. It encodes a **platform constraint** —
+below 16px the OS takes an action the app cannot undo — rather than a style preference. Fixing the
+~15 component classes individually would leave the next new component free to reintroduce the bug;
+this cannot be overridden by accident. Checkboxes, radios, ranges, colours and buttons are exempt:
+they do not trigger zoom and have their own sizing.
+
+**Verification** — after the fix, every field in both modals measures 16px, and a sweep of all five
+tabs found **0** remaining sub-16px focusable controls (was 11+ across the two modals alone).
+
+**Prevention** — `tests/css/mobileForms.spec.ts` asserts the floor exists, applies at ≤768px, covers
+`select`/`textarea`, exempts non-zooming control types, and keeps `!important`. A CLAUDE.md gotcha
+records why the specificity fight is unwinnable without it.
+
+---
+
+## Swipe-to-change-tab removed (v2.47.2)
+
+**Date:** September 2026 — not a bug entry, a design decision recorded where it will be looked for.
+
+Swipe navigation was removed rather than tuned further. The gesture was bound to `.app-main`, an
+ancestor of six `overflow-x: auto` regions, so "scroll this table sideways" and "leave this page"
+were the same input. BUG-039 (v2.47.1) added `shouldIgnoreGesture`, which deferred to any scroller
+with travel remaining and measurably fixed the reported case — but the maintainer still found the
+gesture interfering with tables in real use.
+
+The conflict is structural, not a defect: a horizontal drag carries no signal distinguishing the two
+intents, and any heuristic (deferring to scrollers, edge-only zones, direction bias) trades one
+class of surprise for another. The 5+More bottom nav from MOBILE-4 is an unambiguous affordance and
+already covers navigation.
+
+`useGsapObserver.ts` and its 17 tests were deleted with the feature rather than left unused, so it
+cannot be re-wired without redoing this analysis. `src/lib/tabs.ts` survives — the drift it prevents
+is independent of swipe (see BUG-039). **`useSwipe.ts` is now provably unreferenced** (only comments
+and a DocsPage mention name it) and is a candidate for deletion in a future cleanup.
+
+---
+
 ## BUG-040 — Content sits under the status bar on an installed PWA (v2.47.1)
 
 **Date:** September 2026
