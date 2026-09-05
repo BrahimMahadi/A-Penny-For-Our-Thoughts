@@ -1754,7 +1754,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | MOBILE-3 — Typography scale | iOS zoom fix (16px input floor at ≤768px), mobile text floor (nothing below 0.72rem at ≤480px across 16 components), 7 new `--text-*` CSS scale tokens in `tokens.css`. Pure CSS refactor — 1509 tests unchanged. | `refactor/mobile-typography` | ✅ Complete | v2.46.1 |
 | MOBILE-4 — Layout | 5+More bottom nav (5 primary + overflow sheet for Docs/Settings, active-in-overflow dot indicator), collapsible What's New banner on mobile (compact bar + tap-to-expand), greeting truncation fix (scoped the errant 140px `header h1` cap away from `.dash-header__title`). 1509 tests unchanged. | `refactor/mobile-layout` | ✅ Complete | v2.46.2 |
 | BUG-037 — Web Storage test shim | Node 26 defines an inert global `localStorage` accessor; Vitest 1.x's jsdom env skips globals that already exist, so jsdom's Storage was never published and 254 tests across 8 files failed on unchanged code. Fixed with `tests/setupStorage.ts` (first in `setupFiles`), which republishes `localStorage`, `sessionStorage` and the `Storage` constructor **as a group from one jsdom realm** — a per-key fix splits realms and silently defeats `vi.spyOn(Storage.prototype, …)`. 6 guard tests. **Also pinned the Node toolchain**: CI + deploy hard-coded Node 20 (EOL 2026-04-30) while local ran Node 26 — the drift that kept CI green through this bug. Both now read `.nvmrc` (Node 24 Active LTS), plus a `forward-compat` CI job on Node Current so host-global regressions surface in CI. 11 new tests (1520 total), green on Node 20/22/24/26. | `fix/vitest-localstorage-shim` | ✅ Complete | v2.46.3 |
-| MOBILE-5 — PWA & polish | Installable PWA: manifest + apple-touch-icon + per-scheme theme-color, and a minimal pass-through service worker (Chrome will not offer installation without one) that deliberately does not cache. New cent-sign monogram icon set (192/512/180/48 + maskable 512). `v-press` directive brings tactile press to the bottom nav, More sheet and FAB. `overscroll-behavior: contain` on page, modals and sheet. Safe-area audited. 23 new tests (1543 total). **Completes the Mobile Optimization initiative.** | `feat/mobile-pwa` | ✅ Complete | v2.47.0 |
+| MOBILE-5 — PWA & polish | Installable PWA: manifest + apple-touch-icon + per-scheme theme-color, and a minimal pass-through service worker (Chrome will not offer installation without one) that deliberately does not cache. New cent-sign monogram icon set (192/512/180/48 + maskable 512). `v-press` directive brings tactile press to the bottom nav, More sheet and FAB. `overscroll-behavior: contain` on page, modals and sheet. **BUG-038**: modal scroll lock rewritten to the position-fixed technique after testing showed the page still scrolled behind a modal on mobile (`overflow: hidden` is ignored by iOS Safari for touch). Safe-area audited. 32 new tests (1552 total). **Completes the Mobile Optimization initiative.** | `feat/mobile-pwa` | ✅ Complete | v2.47.0 |
 | TEST-INFRA-1 — Vitest 3 upgrade | Upgrade Vitest 1.6 → 3.x (+ `@vitest/*`, jsdom), migrate config/API surface, and remove the BUG-037 storage shim once the runner publishes jsdom globals unconditionally. Pin Node via `.nvmrc` so CI and local agree. | `chore/vitest-3-upgrade` | 🔲 PLANNED | — |
 
 ---
@@ -5300,6 +5300,19 @@ policy. **Must be deleted before merge** (release checklist item 8).
 - **`overscroll-behavior`** — `contain` on `html, body` (`contain`, not `none`, so the platform's
   rubber-band easing survives; `none` feels dead on iOS), on `BaseModal`'s scroll container, and on
   the bottom-nav overflow sheet.
+- **BUG-038 — modal scroll lock (found in testing, fixed in this branch).** With a modal open on a
+  phone, the page still scrolled behind it. `useModal` was locking with
+  `body { overflow: hidden }`, which desktop Chrome honours (measured: real wheel input moved the
+  page 0 → 343px unlocked, 0 → 0 locked) but iOS Safari ignores for touch scrolling. Rewritten to the
+  position-fixed technique, with the scroll offset captured and restored on close. Verified live:
+  while locked `documentElement.scrollHeight === clientHeight === 812` — no scrollable overflow
+  exists at all — and closing restored the exact prior offset (300px).
+  **`overscroll-behavior` does not cover this case**: it prevents scroll *chaining* out of an inner
+  scroller, not the page scrolling underneath. Both fixes were needed.
+  Also repaired a latent refcount bug: the `immediate` watcher meant a *closed* modal mounting
+  called the shared `unlock()`, so a modal mounting while another was open released that modal's
+  lock. Each instance now only releases a lock it actually took.
+  `tests/composables/useModal.spec.ts` (9 tests) adds the composable's first-ever coverage.
 
 ### Verification
 - **Production build, served under the real base path:** manifest 200, all three manifest icons 200,

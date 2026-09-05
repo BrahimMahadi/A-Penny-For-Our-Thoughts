@@ -34,7 +34,7 @@ const RELEASE_NOTES: ReleaseNote[] = [
   { icon: '📲', text: 'Install Penny to your home screen — on iPhone use Share → Add to Home Screen, on Android tap the install prompt. It opens full-screen with no browser chrome' },
   { icon: '¢', text: 'New app icon: a cent-sign monogram on the brand violet, replacing the emoji favicon' },
   { icon: '👆', text: 'Tactile feedback: the bottom nav, More sheet and floating button now respond to your touch with a subtle press and spring-back' },
-  { icon: '🧷', text: 'Scrolling a modal or the More sheet to its edge no longer drags the page behind it, or triggers an accidental pull-to-refresh' },
+  { icon: '🧷', text: 'Modal scrolling fixed: opening a form no longer lets the page scroll behind it on your phone, and closing it returns you exactly where you were' },
 ]
 
 const budget = useBudgetStore();
