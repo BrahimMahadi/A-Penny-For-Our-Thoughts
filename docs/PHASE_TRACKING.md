@@ -1754,6 +1754,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | MOBILE-3 — Typography scale | iOS zoom fix (16px input floor at ≤768px), mobile text floor (nothing below 0.72rem at ≤480px across 16 components), 7 new `--text-*` CSS scale tokens in `tokens.css`. Pure CSS refactor — 1509 tests unchanged. | `refactor/mobile-typography` | ✅ Complete | v2.46.1 |
 | MOBILE-4 — Layout | 5+More bottom nav (5 primary + overflow sheet for Docs/Settings, active-in-overflow dot indicator), collapsible What's New banner on mobile (compact bar + tap-to-expand), greeting truncation fix (scoped the errant 140px `header h1` cap away from `.dash-header__title`). 1509 tests unchanged. | `refactor/mobile-layout` | ✅ Complete | v2.46.2 |
 | BUG-037 — Web Storage test shim | Node 26 defines an inert global `localStorage` accessor; Vitest 1.x's jsdom env skips globals that already exist, so jsdom's Storage was never published and 254 tests across 8 files failed on unchanged code. Fixed with `tests/setupStorage.ts` (first in `setupFiles`), which republishes `localStorage`, `sessionStorage` and the `Storage` constructor **as a group from one jsdom realm** — a per-key fix splits realms and silently defeats `vi.spyOn(Storage.prototype, …)`. 6 guard tests. **Also pinned the Node toolchain**: CI + deploy hard-coded Node 20 (EOL 2026-04-30) while local ran Node 26 — the drift that kept CI green through this bug. Both now read `.nvmrc` (Node 24 Active LTS), plus a `forward-compat` CI job on Node Current so host-global regressions surface in CI. 11 new tests (1520 total), green on Node 20/22/24/26. | `fix/vitest-localstorage-shim` | ✅ Complete | v2.46.3 |
+| BUG-039 / BUG-040 — mobile fixes | **BUG-040:** installed PWA drew under the status bar (`black-translucent` from v2.47.0 + no `env(safe-area-inset-top)` anywhere); `.app-main` now reserves the top inset. **BUG-039:** swipe navigation reached Docs/Settings (tab order declared twice and drifted after MOBILE-4) and stole gestures from the 480px-wide purchases table; `src/lib/tabs.ts` is now the single source, and the gesture defers to scrollers with travel left. Observer multi-fire was hypothesised and **refuted** by measurement. 21 new tests (1573 total). | `fix/mobile-safe-area-and-swipe` | ✅ Complete | v2.47.1 |
 | MOBILE-5 — PWA & polish | Installable PWA: manifest + apple-touch-icon + per-scheme theme-color, and a minimal pass-through service worker (Chrome will not offer installation without one) that deliberately does not cache. New cent-sign monogram icon set (192/512/180/48 + maskable 512). `v-press` directive brings tactile press to the bottom nav, More sheet and FAB. `overscroll-behavior: contain` on page, modals and sheet. **BUG-038**: modal scroll lock rewritten to the position-fixed technique after testing showed the page still scrolled behind a modal on mobile (`overflow: hidden` is ignored by iOS Safari for touch). Safe-area audited. 32 new tests (1552 total). **Completes the Mobile Optimization initiative.** | `feat/mobile-pwa` | ✅ Complete | v2.47.0 |
 | TEST-INFRA-1 — Vitest 3 upgrade | Upgrade Vitest 1.6 → 3.x (+ `@vitest/*`, jsdom), migrate config/API surface, and remove the BUG-037 storage shim once the runner publishes jsdom globals unconditionally. Pin Node via `.nvmrc` so CI and local agree. | `chore/vitest-3-upgrade` | 🔲 PLANNED | — |
 
@@ -5344,3 +5345,51 @@ injected inset values.
   `docs/PHASE_TRACKING.md`
 - `demo-mobile-5-pwa.html` — **deleted** (release checklist item 8)
 
+---
+
+## BUG-039 / BUG-040 — Mobile fixes from device testing ✅
+**Branch**: `fix/mobile-safe-area-and-swipe`
+**Status**: ✅ **COMPLETE** — September 2026
+**Version**: v2.47.1 (PATCH — two bug fixes, no new capability)
+
+Both found by the maintainer testing v2.47.0 on a real iPhone — the two things the MOBILE-5
+verification explicitly could not cover (no notched device, and no touch gesture testing).
+
+### BUG-040 — content under the status bar
+A regression from v2.47.0. `apple-mobile-web-app-status-bar-style: black-translucent` makes an
+installed PWA draw under the status bar, and the app had **no `env(safe-area-inset-top)` rule
+anywhere** — all eleven safe-area rules were `-bottom`. `.app-main` now reserves the top inset.
+Invisible in mobile Safari (browser chrome occupies the top); it only appears once installed.
+
+### BUG-039 — swipe navigation
+Three candidate causes; **two confirmed, one refuted**:
+
+| # | Cause | Verdict |
+|---|---|---|
+| 1 | Tab order declared in both `App.vue` and `BottomNav.vue`, drifted after MOBILE-4's 5+More split | ✅ Confirmed — `Insights → swipe → Docs`, a tab with no nav button |
+| 2 | Gesture out-competes horizontal scrollers | ✅ Confirmed — `.purchases-table-wrap` is 480px in a 296px viewport; swiping it went `Spending → Goals` |
+| 3 | Observer multi-fires within one gesture | ❌ **Refuted** — one continuous 290px drag advances exactly one tab |
+
+Cause 3 is recorded because it was the most intuitive diagnosis and it was wrong; measuring first
+avoided building a guard against a problem that did not exist.
+
+### Delivered
+- **`src/lib/tabs.ts`** — single source of truth. Swipe cycles `PRIMARY_TAB_ORDER`, and
+  `swipeTarget()` returns `null` at the ends rather than clamping, so a swipe past Insights does
+  nothing instead of moving somewhere unreachable.
+- **`shouldIgnoreGesture`** — walks from the touch target to the observed root and defers to any
+  horizontally-scrollable ancestor with room left in that direction; a scroller at its end still
+  falls through to a tab change.
+- **350ms cooldown** for a second flick landing mid-transition (gesture timing, not duplicate callbacks).
+- **`.app-main`** top safe-area inset.
+
+### Verification
+Re-ran the instrumented touch harness that reproduced the bugs: swipe from Insights stays put; a
+normal swipe advances one; a rapid double flick advances one; a swipe inside the scrollable table
+leaves the tab alone; the same swipe with the table at its end changes tab.
+1573 tests across 54 spec files; `vue-tsc` clean; `npm run lint` exit 0.
+
+### Still unverified
+The safe-area fix itself is **not** confirmed on a notched device — the iOS Simulator has no runtime
+installed (`xcodebuild -downloadPlatform iOS`), and a resized desktop viewport reports insets as 0.
+Verified structurally (the rule exists and is reachable); the maintainer retests on hardware.
