@@ -13,6 +13,12 @@
  *           app's tabs even were.
  *
  *           Both now import from here. Adding or reordering a tab is one edit.
+ *
+ *           v2.47.2: swipe navigation was removed, taking `swipeTarget()` with
+ *           it. This module stays because the drift it prevents is real —
+ *           `App.vue` reads TAB_ORDER for the page-transition direction and
+ *           BottomNav reads the primary/overflow split for its slots, and those
+ *           two must agree about what the tabs are.
  */
 
 import type { TabId } from '@/types/state';
@@ -37,9 +43,8 @@ export const OVERFLOW_TAB_IDS: TabId[] = ['docs', 'settings'];
 /**
  * The five tabs with their own bottom-nav slot, in nav order.
  *
- * This — not `TAB_ORDER` — is what swipe navigation cycles through. Swiping is
- * a shortcut for the visible nav, so it must not reach a destination the user
- * cannot see a button for.
+ * Derived from TAB_ORDER rather than listed again, so a new tab appears in the
+ * nav automatically unless it is explicitly put in the overflow set.
  */
 export const PRIMARY_TAB_ORDER: TabId[] = TAB_ORDER.filter(
   (id) => !OVERFLOW_TAB_IDS.includes(id),
@@ -48,24 +53,4 @@ export const PRIMARY_TAB_ORDER: TabId[] = TAB_ORDER.filter(
 /** True when `id` lives in the overflow sheet rather than a nav slot. */
 export function isOverflowTab(id: TabId): boolean {
   return OVERFLOW_TAB_IDS.includes(id);
-}
-
-/**
- * The tab reached by swiping from `current` in `direction`, or `null` when the
- * gesture would run off either end (swiping right on the first tab, left on the
- * last). Returning `null` rather than clamping lets the caller do nothing at
- * all, so the user gets no misleading movement.
- *
- * A tab that is not in the primary set (the user is on Docs or Settings, having
- * arrived via the More sheet) also yields `null`: there is no sensible swipe
- * neighbour, and silently jumping into the primary list would be surprising.
- */
-export function swipeTarget(current: TabId, direction: 'next' | 'prev'): TabId | null {
-  const idx = PRIMARY_TAB_ORDER.indexOf(current);
-  if (idx === -1) return null;
-
-  const targetIdx = direction === 'next' ? idx + 1 : idx - 1;
-  if (targetIdx < 0 || targetIdx >= PRIMARY_TAB_ORDER.length) return null;
-
-  return PRIMARY_TAB_ORDER[targetIdx];
 }

@@ -449,3 +449,33 @@
   to   { transform: translateY(0); }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   BUG-041 — iOS auto-zoom floor for form controls
+   ═══════════════════════════════════════════════════════════════════════════
+   iOS Safari zooms the viewport when a form control with font-size < 16px
+   receives focus, and it does NOT zoom back out on blur. The user is left
+   stranded zoomed in after submitting a form, having to pinch out manually.
+
+   MOBILE-3 (v2.46.1) added `input, select, textarea { font-size: 16px }` inside
+   the mobile blocks below, but that is a bare element selector (specificity
+   0,0,1). Every form control in the app is styled by a SCOPED component class —
+   `.mf-input`, `.form-input`, `.oti-form__input`, `.chq-input`, `.filter-input`
+   and others — which compile to `.cls[data-v-hash]` (0,2,0) and win. Measured
+   at 375px: Add Purchase fields were 14.4px, windfall allocation inputs 13.6px.
+
+   So this rule is deliberately `!important`. It encodes a platform constraint,
+   not a style preference: below 16px the OS takes an action the app cannot undo.
+   Fixing the ~15 component classes individually would leave the next new
+   component free to reintroduce it; this cannot be overridden by accident.
+
+   Scoped to text-entry controls only — checkboxes, radios, ranges, colours and
+   buttons do not trigger zoom and must keep their own sizing.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+

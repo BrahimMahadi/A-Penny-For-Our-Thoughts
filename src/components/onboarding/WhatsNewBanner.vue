@@ -26,14 +26,14 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.47.1';
+const APP_VERSION = '2.47.2';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '📐', text: 'Fixed the banner and page content sitting under the status bar and notch when Penny is installed to your home screen' },
-  { icon: '👉', text: 'Swiping between tabs now stops at Insights instead of sliding into Docs and Settings, which have no button in the nav bar' },
-  { icon: '📊', text: 'Swiping a wide table sideways — like the purchases list — now scrolls the table instead of jumping you to another tab' },
+  { icon: '🔍', text: 'Fixed the app staying zoomed in after adding a purchase or logging income — form fields were below the size iOS zooms into, and iOS never zooms back out' },
+  { icon: '👋', text: 'Swipe-to-change-tab has been removed: it competed with scrolling wide tables sideways, and that conflict could not be resolved reliably' },
+  { icon: '📊', text: 'Tables on the Spending tab now scroll horizontally without interference' },
 ];
 
 const budget = useBudgetStore();

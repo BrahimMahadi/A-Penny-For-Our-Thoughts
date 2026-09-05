@@ -341,6 +341,21 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.47.2</span>
+              <span class="release-date">September 2026</span>
+            </div>
+            <p class="release-tagline">
+              Mobile — iOS zoom fix (BUG-041), swipe navigation removed
+            </p>
+            <ul class="docs-list">
+              <li><strong>The app no longer stays zoomed in after using a form (BUG-041).</strong> iOS Safari zooms the viewport when a form control smaller than 16px is focused, and it never zooms back out &mdash; so adding a purchase or logging income left you stranded, pinching to zoom out manually. MOBILE-3 (v2.46.1) had set a 16px floor, but it targeted bare <code>input</code>/<code>select</code> selectors while every field in the app is styled by a scoped component class, which outranks them. Measured at 375px: Add Purchase fields were 14.4px and windfall allocation inputs 13.6px. A safety-net rule now enforces the floor across every text-entry control, verified as 0 remaining offenders across all five tabs.</li>
+              <li><strong>Swipe-to-change-tab removed.</strong> The gesture was bound to the main content area, an ancestor of every horizontally-scrollable region in the app, so scrolling a wide table sideways and navigating away from the page were the same input. v2.47.1 added a guard that deferred to scrollers with room left to travel, but the conflict is structural rather than a bug &mdash; a horizontal drag simply cannot tell the two intents apart reliably. The 5+More bottom nav remains the navigation affordance, and tables on the Spending tab now scroll without interference.</li>
+              <li><strong>1559 tests across 54 spec files.</strong> Net reduction: the observer composable and its 17 tests were deleted along with the feature.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.47.1</span>
               <span class="release-date">September 2026</span>
             </div>

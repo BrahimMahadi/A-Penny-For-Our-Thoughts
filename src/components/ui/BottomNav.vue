@@ -17,7 +17,7 @@
 import { ref, computed } from 'vue';
 import { useUiStore } from '@/stores/ui';
 import type { TabId } from '@/types/state';
-import { OVERFLOW_TAB_IDS } from '@/lib/tabs';
+import { PRIMARY_TAB_ORDER, OVERFLOW_TAB_IDS, isOverflowTab } from '@/lib/tabs';
 
 const ui = useUiStore();
 
@@ -37,15 +37,14 @@ const allItems: NavItem[] = [
   { id: 'settings',  glyph: '◆',  label: 'Settings'  },
 ];
 
-// Shared with App.vue's swipe navigation so the two can never disagree about
-// which tabs are primary again (BUG-039).
-const OVERFLOW_IDS: TabId[] = OVERFLOW_TAB_IDS;
-
-const primaryItems = allItems.filter(item => !OVERFLOW_IDS.includes(item.id));
-const overflowItems = allItems.filter(item => OVERFLOW_IDS.includes(item.id));
+// Slot membership and ordering both come from @/lib/tabs — the single source
+// this file and App.vue share, so they cannot drift apart again (BUG-039).
+const byId = new Map(allItems.map(item => [item.id, item]));
+const primaryItems = PRIMARY_TAB_ORDER.map(id => byId.get(id)!).filter(Boolean);
+const overflowItems = OVERFLOW_TAB_IDS.map(id => byId.get(id)!).filter(Boolean);
 
 /** True when the currently-active tab lives in the overflow group. */
-const isOverflow = computed(() => OVERFLOW_IDS.includes(ui.activeTab));
+const isOverflow = computed(() => isOverflowTab(ui.activeTab));
 
 const moreOpen = ref(false);
 

@@ -1754,6 +1754,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | MOBILE-3 — Typography scale | iOS zoom fix (16px input floor at ≤768px), mobile text floor (nothing below 0.72rem at ≤480px across 16 components), 7 new `--text-*` CSS scale tokens in `tokens.css`. Pure CSS refactor — 1509 tests unchanged. | `refactor/mobile-typography` | ✅ Complete | v2.46.1 |
 | MOBILE-4 — Layout | 5+More bottom nav (5 primary + overflow sheet for Docs/Settings, active-in-overflow dot indicator), collapsible What's New banner on mobile (compact bar + tap-to-expand), greeting truncation fix (scoped the errant 140px `header h1` cap away from `.dash-header__title`). 1509 tests unchanged. | `refactor/mobile-layout` | ✅ Complete | v2.46.2 |
 | BUG-037 — Web Storage test shim | Node 26 defines an inert global `localStorage` accessor; Vitest 1.x's jsdom env skips globals that already exist, so jsdom's Storage was never published and 254 tests across 8 files failed on unchanged code. Fixed with `tests/setupStorage.ts` (first in `setupFiles`), which republishes `localStorage`, `sessionStorage` and the `Storage` constructor **as a group from one jsdom realm** — a per-key fix splits realms and silently defeats `vi.spyOn(Storage.prototype, …)`. 6 guard tests. **Also pinned the Node toolchain**: CI + deploy hard-coded Node 20 (EOL 2026-04-30) while local ran Node 26 — the drift that kept CI green through this bug. Both now read `.nvmrc` (Node 24 Active LTS), plus a `forward-compat` CI job on Node Current so host-global regressions surface in CI. 11 new tests (1520 total), green on Node 20/22/24/26. | `fix/vitest-localstorage-shim` | ✅ Complete | v2.46.3 |
+| BUG-041 + swipe removal | **BUG-041:** app stayed zoomed after using a form — iOS zooms below 16px and never zooms back, and MOBILE-3's floor used bare `input` selectors that every scoped component class outranked (Add Purchase fields measured 14.4px, windfall allocations 13.6px). `!important` safety net added; 0 sub-16px controls remain across all five tabs. **Swipe navigation removed** — the gesture shared input with six `overflow-x: auto` regions and the conflict is structural, not a defect; `useGsapObserver` deleted with it. 1559 tests (net −14: feature's 17 tests removed, 8 guards added). | `fix/ios-zoom-and-remove-swipe` | ✅ Complete | v2.47.2 |
 | BUG-039 / BUG-040 — mobile fixes | **BUG-040:** installed PWA drew under the status bar (`black-translucent` from v2.47.0 + no `env(safe-area-inset-top)` anywhere); `.app-main` now reserves the top inset. **BUG-039:** swipe navigation reached Docs/Settings (tab order declared twice and drifted after MOBILE-4) and stole gestures from the 480px-wide purchases table; `src/lib/tabs.ts` is now the single source, and the gesture defers to scrollers with travel left. Observer multi-fire was hypothesised and **refuted** by measurement. 21 new tests (1573 total). | `fix/mobile-safe-area-and-swipe` | ✅ Complete | v2.47.1 |
 | MOBILE-5 — PWA & polish | Installable PWA: manifest + apple-touch-icon + per-scheme theme-color, and a minimal pass-through service worker (Chrome will not offer installation without one) that deliberately does not cache. New cent-sign monogram icon set (192/512/180/48 + maskable 512). `v-press` directive brings tactile press to the bottom nav, More sheet and FAB. `overscroll-behavior: contain` on page, modals and sheet. **BUG-038**: modal scroll lock rewritten to the position-fixed technique after testing showed the page still scrolled behind a modal on mobile (`overflow: hidden` is ignored by iOS Safari for touch). Safe-area audited. 32 new tests (1552 total). **Completes the Mobile Optimization initiative.** | `feat/mobile-pwa` | ✅ Complete | v2.47.0 |
 | TEST-INFRA-1 — Vitest 3 upgrade | Upgrade Vitest 1.6 → 3.x (+ `@vitest/*`, jsdom), migrate config/API surface, and remove the BUG-037 storage shim once the runner publishes jsdom globals unconditionally. Pin Node via `.nvmrc` so CI and local agree. | `chore/vitest-3-upgrade` | 🔲 PLANNED | — |
@@ -5393,3 +5394,51 @@ leaves the tab alone; the same swipe with the table at its end changes tab.
 The safe-area fix itself is **not** confirmed on a notched device — the iOS Simulator has no runtime
 installed (`xcodebuild -downloadPlatform iOS`), and a resized desktop viewport reports insets as 0.
 Verified structurally (the rule exists and is reachable); the maintainer retests on hardware.
+
+---
+
+## BUG-041 + swipe removal ✅
+**Branch**: `fix/ios-zoom-and-remove-swipe`
+**Status**: ✅ **COMPLETE** — September 2026
+**Version**: v2.47.2 (PATCH — one bug fix, one feature removal, no new capability)
+
+Both reported from real-device use of v2.47.1.
+
+### BUG-041 — app stays zoomed after using a form
+iOS Safari zooms when a control under 16px is focused and **never zooms back out**, so the zoom
+outlived the modal. MOBILE-3 (v2.46.1) had supposedly fixed this, but its
+`input, select, textarea { font-size: 16px }` is a bare element selector (0,0,1) and every field in
+the app is styled by a scoped class compiling to `.cls[data-v-hash]` (0,2,0). The floor never
+applied to a single real field.
+
+Measured at 375px before the fix — Add Purchase: **14.4px** across all five fields; Log windfall
+income: **14.4px** for text/number/date and **13.6px** for the three allocation inputs.
+
+Fixed with an `!important` safety net at the end of `responsive.css`. The `!important` is the point:
+it encodes a platform constraint the app cannot undo, and prevents the next new component from
+silently reintroducing the bug — patching the ~15 existing classes would not. After: every field
+16px, and a sweep of all five tabs found **0** remaining sub-16px focusable controls.
+
+### Swipe-to-change-tab — removed
+Not tuned further. The gesture was bound to `.app-main`, an ancestor of six `overflow-x: auto`
+regions, so "scroll this table" and "leave this page" were the same input. BUG-039's
+`shouldIgnoreGesture` guard measurably fixed the reported case one release earlier, yet the gesture
+still interfered with tables in real use — because the conflict is structural. A horizontal drag
+carries no signal separating the two intents, and every heuristic trades one surprise for another.
+
+`useGsapObserver.ts` and its 17 tests were deleted with the feature rather than left dormant, so it
+cannot be re-wired without redoing the analysis. `src/lib/tabs.ts` survives (its drift protection is
+independent of swipe) minus `swipeTarget()`; `BottomNav` now derives both its primary and overflow
+lists from it, which is a stronger version of the BUG-039 fix.
+
+### Verified in-browser at 375px
+- Add Purchase and Log Income: every field 16px; 0 sub-16px controls across all five tabs
+- A swipe on the page body no longer changes tab
+- A swipe inside the purchases table — including scrolled to its end, the case that previously
+  fell through — leaves the tab alone
+
+1559 tests across 54 spec files; `vue-tsc` clean; `npm run lint` exit 0.
+
+### Follow-up noted
+`useSwipe.ts` is now provably unreferenced (only comments and a DocsPage mention name it). Left in
+place rather than expanding this branch's scope; a candidate for a future cleanup.
