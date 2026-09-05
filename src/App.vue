@@ -37,6 +37,9 @@ import { useBudgetStore } from '@/stores/budget';
 import { useToast } from '@/composables/useToast';
 import { useKeyboard } from '@/composables/useKeyboard';
 import { useGsapObserver } from '@/composables/useGsapObserver';
+// BUG-039: TAB_ORDER used to be declared here and drifted from BottomNav's
+// 5-primary/2-overflow split, so swiping reached tabs with no nav button.
+import { TAB_ORDER, swipeTarget } from '@/lib/tabs';
 import { usePeriodRollover } from '@/composables/usePeriodRollover';
 import { useToday } from '@/composables/useToday';
 import type { TabId } from '@/types/state';
@@ -157,7 +160,7 @@ useKeyboard('g', () => { ui.toggleSectionPicker(); }, { guardFromInputs: true })
 // v2.43.0: Two transition axes — 'y' (vertical) for desktop sidebar nav,
 // 'x' (horizontal) for mobile swipe/BottomNav. Axis is auto-detected via
 // window.innerWidth at the moment the tab change fires.
-const TAB_ORDER: TabId[] = ['dashboard', 'schedule', 'spending', 'goals', 'insights', 'docs', 'settings'];
+
 const tabDirection = ref(1);
 const tabNavAxis   = ref<'x' | 'y'>('y');
 
@@ -189,16 +192,17 @@ const tabTransitionName = computed<string>(() => {
 // accidentally trigger tab switches.
 const appMainRef = ref<HTMLElement | null>(null);
 
+// Swipe cycles the FIVE primary tabs only — never Docs/Settings, which live in
+// the More sheet and have no nav slot to swipe "towards" (BUG-039). Landing on
+// one of them made the gesture feel broken: the nav showed no active tab.
 useGsapObserver(appMainRef, {
   onSwipeLeft: () => {
-    // Swipe left → next tab
-    const idx = TAB_ORDER.indexOf(ui.activeTab as TabId);
-    if (idx >= 0 && idx < TAB_ORDER.length - 1) ui.setActiveTab(TAB_ORDER[idx + 1]);
+    const next = swipeTarget(ui.activeTab as TabId, 'next');
+    if (next) ui.setActiveTab(next);
   },
   onSwipeRight: () => {
-    // Swipe right → previous tab
-    const idx = TAB_ORDER.indexOf(ui.activeTab as TabId);
-    if (idx > 0) ui.setActiveTab(TAB_ORDER[idx - 1]);
+    const prev = swipeTarget(ui.activeTab as TabId, 'prev');
+    if (prev) ui.setActiveTab(prev);
   },
 });
 </script>
@@ -481,6 +485,12 @@ useGsapObserver(appMainRef, {
   .app-main {
     padding: 1.25rem 1rem calc(54px + env(safe-area-inset-bottom, 0px) + 1.25rem);
     padding-right: calc(1rem + 36px); /* section handle */
+    /* BUG-040: index.html sets viewport-fit=cover and (since MOBILE-5)
+       apple-mobile-web-app-status-bar-style: black-translucent, so an INSTALLED
+       PWA renders its web view underneath the status bar. Without this the
+       first child — the What's New banner — sat behind the clock and notch.
+       The app had no safe-area-inset-top rule anywhere before this. */
+    padding-top: calc(1.25rem + env(safe-area-inset-top, 0px));
   }
 }
 

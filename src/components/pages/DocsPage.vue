@@ -341,6 +341,23 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.47.1</span>
+              <span class="release-date">September 2026</span>
+            </div>
+            <p class="release-tagline">
+              Mobile fixes — safe-area top inset, swipe navigation (BUG-039, BUG-040)
+            </p>
+            <ul class="docs-list">
+              <li><strong>Content no longer sits under the status bar (BUG-040).</strong> v2.47.0 added <code>apple-mobile-web-app-status-bar-style: black-translucent</code>, which makes an installed PWA draw its web view underneath the status bar. The app had no <code>env(safe-area-inset-top)</code> rule anywhere, so the What&rsquo;s New banner ended up behind the clock and notch. <code>.app-main</code> now reserves the top inset, matching the bottom inset it already reserved for the home indicator.</li>
+              <li><strong>Swipe no longer reaches tabs with no button (BUG-039).</strong> The swipe order and the bottom nav each declared their own tab list, and MOBILE-4&rsquo;s 5+More split made them disagree &mdash; swiping past Insights landed on Docs, which has no nav slot, so the bar showed no active tab. Both now read <code>src/lib/tabs.ts</code>, and swiping cycles only the five primary tabs.</li>
+              <li><strong>Swiping a wide table scrolls the table (BUG-039).</strong> Measured on the Spending page at 375px, the purchases table is 480px wide inside a 296px viewport; swiping it sideways to read the right-hand columns switched tab instead of scrolling. The gesture now defers to any horizontally-scrollable region that still has room to travel, and only changes tab once that content reaches its end.</li>
+              <li><strong>Swipe cooldown.</strong> A second flick arriving mid-transition is ignored for 350ms, so a bouncy gesture cannot skip a tab. Note the observer was verified <em>not</em> to multi-fire &mdash; one continuous drag has always advanced exactly one tab.</li>
+              <li><strong>1573 tests across 54 spec files.</strong> Adds coverage for the shared tab order, the gesture gate, and the safe-area rules.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.47.0</span>
               <span class="release-date">September 2026</span>
             </div>

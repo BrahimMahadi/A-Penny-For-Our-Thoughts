@@ -17,6 +17,7 @@
 import { ref, computed } from 'vue';
 import { useUiStore } from '@/stores/ui';
 import type { TabId } from '@/types/state';
+import { OVERFLOW_TAB_IDS } from '@/lib/tabs';
 
 const ui = useUiStore();
 
@@ -36,7 +37,9 @@ const allItems: NavItem[] = [
   { id: 'settings',  glyph: '◆',  label: 'Settings'  },
 ];
 
-const OVERFLOW_IDS: TabId[] = ['docs', 'settings'];
+// Shared with App.vue's swipe navigation so the two can never disagree about
+// which tabs are primary again (BUG-039).
+const OVERFLOW_IDS: TabId[] = OVERFLOW_TAB_IDS;
 
 const primaryItems = allItems.filter(item => !OVERFLOW_IDS.includes(item.id));
 const overflowItems = allItems.filter(item => OVERFLOW_IDS.includes(item.id));

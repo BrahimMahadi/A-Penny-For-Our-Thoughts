@@ -14,7 +14,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { defineComponent, ref, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
-import { useGsapObserver } from '@/composables/useGsapObserver';
+import { useGsapObserver, shouldIgnoreGesture } from '@/composables/useGsapObserver';
 
 // ─── GSAP Observer mock ───────────────────────────────────────────
 // vi.mock() is hoisted above all variable declarations by Vitest, so any
@@ -171,5 +171,91 @@ describe('useGsapObserver', () => {
     wrapper = mount(Comp);
     await nextTick();
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BUG-039 — gesture gating
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+describe('shouldIgnoreGesture (BUG-039)', () => {
+  /** Build a scroller whose scrollWidth/clientWidth jsdom cannot compute itself. */
+  function makeScroller(opts: {
+    overflowX: string;
+    scrollWidth: number;
+    clientWidth: number;
+    scrollLeft: number;
+  }): { root: HTMLElement; scroller: HTMLElement; child: HTMLElement } {
+    const root = document.createElement('div');
+    const scroller = document.createElement('div');
+    const child = document.createElement('td');
+    scroller.style.overflowX = opts.overflowX;
+    Object.defineProperty(scroller, 'scrollWidth', { value: opts.scrollWidth, configurable: true });
+    Object.defineProperty(scroller, 'clientWidth', { value: opts.clientWidth, configurable: true });
+    scroller.scrollLeft = opts.scrollLeft;
+    scroller.appendChild(child);
+    root.appendChild(scroller);
+    document.body.appendChild(root);
+    return { root, scroller, child };
+  }
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('defers to a horizontal scroller that still has room to travel', () => {
+    // The measured real case: .purchases-table-wrap, 480px wide in 296px.
+    const { root, child } = makeScroller({
+      overflowX: 'auto', scrollWidth: 480, clientWidth: 296, scrollLeft: 0,
+    });
+    expect(shouldIgnoreGesture(child, root, 'left')).toBe(true);
+  });
+
+  it('allows the tab change once the scroller has reached its end', () => {
+    const { root, child } = makeScroller({
+      overflowX: 'auto', scrollWidth: 480, clientWidth: 296, scrollLeft: 184,
+    });
+    expect(shouldIgnoreGesture(child, root, 'left')).toBe(false);
+  });
+
+  it('allows a rightward swipe when the scroller is already at its start', () => {
+    const { root, child } = makeScroller({
+      overflowX: 'auto', scrollWidth: 480, clientWidth: 296, scrollLeft: 0,
+    });
+    expect(shouldIgnoreGesture(child, root, 'right')).toBe(false);
+  });
+
+  it('ignores elements that are not horizontally scrollable', () => {
+    const { root, child } = makeScroller({
+      overflowX: 'visible', scrollWidth: 480, clientWidth: 296, scrollLeft: 0,
+    });
+    expect(shouldIgnoreGesture(child, root, 'left')).toBe(false);
+  });
+
+  it('ignores a scroller whose content fits', () => {
+    const { root, child } = makeScroller({
+      overflowX: 'auto', scrollWidth: 296, clientWidth: 296, scrollLeft: 0,
+    });
+    expect(shouldIgnoreGesture(child, root, 'left')).toBe(false);
+  });
+
+  it('stops walking at the observed root', () => {
+    // A scroller ABOVE the root must not gate gestures inside it.
+    const outer = document.createElement('div');
+    outer.style.overflowX = 'auto';
+    Object.defineProperty(outer, 'scrollWidth', { value: 900, configurable: true });
+    Object.defineProperty(outer, 'clientWidth', { value: 300, configurable: true });
+    const root = document.createElement('div');
+    const child = document.createElement('span');
+    root.appendChild(child);
+    outer.appendChild(root);
+    document.body.appendChild(outer);
+
+    expect(shouldIgnoreGesture(child, root, 'left')).toBe(false);
+  });
+
+  it('handles a null target without throwing', () => {
+    const root = document.createElement('div');
+    expect(shouldIgnoreGesture(null, root, 'left')).toBe(false);
   });
 });
