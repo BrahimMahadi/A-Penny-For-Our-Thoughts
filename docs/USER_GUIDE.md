@@ -32,7 +32,6 @@
 23. [Onboarding & What's New](#onboarding--whats-new)
 24. [CSV Import & Export](#csv-import--export)
 25. [Keyboard Shortcuts](#keyboard-shortcuts)
-26. [Swipe Navigation](#swipe-navigation)
 27. [Data & Privacy](#data--privacy)
 
 ---
@@ -59,7 +58,7 @@ The app has four tabs accessible via the bottom navigation bar (or keyboard shor
 | **Docs** | In-app user guide, release notes, FAQ, and CSV reference |
 | **Settings** | Pay period, transaction rules, budget alerts, data management |
 
-The **theme toggle** (🌙/☀️) in the top-right switches between dark and light mode. On mobile, swipe left/right to switch tabs.
+The **theme toggle** (🌙/☀️) in the top-right switches between dark and light mode. On mobile, use the bottom navigation bar — five tabs plus a **More** button for Docs and Settings.
 
 ---
 
@@ -118,7 +117,17 @@ Click **Close Period** to archive all current purchases to your Spending History
 Colour-coded chips below the donut chart show spending by category. Click the badge on any purchase row to reassign its category.
 
 ### Subscription & Loan Deductions
-Subscriptions and loan payments that fall within the current bi-weekly period are automatically deducted from the envelope and shown as a "Sub/Loan deductions" line.
+Subscriptions and loan payments that fall within the current bi-weekly period are automatically
+deducted from the envelope, and appear as their own slices in the category donut.
+
+**They count as "spent".** Every figure labelled *spent* — the hero caption, "Spent this period",
+the donut total — is **purchases + subscriptions + loans**, because all three consume the same
+envelope. So "spent" always agrees with "available to spend": if the app says you are over budget,
+the spent figure will exceed the budget figure.
+
+Two figures deliberately stay **purchases-only**, and say so on the card:
+- **Daily average purchases** — a once-per-period loan payment would distort a daily spending pace.
+- **Top category** — subscriptions and loans are not spending categories.
 
 ---
 
@@ -367,6 +376,8 @@ Track recurring service fees (streaming, software, memberships).
 
 ### How Subscriptions Affect Your Budget
 - **Wants** subs renewing in the current bi-weekly period are deducted from the Wants envelope.
+- **Needs** subs and loans are deducted from the **Needs** envelope the same way — whichever bucket
+  you assign a bill to is the envelope it comes out of.
 - **Needs** subs renewing this calendar month are included in Actual Needs in the Budget vs. Actual card.
 - All subscriptions appear in the **Schedule** tab on their renewal date.
 
@@ -520,13 +531,19 @@ Press **`?`** anywhere in the app (when not typing) to open the shortcuts panel.
 |----------|--------|
 | `Escape` | Close open modal or shortcuts panel |
 
-> **Mobile:** Keyboard shortcuts are hidden on mobile — use the bottom navigation and swipe gestures instead.
+> **Mobile:** Keyboard shortcuts are hidden on mobile — use the bottom navigation bar instead. (Swipe-to-change-tab was removed in v2.47.2: it competed with scrolling wide tables sideways.)
 
 ---
 
-## Swipe Navigation
+## Installing to Your Home Screen
 
-On touch devices, swipe **left** or **right** on the main content area to switch tabs. The minimum swipe distance is 50px; swiping inside a vertically-scrollable list does not trigger tab changes.
+Penny can be installed as an app (v2.47.0):
+
+- **iPhone / iPad** — open it in Safari, tap **Share**, then **Add to Home Screen**.
+- **Android** — Chrome shows an install prompt; or use the browser menu's **Install app**.
+
+It then launches full-screen with no browser chrome. Note it still needs a network connection —
+installing does not make Penny work offline.
 
 ---
 
