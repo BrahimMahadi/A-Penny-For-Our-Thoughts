@@ -341,6 +341,23 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.47.3</span>
+              <span class="release-date">September 2026</span>
+            </div>
+            <p class="release-tagline">
+              One definition of “spent” across every card (BUG-042)
+            </p>
+            <ul class="docs-list">
+              <li><strong>Cards no longer contradict each other.</strong> The dashboard could show &ldquo;$37.67 OVER&rdquo; directly above &ldquo;$362.00 spent of $627.45&rdquo; &mdash; two statements that cannot both be read plainly. Every figure was individually correct, but the app held <em>two</em> definitions of &ldquo;spent&rdquo;: some places counted purchases only, others counted purchases plus subscription and loan deductions. &ldquo;Spent this period&rdquo; now means everything that consumes the envelope, matching the available-to-spend figure and the all-purchases table.</li>
+              <li><strong>Subscriptions and loans are real donut slices.</strong> They previously sat beneath the ring as rows with a <code>—</code> percentage while the ring showed purchases only, so the ring never matched its own centre figure. They are now segments in the app&rsquo;s brand violet and amber, and the centre percentage can exceed 100% &mdash; 106% says you are over budget, where a clamped 100% would hide it.</li>
+              <li><strong>Needs bills were invisible (parallel bug).</strong> Subscriptions and loans can be flagged as a <em>need</em>, but the bi-weekly needs envelope subtracted no deductions whatsoever, so a need-flagged bill silently overstated how much of the needs budget was left. Deductions now follow whichever bucket the bill is assigned to.</li>
+              <li><strong>Deliberately unchanged.</strong> &ldquo;Daily average&rdquo; stays purchases-only and is relabelled &ldquo;Daily average purchases&rdquo; &mdash; folding a once-per-period loan payment into a daily pace figure would misrepresent the rate. &ldquo;Top category&rdquo; likewise stays purchases-relative, since subscriptions and loans are not spending categories.</li>
+              <li><strong>1567 tests across 54 spec files.</strong> A single <code>getEnvelopeState()</code> helper now answers &ldquo;how much of this envelope is gone?&rdquo; for every card, replacing six ad-hoc calculations that used three different rules. This inconsistency had been fixed once before in the opposite direction (v2.6.0, BUG-021); routing every surface through one helper is what stops it recurring.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.47.2</span>
               <span class="release-date">September 2026</span>
             </div>

@@ -158,7 +158,13 @@ Supplement Vitest unit tests with real browser smoke tests:
 - Run in CI on every PR (headless Chromium)
 - Catches regressions that unit tests miss (DOM, localStorage, Chart.js canvas)
 
-### F2 · PWA / Offline Support *(Medium value · M effort)*
+### F2 · PWA / Offline Support *(Medium value · M effort)* — ⚠️ PARTIALLY DELIVERED
+
+> **Installability shipped in v2.47.0** (MOBILE-5): manifest, icon set, apple-touch metas, and a
+> minimal service worker with a pass-through `fetch` handler — enough for Chrome to offer
+> installation. It deliberately does **not** cache, so the app remains online-only. What remains
+> below is the offline half: precaching the app shell plus the Chart.js and Google Fonts CDN
+> assets, with cache versioning and an update prompt.
 Convert the app to a Progressive Web App:
 - Service worker for offline caching (already mostly offline — needs manifest + SW)
 - "Add to Home Screen" prompt on mobile
@@ -194,7 +200,7 @@ The current storage full toast is good, but extend it:
 | Vitest Coverage Report | C | ⭐⭐ | S | — |
 | Wants Spend Sparklines | E | ⭐⭐ | S | spendingTrend |
 | Smart Budget Rebalancing | D | ⭐⭐ | M | 3+ months history |
-| PWA / Offline Support | F | ⭐⭐ | M | — |
+| PWA / Offline Support *(offline half only — install shipped v2.47.0)* | F | ⭐⭐ | M | — |
 | Accessibility Audit | F | ⭐⭐ | M | — |
 | Bill Payment Reminders | D | ⭐⭐ | S | Notification API |
 | Keyboard-Aware Forms | B | ⭐⭐ | S | — |

@@ -1,6 +1,9 @@
 # Architecture — A Penny For Our Thoughts (v2.0+)
 
-> Last updated: May 2026 — reflects v2.0.0: Vivid Modern redesign (violet palette, 64px icon sidebar, 6-tab layout), Supabase Postgres + Auth, live status bar ticker, full Settings rebuild, 874 tests across 27 spec files.
+> Last updated: September 2026 — reflects v2.47.3. Vivid Modern redesign (violet palette, 64px icon
+> sidebar), Supabase Postgres + Auth, live status bar ticker, full Settings rebuild, the Mobile
+> Optimization initiative (MOBILE-1 – MOBILE-5, incl. installable PWA), and one shared envelope-spend
+> helper (BUG-042). 1567 tests across 54 spec files.
 
 ---
 
@@ -12,7 +15,7 @@
 Browser
   └─ index.html  (Vite entry)
        └─ main.ts  (createApp + Pinia + Chart.js registration)
-            └─ App.vue  (root: header, tab nav, swipe gesture, onboarding, What's New banner)
+            └─ App.vue  (root: header, tab nav, onboarding, What's New banner)
                  ├─ DashboardPage.vue  ─→  15 section SFCs + SpendingTrendChart
                  ├─ SchedulePage.vue   ─→  RecurringCalendar
                  ├─ DocsPage.vue       ─→  5 static content sections
@@ -26,8 +29,9 @@ Browser
 ```
 src/
 │
-├── main.ts                  Entry: createApp, Pinia, Chart.js, auto-persist
-├── App.vue                  Root SFC: header, tab bar, ToastContainer, swipe gesture,
+├── main.ts                  Entry: createApp, Pinia, Chart.js, auto-persist,
+│                            v-press directive, service-worker registration
+├── App.vue                  Root SFC: header, tab bar, ToastContainer,
 │                            OnboardingModal (isFirstRun), WhatsNewBanner
 ├── env.d.ts                 Vite/TypeScript environment declarations
 │
@@ -49,13 +53,23 @@ src/
 │   ├── useChartStyles.ts    CSS-variable reader — feeds Chart.js colour/font config
 │   ├── useInView.ts         IntersectionObserver — lazy-render charts on scroll
 │   ├── useKeyboard.ts       Global keyboard shortcut registry
-│   ├── useModal.ts          Scroll-lock + ESC-dismiss logic for BaseModal
-│   ├── useSwipe.ts          Touch gesture detector — left/right → tab navigation
+│   ├── useModal.ts          Body scroll-lock + ESC-dismiss for BaseModal. Uses the
+│   │                        position-fixed technique, NOT overflow:hidden, which
+│   │                        iOS Safari ignores for touch scrolling (BUG-038)
+│   ├── useSwipe.ts          Touch gesture detector (UNUSED — swipe-to-change-tab was
+│   │                        removed in v2.47.2; retained pending cleanup)
 │   └── useToast.ts          Module-scoped toast queue (not inject/provide)
 │
+├── directives/
+│   └── vPress.ts            `v-press` — tactile press feedback (scale + spring release)
+│                            for touch targets with no :hover. Registered globally in
+│                            main.ts. Cancelled under prefers-reduced-motion (MOBILE-5)
+│
 ├── utils/
-│   ├── calculations.ts      Pure analytics functions (~1,200 lines, fully typed)
-│   │                        Includes: getEnvelopeForecast, getPrevMonthActuals,
+│   ├── calculations.ts      Pure analytics functions (fully typed)
+│   │                        Includes: getEnvelopeState ← SINGLE SOURCE for "how much
+│   │                        of this envelope is spent" (BUG-042 — never recompute it
+│   │                        inline), getEnvelopeForecast, getPrevMonthActuals,
 │   │                        getSpendingTrend, getGoalsTimeline
 │   ├── csv.ts               Low-level CSV string parser
 │   ├── csvImportExport.ts   Full state ↔ CSV serialiser/parser (17 sections)
@@ -63,6 +77,20 @@ src/
 │   ├── dom.ts               cssVar() — reads a CSS custom property from :root
 │   ├── format.ts            fmt() currency, pct() percentage
 │   └── id.ts                genId(), deepClone()
+│
+├── lib/
+│   ├── clock.ts             Reactive day-clock — the ONLY source of "today" for
+│   │                        date-scoped getters. Never call new Date() in a
+│   │                        component or store getter (BUG-035)
+│   ├── db.ts                Supabase CRUD helpers + row→camelCase mappers
+│   ├── migrateLocalStorage.ts  One-shot localStorage → Supabase back-fill
+│   ├── registerSW.ts        Service-worker registration. Paths derive from
+│   │                        import.meta.env.BASE_URL (GitHub Pages subdirectory);
+│   │                        no-op in dev so it cannot intercept HMR (MOBILE-5)
+│   ├── supabase.ts          Client construction + env detection
+│   └── tabs.ts              SINGLE SOURCE for tab order and the primary/overflow
+│                            split. App.vue and BottomNav both read it — they each
+│                            held a copy and drifted (BUG-039)
 │
 ├── data/
 │   └── categories.ts        Canonical spending-category list (shared by sections)
@@ -130,6 +158,21 @@ src/
 │
 └── styles.css          Tailwind v4 entry point — imports tokens + theme block
 ```
+
+Outside `src/`, `public/` is copied verbatim to the deploy root:
+
+```
+public/
+├── manifest.webmanifest     PWA manifest. Every path carries the
+│                            /A-Penny-For-Our-Thoughts/ base — root-relative
+│                            paths 404 on GitHub Pages and installability
+│                            silently fails
+├── sw.js                    Minimal service worker. Pass-through fetch handler
+│                            ONLY; deliberately does not cache (see the file's
+│                            header for why). Offline support is ROADMAP F2
+└── icons/                   Cent-sign monogram at 192/512/180/48 + maskable 512
+```
+
 
 ---
 
@@ -358,7 +401,15 @@ The budget store exposes `exportCSV()` and `importCSV(text)` actions that call t
 ## Testing Strategy
 
 **Framework**: Vitest + `@vue/test-utils`  
-**Coverage**: 448 tests across 19 spec files (as of v1.2.0)
+**Coverage**: 1567 tests across 54 spec files (as of v2.47.3)
+
+Two test-environment notes that are easy to lose:
+- `tests/setupStorage.ts` runs **first** in `setupFiles`. Recent Node defines an inert global
+  `localStorage`, and Vitest 1.x skips publishing a jsdom global when one already exists — so
+  jsdom's real Storage never lands and 254 tests fail on unchanged code (BUG-037). Removed by the
+  planned Vitest 3 upgrade (TEST-INFRA-1).
+- CI runs the suite on **two** Node versions: the `.nvmrc` pin (validate) and Node Current
+  (forward-compat). The pin alone would not have caught BUG-037.
 
 | Layer | Test file(s) | What's covered |
 |---|---|---|

@@ -19,7 +19,7 @@ Welcome to the project documentation. This folder contains all guides, roadmaps,
 - **Tech Stack**: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
 - **Current Version**: v2.0.0 (Vivid Modern redesign — sidebar nav, Supabase auth, status bar, full polish pass)
 - **Design Direction**: Vivid Modern — violet accent palette, 64px icon sidebar, responsive across all 6 tabs
-- **Testing**: Vitest + @vue/test-utils · 874 tests across 27 spec files
+- **Testing**: Vitest + @vue/test-utils · 1567 tests across 54 spec files
 - **CI/CD**: GitHub Actions (CI on PRs + deploy-to-GitHub-Pages on push to `main`)
 - **Live URL**: [https://brahimmahadi.github.io/A-Penny-For-Our-Thoughts/](https://brahimmahadi.github.io/A-Penny-For-Our-Thoughts/)
 
@@ -49,7 +49,8 @@ Welcome to the project documentation. This folder contains all guides, roadmaps,
 | **Onboarding Flow** | 4-step first-run wizard; "What's New" banner for returning users |
 | **CSV Import/Export** | Full state serialised to/from a structured CSV (17 sections) |
 | **Keyboard Shortcuts** | `?` help, `1–4` tabs, `E` export, `T` theme, `S` settings |
-| **Swipe Navigation** | Left/right swipe on mobile switches tabs |
+| **Installable (PWA)** | Add to home screen on iOS/Android; launches full-screen. Online-only — not an offline app |
+| **Mobile Navigation** | Bottom bar: 5 primary tabs plus a "More" sheet for Docs and Settings |
 | **Theme** | Dark/light toggle with CSS variable system |
 | **GitHub Pages Deploy** | Automated deploy to `gh-pages` on every push to `main` |
 
@@ -75,12 +76,12 @@ npm run lint              # ESLint with zero-warnings threshold
 ```
 src/
 ├── main.ts                  App entry point (createApp, Pinia, Chart.js, auto-persist)
-├── App.vue                  Root SFC — header, tab bar, ToastContainer, modals, swipe
+├── App.vue                  Root SFC — header, tab bar, ToastContainer, modals
 ├── stores/budget.ts         Pinia store — full CRUD, persistence, CSV, migrations
 ├── stores/ui.ts             Transient UI state (active tab, filters, schedule month)
 ├── stores/theme.ts          Dark/light mode with localStorage persistence
 ├── composables/             useAnalytics, useChartStyles, useInView, useKeyboard,
-│                            useModal, useSwipe, useToast
+│                            useModal, useToast
 ├── utils/calculations.ts    Pure analytics functions (~1,200 lines, fully typed)
 ├── utils/csvImportExport.ts Full state ↔ CSV serialiser/parser (17 sections)
 └── components/              pages/, sections/, charts/, ui/, onboarding/

@@ -11,6 +11,71 @@ for recurring patterns and a post-mortem trail for regressions.
 
 ---
 
+## BUG-042 — Cards disagree about how much was spent (v2.47.3)
+
+**Date:** September 2026
+**Branch:** `fix/envelope-spend-consistency`
+
+**Symptom** — after adding purchases, the dashboard showed `$37.67 OVER` on the hero directly above
+`$362.00 spent of $627.45`, and the Spending tab's tiles disagreed with the all-purchases table.
+
+**Root cause** — no arithmetic was wrong. Every figure was correct under **one of two competing
+definitions of "spent"** that had drifted apart across six call sites:
+
+| Definition | Value | Surfaces |
+|---|---|---|
+| purchases only | $362.00 | "Spent this period", daily average, donut caption + % |
+| purchases + deductions | $665.12 | hero "available", all-purchases table |
+
+The wants envelope was consumed by $362.00 of purchases **plus $303.12 of auto-deductions**
+($66.00 subscriptions + $237.12 loans) against a $627.45 budget → $37.67 over. The `remaining`
+computeds all subtracted deductions; the `spent` captions did not.
+
+**This had been "fixed" before, in the opposite direction.** BUG-021 (May 2026) resolved a
+Dashboard-vs-Spending-tab mismatch by making every `spent` figure purchases-only while leaving every
+`remaining` figure deduction-aware — trading a cross-tab inconsistency for a within-card
+contradiction. `DashboardPage.vue` documented the choice in a comment. Patching call sites is what
+let this oscillate.
+
+**A parallel bug found while fixing it** — `Subscription.budgetType` and `Loan.budgetType` both
+exist and the add forms expose the choice, but `getSubsDeductedThisPeriod` /
+`getLoansDeductedThisPeriod` hardcoded `'wants'`, and `biWeeklyNeedsRemaining` was
+`budget − purchases` with **no deductions term at all**. A need-flagged subscription or loan was
+invisible to every needs figure, so the needs envelope overstated available money. Unlike wants —
+where at least the hero was right — nothing in needs was right.
+
+A third mismatch, not yet user-reported: `SpendingPage.vue:260` computed `remaining` with no
+deductions, so that tab would have said `$265.45 remaining` while the dashboard said `$37.67 OVER`.
+
+**Fix** — one `getEnvelopeState(state, budget, bucket, today)` in `utils/calculations.ts` returning
+`{ budget, purchases, deductions, spent, remaining, usedPct }`. Every card reads from it.
+
+- `spent` includes deductions: they consume the envelope exactly as purchases do, which is precisely
+  why `remaining` always subtracted them.
+- `usedPct` is **unclamped** — 106% communicates over-budget; 100% hides it.
+- The deduction helpers take a bucket parameter, so needs deducts its own bills.
+- Subscriptions and Loans became donut ring segments (colours already used by their legend rows),
+  so the ring sums to the figure its centre reports.
+- `#fbbf24` on the Loans dot replaced with `var(--warn)` — the design checklist forbids raw hex.
+
+**Deliberately NOT changed** — "Daily average" stays purchases-only, relabelled *"Daily average
+purchases"*: a once-per-period loan payment would distort a spending-*pace* metric. "Top category"
+stays purchases-relative for the same reason — subscriptions and loans are not spending categories,
+and using the envelope denominator reported Entertainment as 32% instead of 60%. (That regression
+was introduced mid-fix and caught by re-reading the rendered card.)
+
+**Verification** — seeded the reported scenario into a running instance. Dashboard hero
+`$37.67 OVER` / `$665.12 spent of $627.45`; donut `$665.12 / $627.45` with rows summing to 100%;
+Spending tab `$665.12` / `$362.00 purchases + $303.12 bills`; Top category `60%`; Daily average
+purchases `$30.17`. All six surfaces agree.
+
+**Prevention** — 8 tests in `tests/utils/calculations.spec.ts` seeded with the exact reported
+figures, asserting `remaining < 0` iff `spent > budget` (the contradiction, stated directly),
+per-bucket deduction independence, and that the change is a no-op for a user with no bills. Three
+CLAUDE.md gotchas record the definition, the per-bucket rule, and the category-denominator rule.
+
+---
+
 ## BUG-041 — App stays zoomed in after using a form on iOS (v2.47.2)
 
 **Date:** September 2026

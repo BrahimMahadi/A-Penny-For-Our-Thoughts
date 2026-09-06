@@ -7,6 +7,7 @@ import {
   getRenewalDatesBetween,
   getNextRenewal,
   getCurrentPeriodStart,
+  getEnvelopeState,
   getSubsDeductedThisPeriod,
   getSubsDeductedThisMonth,
   getLoansDeductedThisMonth,
@@ -2071,5 +2072,111 @@ describe('getPreviousPeriodPaceSpend', () => {
       spendingHistory: [{ id: 'H1', date: '2026-06-02', total: 0, items: [], spent: { wants: 0, needs: 0 } }],
     });
     expect(getPreviousPeriodPaceSpend(empty, 'wants', new Date('2026-06-20T12:00:00'))).toBe(0);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BUG-042 — getEnvelopeState
+   ═══════════════════════════════════════════════════════════════════════════
+   The reported bug was a Dashboard hero reading "$37.67 OVER" directly above a
+   tile reading "$362.00 spent of $627.45". Both were correct — under two
+   different definitions of "spent" that had drifted apart across six call
+   sites. These pin the one definition down, using the real reported figures.
+   ═══════════════════════════════════════════════════════════════════════════ */
+describe('getEnvelopeState (BUG-042)', () => {
+  const TODAY = new Date(2026, 8, 5);        // 2026-09-05, inside the period
+  const PAY_START = '2026-08-26';            // period start from the report
+
+  /** State seeded with the exact numbers from the reported screenshots. */
+  function reportedState(overrides: Partial<BudgetState> = {}): BudgetState {
+    return buildState({
+      payStart: PAY_START,
+      purchases: [
+        { id: 'p1', name: 'Entertainment', amount: 216, category: 'Entertainment', budgetType: 'wants', date: '2026-09-01' },
+        { id: 'p2', name: 'Food',          amount: 73,  category: 'Food & Drink',  budgetType: 'wants', date: '2026-09-02' },
+        { id: 'p3', name: 'Groceries',     amount: 48,  category: 'Groceries',     budgetType: 'wants', date: '2026-09-03' },
+        { id: 'p4', name: 'Other',         amount: 25,  category: 'Other',         budgetType: 'wants', date: '2026-09-04' },
+      ],
+      subscriptions: [
+        { id: 's1', name: 'Streaming', amount: 66, frequency: 'monthly', date: '2026-09-01',
+          category: 'Shopping', budgetType: 'wants', cardId: null },
+      ],
+      loans: [
+        { id: 'l1', name: 'Car', remaining: 5000, original: 9000, paymentAmount: 237.12,
+          frequency: 'monthly', date: '2026-09-01', budgetType: 'wants', cardId: null },
+      ],
+      ...overrides,
+    } as Partial<BudgetState>);
+  }
+
+  it('reproduces the reported figures with one definition', () => {
+    const env = getEnvelopeState(reportedState(), 627.45, 'wants', TODAY);
+    expect(env.purchases).toBeCloseTo(362, 2);
+    expect(env.deductions).toBeCloseTo(303.12, 2);
+    expect(env.spent).toBeCloseTo(665.12, 2);     // the all-purchases table figure
+    expect(env.remaining).toBeCloseTo(-37.67, 2); // the hero's OVER figure
+  });
+
+  it('keeps spent and remaining in agreement — the whole point', () => {
+    const env = getEnvelopeState(reportedState(), 627.45, 'wants', TODAY);
+    // The contradiction was remaining < 0 while spent < budget.
+    expect(env.remaining).toBeCloseTo(env.budget - env.spent, 6);
+    expect(env.remaining < 0).toBe(env.spent > env.budget);
+  });
+
+  it('reports over-budget percentages unclamped', () => {
+    const env = getEnvelopeState(reportedState(), 627.45, 'wants', TODAY);
+    expect(env.usedPct).toBeGreaterThan(100);
+    expect(Math.round(env.usedPct)).toBe(106);
+  });
+
+  // The parallel bug the maintainer asked about: needs-flagged subs and loans
+  // were invisible, so the needs envelope overstated available money.
+  it('deducts needs-flagged subscriptions and loans from the needs envelope', () => {
+    const state = reportedState({
+      subscriptions: [
+        { id: 's1', name: 'Insurance', amount: 80, frequency: 'monthly', date: '2026-09-01',
+          category: 'Other', budgetType: 'needs', cardId: null },
+      ],
+      loans: [
+        { id: 'l1', name: 'Mortgage', remaining: 1000, original: 2000, paymentAmount: 120,
+          frequency: 'monthly', date: '2026-09-01', budgetType: 'needs', cardId: null },
+      ],
+    } as Partial<BudgetState>);
+
+    const needs = getEnvelopeState(state, 1000, 'needs', TODAY);
+    expect(needs.deductions).toBeCloseTo(200, 2);
+    expect(needs.remaining).toBeCloseTo(800, 2);
+  });
+
+  it('keeps the two buckets independent', () => {
+    // A wants subscription must not touch the needs envelope, and vice versa.
+    const needs = getEnvelopeState(reportedState(), 1000, 'needs', TODAY);
+    expect(needs.purchases).toBe(0);
+    expect(needs.deductions).toBe(0);
+    expect(needs.remaining).toBe(1000);
+  });
+
+  it('is a no-op for a user with no subscriptions or loans', () => {
+    const state = reportedState({ subscriptions: [], loans: [] } as Partial<BudgetState>);
+    const env = getEnvelopeState(state, 627.45, 'wants', TODAY);
+    expect(env.deductions).toBe(0);
+    expect(env.spent).toBeCloseTo(env.purchases, 6);
+  });
+
+  it('excludes purchases outside the current period window', () => {
+    const state = reportedState({
+      purchases: [
+        { id: 'in',  name: 'in',  amount: 50, category: 'Other', budgetType: 'wants', date: '2026-09-01' },
+        { id: 'out', name: 'out', amount: 99, category: 'Other', budgetType: 'wants', date: '2026-07-01' },
+      ],
+    } as Partial<BudgetState>);
+    expect(getEnvelopeState(state, 500, 'wants', TODAY).purchases).toBe(50);
+  });
+
+  it('returns a zero percentage rather than dividing by a zero budget', () => {
+    const env = getEnvelopeState(reportedState(), 0, 'wants', TODAY);
+    expect(env.usedPct).toBe(0);
+    expect(Number.isFinite(env.remaining)).toBe(true);
   });
 });

@@ -19,7 +19,7 @@ A personal financial dashboard for Brahim built on the 50/30/20 budget rule. The
 
 ## Tech Stack
 - Frontend: Vue 3 + TypeScript + Pinia + Vite + Tailwind CSS v4
-- Testing: Vitest + @vue/test-utils (1559 tests across 54 spec files)  <!-- v2.47.2 -->
+- Testing: Vitest + @vue/test-utils (1567 tests across 54 spec files)  <!-- v2.47.3 -->
 - Charts: Chart.js + vue-chartjs
 - Persistence: localStorage (penny_state_v2, penny_theme)
 - No backend — fully client-side SPA
@@ -226,6 +226,12 @@ Run through this before opening any PR that touches UI:
 - [Forbidden action] -->
 
 ## Gotchas
+
+- **Never recompute envelope spend by hand — call `getEnvelopeState()`.** "How much of this envelope is gone?" was re-derived in six places with three different rules, producing a hero reading `$37.67 OVER` above a tile reading `$362.00 spent of $627.45` (BUG-042). `spent` = purchases **+** subscription/loan deductions, because deductions consume the envelope exactly as purchases do — which is why `remaining` always subtracted them even when the captions did not. `usedPct` is deliberately **unclamped**: 106% tells the user they are over, 100% hides it. Note BUG-021 (May 2026) "fixed" the same inconsistency in the opposite direction; going through the helper is what stops it oscillating a third time.
+
+- **Deductions are per-bucket — a subscription or loan flagged `needs` deducts from the NEEDS envelope.** `Subscription.budgetType` and `Loan.budgetType` both exist and the add forms expose the choice, but the bi-weekly needs envelope used to subtract nothing at all, so needs-flagged bills were invisible and needs overstated available money (BUG-042). `getSubsDeductedThisPeriod` / `getLoansDeductedThisPeriod` take a bucket parameter. Do not confuse these with `...ThisMonth`, which scope to the calendar month and exist solely for `calculateActualNeeds` — a month of bills must never be subtracted from a fortnight of budget.
+
+- **Category percentages use a purchases denominator; envelope percentages use the envelope.** "Top category" compares spending *categories*, and subscriptions/loans are not categories — dividing one by the whole envelope reported Entertainment as 32% instead of 60%.
 
 - **Never let a form control fall below `font-size: 16px` on mobile.** iOS Safari zooms the viewport when a control under 16px is focused and does **not** zoom back out on blur, stranding the user zoomed in after submitting a form (BUG-041). Every control is styled by a scoped class (`.mf-input`, `.form-input`, `.oti-form__input`, …) which compiles to `.cls[data-v-hash]` (0,2,0) and beats a bare `input` selector (0,0,1) — so MOBILE-3's floor silently lost. The safety net at the bottom of `responsive.css` uses `!important` deliberately: it encodes a platform constraint the app cannot undo, not a style preference. `tests/css/mobileForms.spec.ts` guards it.
 
