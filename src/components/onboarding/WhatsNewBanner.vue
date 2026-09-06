@@ -26,14 +26,14 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.47.2';
+const APP_VERSION = '2.47.3';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🔍', text: 'Fixed the app staying zoomed in after adding a purchase or logging income — form fields were below the size iOS zooms into, and iOS never zooms back out' },
-  { icon: '👋', text: 'Swipe-to-change-tab has been removed: it competed with scrolling wide tables sideways, and that conflict could not be resolved reliably' },
-  { icon: '📊', text: 'Tables on the Spending tab now scroll horizontally without interference' },
+  { icon: '🧮', text: 'Fixed spending totals disagreeing across cards: “spent this period” now counts subscriptions and loan payments alongside purchases, matching the available-to-spend figure and the purchases table' },
+  { icon: '🍩', text: 'Subscriptions and loans now appear as real slices in the category donut instead of footnotes, so the ring matches its own percentage' },
+  { icon: '🏠', text: 'Needs fix: subscriptions and loans marked as a need were being ignored entirely, overstating how much of your needs budget was left' },
 ];
 
 const budget = useBudgetStore();

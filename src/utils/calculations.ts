@@ -274,10 +274,19 @@ export interface LoanWithRenewals extends Loan {
   renewalDates: ISODate[];
 }
 
-/** Wants subs that renewed in the current bi-weekly period. */
+/**
+ * Subs that renewed in the current bi-weekly period, for one envelope.
+ *
+ * BUG-042: `budgetType` was hardcoded to 'wants' here, so a subscription the
+ * user had flagged as a **need** was invisible to every needs figure — the
+ * needs envelope silently overstated available money by that amount. The
+ * bucket is a parameter now; it defaults to 'wants' so existing call sites
+ * keep their behaviour.
+ */
 export function getSubsDeductedThisPeriod(
   state: Pick<BudgetState, 'subscriptions' | 'payStart'>,
   today: Date = new Date(),
+  budgetType: BudgetType = 'wants',
 ): SubscriptionWithRenewals[] {
   const periodStart = getCurrentPeriodStart(state, today);
   if (!periodStart) return [];
@@ -285,12 +294,40 @@ export function getSubsDeductedThisPeriod(
   const end = new Date(today);
   end.setHours(0, 0, 0, 0);
   return state.subscriptions
-    .filter((s) => (s.budgetType || 'wants') === 'wants')
+    .filter((s) => (s.budgetType || 'wants') === budgetType)
     .map((s) => ({ ...s, renewalDates: getRenewalDatesBetween(s, start, end) }))
     .filter((s) => s.renewalDates.length > 0);
 }
 
-/** Needs subs that renewed so far this calendar month. */
+/**
+ * Loans whose payment fell in the current bi-weekly period, for one envelope.
+ * See getSubsDeductedThisPeriod for why the bucket is a parameter (BUG-042).
+ */
+export function getLoansDeductedThisPeriod(
+  state: Pick<BudgetState, 'loans' | 'payStart'>,
+  today: Date = new Date(),
+  budgetType: BudgetType = 'wants',
+): LoanWithRenewals[] {
+  const periodStart = getCurrentPeriodStart(state, today);
+  if (!periodStart) return [];
+  const start = new Date(periodStart + 'T00:00:00');
+  const end = new Date(today);
+  end.setHours(0, 0, 0, 0);
+  return state.loans
+    .filter((l) => (l.budgetType || 'wants') === budgetType && l.paymentAmount > 0 && l.date)
+    .map((l) => ({ ...l, renewalDates: getRenewalDatesBetween(l, start, end) }))
+    .filter((l) => l.renewalDates.length > 0);
+}
+
+/**
+ * Needs subs that renewed so far this calendar month.
+ *
+ * Kept deliberately: `calculateActualNeeds` uses this (with the loans twin
+ * below) to build the MONTHLY needs actual, alongside expenseCards. That is a
+ * different question from the bi-weekly needs envelope, which is what BUG-042
+ * fixed — do not merge the two. A month of bills must not be subtracted from a
+ * fortnight of budget.
+ */
 export function getSubsDeductedThisMonth(
   state: Pick<BudgetState, 'subscriptions'>,
   today: Date = new Date(),
@@ -304,7 +341,8 @@ export function getSubsDeductedThisMonth(
     .filter((s) => s.renewalDates.length > 0);
 }
 
-/** Needs loans whose payment fell this calendar month (payment > 0, has date). */
+/** Needs loans whose payment fell this calendar month (payment > 0, has date).
+ *  Monthly counterpart to the above — see that doc comment. */
 export function getLoansDeductedThisMonth(
   state: Pick<BudgetState, 'loans'>,
   today: Date = new Date(),
@@ -318,29 +356,85 @@ export function getLoansDeductedThisMonth(
     .filter((l) => l.renewalDates.length > 0);
 }
 
-/** Wants loans whose payment fell in the current bi-weekly period. */
-export function getLoansDeductedThisPeriod(
-  state: Pick<BudgetState, 'loans' | 'payStart'>,
-  today: Date = new Date(),
-): LoanWithRenewals[] {
-  const periodStart = getCurrentPeriodStart(state, today);
-  if (!periodStart) return [];
-  const start = new Date(periodStart + 'T00:00:00');
-  const end = new Date(today);
-  end.setHours(0, 0, 0, 0);
-  return state.loans
-    .filter((l) => l.budgetType === 'wants' && l.paymentAmount > 0 && l.date)
-    .map((l) => ({ ...l, renewalDates: getRenewalDatesBetween(l, start, end) }))
-    .filter((l) => l.renewalDates.length > 0);
+/* ═══════════════════════════════════════════════════════════════════════════
+   Envelope state — the single answer to "how much of this envelope is gone?"
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** Everything a card needs to describe one bi-weekly envelope. */
+export interface EnvelopeState {
+  /** Bi-weekly budget for the bucket, including any windfall boost. */
+  budget: number;
+  /** Purchases logged in the current period for this bucket. */
+  purchases: number;
+  /** Subscription + loan amounts that fell in this period for this bucket. */
+  deductions: number;
+  /** What has consumed the envelope: purchases + deductions. */
+  spent: number;
+  /** budget − spent. Negative means over budget. */
+  remaining: number;
+  /** spent / budget as a percentage. NOT clamped — may exceed 100. */
+  usedPct: number;
 }
 
 /**
- * Subs of a given budget type whose renewals fall within [windowStart, windowEnd].
+ * Compute one envelope's state.
  *
- * Generic, window-based variant of `getSubsDeductedThisPeriod` — works for any
- * period offset (current or past) and any budget type (wants or needs).
- * Used by PurchasesThisPeriod (dashboard donut) and SpendingPage (virtual rows).
+ * BUG-042 exists because this was previously re-derived ad hoc in six places
+ * with three different rules: some subtracted deductions, some did not, and
+ * the "spent" captions disagreed with the "remaining" figures on the same
+ * card — a hero reading "$37.67 OVER" above a tile reading "$362.00 spent of
+ * $627.45". BUG-021 had already fixed one direction of that inconsistency in
+ * May 2026 and reintroduced the other. Every surface now reads from here so
+ * they cannot drift apart again.
+ *
+ * `spent` deliberately includes subscription and loan deductions: they consume
+ * the envelope exactly as a purchase does, which is why `remaining` always
+ * subtracted them even when the captions did not.
+ *
+ * Bucket-generic. Deductions apply to whichever bucket the subscription or
+ * loan is flagged as — a need-flagged subscription was previously invisible to
+ * every needs figure, so the needs envelope overstated available money.
+ *
+ * @param budget  Bi-weekly budget for the bucket (income share + windfall
+ *                boost). Passed in rather than derived, because the caller
+ *                already holds the income/allocation getters.
  */
+export function getEnvelopeState(
+  state: BudgetState,
+  budget: number,
+  bucket: BudgetType,
+  today: Date = new Date(),
+): EnvelopeState {
+  // Same window both tabs already use, so this helper cannot disagree with the
+  // purchase lists they render (the BUG-026 filter).
+  const period = getPayPeriodForecast(state, 0, today);
+
+  const purchases = state.purchases
+    .filter((p) => (p.budgetType || 'wants') === bucket)
+    // No pay-start configured yet: count everything, matching the pre-existing
+    // "no period" fallback in DashboardPage and SpendingPage.
+    .filter((p) => !period || (!!p.date && p.date >= period.periodStart && p.date <= period.periodEnd))
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  const subsTotal = getSubsDeductedThisPeriod(state, today, bucket)
+    .reduce((sum, sub) => sum + (+sub.amount || 0) * sub.renewalDates.length, 0);
+  const loansTotal = getLoansDeductedThisPeriod(state, today, bucket)
+    .reduce((sum, loan) => sum + (+loan.paymentAmount || 0) * loan.renewalDates.length, 0);
+
+  const deductions = subsTotal + loansTotal;
+  const spent = purchases + deductions;
+
+  return {
+    budget,
+    purchases,
+    deductions,
+    spent,
+    remaining: budget - spent,
+    // Unclamped on purpose: 106% tells the user they are over, 100% hides it.
+    usedPct: budget > 0 ? (spent / budget) * 100 : 0,
+  };
+}
+
 export function getSubsInWindow(
   state: Pick<BudgetState, 'subscriptions'>,
   windowStart: Date,

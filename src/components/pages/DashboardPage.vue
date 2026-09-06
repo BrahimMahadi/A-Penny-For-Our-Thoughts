@@ -46,6 +46,7 @@ import { useFormValidation, rules } from '@/composables/useFormValidation';
 import { useToday } from '@/composables/useToday';
 import { fmt }           from '@/utils/format';
 import {
+  getEnvelopeState,
   getSubsDeductedThisPeriod,
   getLoansDeductedThisPeriod,
   getPayPeriodForecast,
@@ -132,22 +133,18 @@ const biWeeklySpent = computed(() =>
 );
 
 /** Subscription + loan amounts deducted from this bi-weekly envelope. */
-const biWeeklyDeductions = computed(() => {
-  const subsDeducted  = getSubsDeductedThisPeriod(budget.$state, today.value);
-  const loansDeducted = getLoansDeductedThisPeriod(budget.$state, today.value);
-  const subTotal  = subsDeducted.reduce((s, sub) => s + (+sub.amount || 0) * sub.renewalDates.length, 0);
-  const loanTotal = loansDeducted.reduce((s, loan) => s + (+loan.paymentAmount || 0) * loan.renewalDates.length, 0);
-  return subTotal + loanTotal;
-});
-
-const biWeeklyRemaining = computed(() =>
-  biWeeklyBudget.value - biWeeklySpent.value - biWeeklyDeductions.value,
+/* BUG-042: every envelope figure now comes from one helper so "spent" and
+   "remaining" can never disagree again. See getEnvelopeState. */
+const wantsEnvelope = computed(() =>
+  getEnvelopeState(budget.$state, biWeeklyBudget.value, 'wants', today.value),
+);
+const needsEnvelope = computed(() =>
+  getEnvelopeState(budget.$state, biWeeklyNeedsBudget.value, 'needs', today.value),
 );
 
-const biWeeklyUsedPct = computed(() => {
-  if (biWeeklyBudget.value <= 0) return 0;
-  return Math.min(100, ((biWeeklySpent.value + biWeeklyDeductions.value) / biWeeklyBudget.value) * 100);
-});
+const biWeeklyDeductions = computed(() => wantsEnvelope.value.deductions);
+const biWeeklyRemaining  = computed(() => wantsEnvelope.value.remaining);
+const biWeeklyUsedPct    = computed(() => Math.min(100, wantsEnvelope.value.usedPct));
 
 /** "until May 24" label from the current pay period's end date. */
 const periodEndLabel = computed(() => {
@@ -241,13 +238,19 @@ const heroBudget = computed(() =>
   dashboardTypeFilter.value === 'needs' ? biWeeklyNeedsBudget.value : biWeeklyBudget.value,
 );
 
-/** Hero card: amount spent for the active type (purchases only — deductions are
- *  excluded from the "spent" caption so the number matches the Spending tab).
- *  `heroRemaining` still deducts subs/loans from the available-to-spend total. */
+/**
+ * Hero card: amount consumed from the active envelope — purchases AND the
+ * subscription/loan deductions.
+ *
+ * BUG-042: this was purchases-only, a deliberate BUG-021 decision to make the
+ * caption match the Spending tab. The cost was a card that read "$362.00 spent
+ * of $627.45" directly beneath "$37.67 OVER" — two statements that cannot both
+ * be read plainly. Everything now reports the same figure instead.
+ */
 const heroSpent = computed(() =>
   dashboardTypeFilter.value === 'needs'
-    ? biWeeklyNeedsSpent.value
-    : biWeeklySpent.value,
+    ? needsEnvelope.value.spent
+    : wantsEnvelope.value.spent,
 );
 
 /** Hero card: remaining for the active type. */
@@ -314,9 +317,10 @@ const biWeeklyNeedsSpent = computed(() =>
     .reduce((s, p) => s + p.amount, 0),
 );
 
-const biWeeklyNeedsRemaining = computed(() =>
-  biWeeklyNeedsBudget.value - biWeeklyNeedsSpent.value,
-);
+/* BUG-042: needs previously subtracted NO deductions at all, so a
+   need-flagged subscription or loan was invisible and this overstated the
+   money available. It now deducts its own bucket, symmetrically with wants. */
+const biWeeklyNeedsRemaining = computed(() => needsEnvelope.value.remaining);
 
 const quickAddAfter = computed(() => {
   const amt = parseFloat(quickAddAmount.value) || 0;

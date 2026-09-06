@@ -22,7 +22,15 @@ import { Flip } from 'gsap/Flip';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(Flip, ScrollTrigger);
-import { getPayPeriodForecast, getCategorySpending, applyRulesToName, getSubsInWindow, getLoansInWindow } from '@/utils/calculations';
+import {
+  getPayPeriodForecast,
+  getCategorySpending,
+  applyRulesToName,
+  getSubsInWindow,
+  getLoansInWindow,
+  getSubsDeductedThisPeriod,
+  getLoansDeductedThisPeriod,
+} from '@/utils/calculations';
 import { CATEGORY_FALLBACK_COLOR, FALLBACK_CATEGORY_NAME } from '@/data/categories';
 import { PERIOD_DAYS } from '@/constants/budget';
 import { DOW_SHORT } from '@/constants/datetime';
@@ -141,8 +149,11 @@ const daysElapsed = computed(() => {
 // body only runs on access, by which time all consts in the setup scope are
 // initialised — standard JavaScript closure behaviour).
 
-/** Daily average spend for the ACTIVE type (wants or needs). */
-const dailyAvg = computed(() => wantsSpentInPeriod.value / daysElapsed.value);
+/** Daily average PURCHASES for the ACTIVE type — excludes subs/loans. */
+/* Purchases only, deliberately: a once-per-period loan payment would distort
+   a spending-pace figure. The label says "purchases" so the smaller number is
+   explained rather than looking inconsistent (BUG-042). */
+const dailyAvg = computed(() => purchasesSpentInPeriod.value / daysElapsed.value);
 
 const daysLeft = computed(() => {
   if (!spendingPeriod.value) return 0;
@@ -155,7 +166,10 @@ const daysLeft = computed(() => {
 const topCategoryInfo = computed(() => {
   // Use donutPurchases so this KPI matches the Spent This Period toggle
   const spending = getCategorySpending(donutPurchases.value);
-  const total    = wantsSpentInPeriod.value;
+  // BUG-042: purchases on both sides. Subscriptions and loans are not spending
+  // *categories*, so dividing a category by the whole envelope would report a
+  // misleadingly small share (Entertainment read 32% instead of 60%).
+  const total    = purchasesSpentInPeriod.value;
   const top      = Object.entries(spending).sort((a, b) => b[1] - a[1])[0];
   if (!top) return null;
   return {
@@ -235,8 +249,28 @@ const donutPurchases = computed(() =>
   donutTypeFilter.value === 'needs' ? needsPurchasesInPeriod.value : wantsPurchasesInPeriod.value,
 );
 
-/** Total spent for the active donut type. */
-const wantsSpentInPeriod = computed(() => donutPurchases.value.reduce((s, p) => s + p.amount, 0));
+/** Purchases alone for the active donut type — drives the category donut. */
+const purchasesSpentInPeriod = computed(() =>
+  donutPurchases.value.reduce((s, p) => s + p.amount, 0),
+);
+
+/**
+ * Subscription + loan deductions for the active bucket in this period.
+ * BUG-042: the Spending tab previously ignored these entirely, so its
+ * "remaining" said $265.45 while the Dashboard said $37.67 OVER.
+ */
+const periodDeductions = computed(() => {
+  if (!isCurrentPeriod.value) return 0;
+  const bucket = donutTypeFilter.value;
+  const subs = getSubsDeductedThisPeriod(budget.$state, today, bucket)
+    .reduce((s, sub) => s + (+sub.amount || 0) * sub.renewalDates.length, 0);
+  const loans = getLoansDeductedThisPeriod(budget.$state, today, bucket)
+    .reduce((s, l) => s + (+l.paymentAmount || 0) * l.renewalDates.length, 0);
+  return subs + loans;
+});
+
+/** Everything consuming the envelope — matches the Dashboard hero exactly. */
+const wantsSpentInPeriod = computed(() => purchasesSpentInPeriod.value + periodDeductions.value);
 
 /** Needs bi-weekly budget = income × needs% ÷ 2 + windfall needs boost. */
 const needsBudgetPerPeriod = computed(() =>
@@ -255,6 +289,23 @@ const categoryColorMap = computed<Record<string, string>>(() => {
   const map: Record<string, string> = {};
   budget.$state.spendingCategories.forEach(c => { map[c.name] = c.color; });
   return map;
+});
+
+/* wantsSpentInPeriod already includes deductions (BUG-042), so this is the
+   same arithmetic the Dashboard hero uses. */
+/** Ring segments: purchase categories plus the deduction buckets, so the ring
+ *  sums to the same total the card reports (BUG-042). */
+const donutSegments = computed<Record<string, number>>(() => {
+  const segs: Record<string, number> = { ...categorySpending.value };
+  if (periodDeductions.value <= 0) return segs;
+  const bucket = donutTypeFilter.value;
+  const subs = getSubsDeductedThisPeriod(budget.$state, today, bucket)
+    .reduce((s, sub) => s + (+sub.amount || 0) * sub.renewalDates.length, 0);
+  const loans = getLoansDeductedThisPeriod(budget.$state, today, bucket)
+    .reduce((s, l) => s + (+l.paymentAmount || 0) * l.renewalDates.length, 0);
+  if (subs > 0)  segs.Subscriptions = subs;
+  if (loans > 0) segs.Loans = loans;
+  return segs;
 });
 
 const remainingBudget = computed(() => donutBudget.value - wantsSpentInPeriod.value);
@@ -926,13 +977,20 @@ onMounted(() => {
           v-if="donutBudget > 0"
           class="spend-stat-typed__hint"
         >
-          of {{ fmt(donutBudget) }} {{ donutTypeFilter }} budget
+          <template v-if="periodDeductions > 0">
+            {{ fmt(purchasesSpentInPeriod) }} purchases + {{ fmt(periodDeductions) }} bills
+          </template>
+          <template v-else>
+            of {{ fmt(donutBudget) }} {{ donutTypeFilter }} budget
+          </template>
         </div>
       </div>
+      <!-- BUG-042: purchases-only, and labelled so. Folding a once-per-period
+           loan payment into a daily pace figure would misrepresent the rate. -->
       <StatCard
-        label="Daily average"
+        label="Daily average purchases"
         :value="fmt(dailyAvg)"
-        :hint="`over ${daysElapsed} day${daysElapsed !== 1 ? 's' : ''}`"
+        :hint="`over ${daysElapsed} day${daysElapsed !== 1 ? 's' : ''} · purchases only`"
       />
       <StatCard
         :label="topCategoryInfo ? 'Top category' : 'Top category'"
@@ -960,10 +1018,12 @@ onMounted(() => {
           {{ fmt(wantsSpentInPeriod) }}
         </div>
         <p class="spend-donut-hint">
-          {{ donutTypeFilter === 'needs' ? 'Needs purchases only' : 'Wants purchases only' }}
+          {{ periodDeductions > 0
+            ? `${donutTypeFilter === 'needs' ? 'Needs' : 'Wants'} purchases + bills`
+            : `${donutTypeFilter === 'needs' ? 'Needs' : 'Wants'} purchases only` }}
         </p>
         <WantsDonut
-          :category-spending="categorySpending"
+          :category-spending="donutSegments"
           :remaining="Math.max(0, remainingBudget)"
           :used-pct="usedPct"
           :category-colors="categoryColorMap"

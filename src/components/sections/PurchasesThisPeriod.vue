@@ -110,19 +110,39 @@ const filteredPurchases = computed(() =>
 // ─── Category spending (type-filtered) ───────────────────────────
 const categorySpending = computed(() => getCategorySpending(filteredPurchases.value));
 
-const totalSpent = computed(() =>
+/** Purchases alone — still needed for the per-category percentages. */
+const purchaseTotal = computed(() =>
   filteredPurchases.value.reduce((s, p) => s + p.amount, 0),
 );
 
+/**
+ * What has actually consumed the envelope (BUG-042).
+ *
+ * Was purchases-only, which put a 58% donut next to an OVER hero on the same
+ * screen. Subscriptions and loans consume the envelope exactly as purchases
+ * do, and they are now ring segments rather than footnotes with a "—".
+ */
+const totalSpent = computed(() => purchaseTotal.value + deductionTotal.value);
+
 const remaining = computed(() =>
-  Math.max(0, biWeeklyBudget.value - totalSpent.value - deductionTotal.value),
+  Math.max(0, biWeeklyBudget.value - totalSpent.value),
 );
 
 const usedPct = computed(() => {
   if (biWeeklyBudget.value <= 0) return 0;
-  // Purchases only — deductions are shown as a separate "Auto-deducted" row
-  // so the donut % matches the caption and the Spending tab figure.
+  // Unclamped: 106% communicates over-budget, 100% would hide it.
   return (totalSpent.value / biWeeklyBudget.value) * 100;
+});
+
+/**
+ * Ring segments: categories plus the two deduction buckets, so the ring sums
+ * to the same total the centre percentage reports.
+ */
+const donutSegments = computed<Record<string, number>>(() => {
+  const segs: Record<string, number> = { ...categorySpending.value };
+  if (subsDeductionTotal.value > 0)  segs.Subscriptions = subsDeductionTotal.value;
+  if (loansDeductionTotal.value > 0) segs.Loans = loansDeductionTotal.value;
+  return segs;
 });
 
 // ─── Category color map ────────────────────────────────────────────
@@ -146,6 +166,12 @@ const categoryList = computed(() =>
         : (categoryColorMap.value[name] ?? CATEGORY_FALLBACK_COLOR),
     })),
 );
+
+/** Share of the envelope's total spend, for the deduction rows. */
+function deductionPct(amount: number): string {
+  if (totalSpent.value <= 0) return '0%';
+  return `${Math.round((amount / totalSpent.value) * 100)}%`;
+}
 
 const isEmpty = computed(() =>
   categoryList.value.length === 0 && deductionTotal.value === 0,
@@ -181,7 +207,7 @@ const captionLabel = computed(() =>
       <!-- Donut -->
       <div class="ptp__donut-wrap">
         <WantsDonut
-          :category-spending="categorySpending"
+          :category-spending="donutSegments"
           :remaining="remaining"
           :used-pct="usedPct"
           :category-colors="categoryColorMap"
@@ -221,7 +247,7 @@ const captionLabel = computed(() =>
           />
           <span class="ptp__cat-name">Subscriptions</span>
           <span class="ptp__cat-amount">{{ fmt(subsDeductionTotal) }}</span>
-          <span class="ptp__cat-pct">—</span>
+          <span class="ptp__cat-pct">{{ deductionPct(subsDeductionTotal) }}</span>
         </div>
 
         <!-- Loans row -->
@@ -231,11 +257,11 @@ const captionLabel = computed(() =>
         >
           <span
             class="ptp__cat-dot"
-            style="background: #fbbf24"
+            style="background: var(--warn)"
           />
           <span class="ptp__cat-name">Loans</span>
           <span class="ptp__cat-amount">{{ fmt(loansDeductionTotal) }}</span>
-          <span class="ptp__cat-pct">—</span>
+          <span class="ptp__cat-pct">{{ deductionPct(loansDeductionTotal) }}</span>
         </div>
       </div>
     </div>

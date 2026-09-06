@@ -1754,6 +1754,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | MOBILE-3 — Typography scale | iOS zoom fix (16px input floor at ≤768px), mobile text floor (nothing below 0.72rem at ≤480px across 16 components), 7 new `--text-*` CSS scale tokens in `tokens.css`. Pure CSS refactor — 1509 tests unchanged. | `refactor/mobile-typography` | ✅ Complete | v2.46.1 |
 | MOBILE-4 — Layout | 5+More bottom nav (5 primary + overflow sheet for Docs/Settings, active-in-overflow dot indicator), collapsible What's New banner on mobile (compact bar + tap-to-expand), greeting truncation fix (scoped the errant 140px `header h1` cap away from `.dash-header__title`). 1509 tests unchanged. | `refactor/mobile-layout` | ✅ Complete | v2.46.2 |
 | BUG-037 — Web Storage test shim | Node 26 defines an inert global `localStorage` accessor; Vitest 1.x's jsdom env skips globals that already exist, so jsdom's Storage was never published and 254 tests across 8 files failed on unchanged code. Fixed with `tests/setupStorage.ts` (first in `setupFiles`), which republishes `localStorage`, `sessionStorage` and the `Storage` constructor **as a group from one jsdom realm** — a per-key fix splits realms and silently defeats `vi.spyOn(Storage.prototype, …)`. 6 guard tests. **Also pinned the Node toolchain**: CI + deploy hard-coded Node 20 (EOL 2026-04-30) while local ran Node 26 — the drift that kept CI green through this bug. Both now read `.nvmrc` (Node 24 Active LTS), plus a `forward-compat` CI job on Node Current so host-global regressions surface in CI. 11 new tests (1520 total), green on Node 20/22/24/26. | `fix/vitest-localstorage-shim` | ✅ Complete | v2.46.3 |
+| BUG-042 — envelope spend consistency | Cards contradicted each other: hero `$37.67 OVER` above `$362.00 spent of $627.45`. Two competing definitions of "spent" across six call sites — `remaining` subtracted subs/loans, `spent` did not. Replaced with one `getEnvelopeState()` helper. Also fixed a parallel bug where **needs-flagged** subs/loans were deducted from nothing, overstating the needs envelope. Subs/loans became donut ring segments. 8 new tests (1567 total). | `fix/envelope-spend-consistency` | ✅ Complete | v2.47.3 |
 | BUG-041 + swipe removal | **BUG-041:** app stayed zoomed after using a form — iOS zooms below 16px and never zooms back, and MOBILE-3's floor used bare `input` selectors that every scoped component class outranked (Add Purchase fields measured 14.4px, windfall allocations 13.6px). `!important` safety net added; 0 sub-16px controls remain across all five tabs. **Swipe navigation removed** — the gesture shared input with six `overflow-x: auto` regions and the conflict is structural, not a defect; `useGsapObserver` deleted with it. 1559 tests (net −14: feature's 17 tests removed, 8 guards added). | `fix/ios-zoom-and-remove-swipe` | ✅ Complete | v2.47.2 |
 | BUG-039 / BUG-040 — mobile fixes | **BUG-040:** installed PWA drew under the status bar (`black-translucent` from v2.47.0 + no `env(safe-area-inset-top)` anywhere); `.app-main` now reserves the top inset. **BUG-039:** swipe navigation reached Docs/Settings (tab order declared twice and drifted after MOBILE-4) and stole gestures from the 480px-wide purchases table; `src/lib/tabs.ts` is now the single source, and the gesture defers to scrollers with travel left. Observer multi-fire was hypothesised and **refuted** by measurement. 21 new tests (1573 total). | `fix/mobile-safe-area-and-swipe` | ✅ Complete | v2.47.1 |
 | MOBILE-5 — PWA & polish | Installable PWA: manifest + apple-touch-icon + per-scheme theme-color, and a minimal pass-through service worker (Chrome will not offer installation without one) that deliberately does not cache. New cent-sign monogram icon set (192/512/180/48 + maskable 512). `v-press` directive brings tactile press to the bottom nav, More sheet and FAB. `overscroll-behavior: contain` on page, modals and sheet. **BUG-038**: modal scroll lock rewritten to the position-fixed technique after testing showed the page still scrolled behind a modal on mobile (`overflow: hidden` is ignored by iOS Safari for touch). Safe-area audited. 32 new tests (1552 total). **Completes the Mobile Optimization initiative.** | `feat/mobile-pwa` | ✅ Complete | v2.47.0 |
@@ -5442,3 +5443,59 @@ lists from it, which is a stronger version of the BUG-039 fix.
 ### Follow-up noted
 `useSwipe.ts` is now provably unreferenced (only comments and a DocsPage mention name it). Left in
 place rather than expanding this branch's scope; a candidate for a future cleanup.
+
+---
+
+## BUG-042 — Envelope spend consistency ✅
+**Branch**: `fix/envelope-spend-consistency`
+**Status**: ✅ **COMPLETE** — September 2026
+**Version**: v2.47.3 (PATCH — corrects displayed figures; no new capability)
+
+### Problem
+The dashboard showed `$37.67 OVER` on the hero directly above `$362.00 spent of $627.45`. No
+arithmetic was wrong: every figure was correct under **one of two competing definitions of "spent"**
+that had drifted across six call sites. `remaining` subtracted subscription/loan deductions
+everywhere; `spent` captions did not.
+
+Wants envelope = $362.00 purchases + $303.12 deductions ($66 subs + $237.12 loans) = **$665.12**
+against a $627.45 budget → $37.67 over.
+
+**BUG-021 (May 2026) had already "fixed" this in the opposite direction**, making every `spent`
+purchases-only to match the Spending tab and leaving `remaining` deduction-aware. Patching call
+sites is what let the inconsistency oscillate.
+
+### Two further problems found while fixing
+1. **Needs deductions did not exist.** `Subscription.budgetType` / `Loan.budgetType` are real and
+   the add forms expose the choice, but the period deduction helpers hardcoded `'wants'` and
+   `biWeeklyNeedsRemaining` had no deductions term. A need-flagged bill was invisible, overstating
+   the needs envelope. Worse than the reported bug — in wants the hero was at least right.
+2. **A third `remaining`.** `SpendingPage.vue:260` was `budget − purchases`, so that tab would have
+   said `$265.45 remaining` while the dashboard said `$37.67 OVER`. Not yet user-reported.
+
+### Decisions
+| Question | Decision |
+|---|---|
+| What does "spent" mean? | purchases **+** deductions — they consume the envelope identically |
+| Daily average | stays purchases-only, relabelled *"Daily average purchases"* — a lumpy loan payment distorts a pace metric |
+| Category donut | subs/loans promoted to ring segments so the ring matches its centre |
+| Needs scoping | bi-weekly, symmetric with wants (a month of bills must not hit a fortnight of budget) |
+
+### Delivered
+- **`getEnvelopeState()`** in `utils/calculations.ts` → `{ budget, purchases, deductions, spent,
+  remaining, usedPct }`. Bucket-generic. `usedPct` unclamped so 106% reads as over-budget.
+- Deduction helpers take a `budgetType` parameter; `...ThisMonth` variants kept and documented as
+  belonging to `calculateActualNeeds` only.
+- Donut segments for Subscriptions/Loans on both the Dashboard and Spending tab; `#fbbf24` → `var(--warn)`.
+- "Top category" kept purchases-relative — a mid-fix regression (32% vs 60%) caught by re-reading
+  the rendered card.
+
+### Verification
+Seeded the reported scenario into a running instance and read all six surfaces: hero `$37.67 OVER` /
+`$665.12 spent of $627.45`; dashboard donut `$665.12 / $627.45` with rows summing to 100%; Spending
+`$665.12` / `$362.00 purchases + $303.12 bills`; Top category `60%`; Daily average purchases
+`$30.17`. 1567 tests across 54 spec files; `vue-tsc` clean; `npm run lint` exit 0.
+
+### Demo
+`demo-envelope-consistency.html` — before/after cards and donut, seeded with the reported figures,
+with controls proving the change is a no-op at zero deductions and on the needs bucket.
+**Deleted before merge** (release checklist item 8).

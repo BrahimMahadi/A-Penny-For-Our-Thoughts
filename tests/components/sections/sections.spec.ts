@@ -5017,12 +5017,12 @@ describe('SpendingPage — RS-16 donut toggle', () => {
     await nextTick();
 
     // Default Wants → daily avg = $100.00 (not the all-types $500)
-    expect(statValue(w, 'Daily average')).toContain('$100.00');
+    expect(statValue(w, 'Daily average purchases')).toContain('$100.00');
 
     // Toggle to Needs → daily avg = $400.00
     await w.findAll('.dtt-btn')[1].trigger('click');
     await nextTick();
-    expect(statValue(w, 'Daily average')).toContain('$400.00');
+    expect(statValue(w, 'Daily average purchases')).toContain('$400.00');
 
     w.unmount();
     vi.useRealTimers();
