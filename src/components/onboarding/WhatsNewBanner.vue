@@ -26,14 +26,14 @@ import { useGsap } from '@/composables/useGsap';
 const { to, from, timeline } = useGsap();
 
 /** Bump this string whenever new release notes should surface. */
-const APP_VERSION = '2.47.3';
+const APP_VERSION = '2.47.4';
 
 interface ReleaseNote { icon: string; text: string }
 
 const RELEASE_NOTES: ReleaseNote[] = [
-  { icon: '🧮', text: 'Fixed spending totals disagreeing across cards: “spent this period” now counts subscriptions and loan payments alongside purchases, matching the available-to-spend figure and the purchases table' },
-  { icon: '🍩', text: 'Subscriptions and loans now appear as real slices in the category donut instead of footnotes, so the ring matches its own percentage' },
-  { icon: '🏠', text: 'Needs fix: subscriptions and loans marked as a need were being ignored entirely, overstating how much of your needs budget was left' },
+  { icon: '📱', text: 'Mobile nav bar no longer runs under the rounded corners of the screen — the first and last tabs now sit clear of the display edge on both sides' },
+  { icon: '✂️', text: 'Fixed the “Dashboard” tab label clipping on an iPhone 17: the bottom bar now reads “Home”, while screen readers still announce the full tab name' },
+  { icon: '🫁', text: 'Taller bottom bar with more room around each tab, and extra page padding so the last card no longer slides underneath it' },
 ];
 
 const budget = useBudgetStore();

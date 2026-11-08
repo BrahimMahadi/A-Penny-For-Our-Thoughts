@@ -1754,6 +1754,7 @@ No schema changes required. The new `advancedSectionOrder` is stored entirely in
 | MOBILE-3 — Typography scale | iOS zoom fix (16px input floor at ≤768px), mobile text floor (nothing below 0.72rem at ≤480px across 16 components), 7 new `--text-*` CSS scale tokens in `tokens.css`. Pure CSS refactor — 1509 tests unchanged. | `refactor/mobile-typography` | ✅ Complete | v2.46.1 |
 | MOBILE-4 — Layout | 5+More bottom nav (5 primary + overflow sheet for Docs/Settings, active-in-overflow dot indicator), collapsible What's New banner on mobile (compact bar + tap-to-expand), greeting truncation fix (scoped the errant 140px `header h1` cap away from `.dash-header__title`). 1509 tests unchanged. | `refactor/mobile-layout` | ✅ Complete | v2.46.2 |
 | BUG-037 — Web Storage test shim | Node 26 defines an inert global `localStorage` accessor; Vitest 1.x's jsdom env skips globals that already exist, so jsdom's Storage was never published and 254 tests across 8 files failed on unchanged code. Fixed with `tests/setupStorage.ts` (first in `setupFiles`), which republishes `localStorage`, `sessionStorage` and the `Storage` constructor **as a group from one jsdom realm** — a per-key fix splits realms and silently defeats `vi.spyOn(Storage.prototype, …)`. 6 guard tests. **Also pinned the Node toolchain**: CI + deploy hard-coded Node 20 (EOL 2026-04-30) while local ran Node 26 — the drift that kept CI green through this bug. Both now read `.nvmrc` (Node 24 Active LTS), plus a `forward-compat` CI job on Node Current so host-global regressions surface in CI. 11 new tests (1520 total), green on Node 20/22/24/26. | `fix/vitest-localstorage-shim` | ✅ Complete | v2.46.3 |
+| BUG-043 — bottom nav breathing room | Mobile nav bar clipped on an iPhone 17. `.bottom-nav` spanned `left:0 → right:0` with no horizontal padding and no left/right safe-area inset, so the rounded display corners masked the first and last tabs; separately, six 9px captions sharing a 393px viewport left ~61px per slot and `DASHBOARD` measured 61px — it overflowed by 0.1px. Added `max(8px, env(safe-area-inset-left/right))`, `min-width: 0` on the flex children, `white-space: nowrap` on captions, shortened the visible Dashboard caption to **Home** (`aria-label` unchanged), raised the bar 54px → 58px and moved `.app-main`'s bottom reserve with it. Measured slack on the tightest tab: −0.1px → +8.2px. 9 new tests (1576 total). | `fix/bottom-nav-breathing-room` | ✅ Complete | v2.47.4 |
 | BUG-042 — envelope spend consistency | Cards contradicted each other: hero `$37.67 OVER` above `$362.00 spent of $627.45`. Two competing definitions of "spent" across six call sites — `remaining` subtracted subs/loans, `spent` did not. Replaced with one `getEnvelopeState()` helper. Also fixed a parallel bug where **needs-flagged** subs/loans were deducted from nothing, overstating the needs envelope. Subs/loans became donut ring segments. 8 new tests (1567 total). | `fix/envelope-spend-consistency` | ✅ Complete | v2.47.3 |
 | BUG-041 + swipe removal | **BUG-041:** app stayed zoomed after using a form — iOS zooms below 16px and never zooms back, and MOBILE-3's floor used bare `input` selectors that every scoped component class outranked (Add Purchase fields measured 14.4px, windfall allocations 13.6px). `!important` safety net added; 0 sub-16px controls remain across all five tabs. **Swipe navigation removed** — the gesture shared input with six `overflow-x: auto` regions and the conflict is structural, not a defect; `useGsapObserver` deleted with it. 1559 tests (net −14: feature's 17 tests removed, 8 guards added). | `fix/ios-zoom-and-remove-swipe` | ✅ Complete | v2.47.2 |
 | BUG-039 / BUG-040 — mobile fixes | **BUG-040:** installed PWA drew under the status bar (`black-translucent` from v2.47.0 + no `env(safe-area-inset-top)` anywhere); `.app-main` now reserves the top inset. **BUG-039:** swipe navigation reached Docs/Settings (tab order declared twice and drifted after MOBILE-4) and stole gestures from the 480px-wide purchases table; `src/lib/tabs.ts` is now the single source, and the gesture defers to scrollers with travel left. Observer multi-fire was hypothesised and **refuted** by measurement. 21 new tests (1573 total). | `fix/mobile-safe-area-and-swipe` | ✅ Complete | v2.47.1 |
@@ -5499,3 +5500,57 @@ Seeded the reported scenario into a running instance and read all six surfaces: 
 `demo-envelope-consistency.html` — before/after cards and donut, seeded with the reported figures,
 with controls proving the change is a no-op at zero deductions and on the needs bucket.
 **Deleted before merge** (release checklist item 8).
+
+---
+
+## BUG-043 — Bottom nav clipped at the screen edges (v2.47.4)
+
+**Status:** ✅ Complete
+**Branch:** `fix/bottom-nav-breathing-room`
+**Version:** v2.47.4 (PATCH — corrects a layout defect; no new capability)
+**Date:** November 2026
+
+### Symptom
+On an iPhone 17 the mobile bottom nav looked shaved on both sides, and tab captions were
+being cut off.
+
+### Root cause — two independent faults with one symptom
+1. **No horizontal breathing room.** `.bottom-nav` was `position: fixed; left: 0; right: 0`
+   with `padding: 0 0 env(safe-area-inset-bottom)`. It had a *bottom* safe-area inset but no
+   left/right one and no plain gutter, so the first and last tabs sat flush against the
+   physical display edge — exactly where a round-cornered device masks pixels. In portrait
+   the left/right insets resolve to `0`, so an inset alone would not have helped; a literal
+   gutter was needed too.
+2. **The caption did not fit.** Six tabs across a 393px viewport give each button 65.5px,
+   less 2px of padding per side → **60.9px usable**. `DASHBOARD` at 9px/600/0.02em measures
+   **61px**. It overflowed by 0.1px — invisible in some renderers, clipped in others. The
+   flex children also defaulted to `min-width: auto`, so they would not shrink past their
+   content.
+
+### Fix
+| Change | Why |
+|---|---|
+| `padding-left/right: max(8px, env(safe-area-inset-left/right))` | 8px gutter in portrait (inset is 0); defers to the real ~44px inset in landscape |
+| `min-width: 0` on `.bottom-nav__btn` | a flex child otherwise refuses to shrink below its content |
+| `white-space: nowrap; max-width: 100%` on `.bottom-nav__label` | one line, contained |
+| Visible Dashboard caption → **Home** | the only change that buys real slack: 61px → 29px. `NavItem` gained an optional `short`; `aria-label` still announces "Dashboard" |
+| `min-height` 54px → 58px, padding `6px 2px 8px` → `7px 1px 9px` | the "more space to breathe" the report asked for |
+| `.app-main` mobile bottom reserve 54px → 60px | 58px bar + 1px border; if the reserve does not move with the bar the last card slides underneath |
+
+### Measurements (real 393×852 viewport, via `demo-bottom-nav-breathing-room.html`)
+| | Before | After |
+|---|---|---|
+| Slack on the tightest caption | **−0.1px (clipped)** | **+8.2px** |
+| First/last tab vs display edge | flush at x=0 / x=393 | 8px clear |
+
+### Prevention
+`tests/css/bottomNav.spec.ts` (8 tests) pins the two safe-area paddings, `min-width: 0`,
+`white-space: nowrap`, the `.app-main` reserve, the short-caption/full-`aria-label` split,
+and an **8-character ceiling on any visible caption** — the empirical limit for a 9px
+uppercase label in a ~60px slot. Adding a seventh primary tab or a longer caption now fails
+a test rather than shipping clipped.
+
+### Demo
+`demo-bottom-nav-breathing-room.html` — current vs proposed in a simulated iPhone 17 frame,
+with sliders for side padding, bar height and safe-area insets, width chips for 320/375/393/430,
+and a live per-tab slack readout. **Deleted before merge** (release checklist item 8).

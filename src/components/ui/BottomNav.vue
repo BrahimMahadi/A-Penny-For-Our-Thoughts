@@ -24,11 +24,18 @@ const ui = useUiStore();
 interface NavItem {
   id: TabId;
   glyph: string;
+  /** Accessible name — always the full tab name. */
   label: string;
+  /** Optional shorter visible caption for the cramped bottom bar. */
+  short?: string;
 }
 
+// `label` is the accessible name (aria-label); `short` is what the 9px pill
+// under the glyph actually renders. They differ only for Dashboard: at six
+// tabs across a 393px viewport each slot has ~61px of usable width, and
+// "DASHBOARD" measures 61px — it clipped on an iPhone 17 (BUG-043).
 const allItems: NavItem[] = [
-  { id: 'dashboard', glyph: '◧',  label: 'Dashboard' },
+  { id: 'dashboard', glyph: '◧',  label: 'Dashboard', short: 'Home' },
   { id: 'schedule',  glyph: '▥',  label: 'Schedule'  },
   { id: 'spending',  glyph: '◐',  label: 'Spending'  },
   { id: 'goals',     glyph: '◎',  label: 'Goals'     },
@@ -83,7 +90,7 @@ function selectOverflow(id: TabId): void {
         class="bottom-nav__glyph"
         aria-hidden="true"
       >{{ item.glyph }}</span>
-      <span class="bottom-nav__label">{{ item.label }}</span>
+      <span class="bottom-nav__label">{{ item.short ?? item.label }}</span>
     </button>
 
     <!-- More button — 6th slot, opens overflow sheet -->
@@ -174,7 +181,14 @@ function selectOverflow(id: TabId): void {
     z-index: 100;
     background: var(--surface);
     border-top: 1px solid var(--border);
-    padding: 0 0 env(safe-area-inset-bottom, 0px);
+    /* BUG-043: the bar spanned left:0 → right:0 with no horizontal padding, so
+       the first and last tabs sat flush against the physical display edge —
+       where a rounded-corner device (iPhone 17) masks them. `max()` keeps an
+       8px gutter in portrait (where the inset is 0) and defers to the real
+       inset in landscape, where it is ~44px. */
+    padding-left: max(8px, env(safe-area-inset-left, 0px));
+    padding-right: max(8px, env(safe-area-inset-right, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     gap: 0;
     transition: background var(--transition-fast), border-color var(--transition-fast);
   }
@@ -186,8 +200,12 @@ function selectOverflow(id: TabId): void {
     align-items: center;
     justify-content: center;
     gap: 2px;
-    min-height: 54px;
-    padding: 6px 2px 8px;
+    /* A flex child defaults to min-width:auto, which refuses to shrink below
+       its content — that is what pushed the label past the slot instead of
+       letting it sit centred inside one. */
+    min-width: 0;
+    min-height: 58px;
+    padding: 7px 1px 9px;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -239,6 +257,28 @@ function selectOverflow(id: TabId): void {
     letter-spacing: 0.02em;
     line-height: 1;
     text-transform: uppercase;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+}
+
+/* ── Narrow phones (iPhone SE and friends) ──
+   At 320px each of the six slots is only 53px wide and "SCHEDULE" overflows
+   by 1.3px. Reclaim it from the gutters and the tracking rather than the font
+   size — 9px is already at the floor for a legible uppercase caption. */
+@media (max-width: 360px) {
+  .bottom-nav {
+    padding-left: max(4px, env(safe-area-inset-left, 0px));
+    padding-right: max(4px, env(safe-area-inset-right, 0px));
+  }
+
+  .bottom-nav__btn {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .bottom-nav__label {
+    letter-spacing: 0;
   }
 }
 
