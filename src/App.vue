@@ -472,7 +472,10 @@ const tabTransitionName = computed<string>(() => {
   }
 
   .app-main {
-    padding: 1.25rem 1rem calc(54px + env(safe-area-inset-bottom, 0px) + 1.25rem);
+    /* 60px = the bottom nav's 58px min-height + its 1px top border, rounded up
+       (BUG-043 raised the bar from 54px; this reserve must move with it or the
+       last card slides underneath). */
+    padding: 1.25rem 1rem calc(60px + env(safe-area-inset-bottom, 0px) + 1.25rem);
     padding-right: calc(1rem + 36px); /* section handle */
     /* BUG-040: index.html sets viewport-fit=cover and (since MOBILE-5)
        apple-mobile-web-app-status-bar-style: black-translucent, so an INSTALLED

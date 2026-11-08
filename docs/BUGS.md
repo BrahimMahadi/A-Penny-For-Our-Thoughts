@@ -11,6 +11,33 @@ for recurring patterns and a post-mortem trail for regressions.
 
 ---
 
+## BUG-043 — Bottom nav clipped at the screen edges (v2.47.4)
+
+**Date:** November 2026
+**Branch:** `fix/bottom-nav-breathing-room`
+
+**Symptom** — on an iPhone 17 the mobile bottom nav appeared shaved on the left and right,
+and tab captions were cut off.
+
+**Root cause** — two faults presenting as one. (1) `.bottom-nav` was `left: 0; right: 0` with
+a *bottom* safe-area inset but no left/right inset and no gutter, so the first and last tabs
+sat flush against the physical display edge, under the rounded-corner mask. (2) Six 9px
+uppercase captions across a 393px viewport leave 60.9px of usable width per button; `DASHBOARD`
+measures 61px, so it overflowed by 0.1px — and `min-width: auto` on the flex children stopped
+them shrinking to fit.
+
+**Fix** — `padding-left/right: max(8px, env(safe-area-inset-left/right))` (gutter in portrait,
+real inset in landscape); `min-width: 0` on the buttons; `white-space: nowrap` on the captions;
+visible Dashboard caption shortened to "Home" with the `aria-label` left as "Dashboard"; bar
+raised 54px → 58px with `.app-main`'s bottom reserve moved to 60px to match. Measured slack on
+the tightest tab went from −0.1px to +8.2px.
+
+**Prevention** — `tests/css/bottomNav.spec.ts` pins the paddings, the nowrap, the page reserve,
+the short-caption/full-`aria-label` split, and an 8-character ceiling on any visible caption.
+A seventh primary tab or a longer label now fails a test instead of shipping clipped.
+
+---
+
 ## BUG-042 — Cards disagree about how much was spent (v2.47.3)
 
 **Date:** September 2026

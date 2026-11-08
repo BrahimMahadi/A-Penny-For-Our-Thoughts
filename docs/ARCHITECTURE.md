@@ -1,9 +1,10 @@
 # Architecture — A Penny For Our Thoughts (v2.0+)
 
-> Last updated: September 2026 — reflects v2.47.3. Vivid Modern redesign (violet palette, 64px icon
+> Last updated: November 2026 — reflects v2.47.4. Vivid Modern redesign (violet palette, 64px icon
 > sidebar), Supabase Postgres + Auth, live status bar ticker, full Settings rebuild, the Mobile
 > Optimization initiative (MOBILE-1 – MOBILE-5, incl. installable PWA), and one shared envelope-spend
-> helper (BUG-042). 1567 tests across 54 spec files.
+> helper (BUG-042), plus bottom-nav safe-area breathing room (BUG-043). 1576 tests across 55
+> spec files.
 
 ---
 
@@ -401,7 +402,7 @@ The budget store exposes `exportCSV()` and `importCSV(text)` actions that call t
 ## Testing Strategy
 
 **Framework**: Vitest + `@vue/test-utils`  
-**Coverage**: 1567 tests across 54 spec files (as of v2.47.3)
+**Coverage**: 1576 tests across 55 spec files (as of v2.47.4)
 
 Two test-environment notes that are easy to lose:
 - `tests/setupStorage.ts` runs **first** in `setupFiles`. Recent Node defines an inert global

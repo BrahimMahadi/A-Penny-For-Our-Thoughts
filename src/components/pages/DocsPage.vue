@@ -341,6 +341,22 @@ const activeLabel = () => sections.find(s => s.id === activeSection.value)?.labe
 
           <div class="release-block">
             <div class="release-header">
+              <span class="release-version">v2.47.4</span>
+              <span class="release-date">November 2026</span>
+            </div>
+            <p class="release-tagline">
+              Mobile &mdash; bottom nav breathing room (BUG-043)
+            </p>
+            <ul class="docs-list">
+              <li><strong>The nav bar ran under the screen&rsquo;s rounded corners.</strong> It stretched edge to edge with no horizontal padding and no left/right safe-area inset, so on a round-cornered phone the display mask shaved the outer edge of the first and last tabs. The bar now keeps an 8px gutter in portrait and defers to the real inset in landscape, where it is around 44px.</li>
+              <li><strong>&ldquo;Dashboard&rdquo; was clipping.</strong> Six tabs sharing a 393px viewport leave each caption about 61px of usable width, and <code>DASHBOARD</code> measured 61px &mdash; it overflowed its slot by a hair, which is enough to clip on a real device. The bottom bar now reads <strong>Home</strong>; the <code>aria-label</code> still announces &ldquo;Dashboard&rdquo;, so nothing changes for screen readers.</li>
+              <li><strong>More room overall.</strong> The bar grew from 54px to 58px with a little more padding around each tab, and the page&rsquo;s bottom reserve moved with it so the last card cannot slide underneath.</li>
+              <li><strong>1576 tests across 55 spec files.</strong> A new <code>bottomNav.spec.ts</code> pins the safe-area padding, the one-line captions, the page reserve, and an 8-character ceiling on any visible tab caption &mdash; the empirical limit for a 9px uppercase label in a 60px slot.</li>
+            </ul>
+          </div>
+
+          <div class="release-block">
+            <div class="release-header">
               <span class="release-version">v2.47.3</span>
               <span class="release-date">September 2026</span>
             </div>
